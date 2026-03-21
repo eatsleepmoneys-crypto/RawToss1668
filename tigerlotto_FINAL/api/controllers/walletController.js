@@ -73,8 +73,8 @@ exports.withdraw = async (req, res) => {
       return res.status(422).json({ error: 'VALIDATION', message: 'จำนวนเงินไม่ถูกต้อง' });
 
     const [minSetting, maxSetting] = await Promise.all([
-      queryOne("SELECT value FROM system_settings WHERE `key`='min_withdraw'"),
-      queryOne("SELECT value FROM system_settings WHERE `key`='max_withdraw'"),
+      queryOne("SELECT value FROM system_settings WHERE setting_key='min_withdraw'"),
+      queryOne("SELECT value FROM system_settings WHERE setting_key='max_withdraw'"),
     ]);
     const minW = parseFloat(minSetting?.value || 100);
     const maxW = parseFloat(maxSetting?.value || 50000);

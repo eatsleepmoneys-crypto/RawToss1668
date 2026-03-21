@@ -117,9 +117,9 @@ async function calcCommission(conn, userId, slipId, amount) {
   if (!user?.referred_by) return;
 
   const rates = await Promise.all([
-    queryOne("SELECT value FROM system_settings WHERE `key`='commission_l1'"),
-    queryOne("SELECT value FROM system_settings WHERE `key`='commission_l2'"),
-    queryOne("SELECT value FROM system_settings WHERE `key`='commission_l3'"),
+    queryOne("SELECT value FROM system_settings WHERE setting_key='commission_l1'"),
+    queryOne("SELECT value FROM system_settings WHERE setting_key='commission_l2'"),
+    queryOne("SELECT value FROM system_settings WHERE setting_key='commission_l3'"),
   ]);
   const rateL = [parseFloat(rates[0]?.value||0.01), parseFloat(rates[1]?.value||0.005), parseFloat(rates[2]?.value||0.003)];
 
@@ -159,7 +159,7 @@ exports.cancelSlip = async (req, res) => {
       return res.status(422).json({ error: 'CANNOT_CANCEL', message: 'ไม่สามารถยกเลิกโพยนี้ได้' });
 
     // ตรวจสอบเวลาปิดรับ
-    const cancelWindowSetting = await queryOne("SELECT value FROM system_settings WHERE `key`='cancel_window_mins'");
+    const cancelWindowSetting = await queryOne("SELECT value FROM system_settings WHERE setting_key='cancel_window_mins'");
     const windowMins = parseInt(cancelWindowSetting?.value || 30);
     const closeAt = new Date(slip.close_at);
     const cutoff  = new Date(closeAt.getTime() - windowMins * 60 * 1000);

@@ -337,10 +337,10 @@ v1.get('/admin/hot-numbers', auth, adminOnly, async (req,res) => {
   res.json({ data: await query(sql,params) });
 });
 v1.get('/admin/settings', auth, adminOnly, async (req,res) => {
-  res.json({ data: await query('SELECT * FROM system_settings ORDER BY group_name,`key`') });
+  res.json({ data: await query('SELECT * FROM system_settings ORDER BY group_name, setting_key') });
 });
 v1.put('/admin/settings/:key', auth, adminOnly, async (req,res) => {
-  await query("UPDATE system_settings SET value=?,updated_by=?,updated_at=NOW() WHERE `key`=?",[req.body.value,req.user.id,req.params.key]);
+  await query("UPDATE system_settings SET value=?,updated_by=?,updated_at=NOW() WHERE setting_key=?",[req.body.value,req.user.id,req.params.key]);
   res.json({ success:true });
 });
 v1.get('/admin/reports/monthly', auth, adminOnly, async (req,res) => {
