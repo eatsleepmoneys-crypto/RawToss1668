@@ -1,477 +1,1911 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>🐯 TigerLotto — หวยออนไลน์</title>
-  <meta name="description" content="หวยออนไลน์อัตราจ่ายสูง ครบทุกประเภท จ่ายจริง จ่ายเร็ว">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --gold:#FFD700; --gold2:#B8860B; --dark:#0A0A0A;
-      --dark2:#0D0D0D; --dark3:#111; --green:#3BD441;
-      --red:#D85A30; --blue:#78BAFF;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:#fff;min-height:100vh}
-    #app{display:flex;flex-direction:column;min-height:100vh}
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>🐯 TigerLotto — หวยออนไลน์อัตราจ่ายสูง</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#FFD700;--gold2:#B8860B;--gold3:#FFF4B8;--dark:#0A0A0A;--dark2:#0D0D0D;--dark3:#111;--dark4:#141414;--green:#3BD441;--red:#D85A30;--blue:#78BAFF;--border:#1e1e1e;--border2:#2a2a2a;--t1:#fff;--t2:#aaa;--t3:#666;--t4:#444}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--t1);min-height:100vh;overflow-x:hidden}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+#toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-10px);padding:9px 22px;border-radius:12px;font-size:13px;font-weight:700;z-index:9999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.ok{background:#0a1a0a;border:2px solid var(--green);color:var(--green)}
+#toast.err{background:#1a0505;border:2px solid var(--red);color:var(--red)}
+#toast.warn{background:#1a1200;border:2px solid var(--gold);color:var(--gold)}
+#loading{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9998;transition:opacity .4s}
+#loading.hide{opacity:0;pointer-events:none}
+.ld-icon{font-size:56px;margin-bottom:12px;animation:ldBounce 1s ease-in-out infinite}
+.ld-text{font-size:22px;font-weight:900;color:var(--gold);margin-bottom:4px}
+.ld-sub{font-size:12px;color:var(--t3);margin-bottom:20px}
+.ld-bar{width:180px;height:3px;background:#1a1a1a;border-radius:2px;overflow:hidden}
+.ld-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:2px;animation:ldFill 1.4s ease forwards}
+@keyframes ldBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+@keyframes ldFill{from{width:0}to{width:100%}}
+.modal-bg{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:8000;opacity:0;pointer-events:none;transition:opacity .2s;padding:16px}
+.modal-bg.open{opacity:1;pointer-events:all}
+.modal{background:var(--dark3);border:2px solid #B8860B44;border-radius:18px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;padding:24px;transform:translateY(12px);transition:transform .2s}
+.modal-bg.open .modal{transform:translateY(0)}
+.modal-title{font-size:16px;font-weight:900;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;padding:2px 6px;line-height:1}
+.btn{font-family:inherit;font-weight:700;cursor:pointer;transition:all .2s;border:none;outline:none}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)}
+.btn-gold:hover{box-shadow:0 4px 20px #FFD70030;transform:translateY(-1px)}
+.btn-outline{background:#1A1200;border:2px solid var(--gold);color:var(--gold)}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--t2)}
+.btn-red{background:#1a0505;border:2px solid var(--red);color:var(--red)}
+.btn-sm{padding:6px 14px;border-radius:8px;font-size:11px}
+.btn-md{padding:10px 20px;border-radius:10px;font-size:13px}
+.btn-lg{width:100%;padding:14px;border-radius:12px;font-size:15px}
+.flabel{display:block;font-size:12px;font-weight:700;color:var(--gold);margin-bottom:5px}
+.finput{width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:var(--t1);font-size:14px;padding:0 14px;font-family:inherit;outline:none;margin-bottom:12px;transition:border .2s}
+.finput:focus{border-color:var(--gold)}
+.finput::placeholder{color:#333;font-size:13px}
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap}
+.badge-ok{background:#0a1a0a;color:var(--green);border:1px solid #3BD44133}
+.badge-pend{background:#1A1200;color:var(--gold);border:1px solid #FFD70033}
+.badge-fail{background:#1a0505;color:var(--red);border:1px solid #D85A3033}
+.badge-blue{background:#0a0a1a;color:var(--blue);border:1px solid #78BAFF33}
+.card{background:var(--dark3);border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.sec-title{font-size:14px;font-weight:900;color:var(--gold);display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sec-link{font-size:11px;color:var(--gold2);cursor:pointer}
+.page-title{font-size:17px;font-weight:900;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#FF5555;animation:pulse 1.1s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-    /* Loading */
-    #loading{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
-    #loading.hide{opacity:0;pointer-events:none}
-    .ld-logo{font-size:60px;margin-bottom:16px;animation:bounce 1s infinite}
-    .ld-text{font-size:20px;font-weight:900;color:var(--gold)}
-    .ld-bar{width:200px;height:4px;background:#1a1a1a;border-radius:2px;margin-top:16px;overflow:hidden}
-    .ld-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:2px;animation:fill 1.5s ease forwards}
-    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
-    @keyframes fill{from{width:0}to{width:100%}}
+/* ── SIDEBAR (PC ≥900px) ── */
+#sidebar{width:200px;flex-shrink:0;background:var(--dark2);border-right:1px solid #1a1a1a;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow:hidden}
+.sb-brand{padding:14px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sb-logo{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:900;color:var(--dark);flex-shrink:0}
+.sb-name{font-size:13px;font-weight:900;color:var(--gold);line-height:1.2}
+.sb-sub{font-size:9px;color:var(--t3)}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0}
+.sb-section{font-size:9px;color:#333;padding:10px 14px 3px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.sb-item{display:flex;align-items:center;gap:9px;padding:9px 14px;color:var(--t3);cursor:pointer;transition:all .15s;border-left:2px solid transparent;font-size:12px;font-weight:600}
+.sb-item:hover{color:var(--t2);background:var(--dark4)}
+.sb-item.on{color:var(--gold);background:#1A1200;border-left-color:var(--gold)}
+.sb-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
+.sb-badge{margin-left:auto;background:var(--red);color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px}
+.sb-footer{padding:12px 14px;border-top:1px solid #1a1a1a;flex-shrink:0}
+.sb-user{display:flex;align-items:center;gap:8px;cursor:pointer}
+.sb-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--dark);flex-shrink:0}
+.sb-uname{font-size:11px;color:var(--t2);font-weight:700}
+.sb-urole{font-size:9px;color:var(--t4)}
+.sb-bal{font-size:12px;color:var(--gold);font-weight:700;margin-top:3px}
+#pc-main{margin-left:200px;flex:1;display:flex;flex-direction:column;min-height:100vh}
+.pc-topbar{height:46px;background:var(--dark2);border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;position:sticky;top:0;z-index:90}
+.pc-breadcrumb{font-size:12px;color:var(--t3)}.pc-breadcrumb span{color:var(--gold);font-weight:700}
+.pc-topbar-right{display:flex;align-items:center;gap:14px}
+.pc-notif{font-size:18px;cursor:pointer;position:relative}
+.pc-notif-dot{position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid var(--dark2)}
+.pc-date{font-size:11px;color:var(--t4)}
+.pc-content{flex:1;padding:20px;overflow-y:auto}
 
-    /* Pages */
-    .page{display:none;flex:1;flex-direction:column}
-    .page.active{display:flex}
+/* ── MOBILE NAV ── */
+#mobile-nav{background:var(--dark2);border-bottom:2px solid #B8860B55;padding:10px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.mn-logo{font-size:15px;font-weight:900;color:var(--gold);cursor:pointer;flex-shrink:0}
+.mn-logo span{color:#FFD70077;font-weight:400;font-size:11px}
+.mn-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
+.mn-bal{background:#1A1200;border:1.5px solid var(--gold2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer}
+.mn-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--dark);cursor:pointer;flex-shrink:0}
+#mobile-bottom{display:flex;background:var(--dark2);border-top:1px solid var(--border);position:sticky;bottom:0;z-index:100;flex-shrink:0}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;transition:all .2s;border-top:2px solid transparent}
+.bn.on{border-top-color:var(--gold)}
+.bn-ico{font-size:18px;margin-bottom:2px}
+.bn-lbl{font-size:9px;font-weight:700;color:var(--t4)}
+.bn.on .bn-lbl{color:var(--gold)}
+.m-scroll{flex:1;overflow-y:auto;padding:14px 16px}
 
-    /* NAV */
-    nav{background:var(--dark2);border-bottom:2px solid #B8860B55;padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;position:sticky;top:0;z-index:50}
-    .nav-logo{font-size:15px;font-weight:900;color:var(--gold);cursor:pointer;flex-shrink:0}
-    .nav-logo span{color:#FFD70077;font-weight:400;font-size:12px}
-    #navLinks{flex:1;display:flex;justify-content:center;gap:5px;flex-wrap:wrap}
-    .nav-bal{background:#1A1200;border:1.5px solid var(--gold2);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer;white-space:nowrap}
-    .nav-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--dark);cursor:pointer;flex-shrink:0}
+/* ── LANDING ── */
+.orb{position:absolute;border-radius:50%;filter:blur(70px);opacity:.12}
+@keyframes orbF{0%,100%{transform:translate(0,0)}50%{transform:translate(14px,-20px)}}
+.jackpot-box{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid var(--gold2);border-radius:16px;padding:14px 24px;display:inline-flex;align-items:center;gap:24px;margin-bottom:28px}
+.cd-b{background:var(--dark);border:1px solid #B8860B33;border-radius:7px;padding:6px 10px;text-align:center;min-width:42px}
+.cd-n{font-size:20px;font-weight:900;color:var(--gold)}
+.cd-l{font-size:8px;color:var(--t4);text-transform:uppercase}
+.stats-band{background:linear-gradient(135deg,#1A1200,#0D0800);border-top:1px solid #B8860B33;border-bottom:1px solid #B8860B33;padding:20px 24px;display:grid;grid-template-columns:repeat(4,1fr)}
+.stat-it{text-align:center;padding:0 10px;border-right:1px solid #B8860B22}
+.stat-it:last-child{border-right:none}
+.stat-val{font-size:22px;font-weight:900;color:var(--gold);line-height:1}
+.stat-lbl{font-size:10px;color:var(--t3);margin-top:3px}
+.feat{background:var(--dark3);border:1.5px solid var(--border);border-radius:14px;padding:20px;transition:all .25s}
+.feat:hover{border-color:#B8860B55;transform:translateY(-3px)}
+.feat-icon{width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#1A1200,#251800);border:1.5px solid #B8860B44;display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:10px}
+.feat-title{font-size:13px;font-weight:900;color:var(--gold);margin-bottom:5px}
+.feat-desc{font-size:11px;color:var(--t3);line-height:1.55}
+.lt-card{background:var(--dark3);border:1.5px solid var(--border);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center;transition:all .25s;cursor:pointer;margin-bottom:8px}
+.lt-card:hover{border-color:#B8860B55;background:#141000}
+.lt-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.lt-name{font-size:13px;font-weight:900;color:var(--gold);margin-bottom:2px}
+.lt-desc{font-size:10px;color:var(--t3);margin-bottom:5px}
+.lt-rate{font-size:17px;font-weight:900;color:var(--green)}
 
-    /* BOTTOM NAV */
-    .bottom-nav{display:flex;background:var(--dark2);border-top:1px solid #1e1e1e;position:sticky;bottom:0;z-index:50}
-    .bn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;border-top:2px solid transparent;transition:all .2s}
-    .bn.on{border-top-color:var(--gold)}
-    .bn-ico{font-size:18px;margin-bottom:2px}
-    .bn-lbl{font-size:9px;font-weight:700;color:#555}
-    .bn.on .bn-lbl{color:var(--gold)}
+/* ── AUTH ── */
+.auth-wrap{width:100%;max-width:380px}
+.auth-icon{width:72px;height:72px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;box-shadow:0 8px 28px #FFD70030}
+.auth-card{background:var(--dark3);border:2px solid #B8860B44;border-radius:18px;padding:24px}
+.auth-tabs{display:flex;background:var(--dark);border-radius:10px;padding:4px;gap:3px;margin-bottom:20px}
+.auth-tab{flex:1;height:36px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:transparent;font-family:inherit;color:var(--t4);transition:all .2s}
+.auth-tab.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)}
+.auth-form{display:none}.auth-form.on{display:block}
 
-    /* SCROLL */
-    .scroll{flex:1;overflow-y:auto;padding:14px 16px}
-    .scroll::-webkit-scrollbar{width:3px}
-    .scroll::-webkit-scrollbar-thumb{background:#2a2a2a}
+/* ── HOME ── */
+.home-hero{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid #B8860B55;border-radius:16px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden}
+.ltype-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.lcard{background:var(--dark3);border:1.5px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.lcard:hover{border-color:#B8860B55;background:#141000}
+.lcard-emoji{font-size:22px;margin-bottom:6px}
+.lcard-name{font-size:12px;font-weight:700;margin-bottom:3px}
+.lcard-payout{font-size:20px;font-weight:900;color:var(--gold);margin-bottom:2px}
+.lcard-rate{font-size:10px;color:var(--t4)}
+.stats-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.stat3{background:var(--dark3);border:1.5px solid var(--border);border-radius:10px;padding:10px;text-align:center}
+.stat3-val{font-size:18px;font-weight:900;color:var(--gold)}
+.stat3-lbl{font-size:10px;color:var(--t3);margin-top:2px}
+.result-mini{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #111}
+.result-mini:last-child{border-bottom:none}
+.rm-name{font-size:12px;color:var(--t2);flex:1}
+.rm-nums{display:flex;gap:4px}
+.rm-n{width:26px;height:26px;border-radius:50%;background:#1a1a1a;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;color:var(--gold)}
+.rm-date{font-size:10px;color:var(--t4)}
 
-    /* CARD */
-    .card{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:12px;padding:14px;margin-bottom:12px}
+/* ── BUY ── */
+.buy-step{display:none}.buy-step.on{display:block}
+.type-select-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.type-card{background:var(--dark3);border:2px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s;text-align:center}
+.type-card:hover{border-color:#B8860B55}.type-card.selected{border-color:var(--gold);background:#1A1200}
+.bet-type-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px}
+.bet-tab{padding:7px 14px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);color:var(--t3);background:var(--dark3);transition:all .2s}
+.bet-tab.on{border-color:var(--gold);color:var(--gold);background:#1A1200}
+.num-display{background:var(--dark);border:2px solid #FFD70033;border-radius:12px;padding:14px;text-align:center;margin-bottom:12px;min-height:60px}
+.num-display-text{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:6px}
+.num-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.np-btn{height:52px;border-radius:10px;border:1.5px solid var(--border);background:var(--dark3);color:var(--t1);font-size:18px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit}
+.np-btn:hover{background:var(--dark4)}
+.amount-presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.amt-preset{padding:7px 14px;border-radius:8px;border:1.5px solid var(--border);background:var(--dark3);color:var(--t2);font-size:12px;font-weight:700;cursor:pointer;transition:all .2s}
+.amt-preset.on{border-color:var(--gold);color:var(--gold);background:#1A1200}
+.buy-summary{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px}
+.buy-summary-row{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0}
+.buy-summary-row.total{border-top:1px solid var(--border);margin-top:6px;padding-top:10px;font-size:15px;font-weight:900;color:var(--gold)}
 
-    /* BUTTONS — all inline or these safe classes */
-    .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-weight:900;font-family:inherit;cursor:pointer;transition:all .2s}
-    .btn-gold:hover{box-shadow:0 4px 20px #FFD70040;transform:translateY(-1px)}
-    .btn-outline{background:#1A1200;border:2px solid var(--gold);color:var(--gold);font-weight:700;font-family:inherit;cursor:pointer}
+/* ── SLIPS ── */
+.slip-tabs{display:flex;overflow-x:auto;border-bottom:1px solid var(--border);margin-bottom:12px}
+.slip-tabs::-webkit-scrollbar{height:0}
+.stab{padding:12px 18px;font-size:12px;font-weight:700;color:var(--t4);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
+.stab.on{color:var(--gold);border-bottom-color:var(--gold)}
+.slip-card{background:var(--dark3);border:1.5px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden}
+.slip-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--dark4);border-bottom:1px solid var(--border)}
+.slip-num{font-size:26px;font-weight:900;color:#fff;letter-spacing:4px;margin:6px 0 4px}
+.slip-body{padding:12px 14px}
+.slip-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border)}
+.slip-win{border-color:#3BD44155}
+.slip-win .slip-num{color:var(--green)}
 
-    /* FORM */
-    .flabel{display:block;font-size:12px;font-weight:700;color:var(--gold);margin-bottom:5px}
-    .finput{width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:#fff;font-size:14px;padding:0 14px;font-family:inherit;outline:none;margin-bottom:12px;transition:border .2s}
-    .finput:focus{border-color:var(--gold)}
-    .finput::placeholder{color:#333;font-size:13px}
+/* ── RESULTS ── */
+.live-banner{background:linear-gradient(135deg,#1A0000,#0D0800);border:2px solid var(--red);border-radius:16px;padding:16px;margin-bottom:16px}
+.live-badge{display:inline-flex;align-items:center;gap:6px;background:#D85A3020;border:1px solid var(--red);color:#FF6B6B;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-bottom:10px}
+.balls-row{display:flex;gap:10px;justify-content:center;margin-bottom:12px;flex-wrap:wrap}
+.ball{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex-shrink:0}
+.ball-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);box-shadow:0 0 16px #FFD70044}
+.ball-empty{background:#1a1a1a;border:2px dashed var(--border2);color:#333;font-size:16px}
+.result-card{background:var(--dark3);border:2px solid var(--border);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.rc-head{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--dark4);border-bottom:1px solid var(--border)}
+.rc-title{font-size:14px;font-weight:900;color:var(--gold)}
+.rc-date{font-size:11px;color:var(--t4)}
+.rc-body{padding:14px 16px}
+.prize-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid #111}
+.prize-row:last-child{border-bottom:none}
+.prize-lbl{font-size:11px;color:var(--t3);min-width:90px;flex-shrink:0}
+.prize-nums{display:flex;gap:6px;flex-wrap:wrap;flex:1}
+.pnum{background:#1A1200;border:1.5px solid #B8860B55;border-radius:8px;padding:5px 10px;font-size:16px;font-weight:900;color:var(--gold);letter-spacing:2px}
+.pnum.first{border-color:var(--gold);font-size:20px;padding:8px 16px;box-shadow:0 0 12px #FFD70020}
+.prize-amount{font-size:11px;color:var(--gold2);font-weight:700;text-align:right;flex-shrink:0;min-width:60px}
 
-    /* BADGES */
-    .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700}
-    .badge-ok{background:#0a1a0a;color:var(--green);border:1px solid #3BD44133}
-    .badge-pend{background:#1A1200;color:var(--gold);border:1px solid #FFD70033}
-    .badge-fail{background:#1a0a0a;color:var(--red);border:1px solid #D85A3033}
+/* ── WALLET ── */
+.wallet-bal-card{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid #B8860B55;border-radius:18px;padding:22px;margin-bottom:16px;position:relative;overflow:hidden}
+.wb-amount{font-size:38px;font-weight:900;color:var(--gold);line-height:1;margin-bottom:4px}
+.wallet-tabs{display:flex;gap:0;background:var(--dark);border-radius:10px;padding:3px;margin-bottom:16px}
+.wtab{flex:1;height:36px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;border:none;background:transparent;font-family:inherit;color:var(--t4);transition:all .2s}
+.wtab.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)}
+.wallet-panel{display:none}.wallet-panel.on{display:block}
+.tx-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #111}
+.tx-item:last-child{border-bottom:none}
+.tx-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.tx-title{font-size:12px;font-weight:700;color:var(--t2)}
+.tx-sub{font-size:10px;color:var(--t4);margin-top:1px}
+.tx-amt{font-size:14px;font-weight:900;text-align:right}
+.tx-amt.pos{color:var(--green)}.tx-amt.neg{color:var(--red)}
 
-    /* TOAST */
-    #toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-12px);background:#1A3A1A;border:2px solid var(--green);color:var(--green);padding:8px 20px;border-radius:10px;font-size:12px;font-weight:700;z-index:9998;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
-    #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
-    #toast.err{background:#3A0000;border-color:var(--red);color:var(--red)}
-    #toast.warn{background:#3A1A00;border-color:var(--gold);color:var(--gold)}
+/* ── PROMOTIONS ── */
+.promo-featured{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid #B8860B55;border-radius:18px;padding:20px;margin-bottom:16px}
+.promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.promo-card{background:var(--dark3);border:1.5px solid var(--border);border-radius:14px;padding:14px;transition:all .2s;cursor:pointer}
+.promo-card:hover{border-color:#B8860B55}
 
-    /* AUTH */
-    .auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--dark)}
-    .auth-box{width:100%;max-width:360px;background:var(--dark3);border:2px solid #B8860B44;border-radius:18px;padding:28px 24px}
-    .auth-logo{text-align:center;margin-bottom:24px}
-    .auth-icon{width:70px;height:70px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;box-shadow:0 8px 28px #FFD70030}
-    .auth-tabs{display:flex;background:var(--dark);border-radius:10px;padding:4px;gap:4px;margin-bottom:18px}
-    .auth-tab{flex:1;height:36px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:transparent;font-family:inherit;color:#555;transition:all .2s}
-    .auth-tab.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)}
+/* ── PROFILE ── */
+.profile-hero{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid #B8860B55;border-radius:16px;padding:20px;margin-bottom:16px}
+.ph-avatar{width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--dark);flex-shrink:0;border:3px solid #FFD70055}
+.ph-stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border);padding-top:14px}
+.ph-stat{text-align:center;padding:0 8px;border-right:1px solid var(--border)}
+.ph-stat:last-child{border-right:none}
+.ph-stat-val{font-size:18px;font-weight:900;color:var(--gold)}
+.ph-stat-lbl{font-size:10px;color:var(--t3);margin-top:2px}
+.pm-item{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid #111;cursor:pointer;transition:all .2s}
+.pm-item:hover{background:var(--dark4)}
+.pm-icon{font-size:18px;width:24px;text-align:center;flex-shrink:0}
+.pm-label{flex:1;font-size:13px;font-weight:600;color:var(--t2)}
 
-    /* KPI */
-    .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
-    .kpi{background:var(--dark3);border:1px solid #1e1e1e;border-radius:10px;padding:12px;position:relative;overflow:hidden}
-    .kpi-lbl{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
-    .kpi-val{font-size:20px;font-weight:900;color:var(--gold)}
-    .kpi-sub{font-size:9px;color:#3BD441;margin-top:2px}
-    .kpi-bar{position:absolute;bottom:0;left:0;right:0;height:2px}
+/* ── HOT NUMBERS ── */
+.hot-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:14px}
+.hot-card{border-radius:10px;padding:10px 6px;text-align:center;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;border:1.5px solid}
+.hc-num{font-size:20px;font-weight:900;letter-spacing:2px;margin-bottom:3px}
+.hc-vol{font-size:9px;font-weight:700}
 
-    /* LOTTO CARDS */
-    .lotto-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-    .lotto-card{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:14px;padding:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
-    .lotto-card:hover{border-color:#B8860B55;transform:translateY(-2px)}
-    .lotto-card-name{font-size:13px;font-weight:900;color:var(--gold);margin-bottom:4px}
-    .lotto-card-rate{font-size:22px;font-weight:900;color:var(--gold)}
-    .lotto-card-time{font-size:10px;color:#888;margin-top:6px;padding-top:6px;border-top:1px solid #1a1a1a}
+/* ── ADMIN ── */
+.kpi-grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.kpi4{background:var(--dark3);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;overflow:hidden}
+.kpi4-lbl{font-size:9px;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.kpi4-val{font-size:22px;font-weight:900;margin-bottom:2px}
+.kpi4-bar{position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 10px 10px}
+.a-table{width:100%;border-collapse:collapse}
+.a-table th{font-size:9px;color:var(--t4);text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);text-transform:uppercase;white-space:nowrap}
+.a-table td{font-size:11px;color:var(--t2);padding:10px;border-bottom:1px solid #0f0f0f;vertical-align:middle}
+.a-table tr:hover td{background:var(--dark4)}
+.td-gold{color:var(--gold);font-weight:700}
+.td-green{color:var(--green);font-weight:700}
+.td-red{color:var(--red);font-weight:700}
 
-    /* SLIP */
-    .slip-card{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:14px;margin-bottom:10px;overflow:hidden}
-    .slip-hdr{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--dark2)}
-    .slip-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-    .slip-name{font-size:13px;font-weight:900;color:var(--gold)}
-    .slip-total{font-size:15px;font-weight:900;color:var(--gold)}
-
-    /* SECTION TITLE */
-    .sec-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px;display:flex;justify-content:space-between}
-    .sec-link{font-size:11px;color:var(--gold2);cursor:pointer}
-
-    /* STAT ROW */
-    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
-    .stat-c{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:10px;padding:12px;text-align:center}
-    .stat-v{font-size:18px;font-weight:900;color:var(--gold)}
-    .stat-l{font-size:10px;color:#555;margin-top:2px}
-
-    /* EMPTY */
-    .empty{text-align:center;padding:40px 20px;color:#444}
-    .empty-ico{font-size:44px;margin-bottom:10px;opacity:.35}
-
-    /* COUNTDOWN */
-    .cd{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:7px}
-    .cd-ok{background:#0a1a0a;color:var(--green);border:1px solid #3BD44133}
-    .cd-warn{background:#1A1200;color:var(--gold);border:1px solid #FFD70033}
-    .cd-hot{background:#1A0A00;color:#FF8A5A;border:1px solid #D85A3055}
-    .cd-dot{width:5px;height:5px;border-radius:50%;animation:pulse 1s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-    /* MODAL */
-    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:none;align-items:flex-end;justify-content:center}
-    .modal-bg.open{display:flex}
-    .modal-box{background:var(--dark2);border-radius:16px 16px 0 0;border-top:2px solid var(--gold2);width:100%;max-width:480px;padding:20px 20px 28px;max-height:85vh;overflow-y:auto}
-    .modal-title{font-size:16px;font-weight:900;color:var(--gold);margin-bottom:8px}
-
-    /* WALLET */
-    .bal-card{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid var(--gold2);border-radius:16px;padding:20px;margin-bottom:14px}
-    .bal-amt{font-size:38px;font-weight:900;color:var(--gold);line-height:1}
-
-    /* TX LIST */
-    .tx-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #111}
-    .tx-item:last-child{border-bottom:none}
-    .tx-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
-    .tx-info{flex:1;min-width:0}
-    .tx-name{font-size:13px;font-weight:600;color:#ccc}
-    .tx-date{font-size:10px;color:#444}
-    .tx-amt{font-size:15px;font-weight:900}
-    .pos{color:var(--green)}.neg{color:var(--red)}.gold{color:var(--gold)}
-
-    @media(max-width:480px){
-      .kpi-grid{grid-template-columns:1fr 1fr}
-      .lotto-grid{grid-template-columns:1fr 1fr}
-      nav{gap:5px}
-    }
-  
-  /* DESKTOP LAYOUT >= 900px */
-  @media(min-width:900px) {
-    #app { max-width: 1200px; margin: 0 auto; }
-    nav { padding: 12px 32px; }
-    .scroll { padding: 20px 32px; }
-    .kpi-grid { grid-template-columns: repeat(4,1fr); }
-    .lotto-grid { grid-template-columns: repeat(4,1fr); }
-    .stat-row { grid-template-columns: repeat(4,1fr); }
-    .auth-wrap { align-items: center; }
-    .auth-box { max-width: 420px; }
-    .bottom-nav { display: none; }
-    nav #navLinks { display: flex; }
-  }
-  /* LANDING PAGE */
-  #pg-landing { background: var(--dark); min-height: 100vh; }
-  .land-nav { background: rgba(10,10,10,.97); border-bottom: 1px solid #B8860B33; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-  .land-hero { padding: 60px 24px 40px; text-align: center; background: linear-gradient(180deg, #0a0800 0%, var(--dark) 100%); }
-  .land-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
-  .land-features { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 16px; padding: 40px 24px; max-width: 960px; margin: 0 auto; }
-  .land-feat { background: var(--dark3); border: 1.5px solid #1e1e1e; border-radius: 14px; padding: 20px; text-align: center; }
+/* ── RESPONSIVE ── */
+@media(min-width:900px){
+  #mobile-nav,#mobile-bottom,#mobile-wrapper{display:none!important}
+  #sidebar,#pc-main{display:flex!important}
+  .ltype-grid{grid-template-columns:repeat(4,1fr)}
+  .promo-grid{grid-template-columns:repeat(3,1fr)}
+  .hot-grid{grid-template-columns:repeat(10,1fr)}
+  .stats-band{grid-template-columns:repeat(4,1fr)}
+  .kpi-grid4{grid-template-columns:repeat(4,1fr)}
+}
+@media(max-width:899px){
+  #sidebar,#pc-main{display:none!important}
+  #mobile-wrapper{display:flex!important}
+  .stats-band{grid-template-columns:repeat(2,1fr)}
+  .kpi-grid4{grid-template-columns:repeat(2,1fr)}
+  .ph-stats{grid-template-columns:repeat(2,1fr)}
+  .type-select-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:480px){.jackpot-box{flex-direction:column;gap:10px}}
 </style>
 </head>
 <body>
+<div id="toast"></div>
+<div id="loading"><div class="ld-icon">🐯</div><div class="ld-text">TigerLotto</div><div class="ld-sub">กำลังโหลด...</div><div class="ld-bar"><div class="ld-fill"></div></div></div>
 
-<!-- LOADING -->
-<div id="loading">
-  <div class="ld-logo">🐯</div>
-  <div class="ld-text">TigerLotto</div>
-  <div class="ld-bar"><div class="ld-fill"></div></div>
+<!-- MODALS -->
+<div class="modal-bg" id="modal-addbank">
+  <div class="modal">
+    <div class="modal-title">เพิ่มบัญชีธนาคาร <button class="modal-close" onclick="closeModal('modal-addbank')">✕</button></div>
+    <label class="flabel">ธนาคาร</label>
+    <select class="finput" id="bank-select">
+      <option value="kbank">กสิกรไทย (KBANK)</option><option value="scb">ไทยพาณิชย์ (SCB)</option>
+      <option value="bbl">กรุงเทพ (BBL)</option><option value="ktb">กรุงไทย (KTB)</option>
+      <option value="tmb">ทหารไทยธนชาต (TTB)</option><option value="bay">กรุงศรีอยุธยา (BAY)</option>
+      <option value="gsb">ออมสิน (GSB)</option>
+    </select>
+    <label class="flabel">เลขบัญชี</label>
+    <input class="finput" type="text" id="bank-acct-num" placeholder="xxx-x-xxxxx-x">
+    <label class="flabel">ชื่อเจ้าของบัญชี</label>
+    <input class="finput" type="text" id="bank-acct-name" placeholder="ชื่อ-นามสกุล">
+    <button class="btn btn-gold btn-lg" onclick="doAddBank()">เพิ่มบัญชี</button>
+  </div>
+</div>
+<div class="modal-bg" id="modal-editprofile">
+  <div class="modal">
+    <div class="modal-title">แก้ไขโปรไฟล์ <button class="modal-close" onclick="closeModal('modal-editprofile')">✕</button></div>
+    <label class="flabel">ชื่อ</label><input class="finput" type="text" id="ep-fn" placeholder="ชื่อ">
+    <label class="flabel">นามสกุล</label><input class="finput" type="text" id="ep-ln" placeholder="นามสกุล">
+    <label class="flabel">อีเมล</label><input class="finput" type="email" id="ep-em" placeholder="email@example.com">
+    <label class="flabel">ชื่อที่แสดง</label><input class="finput" type="text" id="ep-dn" placeholder="ชื่อที่แสดง">
+    <button class="btn btn-gold btn-lg" onclick="doEditProfile()">บันทึก</button>
+  </div>
+</div>
+<div class="modal-bg" id="modal-changepass">
+  <div class="modal">
+    <div class="modal-title">เปลี่ยนรหัสผ่าน <button class="modal-close" onclick="closeModal('modal-changepass')">✕</button></div>
+    <label class="flabel">รหัสผ่านเดิม</label><input class="finput" type="password" id="cp-old">
+    <label class="flabel">รหัสผ่านใหม่</label><input class="finput" type="password" id="cp-new" placeholder="อย่างน้อย 6 ตัว">
+    <label class="flabel">ยืนยันรหัสผ่านใหม่</label><input class="finput" type="password" id="cp-conf">
+    <button class="btn btn-gold btn-lg" onclick="doChangePass()">เปลี่ยนรหัสผ่าน</button>
+  </div>
+</div>
+<div class="modal-bg" id="modal-cancelslip">
+  <div class="modal">
+    <div class="modal-title">ยกเลิกโพย <button class="modal-close" onclick="closeModal('modal-cancelslip')">✕</button></div>
+    <p style="color:var(--t2);font-size:13px;margin-bottom:16px">ต้องการยกเลิกโพยนี้? จะหักค่าธรรมเนียม 10%</p>
+    <input type="hidden" id="cancel-slip-id">
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost btn-md" style="flex:1" onclick="closeModal('modal-cancelslip')">ไม่ยกเลิก</button>
+      <button class="btn btn-red btn-md" style="flex:1" onclick="confirmCancelSlip()">ยืนยันยกเลิก</button>
+    </div>
+  </div>
 </div>
 
-<div id="app">
-
-
-  <!-- PAGE: LANDING -->
-  <div class="page active" id="pg-landing">
-    <nav class="land-nav">
-      <div style="font-size:17px;font-weight:900;color:var(--gold)">🐯 TigerLotto</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn-outline" onclick="goToAuth('login')" style="padding:8px 18px;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer">เข้าสู่ระบบ</button>
-        <button class="btn-gold" onclick="goToAuth('register')" style="padding:8px 18px;border-radius:10px;font-size:13px;font-family:inherit;cursor:pointer;border:none">สมัครฟรี</button>
-      </div>
-    </nav>
-    <div class="land-hero">
-      <div style="display:inline-flex;align-items:center;gap:7px;background:#1A1200;border:1px solid var(--gold2);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:var(--gold);margin-bottom:18px">
-        <span style="width:6px;height:6px;border-radius:50%;background:#FF5555;animation:pulse 1s infinite;display:inline-block"></span>
-        LIVE — เปิดแทงตลอด 24 ชม.
-      </div>
-      <h1 style="font-size:clamp(28px,6vw,52px);font-weight:900;line-height:1.2;color:#fff;margin-bottom:12px">
-        หวยออนไลน์<br>
-        <span style="color:var(--gold)">อัตราจ่ายสูงสุด</span>
-      </h1>
-      <p style="font-size:14px;color:#888;margin-bottom:8px">ครบทุกประเภท ไทย ลาว ฮานอย หุ้น<br>จ่ายจริง จ่ายเร็ว ปลอดภัย 100%</p>
-      <div class="land-cta">
-        <button class="btn-gold" onclick="goToAuth('register')" style="padding:14px 32px;border-radius:12px;font-size:15px;border:none;font-family:inherit;cursor:pointer">🎰 เริ่มเล่นทันที — ฟรี ฿50</button>
-        <button class="btn-outline" onclick="goToAuth('login')" style="padding:14px 24px;border-radius:12px;font-size:15px;font-family:inherit;cursor:pointer">เข้าสู่ระบบ</button>
-      </div>
-    </div>
-    <div class="land-features">
-      <div class="land-feat"><div style="font-size:36px;margin-bottom:10px">🏆</div><div style="font-weight:900;color:var(--gold);margin-bottom:6px">อัตราจ่ายสูง</div><div style="font-size:12px;color:#666">x900 บาทละ สูงสุดในไทย</div></div>
-      <div class="land-feat"><div style="font-size:36px;margin-bottom:10px">⚡</div><div style="font-weight:900;color:var(--gold);margin-bottom:6px">จ่ายเร็ว</div><div style="font-size:12px;color:#666">ถอนได้ภายใน 5 นาที</div></div>
-      <div class="land-feat"><div style="font-size:36px;margin-bottom:10px">🔒</div><div style="font-weight:900;color:var(--gold);margin-bottom:6px">ปลอดภัย</div><div style="font-size:12px;color:#666">ระบบเข้ารหัสมาตรฐานสูง</div></div>
-      <div class="land-feat"><div style="font-size:36px;margin-bottom:10px">🎁</div><div style="font-weight:900;color:var(--gold);margin-bottom:6px">โปรโมชั่น</div><div style="font-size:12px;color:#666">สมัครรับฟรี ฿50 ทันที</div></div>
-    </div>
-    <div style="text-align:center;padding:24px;color:#333;font-size:11px">© 2025 TigerLotto — หวยออนไลน์อัตราจ่ายสูง</div>
-  </div>
-
-  <!-- PAGE: AUTH -->
-  <div class="page" id="pg-auth" style="min-height:100vh">
-    <div class="auth-wrap">
-      <div class="auth-box">
-        <div class="auth-logo">
-          <div class="auth-icon">🐯</div>
-          <div style="font-size:24px;font-weight:900;color:var(--gold)">TigerLotto</div>
-          <div style="font-size:12px;color:#555;margin-top:3px">หวยออนไลน์อัตราจ่ายสูงสุดในไทย</div>
-        </div>
-        <div class="auth-tabs">
-          <button class="auth-tab on" id="tab-login" onclick="authMode('login')">เข้าสู่ระบบ</button>
-          <button class="auth-tab" id="tab-reg" onclick="authMode('register')">สมัครสมาชิก</button>
-        </div>
-        <!-- Login -->
-        <div id="form-login">
-          <label class="flabel">เบอร์โทรศัพท์</label>
-          <input class="finput" id="login-phone" type="tel" placeholder="0XX-XXX-XXXX">
-          <label class="flabel">รหัสผ่าน</label>
-          <input class="finput" id="login-pass" type="password" placeholder="รหัสผ่าน">
-          <div style="text-align:right;font-size:11px;color:var(--gold2);cursor:pointer;margin-bottom:14px">ลืมรหัสผ่าน?</div>
-          <button class="btn-gold" id="btn-login" onclick="doLogin()"
-            style="width:100%;height:50px;border-radius:12px;font-size:16px;display:block">
-            🐯 เข้าสู่ระบบ
-          </button>
-          <div style="text-align:center;margin-top:14px;font-size:12px;color:#555">
-            ยังไม่มีบัญชี?
-            <span style="color:var(--gold2);cursor:pointer" onclick="authMode('register')"> สมัครฟรี →</span>
-          </div>
-        </div>
-        <!-- Register -->
-        <div id="form-reg" style="display:none">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-            <div><label class="flabel">ชื่อ</label><input class="finput" id="reg-fname" placeholder="ชื่อ"></div>
-            <div><label class="flabel">นามสกุล</label><input class="finput" id="reg-lname" placeholder="นามสกุล"></div>
-          </div>
-          <label class="flabel">เบอร์โทรศัพท์</label>
-          <input class="finput" id="reg-phone" type="tel" placeholder="0XX-XXX-XXXX">
-          <label class="flabel">รหัสผ่าน (อย่างน้อย 8 ตัว)</label>
-          <input class="finput" id="reg-pass" type="password" placeholder="รหัสผ่าน">
-          <label class="flabel">รหัสแนะนำ (ถ้ามี)</label>
-          <input class="finput" id="reg-ref" placeholder="เช่น TGL-XXXXXX" style="margin-bottom:14px">
-          <button class="btn-gold" onclick="doRegister()"
-            style="width:100%;height:50px;border-radius:12px;font-size:16px;display:block">
-            ✅ สมัครสมาชิกฟรี
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- PAGE: MAIN APP -->
-  <div class="page" id="pg-app" style="flex-direction:column">
-    <nav>
-      <div class="nav-logo" onclick="setTab(0)">🐯Tiger<span>Lotto</span></div>
-      <div id="navLinks"></div>
-      <div class="nav-bal" id="navBal" onclick="setTab(3)">💰 ฿0</div>
-      <div class="nav-avatar" id="navAv" onclick="setTab(4)">?</div>
-    </nav>
-
-    <!-- TAB CONTENTS -->
-    <div class="scroll" id="tab-home" style="display:block">
-      <!-- HERO -->
-      <div style="background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid #B8860B55;border-radius:16px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden">
-        <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,#FFD70012,transparent)"></div>
-        <div style="display:inline-flex;align-items:center;gap:6px;background:#1a0800;border:1px solid #D85A3055;border-radius:12px;padding:4px 12px;font-size:10px;font-weight:700;color:#FF8A5A;margin-bottom:10px">
-          <span style="width:6px;height:6px;border-radius:50%;background:#FF5555;animation:pulse 1s infinite;display:inline-block"></span>
-          LIVE DRAW กำลังออกผล
-        </div>
-        <div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:6px">หวยออนไลน์ที่<br><span style="background:linear-gradient(135deg,#FFD700,#FFF4B8,#B8860B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">เชื่อถือได้ที่สุด</span></div>
-        <div style="font-size:13px;color:#888;margin-bottom:16px">อัตราจ่ายสูง · จ่ายจริง จ่ายเร็ว · สมัครฟรีรับ ฿50</div>
-        <div style="display:flex;gap:10px">
-          <button class="btn-gold" onclick="setTab(1)"
-            style="flex:1;height:44px;border-radius:11px;font-size:14px">
-            🎟 ซื้อหวยเลย
-          </button>
-          <button class="btn-outline" onclick="setTab(2)"
-            style="flex:1;height:44px;border-radius:11px;font-size:14px">
-            📊 ตรวจผล
-          </button>
-        </div>
-      </div>
-      <!-- STATS -->
-      <div class="stat-row">
-        <div class="stat-c"><div class="stat-v">24K+</div><div class="stat-l">สมาชิก</div></div>
-        <div class="stat-c"><div class="stat-v">฿82M</div><div class="stat-l">จ่ายแล้ว</div></div>
-        <div class="stat-c"><div class="stat-v">99.8%</div><div class="stat-l">พึงพอใจ</div></div>
-      </div>
-      <!-- LOTTO TYPES -->
-      <div class="sec-title">🎯 เลือกประเภทหวย<span class="sec-link" onclick="setTab(1)">ดูทั้งหมด →</span></div>
-      <div class="lotto-grid" id="lottoGrid"></div>
-      <!-- RECENT RESULTS -->
-      <div class="sec-title">📊 ผลล่าสุด<span class="sec-link" onclick="setTab(2)">ดูทั้งหมด →</span></div>
-      <div class="card" id="recentResults"></div>
-    </div>
-
-    <div class="scroll" id="tab-buy" style="display:none">
-      <div style="font-size:15px;font-weight:900;color:var(--gold);margin-bottom:12px">🎟 ซื้อหวย</div>
-      <div id="buyRounds"></div>
-    </div>
-
-    <div class="scroll" id="tab-result" style="display:none">
-      <div style="font-size:15px;font-weight:900;color:var(--gold);margin-bottom:12px">📊 ผลรางวัล</div>
-      <div id="resultList"></div>
-    </div>
-
-    <div class="scroll" id="tab-wallet" style="display:none">
-      <div class="bal-card">
-        <div style="font-size:12px;color:var(--gold2);margin-bottom:4px">💰 ยอดเงินคงเหลือ</div>
-        <div class="bal-amt">฿<span id="walletBal">0</span></div>
-        <div style="font-size:11px;color:#555;margin-top:6px">โบนัส: ฿<span id="walletBonus">0</span></div>
-        <div style="display:flex;gap:8px;margin-top:14px">
-          <button class="btn-gold" onclick="openDeposit()"
-            style="flex:1;height:40px;border-radius:10px;font-size:13px">📥 ฝากเงิน</button>
-          <button class="btn-outline" onclick="openWithdraw()"
-            style="flex:1;height:40px;border-radius:10px;font-size:13px">📤 ถอนเงิน</button>
-        </div>
-      </div>
-      <div class="sec-title">📋 ธุรกรรมล่าสุด</div>
-      <div class="card" id="txList" style="padding:8px 14px"></div>
-    </div>
-
-    <div class="scroll" id="tab-profile" style="display:none">
-      <div class="card" style="text-align:center;padding:24px">
-        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--dark);margin:0 auto 10px" id="profileAvatar">?</div>
-        <div style="font-size:18px;font-weight:900;color:var(--gold)" id="profileName">-</div>
-        <div style="font-size:11px;color:#555;margin-top:2px" id="profilePhone">-</div>
-        <div style="font-size:11px;color:var(--gold2);margin-top:4px" id="profileVip">⭐ Bronze</div>
-      </div>
-      <div class="stat-row" id="profileStats"></div>
-      <!-- MY SLIPS -->
-      <div class="sec-title">📋 โพยของฉัน<span class="sec-link" onclick="loadMySlips()">โหลดใหม่</span></div>
-      <div id="mySlips"></div>
-      <!-- Quick links -->
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
-        <button onclick="setTabByKey('promo')"
-          style="height:44px;border-radius:10px;background:#1A1200;border:1.5px solid #B8860B44;color:var(--gold);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">
-          🎁 โปรโมชั่น
-        </button>
-        <button onclick="setTabByKey('notif')"
-          style="height:44px;border-radius:10px;background:#1A1200;border:1.5px solid #B8860B44;color:var(--gold);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">
-          🔔 แจ้งเตือน
-        </button>
-        <button onclick="setTabByKey('agent')"
-          style="height:44px;border-radius:10px;background:#1A1200;border:1.5px solid #B8860B44;color:var(--gold);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">
-          🎯 Agent
-        </button>
-      </div>
-      <button onclick="window.location.href='/admin.html'"
-        style="width:100%;height:44px;border-radius:10px;background:#1A1200;border:2px solid var(--gold2);color:var(--gold);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px">
-        ⚙️ Admin Panel
-      </button>
-      <button onclick="doLogout()"
-        style="width:100%;height:44px;border-radius:10px;background:#1a0a0a;border:2px solid #D85A3055;color:var(--red);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:0">
-        🚪 ออกจากระบบ
-      </button>
-    </div>
-
-
-    <!-- Hidden tabs — promo, notif, agent -->
-    <div class="scroll" id="tab-promo" style="display:none"></div>
-    <div class="scroll" id="tab-notif" style="display:none"></div>
-    <div class="scroll" id="tab-agent" style="display:none"></div>
-
-    <div class="bottom-nav" id="bottomNav"></div>
-  </div>
-
-</div><!-- #app -->
-
-<!-- MODAL: Cancel Slip -->
-<div class="modal-bg" id="cancelModal" onclick="if(event.target===this)closeModal('cancelModal')">
-  <div class="modal-box">
-    <div class="modal-title">⚠️ ยืนยันยกเลิกโพย</div>
-    <div style="font-size:12px;color:#888;margin-bottom:14px" id="cancelModalSub"></div>
-    <div style="background:#111;border:1.5px solid #B8860B44;border-radius:10px;padding:12px;margin-bottom:12px" id="cancelModalBody"></div>
-    <div style="background:#1a0800;border:1.5px solid #D85A3033;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#FF8A5A">
-      ⚠️ หลังยกเลิกไม่สามารถกลับคืนได้ · เงินจะคืนเข้ากระเป๋าทันที
+<!-- ══ LANDING ══ -->
+<div id="pg-landing" style="display:flex;flex-direction:column;min-height:100vh">
+  <nav style="background:rgba(10,10,10,.97);border-bottom:1px solid #B8860B33;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100">
+    <div style="display:flex;align-items:center;gap:9px">
+      <div style="width:34px;height:34px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:900;color:var(--dark)">🐯</div>
+      <div style="font-size:17px;font-weight:900;color:var(--gold)">TigerLotto<span style="color:#fff;font-weight:300;font-size:13px"> หวยออนไลน์</span></div>
     </div>
     <div style="display:flex;gap:8px">
-      <button id="cancelConfirmBtn"
-        style="flex:1;height:46px;border-radius:10px;background:var(--red);border:none;color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">
-        ✕ ยืนยันยกเลิก
-      </button>
-      <button onclick="closeModal('cancelModal')"
-        style="height:46px;padding:0 18px;border-radius:10px;background:#1A1200;border:2px solid var(--gold);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
-        กลับ
-      </button>
+      <button class="btn btn-ghost btn-sm" onclick="showAuth('login')">เข้าสู่ระบบ</button>
+      <button class="btn btn-gold btn-sm" onclick="showAuth('register')">สมัครฟรี</button>
+    </div>
+  </nav>
+  <div style="padding:48px 24px 36px;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;overflow:hidden">
+    <div style="position:absolute;inset:0;pointer-events:none">
+      <div class="orb" style="width:360px;height:360px;background:var(--gold);top:-80px;left:-120px;animation:orbF 8s ease-in-out infinite"></div>
+      <div class="orb" style="width:280px;height:280px;background:var(--gold2);bottom:-60px;right:-80px;animation:orbF 10s ease-in-out infinite reverse"></div>
+      <div style="position:absolute;inset:0;background-image:linear-gradient(#FFD70007 1px,transparent 1px),linear-gradient(90deg,#FFD70007 1px,transparent 1px);background-size:50px 50px"></div>
+    </div>
+    <div style="position:relative;z-index:1;width:100%;max-width:720px">
+      <div style="display:inline-flex;align-items:center;gap:7px;background:#1A1200;border:1px solid var(--gold2);border-radius:20px;padding:5px 14px;font-size:11px;font-weight:700;color:var(--gold);margin-bottom:18px">
+        <span class="live-dot"></span> LIVE — เปิดแทงตลอด 24 ชม.
+      </div>
+      <h1 style="font-size:clamp(28px,6vw,52px);font-weight:900;line-height:1.15;margin-bottom:12px;color:#fff">
+        หวยออนไลน์<br>
+        <span style="background:linear-gradient(135deg,var(--gold),var(--gold3),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">อัตราจ่ายสูงสุด</span>
+      </h1>
+      <p style="font-size:14px;color:#888;margin-bottom:24px;line-height:1.7;max-width:480px;margin-left:auto;margin-right:auto">ครบทุกประเภท ไทย ลาว ฮานอย หุ้น — จ่ายจริง จ่ายเร็ว ปลอดภัย 100%</p>
+      <div class="jackpot-box">
+        <div>
+          <div style="font-size:9px;color:var(--gold2);font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:3px">🏆 JACKPOT สะสม</div>
+          <div style="font-size:30px;font-weight:900;color:var(--gold);line-height:1">฿12,500,000</div>
+          <div style="font-size:10px;color:var(--t4);margin-top:2px">รางวัลที่ 1 — หวยไทย</div>
+        </div>
+        <div style="width:1px;height:52px;background:#B8860B33"></div>
+        <div>
+          <div style="font-size:9px;color:var(--gold2);font-weight:700;margin-bottom:6px">ออกผลใน</div>
+          <div style="display:flex;gap:6px">
+            <div class="cd-b"><div class="cd-n" id="lcd-h">00</div><div class="cd-l">ชม.</div></div>
+            <div class="cd-b"><div class="cd-n" id="lcd-m">00</div><div class="cd-l">นาที</div></div>
+            <div class="cd-b"><div class="cd-n" id="lcd-s">00</div><div class="cd-l">วิ</div></div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:24px">
+        <button class="btn btn-gold" style="padding:12px 32px;border-radius:12px;font-size:15px" onclick="showAuth('register')">🎰 เริ่มเล่นทันที — ฟรี ฿50</button>
+        <button class="btn btn-outline btn-md" onclick="showAuth('login')">เข้าสู่ระบบ</button>
+      </div>
     </div>
   </div>
-</div>
-
-<!-- MODAL: Deposit -->
-<div class="modal-bg" id="depositModal" onclick="if(event.target===this)closeModal('depositModal')">
-  <div class="modal-box">
-    <div class="modal-title">📥 ฝากเงิน</div>
-    <label class="flabel">จำนวนเงิน (บาท)</label>
-    <input class="finput" id="dep-amount" type="number" placeholder="เช่น 500" min="1">
-    <label class="flabel">วิธีฝาก</label>
-    <select id="dep-method" style="width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:var(--gold);font-size:13px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:12px;cursor:pointer">
-      <option value="qr_promptpay">📱 QR พร้อมเพย์ (อัตโนมัติ)</option>
-      <option value="bank_transfer">🏦 โอนธนาคาร (แนบสลิป)</option>
-      <option value="truemoney">💚 TrueMoney</option>
-    </select>
-    <button class="btn-gold" onclick="doDeposit()"
-      style="width:100%;height:46px;border-radius:10px;font-size:14px;display:block;margin-bottom:8px">
-      ✅ ยืนยันฝากเงิน
-    </button>
-    <button onclick="closeModal('depositModal')"
-      style="width:100%;height:40px;border-radius:10px;background:#1A1200;border:2px solid var(--gold);color:var(--gold);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">
-      ยกเลิก
-    </button>
+  <div class="stats-band">
+    <div class="stat-it"><div class="stat-val">85,000+</div><div class="stat-lbl">สมาชิกทั้งหมด</div></div>
+    <div class="stat-it"><div class="stat-val">฿2.4M</div><div class="stat-lbl">จ่ายรางวัลวันนี้</div></div>
+    <div class="stat-it"><div class="stat-val">99.9%</div><div class="stat-lbl">ความน่าเชื่อถือ</div></div>
+    <div class="stat-it"><div class="stat-val">8 ประเภท</div><div class="stat-lbl">หวยที่เปิดรับ</div></div>
+  </div>
+  <div style="padding:40px 24px;max-width:960px;margin:0 auto;width:100%">
+    <div style="font-size:10px;font-weight:700;color:var(--gold2);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">ทำไมต้อง TigerLotto</div>
+    <div style="font-size:clamp(22px,4vw,34px);font-weight:900;color:#fff;margin-bottom:20px">ระบบหวยออนไลน์ที่ดีที่สุด</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+      <div class="feat"><div class="feat-icon">💰</div><div class="feat-title">อัตราจ่ายสูงสุด</div><div class="feat-desc">3 ตัวตรงจ่ายสูงถึง 900 เท่า สูงกว่าตลาดทั่วไปถึง 20%</div></div>
+      <div class="feat"><div class="feat-icon">⚡</div><div class="feat-title">ถอนเงินเร็ว 5 นาที</div><div class="feat-desc">โอนเข้าบัญชีทันที ทุกธนาคาร ตลอด 24 ชม.</div></div>
+      <div class="feat"><div class="feat-icon">🔒</div><div class="feat-title">ปลอดภัย 100%</div><div class="feat-desc">ระบบ JWT encryption ข้อมูลปกป้องด้วยมาตรฐานสูงสุด</div></div>
+      <div class="feat"><div class="feat-icon">🎯</div><div class="feat-title">ครบทุกประเภท</div><div class="feat-desc">หวยไทย ลาว ฮานอย หุ้นไทย หุ้นต่างประเทศ ในที่เดียว</div></div>
+      <div class="feat"><div class="feat-icon">📊</div><div class="feat-title">สถิติเลขเด็ด</div><div class="feat-desc">วิเคราะห์เลขร้อน-เย็น รูปแบบออกย้อนหลัง ช่วยตัดสินใจ</div></div>
+      <div class="feat"><div class="feat-icon">🎁</div><div class="feat-title">โปรโมชั่นเพียบ</div><div class="feat-desc">โบนัสต้อนรับ ฿50 คืนยอด ฝากฟรี โปรสมาชิกใหม่ทุกวัน</div></div>
+    </div>
+  </div>
+  <div style="background:var(--dark2);border-top:1px solid #1a1a1a;border-bottom:1px solid #1a1a1a;padding:36px 24px">
+    <div style="max-width:960px;margin:0 auto">
+      <div style="font-size:10px;font-weight:700;color:var(--gold2);text-transform:uppercase;letter-spacing:2px;margin-bottom:6px">ประเภทหวย</div>
+      <div style="font-size:clamp(20px,4vw,30px);font-weight:900;color:#fff;margin-bottom:20px">เลือกแทงได้เลย</div>
+      <div id="land-lotto-types" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">
+        <div class="lt-card"><div class="lt-icon" style="background:#1A1200;border:1px solid #B8860B33">🇹🇭</div><div style="flex:1"><div class="lt-name">หวยรัฐบาล</div><div class="lt-desc">ออกผลทุก 1/15 ของเดือน</div><div class="lt-rate">x900</div></div></div>
+        <div class="lt-card"><div class="lt-icon" style="background:#0a0a1a;border:1px solid #78BAFF33">🇱🇦</div><div style="flex:1"><div class="lt-name">หวยลาว</div><div class="lt-desc">ออกผลทุกวัน 20:30 น.</div><div class="lt-rate">x800</div></div></div>
+        <div class="lt-card"><div class="lt-icon" style="background:#0a1a0a;border:1px solid #3BD44133">🇻🇳</div><div style="flex:1"><div class="lt-name">หวยฮานอย</div><div class="lt-desc">ออกผลทุกวัน 18:30 น.</div><div class="lt-rate">x750</div></div></div>
+        <div class="lt-card"><div class="lt-icon" style="background:#1a0a0a;border:1px solid #D85A3033">📈</div><div style="flex:1"><div class="lt-name">หุ้นไทย</div><div class="lt-desc">ออกผลทุกวันทำการ</div><div class="lt-rate">x700</div></div></div>
+      </div>
+    </div>
+  </div>
+  <div style="background:#050505;border-top:1px solid #1a1a1a;padding:20px;text-align:center">
+    <p style="font-size:11px;color:var(--t4)">© 2025 TigerLotto — หวยออนไลน์อัตราจ่ายสูง | เล่นอย่างมีความรับผิดชอบ</p>
   </div>
 </div>
 
-<!-- TOAST -->
-<div id="toast"></div>
+<!-- ══ AUTH ══ -->
+<div id="pg-auth" style="display:none;min-height:100vh;align-items:center;justify-content:center;padding:24px;background:var(--dark)">
+  <div class="auth-wrap">
+    <div style="text-align:center;margin-bottom:28px">
+      <div class="auth-icon">🐯</div>
+      <div style="font-size:24px;font-weight:900;color:var(--gold)">TigerLotto</div>
+      <div style="font-size:12px;color:var(--t3);margin-top:3px">หวยออนไลน์อัตราจ่ายสูง</div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-tabs">
+        <button class="auth-tab on" id="at-login" onclick="switchAuthTab('login')">เข้าสู่ระบบ</button>
+        <button class="auth-tab" id="at-reg" onclick="switchAuthTab('register')">สมัครสมาชิก</button>
+      </div>
+      <div class="auth-form on" id="af-login">
+        <label class="flabel">เบอร์โทรศัพท์</label>
+        <input class="finput" type="tel" id="l-phone" placeholder="0812345678" maxlength="10">
+        <label class="flabel">รหัสผ่าน</label>
+        <input class="finput" type="password" id="l-pass" placeholder="รหัสผ่าน" onkeydown="if(event.key==='Enter')doLogin()">
+        <span style="text-align:right;font-size:11px;color:var(--gold2);cursor:pointer;margin-bottom:14px;display:block" onclick="showToast('ติดต่อ Admin เพื่อรีเซ็ต','warn')">ลืมรหัสผ่าน?</span>
+        <button class="btn btn-gold btn-lg" onclick="doLogin()">เข้าสู่ระบบ</button>
+      </div>
+      <div class="auth-form" id="af-reg">
+        <label class="flabel">ชื่อ-นามสกุล</label>
+        <input class="finput" type="text" id="r-name" placeholder="ชื่อ นามสกุล">
+        <label class="flabel">เบอร์โทรศัพท์</label>
+        <input class="finput" type="tel" id="r-phone" placeholder="0812345678" maxlength="10">
+        <label class="flabel">รหัสผ่าน</label>
+        <input class="finput" type="password" id="r-pass" placeholder="อย่างน้อย 6 ตัวอักษร">
+        <label class="flabel">รหัสผู้แนะนำ (ถ้ามี)</label>
+        <input class="finput" type="text" id="r-ref" placeholder="ไม่บังคับ">
+        <button class="btn btn-gold btn-lg" onclick="doRegister()">สมัครสมาชิก — รับฟรี ฿50</button>
+        <p style="font-size:10px;color:var(--t4);text-align:center;margin-top:10px">การสมัครแสดงว่าคุณยอมรับข้อกำหนดการใช้งาน</p>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--t3);text-align:center;margin-top:16px;cursor:pointer" onclick="showPage('landing')">← กลับหน้าแรก</p>
+  </div>
+</div>
 
-<script src="js/api.js"></script>
-<script src="js/app.js"></script>
-<script src="js/result.js"></script>
-<script src="js/notification.js"></script>
-<script src="js/promo.js"></script>
-<script src="js/agent.js"></script>
+<!-- ══ PC SIDEBAR ══ -->
+<div id="sidebar" style="display:none">
+  <div class="sb-brand">
+    <div class="sb-logo">🐯</div>
+    <div><div class="sb-name">TigerLotto</div><div class="sb-sub">หวยออนไลน์</div></div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-section">เมนูหลัก</div>
+    <div class="sb-item on" onclick="navTo('home')" id="sbi-home"><span class="sb-icon">🏠</span>หน้าหลัก</div>
+    <div class="sb-item" onclick="navTo('buy')" id="sbi-buy"><span class="sb-icon">🎰</span>แทงหวย</div>
+    <div class="sb-item" onclick="navTo('slips')" id="sbi-slips"><span class="sb-icon">🎫</span>โพยของฉัน</div>
+    <div class="sb-item" onclick="navTo('results')" id="sbi-results"><span class="sb-icon">🏆</span>ผลหวย</div>
+    <div class="sb-section">บัญชี</div>
+    <div class="sb-item" onclick="navTo('wallet')" id="sbi-wallet"><span class="sb-icon">💰</span>กระเป๋าเงิน</div>
+    <div class="sb-item" onclick="navTo('promotions')" id="sbi-promotions"><span class="sb-icon">🎁</span>โปรโมชั่น</div>
+    <div class="sb-item" onclick="navTo('hotNumbers')" id="sbi-hotNumbers"><span class="sb-icon">🔥</span>เลขเด็ด</div>
+    <div class="sb-item" onclick="navTo('profile')" id="sbi-profile"><span class="sb-icon">👤</span>โปรไฟล์</div>
+    <div id="sb-admin-sec" style="display:none"><div class="sb-section">ผู้ดูแล</div>
+    <div class="sb-item" onclick="navTo('admin')" id="sbi-admin"><span class="sb-icon">⚙️</span>Admin Panel</div>
+    <div class="sb-item" onclick="navTo('agent')" id="sbi-agent"><span class="sb-icon">👥</span>Agent Portal</div></div>
+  </div>
+  <div class="sb-footer">
+    <div class="sb-user" onclick="navTo('profile')">
+      <div class="sb-avatar" id="sb-av">U</div>
+      <div>
+        <div class="sb-uname" id="sb-un">-</div>
+        <div class="sb-urole" id="sb-ur">สมาชิก</div>
+        <div class="sb-bal" id="sb-bl">฿0.00</div>
+      </div>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px;border-radius:8px" onclick="doLogout()">ออกจากระบบ</button>
+  </div>
+</div>
+
+<!-- ══ PC MAIN ══ -->
+<div id="pc-main" style="display:none">
+  <div class="pc-topbar">
+    <div class="pc-breadcrumb">TigerLotto › <span id="pc-bc">หน้าหลัก</span></div>
+    <div class="pc-topbar-right">
+      <div class="pc-notif">🔔<span class="pc-notif-dot" id="pc-notif-dot" style="display:none"></span></div>
+      <div class="pc-date" id="pc-dt"></div>
+    </div>
+  </div>
+  <div class="pc-content" id="pc-content"></div>
+</div>
+
+<!-- ══ MOBILE WRAPPER ══ -->
+<div id="mobile-wrapper" style="display:none;flex-direction:column;min-height:100vh">
+  <div id="mobile-nav">
+    <div class="mn-logo" onclick="navTo('home')">🐯 <span>TigerLotto</span></div>
+    <div class="mn-right">
+      <div class="mn-bal" id="mn-bl" onclick="navTo('wallet')">฿0.00</div>
+      <div class="mn-avatar" id="mn-av" onclick="navTo('profile')">U</div>
+    </div>
+  </div>
+  <div id="mobile-content" style="flex:1;overflow-y:auto;padding:14px 16px"></div>
+  <div id="mobile-bottom">
+    <div class="bn on" onclick="navTo('home')" id="bn-home"><div class="bn-ico">🏠</div><div class="bn-lbl">หลัก</div></div>
+    <div class="bn" onclick="navTo('buy')" id="bn-buy"><div class="bn-ico">🎰</div><div class="bn-lbl">แทง</div></div>
+    <div class="bn" onclick="navTo('slips')" id="bn-slips"><div class="bn-ico">🎫</div><div class="bn-lbl">โพย</div></div>
+    <div class="bn" onclick="navTo('wallet')" id="bn-wallet"><div class="bn-ico">💰</div><div class="bn-lbl">เงิน</div></div>
+    <div class="bn" onclick="navTo('profile')" id="bn-profile"><div class="bn-ico">👤</div><div class="bn-lbl">โปร</div></div>
+  </div>
+</div>
 
 <script>
-// Override: show landing page by default; patch app.js showAuth behavior
-document.addEventListener('DOMContentLoaded', function() {
-  // This runs AFTER app.js's listener (added first), so we can override
-  function isLoggedIn2() {
-    try { return !!(localStorage.getItem('tl_token') && localStorage.getItem('tl_user')); } 
-    catch(e) { return false; }
-  }
-  if (!isLoggedIn2()) {
-    // Override app.js: hide auth, show landing
-    const authEl = document.getElementById('pg-auth');
-    const landEl = document.getElementById('pg-landing');
-    const appEl = document.getElementById('pg-app');
-    if (authEl) authEl.classList.remove('active');
-    if (appEl) appEl.classList.remove('active');
-    if (landEl) landEl.classList.add('active');
-  }
-});
-function goToAuth(tab) {
-  const landEl = document.getElementById('pg-landing');
-  if (landEl) landEl.classList.remove('active');
-  if (typeof authMode === 'function') authMode(tab || 'login');
-  if (typeof showAuth === 'function') showAuth();
+// ══════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════════════════
+const API = 'https://rawtoss1668-production.up.railway.app/api/v1';
+let STATE = {
+  token: localStorage.getItem('tl_token') || null,
+  user: JSON.parse(localStorage.getItem('tl_user') || 'null'),
+  wallet: null,
+  currentPage: 'landing',
+  lotteryTypes: [],
+  slipFilter: 'all',
+  resultFilter: 'all',
+  hotFilter: '3digit',
+  walletTab: 'history',
+  // Buy state
+  buyStep: 1,
+  buyTypeId: null,
+  buyTypeName: '',
+  buyBetTypeId: null,
+  buyBetTypeName: '',
+  buyBetTypePayout: 1,
+  buyBetTypeDigits: 3,
+  buyNumber: '',
+  buyAmount: 0,
+  // Timers
+  cdTimer: null,
+};
+
+// ══════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════
+function showToast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => t.classList.remove('show'), 3000);
 }
+
+function fmtMoney(n) {
+  if (!n && n !== 0) return '฿0.00';
+  return '฿' + Number(n).toLocaleString('th-TH', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function fmtDate(d) {
+  if (!d) return '-';
+  return new Date(d).toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+function fmtDateShort(d) {
+  if (!d) return '-';
+  return new Date(d).toLocaleDateString('th-TH', {month:'short',day:'numeric'});
+}
+
+async function api(method, path, body, noauth=false) {
+  const headers = {'Content-Type':'application/json'};
+  if (STATE.token && !noauth) headers['Authorization'] = 'Bearer ' + STATE.token;
+  try {
+    const r = await fetch(API + path, {method, headers, body: body ? JSON.stringify(body) : undefined});
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.message || data.error || 'เกิดข้อผิดพลาด');
+    return data;
+  } catch(e) {
+    throw e;
+  }
+}
+
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// Close modal on backdrop click
+document.querySelectorAll('.modal-bg').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+const PC_BC_LABELS = {home:'หน้าหลัก',buy:'แทงหวย',slips:'โพยของฉัน',results:'ผลหวย',wallet:'กระเป๋าเงิน',promotions:'โปรโมชั่น',hotNumbers:'เลขเด็ด',profile:'โปรไฟล์',admin:'Admin',agent:'Agent'};
+
+function showPage(name) {
+  // Hide all top-level pages
+  ['pg-landing','pg-auth'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.style.display = 'none'; el.style.flexDirection = ''; }
+  });
+  document.getElementById('sidebar').style.display = 'none';
+  document.getElementById('pc-main').style.display = 'none';
+  document.getElementById('mobile-wrapper').style.display = 'none';
+
+  if (name === 'landing') {
+    document.getElementById('pg-landing').style.display = 'flex';
+    document.getElementById('pg-landing').style.flexDirection = 'column';
+    startLandingCountdown();
+  } else if (name === 'auth') {
+    document.getElementById('pg-auth').style.display = 'flex';
+  } else {
+    // Authenticated app
+    if (window.innerWidth >= 900) {
+      document.getElementById('sidebar').style.display = 'flex';
+      document.getElementById('pc-main').style.display = 'flex';
+    } else {
+      document.getElementById('mobile-wrapper').style.display = 'flex';
+    }
+    STATE.currentPage = name;
+    renderPage(name);
+    updateNav(name);
+    updateUserUI();
+  }
+}
+
+function navTo(page) {
+  if (!STATE.token) { showAuth('login'); return; }
+  STATE.currentPage = page;
+  if (window.innerWidth >= 900) {
+    document.getElementById('sidebar').style.display = 'flex';
+    document.getElementById('pc-main').style.display = 'flex';
+    document.getElementById('mobile-wrapper').style.display = 'none';
+  } else {
+    document.getElementById('mobile-wrapper').style.display = 'flex';
+    document.getElementById('sidebar').style.display = 'none';
+    document.getElementById('pc-main').style.display = 'none';
+  }
+  renderPage(page);
+  updateNav(page);
+  document.getElementById('pg-landing').style.display = 'none';
+  document.getElementById('pg-auth').style.display = 'none';
+}
+
+function updateNav(page) {
+  // Sidebar
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('on'));
+  const sbi = document.getElementById('sbi-' + page);
+  if (sbi) sbi.classList.add('on');
+  // PC breadcrumb
+  const bc = document.getElementById('pc-bc');
+  if (bc) bc.textContent = PC_BC_LABELS[page] || page;
+  // Mobile bottom nav
+  document.querySelectorAll('.bn').forEach(el => el.classList.remove('on'));
+  const bni = document.getElementById('bn-' + page);
+  if (bni) bni.classList.add('on');
+  // PC date
+  const dt = document.getElementById('pc-dt');
+  if (dt) dt.textContent = new Date().toLocaleDateString('th-TH', {weekday:'short',year:'numeric',month:'short',day:'numeric'});
+}
+
+function updateUserUI() {
+  const u = STATE.user;
+  if (!u) return;
+  const name = u.display_name || u.first_name || u.phone || 'U';
+  const initials = (name[0] || 'U').toUpperCase();
+  const bal = STATE.wallet ? fmtMoney(STATE.wallet.balance) : '฿0.00';
+  // Sidebar
+  ['sb-av','mn-av'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = initials; });
+  const un = document.getElementById('sb-un'); if(un) un.textContent = name;
+  const ur = document.getElementById('sb-ur'); if(ur) ur.textContent = u.role === 'admin' ? 'ผู้ดูแลระบบ' : u.role === 'agent' ? 'เอเย่นต์' : 'สมาชิก';
+  const bl = document.getElementById('sb-bl'); if(bl) bl.textContent = bal;
+  const mnbl = document.getElementById('mn-bl'); if(mnbl) mnbl.textContent = bal;
+  // Admin/Agent links
+  if (u.role === 'admin' || u.role === 'agent') {
+    const s = document.getElementById('sb-admin-sec'); if(s) s.style.display = '';
+  }
+}
+
+// ══════════════════════════════════════════
+// PAGE RENDERER
+// ══════════════════════════════════════════
+function renderPage(name) {
+  const html = buildPage(name);
+  if (window.innerWidth >= 900) {
+    document.getElementById('pc-content').innerHTML = html;
+  } else {
+    document.getElementById('mobile-content').innerHTML = html;
+  }
+  afterRender(name);
+}
+
+function buildPage(name) {
+  switch(name) {
+    case 'home': return buildHome();
+    case 'buy': return buildBuy();
+    case 'slips': return buildSlips();
+    case 'results': return buildResults();
+    case 'wallet': return buildWallet();
+    case 'promotions': return buildPromotions();
+    case 'hotNumbers': return buildHotNumbers();
+    case 'profile': return buildProfile();
+    case 'admin': return buildAdmin();
+    case 'agent': return buildAgent();
+    default: return '<div style="padding:40px;text-align:center;color:var(--t3)">ไม่พบหน้า</div>';
+  }
+}
+
+function afterRender(name) {
+  switch(name) {
+    case 'home': loadHome(); break;
+    case 'buy': initBuy(); break;
+    case 'slips': loadSlips(); break;
+    case 'results': loadResults(); break;
+    case 'wallet': loadWallet(); break;
+    case 'promotions': loadPromotions(); break;
+    case 'hotNumbers': loadHotNumbers(); break;
+    case 'profile': loadProfile(); break;
+    case 'admin': loadAdminData(); break;
+    case 'agent': loadAgentData(); break;
+  }
+}
+
+// ══════════════════════════════════════════
+// AUTH
+// ══════════════════════════════════════════
+function showAuth(tab='login') {
+  showPage('auth');
+  switchAuthTab(tab);
+}
+
+function switchAuthTab(tab) {
+  document.getElementById('at-login').classList.toggle('on', tab==='login');
+  document.getElementById('at-reg').classList.toggle('on', tab==='register');
+  document.getElementById('af-login').classList.toggle('on', tab==='login');
+  document.getElementById('af-reg').classList.toggle('on', tab==='register');
+}
+
+async function doLogin() {
+  const phone = document.getElementById('l-phone').value.trim();
+  const password = document.getElementById('l-pass').value;
+  if (!phone || !password) { showToast('กรุณากรอกข้อมูลให้ครบ','err'); return; }
+  try {
+    const data = await api('POST', '/auth/login', {phone, password}, true);
+    STATE.token = data.token;
+    STATE.user = data.user;
+    localStorage.setItem('tl_token', data.token);
+    localStorage.setItem('tl_user', JSON.stringify(data.user));
+    showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับ! 🐯');
+    await loadWalletData();
+    navTo('home');
+  } catch(e) { showToast(e.message || 'เข้าสู่ระบบไม่สำเร็จ', 'err'); }
+}
+
+async function doRegister() {
+  const fullName = document.getElementById('r-name').value.trim();
+  const phone = document.getElementById('r-phone').value.trim();
+  const password = document.getElementById('r-pass').value;
+  const referCode = document.getElementById('r-ref').value.trim();
+  if (!fullName || !phone || !password) { showToast('กรุณากรอกข้อมูลให้ครบ','err'); return; }
+  if (password.length < 6) { showToast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร','err'); return; }
+  const names = fullName.split(' ');
+  const first_name = names[0] || fullName;
+  const last_name = names.slice(1).join(' ') || '';
+  try {
+    const data = await api('POST', '/auth/register', {phone, password, first_name, last_name, referCode: referCode||undefined}, true);
+    STATE.token = data.token;
+    STATE.user = data.user;
+    localStorage.setItem('tl_token', data.token);
+    localStorage.setItem('tl_user', JSON.stringify(data.user));
+    showToast('สมัครสมาชิกสำเร็จ! ได้รับโบนัส ฿50 🎉');
+    await loadWalletData();
+    navTo('home');
+  } catch(e) { showToast(e.message || 'สมัครสมาชิกไม่สำเร็จ','err'); }
+}
+
+function doLogout() {
+  STATE.token = null; STATE.user = null; STATE.wallet = null;
+  localStorage.removeItem('tl_token'); localStorage.removeItem('tl_user');
+  showPage('landing');
+  showToast('ออกจากระบบแล้ว','warn');
+}
+
+// ══════════════════════════════════════════
+// WALLET DATA (global)
+// ══════════════════════════════════════════
+async function loadWalletData() {
+  try {
+    const d = await api('GET', '/wallet');
+    STATE.wallet = d;
+    updateUserUI();
+    return d;
+  } catch(e) { return null; }
+}
+
+// ══════════════════════════════════════════
+// HOME PAGE
+// ══════════════════════════════════════════
+function buildHome() {
+  return `
+    <div class="home-hero">
+      <div style="display:inline-flex;align-items:center;gap:5px;background:#D85A3015;border:1px solid #D85A3055;color:#FF6B6B;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;margin-bottom:8px"><span class="live-dot"></span> LIVE แทงได้ตลอด 24 ชม.</div>
+      <div style="font-size:20px;font-weight:900;color:var(--gold);line-height:1.25;margin-bottom:6px">ยินดีต้อนรับ 🐯<br><span id="hw-name">${STATE.user?.first_name || STATE.user?.display_name || 'สมาชิก'}</span></div>
+      <div style="font-size:12px;color:#888;margin-bottom:12px">เลือกประเภทหวยและแทงได้เลย</div>
+      <div style="background:var(--dark);border:1.5px solid #B8860B33;border-radius:10px;padding:10px 14px;margin-bottom:12px">
+        <div style="font-size:10px;color:var(--gold2);margin-bottom:6px">🏆 ออกผลครั้งถัดไปใน</div>
+        <div style="display:flex;gap:6px">
+          <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:center;min-width:38px"><div style="font-size:16px;font-weight:900;color:var(--gold)" id="hcd-h">--</div><div style="font-size:8px;color:var(--t4)">ชม.</div></div>
+          <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:center;min-width:38px"><div style="font-size:16px;font-weight:900;color:var(--gold)" id="hcd-m">--</div><div style="font-size:8px;color:var(--t4)">นาที</div></div>
+          <div style="background:var(--dark3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;text-align:center;min-width:38px"><div style="font-size:16px;font-weight:900;color:var(--gold)" id="hcd-s">--</div><div style="font-size:8px;color:var(--t4)">วิ</div></div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-gold btn-md" style="flex:1;border-radius:10px" onclick="navTo('buy')">🎰 แทงหวย</button>
+        <button class="btn btn-outline btn-md" style="border-radius:10px" onclick="navTo('results')">📊 ผลหวย</button>
+      </div>
+    </div>
+    <div class="stats-row3" id="h-stats">
+      <div class="stat3"><div class="stat3-val" id="hs-bal">-</div><div class="stat3-lbl">ยอดเงิน</div></div>
+      <div class="stat3"><div class="stat3-val" id="hs-bets">-</div><div class="stat3-lbl">แทงวันนี้</div></div>
+      <div class="stat3"><div class="stat3-val" id="hs-wins">-</div><div class="stat3-lbl">ถูกรางวัล</div></div>
+      <div class="stat3"><div class="stat3-val" id="hs-vip">-</div><div class="stat3-lbl">ระดับ VIP</div></div>
+      <div class="stat3"><div class="stat3-val" id="hs-bonus">฿50</div><div class="stat3-lbl">โบนัส</div></div>
+    </div>
+    <div class="sec-title">ประเภทหวย <span class="sec-link" onclick="navTo('buy')">แทงทั้งหมด ›</span></div>
+    <div class="ltype-grid" id="h-ltype">
+      <div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">กำลังโหลด...</div>
+    </div>
+    <div class="card">
+      <div class="sec-title">ผลหวยล่าสุด <span class="sec-link" onclick="navTo('results')">ดูทั้งหมด ›</span></div>
+      <div id="h-results"><div style="text-align:center;padding:16px;color:var(--t3)">กำลังโหลด...</div></div>
+    </div>`;
+}
+
+async function loadHome() {
+  // Countdown to next draw
+  startHomeCountdown();
+  // Load wallet
+  const w = await loadWalletData();
+  const hbal = document.getElementById('hs-bal');
+  if (hbal && w) hbal.textContent = fmtMoney(w.balance);
+  // Load user stats
+  try {
+    const me = await api('GET', '/me');
+    STATE.user = me;
+    localStorage.setItem('tl_user', JSON.stringify(me));
+    const hvip = document.getElementById('hs-vip'); if(hvip) hvip.textContent = me.vip_tier || 'Bronze';
+    updateUserUI();
+  } catch(e) {}
+  // Load lottery types
+  try {
+    const d = await api('GET', '/lottery/types');
+    STATE.lotteryTypes = d;
+    const grid = document.getElementById('h-ltype');
+    if (!grid) return;
+    const EMOJIS = {thai:'🇹🇭', lao:'🇱🇦', hanoi:'🇻🇳', malay:'🇲🇾', stock:'📈', yeekee:'⚡', ping_pong:'🏓'};
+    const BG = {thai:'#1A1200',lao:'#0a0a1a',hanoi:'#0a1a0a',malay:'#0a1a1a',stock:'#1a0a0a',yeekee:'#1a1a00'};
+    grid.innerHTML = d.slice(0,8).map(t => `
+      <div class="lcard" onclick="navTo('buy');setTimeout(()=>selectBuyType(${t.id},'${t.name_th||t.name}'),200)">
+        <div class="lcard-emoji">${EMOJIS[t.slug]||'🎰'}</div>
+        <div class="lcard-name">${t.name_th||t.name}</div>
+        <div class="lcard-payout">x${t.payout_3top||900}</div>
+        <div class="lcard-rate">อัตราจ่าย 3 ตัวบน</div>
+      </div>`).join('');
+  } catch(e) { const g = document.getElementById('h-ltype'); if(g) g.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่สามารถโหลดข้อมูลได้</div>'; }
+  // Load recent results
+  try {
+    const d = await api('GET', '/lottery/results');
+    const el = document.getElementById('h-results');
+    if (!el) return;
+    const results = Array.isArray(d) ? d : (d.results||d.data||[]);
+    if (!results.length) { el.innerHTML = '<div style="text-align:center;color:var(--t3);padding:16px">ยังไม่มีผลหวย</div>'; return; }
+    el.innerHTML = results.slice(0,5).map(r => `
+      <div class="result-mini">
+        <div class="rm-name">${r.lottery_type_name||r.type_name||'หวย'}</div>
+        <div class="rm-nums">
+          ${(r.result_1st||r.first_prize||'').toString().split('').slice(0,5).map(n=>`<div class="rm-n">${n}</div>`).join('')}
+        </div>
+        <div class="rm-date">${fmtDateShort(r.draw_date||r.created_at)}</div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+function startHomeCountdown() {
+  const nextDraw = new Date(); nextDraw.setHours(20,30,0,0);
+  if (nextDraw < new Date()) nextDraw.setDate(nextDraw.getDate()+1);
+  if (STATE.cdTimer) clearInterval(STATE.cdTimer);
+  STATE.cdTimer = setInterval(() => {
+    const diff = nextDraw - new Date();
+    if (diff <= 0) { clearInterval(STATE.cdTimer); return; }
+    const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+    const fh = document.getElementById('hcd-h'), fm = document.getElementById('hcd-m'), fs = document.getElementById('hcd-s');
+    if(fh) fh.textContent = String(h).padStart(2,'0');
+    if(fm) fm.textContent = String(m).padStart(2,'0');
+    if(fs) fs.textContent = String(s).padStart(2,'0');
+  }, 1000);
+}
+
+// ══════════════════════════════════════════
+// BUY LOTTERY PAGE
+// ══════════════════════════════════════════
+function buildBuy() {
+  return `
+    <div class="page-title">🎰 แทงหวย</div>
+    <div style="display:flex;gap:0;margin-bottom:4px" id="buy-bars">
+      <div style="flex:1;height:3px;background:var(--gold);border-radius:2px 0 0 2px;transition:background .3s" id="bbar-1"></div>
+      <div style="flex:1;height:3px;background:var(--border2);transition:background .3s" id="bbar-2"></div>
+      <div style="flex:1;height:3px;background:var(--border2);border-radius:0 2px 2px 0;transition:background .3s" id="bbar-3"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--t3);margin-bottom:16px">
+      <span>เลือกประเภท</span><span>ใส่เลข</span><span>ยืนยัน</span>
+    </div>
+    <!-- Step 1 -->
+    <div id="buy-s1" style="display:block">
+      <div class="sec-title">เลือกประเภทหวย</div>
+      <div class="type-select-grid" id="buy-type-grid">
+        <div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">กำลังโหลด...</div>
+      </div>
+    </div>
+    <!-- Step 2 -->
+    <div id="buy-s2" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <button class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
+        <div style="font-size:13px;font-weight:700;color:var(--gold)" id="buy-type-label">-</div>
+      </div>
+      <div class="sec-title">ประเภทการแทง</div>
+      <div class="bet-type-tabs" id="bet-tabs"></div>
+      <div class="num-display">
+        <div style="font-size:32px;font-weight:900;color:var(--gold);letter-spacing:6px" id="num-disp">———</div>
+        <div style="font-size:11px;color:var(--t3);margin-top:4px" id="num-hint">กดปุ่มตัวเลข</div>
+      </div>
+      <div class="num-pad">
+        ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
+      </div>
+      <div class="sec-title">ยอดแทง (บาท)</div>
+      <div class="amount-presets" id="amt-presets">
+        ${[10,20,50,100,200,500,1000].map(a=>`<button class="amt-preset" onclick="setAmt(${a})">${a>=1000?(a/1000)+'K':a}</button>`).join('')}
+      </div>
+      <input class="finput" type="number" id="buy-amt" placeholder="หรือกรอกยอด (บาท)" min="1" max="100000" oninput="STATE.buyAmount=+this.value">
+      <button class="btn btn-gold btn-lg" onclick="buyGoConfirm()">ถัดไป — ยืนยัน →</button>
+    </div>
+    <!-- Step 3 -->
+    <div id="buy-s3" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+        <button class="btn btn-ghost btn-sm" onclick="buyStep(2)">← กลับ</button>
+        <div style="font-size:14px;font-weight:700;color:var(--gold)">ยืนยันการแทง</div>
+      </div>
+      <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0">
+          <span>ประเภทหวย</span><span id="bs-type" style="color:var(--t1);font-weight:700">-</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0">
+          <span>ประเภทแทง</span><span id="bs-btype">-</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0">
+          <span>เลขที่แทง</span><span id="bs-num" style="font-size:22px;font-weight:900;color:#fff;letter-spacing:4px">-</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0">
+          <span>อัตราจ่าย</span><span id="bs-payout" style="color:var(--green);font-weight:700">-</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0">
+          <span>ยอดแทง</span><span id="bs-amt" style="color:var(--gold);font-weight:700">-</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:15px;font-weight:900;color:var(--gold);padding:10px 0 4px;border-top:1px solid var(--border);margin-top:6px">
+          <span>รับเงินถ้าถูก</span><span id="bs-win" style="color:var(--green)">-</span></div>
+      </div>
+      <div style="background:var(--dark2);border:1px solid #B8860B33;border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--t2)">ยอดเงินปัจจุบัน</span>
+        <span style="font-size:14px;font-weight:700;color:var(--gold)">${STATE.wallet?fmtMoney(STATE.wallet.balance):'฿0.00'}</span>
+      </div>
+      <button class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()">✅ ยืนยันแทงเลย</button>
+      <div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">ยอดจะหักจากกระเป๋าเงินทันที</div>
+    </div>`;
+}
+
+async function initBuy() {
+  STATE.buyStep = 1;
+  STATE.buyNumber = '';
+  STATE.buyAmount = 0;
+  try {
+    const d = await api('GET', '/lottery/types');
+    STATE.lotteryTypes = d;
+    const EMOJIS = {thai:'🇹🇭',lao:'🇱🇦',hanoi:'🇻🇳',malay:'🇲🇾',stock:'📈',yeekee:'⚡',ping_pong:'🏓'};
+    const grid = document.getElementById('buy-type-grid');
+    if (!grid) return;
+    grid.innerHTML = d.map(t => `
+      <div class="type-card" onclick="selectBuyType(${t.id},'${t.name_th||t.name}')" id="tc-${t.id}">
+        <div style="font-size:28px;margin-bottom:8px">${EMOJIS[t.slug]||'🎰'}</div>
+        <div style="font-size:13px;font-weight:900;color:var(--gold);margin-bottom:3px">${t.name_th||t.name}</div>
+        <div style="font-size:11px;color:var(--green)">x${t.payout_3top||900} (3 ตัวบน)</div>
+      </div>`).join('');
+  } catch(e) { showToast('โหลดประเภทหวยไม่ได้','err'); }
+}
+
+function selectBuyType(id, name) {
+  STATE.buyTypeId = id; STATE.buyTypeName = name;
+  document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
+  const tc = document.getElementById('tc-'+id); if(tc) tc.classList.add('selected');
+  buyStep(2);
+  loadBetTypes(id);
+}
+
+async function loadBetTypes(typeId) {
+  const lbl = document.getElementById('buy-type-label'); if(lbl) lbl.textContent = STATE.buyTypeName;
+  try {
+    const d = await api('GET', '/lottery/bet-types');
+    const tabs = document.getElementById('bet-tabs'); if(!tabs) return;
+    const types = Array.isArray(d) ? d : (d.betTypes||d.data||[]);
+    const defaults = [
+      {id:1,name:'3 ตัวบน',name_th:'3 ตัวบน',digits:3,payout:900},
+      {id:2,name:'3 ตัวโต๊ด',name_th:'3 ตัวโต๊ด',digits:3,payout:150},
+      {id:3,name:'2 ตัวบน',name_th:'2 ตัวบน',digits:2,payout:90},
+      {id:4,name:'2 ตัวล่าง',name_th:'2 ตัวล่าง',digits:2,payout:90},
+      {id:5,name:'วิ่งบน',name_th:'วิ่งบน',digits:1,payout:3},
+      {id:6,name:'วิ่งล่าง',name_th:'วิ่งล่าง',digits:1,payout:4},
+    ];
+    const list = types.length ? types : defaults;
+    tabs.innerHTML = list.map((t,i) => `
+      <button class="bet-tab${i===0?' on':''}" onclick="selectBetType(${t.id},'${t.name_th||t.name}',${t.payout||900},${t.digits||3})">${t.name_th||t.name} x${t.payout||900}</button>`).join('');
+    if (list[0]) selectBetType(list[0].id, list[0].name_th||list[0].name, list[0].payout||900, list[0].digits||3);
+  } catch(e) {
+    const defaults = [{id:1,name_th:'3 ตัวบน',payout:900,digits:3},{id:2,name_th:'3 ตัวโต๊ด',payout:150,digits:3},{id:3,name_th:'2 ตัวบน',payout:90,digits:2},{id:4,name_th:'2 ตัวล่าง',payout:90,digits:2},{id:5,name_th:'วิ่งบน',payout:3,digits:1},{id:6,name_th:'วิ่งล่าง',payout:4,digits:1}];
+    const tabs = document.getElementById('bet-tabs'); if(!tabs) return;
+    tabs.innerHTML = defaults.map((t,i)=>`<button class="bet-tab${i===0?' on':''}" onclick="selectBetType(${t.id},'${t.name_th}',${t.payout},${t.digits})">${t.name_th} x${t.payout}</button>`).join('');
+    selectBetType(defaults[0].id, defaults[0].name_th, defaults[0].payout, defaults[0].digits);
+  }
+}
+
+function selectBetType(id, name, payout, digits) {
+  STATE.buyBetTypeId = id; STATE.buyBetTypeName = name;
+  STATE.buyBetTypePayout = payout; STATE.buyBetTypeDigits = digits;
+  STATE.buyNumber = '';
+  document.querySelectorAll('.bet-tab').forEach(t => t.classList.remove('on'));
+  event && event.target && event.target.classList.add('on');
+  updateNumDisplay();
+}
+
+function np(k) {
+  if (k === '⌫') { STATE.buyNumber = STATE.buyNumber.slice(0,-1); }
+  else if (k === 'CLR') { STATE.buyNumber = ''; }
+  else if (STATE.buyNumber.length < STATE.buyBetTypeDigits) { STATE.buyNumber += k; }
+  updateNumDisplay();
+}
+
+function updateNumDisplay() {
+  const d = document.getElementById('num-disp');
+  const h = document.getElementById('num-hint');
+  if (!d) return;
+  const digits = STATE.buyBetTypeDigits;
+  if (!STATE.buyNumber) { d.textContent = '—'.repeat(digits); }
+  else { d.textContent = STATE.buyNumber.padEnd(digits,'—'); }
+  if (h) h.textContent = `${STATE.buyNumber.length}/${digits} หลัก`;
+}
+
+function setAmt(a) {
+  STATE.buyAmount = a;
+  document.querySelectorAll('.amt-preset').forEach(b => b.classList.remove('on'));
+  event && event.target && event.target.classList.add('on');
+  const inp = document.getElementById('buy-amt'); if(inp) inp.value = a;
+}
+
+function buyStep(s) {
+  STATE.buyStep = s;
+  for(let i=1;i<=3;i++) {
+    const el = document.getElementById('buy-s'+i); if(el) el.style.display = i===s?'block':'none';
+    const bar = document.getElementById('bbar-'+i); if(bar) bar.style.background = i<=s?'var(--gold)':'var(--border2)';
+  }
+}
+
+function buyGoConfirm() {
+  if (STATE.buyNumber.length < STATE.buyBetTypeDigits) { showToast(`กรุณากรอกเลข ${STATE.buyBetTypeDigits} หลัก`,'err'); return; }
+  const amt = STATE.buyAmount || +(document.getElementById('buy-amt')?.value||0);
+  if (amt < 1) { showToast('กรุณากรอกยอดแทง','err'); return; }
+  STATE.buyAmount = amt;
+  // Fill summary
+  const maxWin = amt * STATE.buyBetTypePayout;
+  ['bs-type','bs-btype','bs-num','bs-payout','bs-amt','bs-win'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const vals = [STATE.buyTypeName, STATE.buyBetTypeName+` (x${STATE.buyBetTypePayout})`, STATE.buyNumber, `x${STATE.buyBetTypePayout}`, fmtMoney(amt), fmtMoney(maxWin)];
+    el.textContent = vals[i];
+  });
+  buyStep(3);
+}
+
+async function doSubmitBet() {
+  const btn = document.getElementById('buy-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
+  try {
+    const payload = {
+      lottery_type_id: STATE.buyTypeId,
+      bet_type_id: STATE.buyBetTypeId,
+      numbers: [STATE.buyNumber],
+      amount: STATE.buyAmount
+    };
+    await api('POST', '/slips', payload);
+    showToast('แทงสำเร็จ! 🎰 โชคดีนะ');
+    await loadWalletData();
+    navTo('slips');
+  } catch(e) {
+    showToast(e.message || 'แทงไม่สำเร็จ','err');
+    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันแทงเลย'; }
+  }
+}
+
+// ══════════════════════════════════════════
+// SLIPS PAGE
+// ══════════════════════════════════════════
+function buildSlips() {
+  return `
+    <div class="page-title">🎫 โพยของฉัน</div>
+    <div class="slip-tabs">
+      <div class="stab on" onclick="filterSlips('all')" id="stab-all">ทั้งหมด</div>
+      <div class="stab" onclick="filterSlips('pending')" id="stab-pending">รอผล</div>
+      <div class="stab" onclick="filterSlips('win')" id="stab-win">ถูกรางวัล 🎉</div>
+      <div class="stab" onclick="filterSlips('lose')" id="stab-lose">ไม่ถูก</div>
+      <div class="stab" onclick="filterSlips('cancelled')" id="stab-cancelled">ยกเลิก</div>
+    </div>
+    <div id="slips-list"><div style="text-align:center;padding:40px;color:var(--t3)">กำลังโหลด...</div></div>`;
+}
+
+let ALL_SLIPS = [];
+async function loadSlips() {
+  try {
+    const d = await api('GET', '/slips');
+    ALL_SLIPS = Array.isArray(d) ? d : (d.slips||d.data||[]);
+    renderSlips(STATE.slipFilter);
+  } catch(e) {
+    const el = document.getElementById('slips-list');
+    if(el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่สามารถโหลดโพยได้</div>';
+  }
+}
+
+function filterSlips(f) {
+  STATE.slipFilter = f;
+  document.querySelectorAll('.stab').forEach(t => t.classList.remove('on'));
+  const el = document.getElementById('stab-'+f); if(el) el.classList.add('on');
+  renderSlips(f);
+}
+
+function renderSlips(f) {
+  const list = document.getElementById('slips-list'); if(!list) return;
+  let slips = ALL_SLIPS;
+  if (f !== 'all') slips = ALL_SLIPS.filter(s => s.status === f);
+  if (!slips.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่มีโพย</div>'; return; }
+  const STATUS_LABEL = {pending:'รอผล',win:'ถูกรางวัล',lose:'ไม่ถูก',cancelled:'ยกเลิก'};
+  const STATUS_COLOR = {pending:'var(--gold)',win:'var(--green)',lose:'var(--t3)',cancelled:'var(--red)'};
+  list.innerHTML = slips.map(s => `
+    <div class="slip-card${s.status==='win'?' slip-win':''}">
+      <div class="slip-head">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--t2)">${s.lottery_type_name||s.type_name||'หวย'} — ${s.bet_type_name||s.betType||'3 ตัวบน'}</div>
+          <div style="font-size:10px;color:var(--t4)">${fmtDate(s.created_at)}</div>
+        </div>
+        <div>
+          <span class="badge${s.status==='win'?' badge-ok':s.status==='pending'?' badge-pend':' badge-fail'}">${STATUS_LABEL[s.status]||s.status}</span>
+        </div>
+      </div>
+      <div class="slip-body">
+        <div style="font-size:28px;font-weight:900;color:${s.status==='win'?'var(--green)':'#fff'};letter-spacing:4px;margin-bottom:4px">${s.numbers||s.bet_number||'-'}</div>
+        <div style="font-size:11px;color:var(--gold);font-weight:700">${s.bet_type_name||'แทง'}</div>
+        <div style="font-size:12px;color:var(--t2);margin-top:2px">ยอดแทง: ${fmtMoney(s.amount||s.bet_amount)}</div>
+      </div>
+      <div class="slip-foot">
+        <div style="font-size:13px;font-weight:700;color:${s.status==='win'?'var(--green)':'var(--t2)'}">
+          ${s.status==='win'?'ได้รับ: '+fmtMoney(s.payout_amount||s.win_amount):'จ่ายได้: '+fmtMoney((s.amount||0)*(s.payout_rate||1))}
+        </div>
+        ${s.status==='pending'?`<button class="btn btn-red btn-sm" onclick="openCancelSlip(${s.id})">ยกเลิก</button>`:''}
+      </div>
+    </div>`).join('');
+}
+
+function openCancelSlip(id) {
+  document.getElementById('cancel-slip-id').value = id;
+  openModal('modal-cancelslip');
+}
+
+async function confirmCancelSlip() {
+  const id = document.getElementById('cancel-slip-id').value;
+  try {
+    await api('DELETE', '/slips/'+id);
+    closeModal('modal-cancelslip');
+    showToast('ยกเลิกโพยสำเร็จ','warn');
+    await loadSlips();
+    await loadWalletData();
+  } catch(e) { showToast(e.message||'ยกเลิกไม่สำเร็จ','err'); }
+}
+
+// ══════════════════════════════════════════
+// RESULTS PAGE
+// ══════════════════════════════════════════
+function buildResults() {
+  return `
+    <div class="page-title">🏆 ผลหวย</div>
+    <div class="card card-gold">
+      <div style="font-size:14px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:12px">🔍 ตรวจเลข</div>
+      <div style="display:flex;gap:10px;margin-bottom:12px">
+        <input class="finput" type="text" id="chk-num" placeholder="ใส่เลข" maxlength="6"
+          style="height:52px;font-size:22px;font-weight:900;text-align:center;letter-spacing:4px;margin-bottom:0;flex:1">
+        <button class="btn btn-gold btn-md" onclick="checkNumber()">ตรวจ</button>
+      </div>
+      <div id="chk-result" style="display:none"></div>
+    </div>
+    <div class="slip-tabs" style="margin-bottom:12px">
+      <div class="stab on" onclick="filterResults('all')" id="rtab-all">ทั้งหมด</div>
+      <div class="stab" onclick="filterResults('thai')" id="rtab-thai">หวยไทย</div>
+      <div class="stab" onclick="filterResults('lao')" id="rtab-lao">หวยลาว</div>
+      <div class="stab" onclick="filterResults('hanoi')" id="rtab-hanoi">ฮานอย</div>
+    </div>
+    <div id="results-list"><div style="text-align:center;padding:40px;color:var(--t3)">กำลังโหลด...</div></div>`;
+}
+
+let ALL_RESULTS = [];
+async function loadResults() {
+  try {
+    const d = await api('GET', '/lottery/results');
+    ALL_RESULTS = Array.isArray(d) ? d : (d.results||d.data||[]);
+    renderResults(STATE.resultFilter);
+  } catch(e) {
+    const el = document.getElementById('results-list');
+    if(el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่สามารถโหลดผลหวยได้</div>';
+  }
+}
+
+function filterResults(f) {
+  STATE.resultFilter = f;
+  document.querySelectorAll('.stab[id^="rtab"]').forEach(t => t.classList.remove('on'));
+  const el = document.getElementById('rtab-'+f); if(el) el.classList.add('on');
+  renderResults(f);
+}
+
+function renderResults(f) {
+  const list = document.getElementById('results-list'); if(!list) return;
+  let results = ALL_RESULTS;
+  if (f !== 'all') results = ALL_RESULTS.filter(r => (r.lottery_type_slug||r.slug||'').includes(f) || (r.lottery_type_name||'').toLowerCase().includes(f==='thai'?'ไทย':f==='lao'?'ลาว':'ฮา'));
+  if (!results.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ยังไม่มีผลหวย</div>'; return; }
+  list.innerHTML = results.slice(0,20).map(r => {
+    const first = r.result_1st || r.first_prize || r.prize_1st || '-';
+    const front3 = r.result_3front || r.front3 || '-';
+    const back3 = r.result_3back || r.back3 || '-';
+    const back2 = r.result_2back || r.back2 || '-';
+    return `
+      <div class="result-card">
+        <div class="rc-head">
+          <div class="rc-title">${r.lottery_type_name||r.type_name||'หวย'}</div>
+          <div class="rc-date">${fmtDateShort(r.draw_date||r.created_at)}</div>
+        </div>
+        <div class="rc-body">
+          <div class="prize-row">
+            <div class="prize-lbl">รางวัลที่ 1</div>
+            <div class="prize-nums"><span class="pnum first">${first}</span></div>
+            <div class="prize-amount">฿6,000,000</div>
+          </div>
+          ${front3!=='-'?`<div class="prize-row"><div class="prize-lbl">3 ตัวหน้า</div><div class="prize-nums"><span class="pnum">${front3}</span></div><div class="prize-amount">฿4,000</div></div>`:''}
+          ${back3!=='-'?`<div class="prize-row"><div class="prize-lbl">3 ตัวหลัง</div><div class="prize-nums"><span class="pnum">${back3}</span></div><div class="prize-amount">฿4,000</div></div>`:''}
+          ${back2!=='-'?`<div class="prize-row"><div class="prize-lbl">2 ตัวหลัง</div><div class="prize-nums"><span class="pnum">${back2}</span></div><div class="prize-amount">฿2,000</div></div>`:''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function checkNumber() {
+  const num = (document.getElementById('chk-num')?.value||'').trim();
+  if (!num) { showToast('กรุณากรอกเลข','warn'); return; }
+  const el = document.getElementById('chk-result'); if(!el) return;
+  el.style.display = 'block';
+  el.innerHTML = '<div style="text-align:center;padding:16px;color:var(--t3)">กำลังตรวจ...</div>';
+  const matches = ALL_RESULTS.filter(r => {
+    const vals = [r.result_1st,r.result_3front,r.result_3back,r.result_2back].filter(Boolean).map(String);
+    return vals.some(v => v === num || v.endsWith(num) || v.startsWith(num));
+  });
+  if (matches.length) {
+    el.innerHTML = `<div style="background:#0a1a0a;border:2px solid var(--green);border-radius:12px;padding:16px;text-align:center">
+      <div style="font-size:36px;margin-bottom:8px">🎉</div>
+      <div style="font-size:16px;font-weight:900;color:var(--green);margin-bottom:4px">ถูกรางวัล!</div>
+      <div style="font-size:24px;font-weight:900;color:var(--gold);margin-bottom:6px">${num}</div>
+      <div style="font-size:12px;color:var(--t3)">พบใน ${matches.length} งวด</div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div style="background:var(--dark3);border:2px solid var(--border2);border-radius:12px;padding:16px;text-align:center">
+      <div style="font-size:36px;margin-bottom:8px">😔</div>
+      <div style="font-size:14px;color:var(--t3)">ไม่พบเลข <strong style="color:var(--t1)">${num}</strong> ในผลที่ผ่านมา</div>
+    </div>`;
+  }
+}
+// ══════════════════════════════════════════
+// WALLET PAGE
+// ══════════════════════════════════════════
+function buildWallet() {
+  return `
+    <div class="page-title">💰 กระเป๋าเงิน</div>
+    <div class="wallet-bal-card">
+      <div style="position:absolute;top:-20px;right:-20px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,#FFD70012,transparent);pointer-events:none"></div>
+      <div style="font-size:12px;color:var(--gold2);margin-bottom:6px">ยอดเงินปัจจุบัน</div>
+      <div style="font-size:38px;font-weight:900;color:var(--gold);line-height:1;margin-bottom:4px" id="w-bal">฿0.00</div>
+      <div style="font-size:11px;color:var(--t4);margin-bottom:16px">อัพเดทล่าสุด: <span id="w-upd">-</span></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-gold btn-md" style="flex:1;border-radius:10px" onclick="walletTab('deposit')">⬇️ ฝากเงิน</button>
+        <button class="btn btn-outline btn-md" style="flex:1;border-radius:10px" onclick="walletTab('withdraw')">⬆️ ถอนเงิน</button>
+      </div>
+    </div>
+    <div class="wallet-tabs">
+      <button class="wtab on" id="wt-history" onclick="walletTab('history')">ประวัติ</button>
+      <button class="wtab" id="wt-deposit" onclick="walletTab('deposit')">ฝากเงิน</button>
+      <button class="wtab" id="wt-withdraw" onclick="walletTab('withdraw')">ถอนเงิน</button>
+      <button class="wtab" id="wt-banks" onclick="walletTab('banks')">ธนาคาร</button>
+    </div>
+    <div id="wp-history" class="wallet-panel on">
+      <div id="tx-list"><div style="text-align:center;padding:32px;color:var(--t3)">กำลังโหลด...</div></div>
+    </div>
+    <div id="wp-deposit" class="wallet-panel">
+      <div class="card">
+        <div class="sec-title">ฝากเงิน</div>
+        <div style="background:var(--dark);border:1px solid #B8860B33;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
+          <div style="font-size:11px;color:var(--gold2);margin-bottom:4px">โอนเงินมาที่</div>
+          <div style="font-size:15px;font-weight:700;color:#fff">ธนาคารกสิกรไทย (KBANK)</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px;margin:6px 0">XXX-X-XXXXX-X</div>
+          <div style="font-size:11px;color:var(--t3)">บริษัท ไทเกอร์ลอตโต้ จำกัด</div>
+        </div>
+        <label class="flabel">จำนวนเงิน (บาท)</label>
+        <input class="finput" type="number" id="dep-amt" placeholder="ขั้นต่ำ 50 บาท" min="50">
+        <div style="border:2px dashed #FFD70033;border-radius:10px;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer;transition:border .2s" onclick="showToast('อัพโหลดสลิปทาง Line @tigerlotto','warn')">
+          <div style="font-size:24px;margin-bottom:6px">📷</div>
+          <div style="font-size:12px;color:var(--t3)">แตะเพื่ออัพโหลดสลิป (หรือ Line ทีม)</div>
+        </div>
+        <button class="btn btn-gold btn-lg" onclick="doDeposit()">แจ้งฝากเงิน</button>
+      </div>
+    </div>
+    <div id="wp-withdraw" class="wallet-panel">
+      <div class="card">
+        <div class="sec-title">ถอนเงิน</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px;padding:10px 14px;background:var(--dark);border-radius:10px">
+          <span style="font-size:12px;color:var(--t3)">ถอนได้สูงสุด</span>
+          <span style="color:var(--gold);font-weight:700;font-size:14px" id="w-maxwit">฿0.00</span>
+        </div>
+        <label class="flabel">จำนวนเงินถอน (บาท)</label>
+        <input class="finput" type="number" id="wit-amt" placeholder="ขั้นต่ำ 100 บาท" min="100">
+        <label class="flabel">บัญชีธนาคารปลายทาง</label>
+        <select class="finput" id="wit-bank-sel" style="cursor:pointer">
+          <option value="">-- เลือกบัญชีธนาคาร --</option>
+        </select>
+        <button class="btn btn-gold btn-lg" onclick="doWithdraw()">ถอนเงิน</button>
+        <div style="text-align:center;font-size:10px;color:var(--t4);margin-top:8px">ดำเนินการภายใน 5 นาที</div>
+      </div>
+    </div>
+    <div id="wp-banks" class="wallet-panel">
+      <div class="sec-title">บัญชีธนาคาร <span class="sec-link" onclick="openModal('modal-addbank')">+ เพิ่ม</span></div>
+      <div id="bank-list"><div style="text-align:center;padding:32px;color:var(--t3)">กำลังโหลด...</div></div>
+    </div>`;
+}
+
+async function loadWallet() {
+  const w = await loadWalletData();
+  const wbal = document.getElementById('w-bal'); if(wbal && w) wbal.textContent = fmtMoney(w.balance);
+  const wupd = document.getElementById('w-upd'); if(wupd) wupd.textContent = new Date().toLocaleTimeString('th-TH');
+  const wmw = document.getElementById('w-maxwit'); if(wmw && w) wmw.textContent = fmtMoney(w.balance);
+  // Load transactions
+  try {
+    const d = await api('GET', '/wallet/transactions');
+    const txs = Array.isArray(d) ? d : (d.transactions||d.data||[]);
+    renderTransactions(txs);
+  } catch(e) { const el = document.getElementById('tx-list'); if(el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่มีรายการ</div>'; }
+  // Load banks
+  loadBanks();
+}
+
+function renderTransactions(txs) {
+  const el = document.getElementById('tx-list'); if(!el) return;
+  if (!txs.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ยังไม่มีรายการ</div>'; return; }
+  const ICONS = {deposit:'⬇️',withdraw:'⬆️',bonus:'🎁',win:'🏆',bet:'🎰',refund:'↩️'};
+  const TX_LABEL = {deposit:'ฝากเงิน',withdraw:'ถอนเงิน',bonus:'โบนัส',win:'ชนะรางวัล',bet:'แทงหวย',refund:'คืนเงิน'};
+  el.innerHTML = txs.slice(0,30).map(tx => {
+    const isPos = ['deposit','bonus','win','refund'].includes(tx.type||tx.transaction_type);
+    return `
+      <div class="tx-item">
+        <div class="tx-icon" style="background:${isPos?'#0a1a0a':'#1a0505'};border:1px solid ${isPos?'#3BD44133':'#D85A3033'}">
+          ${ICONS[tx.type||tx.transaction_type]||'💳'}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="tx-title">${TX_LABEL[tx.type||tx.transaction_type]||tx.description||'รายการ'}</div>
+          <div class="tx-sub">${fmtDate(tx.created_at)}</div>
+        </div>
+        <div>
+          <div class="tx-amt ${isPos?'pos':'neg'}">${isPos?'+':'-'}${fmtMoney(Math.abs(tx.amount))}</div>
+          <div style="font-size:9px;color:var(--t4);text-align:right">${tx.status||''}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+async function loadBanks() {
+  try {
+    const d = await api('GET', '/me/banks');
+    const banks = Array.isArray(d) ? d : (d.banks||d.data||[]);
+    const bl = document.getElementById('bank-list');
+    const ws = document.getElementById('wit-bank-sel');
+    if (!banks.length) {
+      if(bl) bl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ยังไม่มีบัญชี <span style="color:var(--gold);cursor:pointer" onclick="openModal(\'modal-addbank\')">เพิ่มเลย</span></div>';
+      return;
+    }
+    const BANK_NAMES = {kbank:'กสิกรไทย',scb:'ไทยพาณิชย์',bbl:'กรุงเทพ',ktb:'กรุงไทย',tmb:'ทหารไทยธนชาต',bay:'กรุงศรีอยุธยา',gsb:'ออมสิน'};
+    const BANK_EMOJI = {kbank:'🟢',scb:'🟣',bbl:'🔵',ktb:'🔵',tmb:'🟠',bay:'🟡',gsb:'🟣'};
+    if(bl) bl.innerHTML = banks.map(b => `
+      <div style="background:var(--dark3);border:1.5px solid ${b.is_default?'#B8860B55':'var(--border)'};border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="width:40px;height:40px;border-radius:10px;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:20px">${BANK_EMOJI[b.bank_code||b.bank]||'🏦'}</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:var(--t1)">${BANK_NAMES[b.bank_code||b.bank]||b.bank_name||b.bank}</div>
+          <div style="font-size:11px;color:var(--t4);margin-top:2px">${b.account_number||b.acct_number}</div>
+          <div style="font-size:10px;color:var(--t3);">${b.account_name||b.acct_name}</div>
+          ${b.is_default?'<span class="badge badge-pend" style="margin-top:4px">บัญชีหลัก</span>':''}
+        </div>
+      </div>`).join('');
+    if(ws) ws.innerHTML = '<option value="">-- เลือกบัญชีธนาคาร --</option>' +
+      banks.map(b => `<option value="${b.id}">${BANK_NAMES[b.bank_code||b.bank]||b.bank} - ${b.account_number||b.acct_number}</option>`).join('');
+  } catch(e) {}
+}
+
+function walletTab(tab) {
+  STATE.walletTab = tab;
+  ['history','deposit','withdraw','banks'].forEach(t => {
+    const tp = document.getElementById('wt-'+t); if(tp) tp.classList.toggle('on', t===tab);
+    const wp = document.getElementById('wp-'+t); if(wp) wp.classList.toggle('on', t===tab);
+  });
+  if (tab === 'banks') loadBanks();
+}
+
+async function doDeposit() {
+  const amt = +(document.getElementById('dep-amt')?.value||0);
+  if (amt < 50) { showToast('ขั้นต่ำ 50 บาท','err'); return; }
+  try {
+    await api('POST', '/wallet/deposit', {amount: amt});
+    showToast('แจ้งฝากเงินสำเร็จ รอการตรวจสอบ 🎉');
+    await loadWallet();
+    walletTab('history');
+  } catch(e) { showToast(e.message||'ฝากเงินไม่สำเร็จ','err'); }
+}
+
+async function doWithdraw() {
+  const amt = +(document.getElementById('wit-amt')?.value||0);
+  const bankId = document.getElementById('wit-bank-sel')?.value;
+  if (amt < 100) { showToast('ขั้นต่ำ 100 บาท','err'); return; }
+  if (!bankId) { showToast('กรุณาเลือกบัญชีธนาคาร','err'); return; }
+  try {
+    await api('POST', '/wallet/withdraw', {amount: amt, bank_account_id: bankId});
+    showToast('ส่งคำขอถอนเงินสำเร็จ 🎉');
+    await loadWalletData();
+    await loadWallet();
+    walletTab('history');
+  } catch(e) { showToast(e.message||'ถอนเงินไม่สำเร็จ','err'); }
+}
+
+async function doAddBank() {
+  const bank = document.getElementById('bank-select')?.value;
+  const acct = document.getElementById('bank-acct-num')?.value.trim();
+  const name = document.getElementById('bank-acct-name')?.value.trim();
+  if (!acct || !name) { showToast('กรุณากรอกข้อมูลให้ครบ','err'); return; }
+  try {
+    await api('POST', '/me/banks', {bank_code: bank, account_number: acct, account_name: name});
+    closeModal('modal-addbank');
+    showToast('เพิ่มบัญชีสำเร็จ');
+    loadBanks();
+  } catch(e) { showToast(e.message||'เพิ่มบัญชีไม่สำเร็จ','err'); }
+}
+
+// ══════════════════════════════════════════
+// PROMOTIONS PAGE
+// ══════════════════════════════════════════
+function buildPromotions() {
+  return `
+    <div class="page-title">🎁 โปรโมชั่น</div>
+    <div class="promo-featured" id="promo-feat">
+      <div style="display:inline-flex;align-items:center;gap:5px;background:#FFD70020;border:1px solid #FFD70055;border-radius:12px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--gold);margin-bottom:8px">⭐ แนะนำ</div>
+      <div style="font-size:18px;font-weight:900;color:var(--gold);margin-bottom:4px">โบนัสต้อนรับสมาชิกใหม่</div>
+      <div style="font-size:12px;color:#888;margin-bottom:10px">สมัครวันนี้รับเครดิตฟรีทันที ไม่ต้องฝาก</div>
+      <div style="font-size:32px;font-weight:900;color:var(--gold);margin-bottom:4px">฿50</div>
+      <div style="font-size:11px;color:var(--t3);margin-bottom:14px">เครดิตฟรีเมื่อสมัครสมาชิกใหม่</div>
+      <button class="btn btn-gold btn-md" onclick="claimPromo(0)">รับโบนัส</button>
+    </div>
+    <div class="promo-grid" id="promo-grid">
+      <div style="text-align:center;padding:32px;color:var(--t3);grid-column:1/-1">กำลังโหลด...</div>
+    </div>`;
+}
+
+async function loadPromotions() {
+  try {
+    const d = await api('GET', '/promotions');
+    const promos = Array.isArray(d) ? d : (d.promotions||d.data||[]);
+    const grid = document.getElementById('promo-grid'); if(!grid) return;
+    if (!promos.length) { grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">ไม่มีโปรโมชั่นในขณะนี้</div>'; return; }
+    const PROMO_COLORS = ['#FFD700','#3BD441','#78BAFF','#D85A30','#B8860B'];
+    grid.innerHTML = promos.map((p,i) => `
+      <div class="promo-card">
+        <div style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:8px;font-size:9px;font-weight:700;margin-bottom:8px;background:${PROMO_COLORS[i%5]}22;color:${PROMO_COLORS[i%5]};border:1px solid ${PROMO_COLORS[i%5]}44">
+          🎁 ${p.type||'โปรโมชั่น'}
+        </div>
+        <div style="font-size:13px;font-weight:900;color:var(--t1);margin-bottom:4px">${p.name||p.title||'โปรโมชั่น'}</div>
+        <div style="font-size:10px;color:var(--t3);line-height:1.5;margin-bottom:10px">${p.description||''}</div>
+        <div style="font-size:20px;font-weight:900;color:var(--gold);margin-bottom:2px">${p.bonus_amount?'฿'+p.bonus_amount:p.bonus_percent?p.bonus_percent+'%':'-'}</div>
+        <div style="font-size:10px;color:var(--t4);margin-bottom:12px">หมดอายุ: ${p.end_date?fmtDateShort(p.end_date):'ไม่มีกำหนด'}</div>
+        <button class="btn btn-outline btn-sm" onclick="claimPromo(${p.id})">รับโปรโมชั่น</button>
+      </div>`).join('');
+  } catch(e) { const g = document.getElementById('promo-grid'); if(g) g.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">ไม่สามารถโหลดโปรโมชั่นได้</div>'; }
+}
+
+async function claimPromo(id) {
+  if (!id) { showToast('โบนัสต้อนรับได้รับไปแล้วตอนสมัครสมาชิก 🎉'); return; }
+  try {
+    await api('POST', `/promotions/${id}/claim`);
+    showToast('รับโปรโมชั่นสำเร็จ! 🎁');
+    await loadWalletData();
+  } catch(e) { showToast(e.message||'ไม่สามารถรับโปรโมชั่นได้','err'); }
+}
+
+// ══════════════════════════════════════════
+// HOT NUMBERS PAGE
+// ══════════════════════════════════════════
+function buildHotNumbers() {
+  return `
+    <div class="page-title">🔥 เลขเด็ด / เลขร้อน</div>
+    <div class="slip-tabs" style="margin-bottom:12px">
+      <div class="stab on" onclick="filterHot('3top')" id="htab-3top">3 ตัวบน</div>
+      <div class="stab" onclick="filterHot('3bot')" id="htab-3bot">3 ตัวล่าง</div>
+      <div class="stab" onclick="filterHot('2top')" id="htab-2top">2 ตัวบน</div>
+      <div class="stab" onclick="filterHot('2bot')" id="htab-2bot">2 ตัวล่าง</div>
+    </div>
+    <div class="card">
+      <div class="sec-title">เลขที่คนแทงเยอะสุด 🔥</div>
+      <div class="hot-grid" id="hot-grid">
+        <div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">กำลังโหลด...</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px">
+      <div class="sec-title">เลขออกบ่อย (30 งวดย้อนหลัง)</div>
+      <div id="hot-freq" style="padding:8px 0"></div>
+    </div>`;
+}
+
+let HOT_DATA = {};
+async function loadHotNumbers() {
+  try {
+    let d;
+    try { d = await api('GET', '/admin/hot-numbers'); } catch(e) { d = null; }
+    if (!d) {
+      // Generate demo data
+      const nums3 = Array.from({length:30},(_,i)=>({num:String(Math.floor(Math.random()*1000)).padStart(3,'0'),count:Math.floor(Math.random()*500)+10,trend:'↑'}));
+      const nums2 = Array.from({length:30},(_,i)=>({num:String(Math.floor(Math.random()*100)).padStart(2,'0'),count:Math.floor(Math.random()*300)+10,trend:'↑'}));
+      HOT_DATA = {'3top':nums3,'3bot':nums3.map(n=>({...n,num:String(Math.floor(Math.random()*1000)).padStart(3,'0')})),'2top':nums2,'2bot':nums2.map(n=>({...n,num:String(Math.floor(Math.random()*100)).padStart(2,'0')}))};
+    } else {
+      HOT_DATA = d;
+    }
+    renderHotNumbers('3top');
+  } catch(e) {}
+}
+
+function filterHot(tab) {
+  STATE.hotFilter = tab;
+  document.querySelectorAll('.stab[id^="htab"]').forEach(t=>t.classList.remove('on'));
+  const el = document.getElementById('htab-'+tab); if(el) el.classList.add('on');
+  renderHotNumbers(tab);
+}
+
+function renderHotNumbers(tab) {
+  const data = HOT_DATA[tab] || [];
+  const grid = document.getElementById('hot-grid'); if(!grid) return;
+  const COLORS = ['#FFD700','#FFA500','#FF8C00','#FF6B00','#FF4500'];
+  const top10 = data.slice(0,10);
+  grid.innerHTML = top10.map((d,i) => `
+    <div class="hot-card" style="background:${COLORS[Math.min(i,4)]}${i<3?'22':'11'};border-color:${COLORS[Math.min(i,4)]}${i<3?'88':'44'}"
+      onclick="navTo('buy');setTimeout(()=>{STATE.buyNumber='${d.num||d.number}';},300)">
+      <div style="position:absolute;top:5px;left:6px;font-size:8px;font-weight:900;color:${COLORS[Math.min(i,4)]};opacity:.8">#${i+1}</div>
+      <div class="hc-num" style="color:${COLORS[Math.min(i,4)]}">${d.num||d.number}</div>
+      <div class="hc-vol" style="color:${COLORS[Math.min(i,4)]}aa">${d.count||0} ครั้ง</div>
+    </div>`).join('');
+  // Frequency bars
+  const freq = document.getElementById('hot-freq'); if(!freq) return;
+  const max = data[0]?.count||1;
+  freq.innerHTML = data.slice(0,20).map((d,i) => `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+      <div style="font-size:13px;font-weight:900;color:#fff;min-width:44px;text-align:right;letter-spacing:2px">${d.num||d.number}</div>
+      <div style="flex:1;height:20px;background:#1a1a1a;border-radius:4px;overflow:hidden;border:1px solid #2a2a2a">
+        <div style="height:100%;width:${Math.round((d.count/max)*100)}%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:4px;display:flex;align-items:center;justify-content:flex-end;padding-right:6px">
+          <span style="font-size:9px;font-weight:900;color:var(--dark)">${d.count}</span>
+        </div>
+      </div>
+      <div style="font-size:9px;color:${d.trend==='↑'?'var(--green)':'var(--red)'}">{{${d.trend||'—'}}}</div>
+    </div>`).join('').replace(/\{\{(.*?)\}\}/g,'$1');
+}
+
+// ══════════════════════════════════════════
+// PROFILE PAGE
+// ══════════════════════════════════════════
+function buildProfile() {
+  const u = STATE.user || {};
+  const name = u.display_name || (u.first_name ? u.first_name+' '+(u.last_name||'') : u.phone || 'สมาชิก');
+  const initials = (name[0]||'U').toUpperCase();
+  const bal = STATE.wallet ? fmtMoney(STATE.wallet.balance) : '฿0.00';
+  return `
+    <div class="page-title">👤 โปรไฟล์</div>
+    <div class="profile-hero">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--dark);flex-shrink:0;border:3px solid #FFD70055" id="prof-av">${initials}</div>
+        <div style="flex:1">
+          <div style="font-size:20px;font-weight:900;color:var(--gold);margin-bottom:2px" id="prof-name">${name}</div>
+          <div style="font-size:11px;color:var(--t4);margin-bottom:6px">ID: ${u.id||'-'} | ${u.phone||'-'}</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <span style="padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;background:#1A1200;color:var(--gold);border:1px solid #B8860B55">${u.role==='admin'?'ผู้ดูแลระบบ':u.role==='agent'?'เอเย่นต์':'สมาชิก'}</span>
+            ${u.vip_tier&&u.vip_tier!=='none'?`<span style="padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)">${u.vip_tier}</span>`:''}
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="openEditProfileModal()">แก้ไข</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border);padding-top:14px">
+        <div style="text-align:center;padding:0 8px;border-right:1px solid var(--border)">
+          <div style="font-size:18px;font-weight:900;color:var(--gold)">${bal}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">ยอดเงิน</div>
+        </div>
+        <div style="text-align:center;padding:0 8px;border-right:1px solid var(--border)" id="pstat-bets">
+          <div style="font-size:18px;font-weight:900;color:var(--gold)">-</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">แทงทั้งหมด</div>
+        </div>
+        <div style="text-align:center;padding:0 8px;border-right:1px solid var(--border)" id="pstat-wins">
+          <div style="font-size:18px;font-weight:900;color:var(--gold)">-</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">ถูกรางวัล</div>
+        </div>
+        <div style="text-align:center;padding:0 8px" id="pstat-vip">
+          <div style="font-size:18px;font-weight:900;color:var(--gold)">${u.vip_tier||'Bronze'}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:2px">ระดับ VIP</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="pm-item" onclick="navTo('wallet')"><span style="font-size:18px;width:24px;text-align:center">💰</span><span class="pm-label">กระเป๋าเงิน</span><span style="font-size:12px;color:var(--gold);font-weight:700;margin-right:8px">${bal}</span><span style="color:var(--t4)">›</span></div>
+      <div class="pm-item" onclick="navTo('slips')"><span style="font-size:18px;width:24px;text-align:center">🎫</span><span class="pm-label">โพยของฉัน</span><span style="color:var(--t4)">›</span></div>
+      <div class="pm-item" onclick="navTo('promotions')"><span style="font-size:18px;width:24px;text-align:center">🎁</span><span class="pm-label">โปรโมชั่น</span><span style="color:var(--t4)">›</span></div>
+      <div class="pm-item" onclick="navTo('hotNumbers')"><span style="font-size:18px;width:24px;text-align:center">🔥</span><span class="pm-label">เลขเด็ด</span><span style="color:var(--t4)">›</span></div>
+      <div class="pm-item" onclick="openChangePassModal()"><span style="font-size:18px;width:24px;text-align:center">🔒</span><span class="pm-label">เปลี่ยนรหัสผ่าน</span><span style="color:var(--t4)">›</span></div>
+      ${u.role==='admin'?`<div class="pm-item" onclick="navTo('admin')"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
+      ${u.role==='agent'||u.role==='admin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
+      <div class="pm-item" onclick="doLogout()" style="border-top:1px solid var(--border)">
+        <span style="font-size:18px;width:24px;text-align:center">🚪</span>
+        <span style="flex:1;font-size:13px;font-weight:600;color:var(--red)">ออกจากระบบ</span>
+        <span style="color:var(--t4)">›</span>
+      </div>
+    </div>`;
+}
+
+async function loadProfile() {
+  try {
+    const me = await api('GET', '/me');
+    STATE.user = me; localStorage.setItem('tl_user', JSON.stringify(me));
+    // Update stats from slips
+    const slips = await api('GET', '/slips').catch(()=>({slips:[]}));
+    const sl = Array.isArray(slips) ? slips : (slips.slips||slips.data||[]);
+    const wins = sl.filter(s=>s.status==='win').length;
+    const pbets = document.getElementById('pstat-bets');
+    const pwins = document.getElementById('pstat-wins');
+    if(pbets) pbets.innerHTML = `<div style="font-size:18px;font-weight:900;color:var(--gold)">${sl.length}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">แทงทั้งหมด</div>`;
+    if(pwins) pwins.innerHTML = `<div style="font-size:18px;font-weight:900;color:${wins?'var(--green)':'var(--gold)'}">${wins}</div><div style="font-size:10px;color:var(--t3);margin-top:2px">ถูกรางวัล</div>`;
+    updateUserUI();
+  } catch(e) {}
+}
+
+function openEditProfileModal() {
+  const u = STATE.user || {};
+  const fn = document.getElementById('ep-fn'); if(fn) fn.value = u.first_name||'';
+  const ln = document.getElementById('ep-ln'); if(ln) ln.value = u.last_name||'';
+  const em = document.getElementById('ep-em'); if(em) em.value = u.email||'';
+  const dn = document.getElementById('ep-dn'); if(dn) dn.value = u.display_name||'';
+  openModal('modal-editprofile');
+}
+
+async function doEditProfile() {
+  const first_name = document.getElementById('ep-fn')?.value.trim();
+  const last_name = document.getElementById('ep-ln')?.value.trim();
+  const email = document.getElementById('ep-em')?.value.trim();
+  const display_name = document.getElementById('ep-dn')?.value.trim();
+  try {
+    await api('PUT', '/me', {first_name, last_name, email, display_name});
+    STATE.user = {...STATE.user, first_name, last_name, email, display_name};
+    localStorage.setItem('tl_user', JSON.stringify(STATE.user));
+    closeModal('modal-editprofile');
+    showToast('อัพเดทโปรไฟล์สำเร็จ');
+    renderPage('profile');
+    updateUserUI();
+  } catch(e) { showToast(e.message||'อัพเดทไม่สำเร็จ','err'); }
+}
+
+function openChangePassModal() { openModal('modal-changepass'); }
+
+async function doChangePass() {
+  const old_password = document.getElementById('cp-old')?.value;
+  const new_password = document.getElementById('cp-new')?.value;
+  const conf = document.getElementById('cp-conf')?.value;
+  if (!old_password || !new_password) { showToast('กรุณากรอกรหัสผ่าน','err'); return; }
+  if (new_password !== conf) { showToast('รหัสผ่านใหม่ไม่ตรงกัน','err'); return; }
+  if (new_password.length < 6) { showToast('รหัสผ่านต้องมีอย่างน้อย 6 ตัว','err'); return; }
+  try {
+    await api('PUT', '/me/password', {old_password, new_password});
+    closeModal('modal-changepass');
+    showToast('เปลี่ยนรหัสผ่านสำเร็จ');
+  } catch(e) { showToast(e.message||'เปลี่ยนรหัสผ่านไม่สำเร็จ','err'); }
+}
+
+// ══════════════════════════════════════════
+// ADMIN PAGE
+// ══════════════════════════════════════════
+function buildAdmin() {
+  return `
+    <div class="page-title">⚙️ Admin Dashboard <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="loadAdminData()">🔄 รีเฟรช</button></div></div>
+    <div class="kpi-grid4">
+      <div class="kpi4"><div class="kpi4-lbl">สมาชิกทั้งหมด</div><div class="kpi4-val td-gold" id="ak-users">-</div><div class="kpi4-bar" style="background:var(--gold)"></div></div>
+      <div class="kpi4"><div class="kpi4-lbl">ยอดแทงวันนี้</div><div class="kpi4-val td-green" id="ak-bets">-</div><div class="kpi4-bar" style="background:var(--green)"></div></div>
+      <div class="kpi4"><div class="kpi4-lbl">รายได้สุทธิ</div><div class="kpi4-val td-gold" id="ak-revenue">-</div><div class="kpi4-bar" style="background:var(--gold2)"></div></div>
+      <div class="kpi4"><div class="kpi4-lbl">รอดำเนินการ</div><div class="kpi4-val td-red" id="ak-pending">-</div><div class="kpi4-bar" style="background:var(--red)"></div></div>
+    </div>
+    <div class="card">
+      <div class="sec-title">รายการถอนเงินรอดำเนินการ</div>
+      <div style="overflow-x:auto">
+        <table class="a-table">
+          <thead><tr><th>ID</th><th>ผู้ใช้</th><th>จำนวน</th><th>สถานะ</th><th>วันที่</th><th>Action</th></tr></thead>
+          <tbody id="admin-tx-body"><tr><td colspan="6" style="text-align:center;color:var(--t3);padding:20px">กำลังโหลด...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sec-title">สมาชิกล่าสุด</div>
+      <div style="overflow-x:auto">
+        <table class="a-table">
+          <thead><tr><th>ID</th><th>ชื่อ</th><th>โทร</th><th>ยอดเงิน</th><th>สถานะ</th><th>วันที่สมัคร</th></tr></thead>
+          <tbody id="admin-users-body"><tr><td colspan="6" style="text-align:center;color:var(--t3);padding:20px">กำลังโหลด...</td></tr></tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+async function loadAdminData() {
+  try {
+    const d = await api('GET', '/admin/dashboard');
+    const kpiMap = {users:'ak-users',totalBets:'ak-bets',revenue:'ak-revenue',pendingTx:'ak-pending'};
+    Object.entries(kpiMap).forEach(([k,id]) => {
+      const el = document.getElementById(id);
+      if(el && d[k] !== undefined) el.textContent = typeof d[k]==='number' && d[k]>999 ? fmtMoney(d[k]) : d[k]||0;
+    });
+  } catch(e) {}
+  // Load transactions
+  try {
+    const d = await api('GET', '/admin/transactions');
+    const txs = Array.isArray(d) ? d : (d.transactions||d.data||[]);
+    const body = document.getElementById('admin-tx-body'); if(!body) return;
+    const pending = txs.filter(t=>t.status==='pending').slice(0,20);
+    if (!pending.length) { body.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:20px">ไม่มีรายการรอดำเนินการ</td></tr>'; }
+    else body.innerHTML = pending.map(t=>`
+      <tr>
+        <td>${t.id}</td>
+        <td>${t.user_name||t.username||'-'}</td>
+        <td class="td-gold">${fmtMoney(t.amount)}</td>
+        <td><span class="badge badge-pend">${t.status}</span></td>
+        <td>${fmtDateShort(t.created_at)}</td>
+        <td><button class="btn btn-gold btn-sm" onclick="approveTransaction(${t.id})">อนุมัติ</button></td>
+      </tr>`).join('');
+    const upd = document.getElementById('ak-pending'); if(upd) upd.textContent = pending.length;
+  } catch(e) { const b = document.getElementById('admin-tx-body'); if(b) b.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--t3);padding:20px">ไม่สามารถโหลดได้</td></tr>'; }
+  // Load users
+  try {
+    const d = await api('GET', '/admin/users');
+    const users = Array.isArray(d) ? d : (d.users||d.data||[]);
+    const body = document.getElementById('admin-users-body'); if(!body) return;
+    body.innerHTML = users.slice(0,20).map(u=>`
+      <tr>
+        <td>${u.id}</td>
+        <td class="td-gold">${u.display_name||u.first_name||'-'}</td>
+        <td>${u.phone||'-'}</td>
+        <td class="td-green">${fmtMoney(u.balance||0)}</td>
+        <td><span class="badge ${u.is_active?'badge-ok':'badge-fail'}">${u.is_active?'ใช้งาน':'ระงับ'}</span></td>
+        <td>${fmtDateShort(u.created_at)}</td>
+      </tr>`).join('');
+    const upd = document.getElementById('ak-users'); if(upd) upd.textContent = users.length;
+  } catch(e) {}
+}
+
+async function approveTransaction(id) {
+  try {
+    await api('PUT', `/admin/transactions/${id}/approve`);
+    showToast('อนุมัติสำเร็จ');
+    loadAdminData();
+  } catch(e) { showToast(e.message||'ไม่สำเร็จ','err'); }
+}
+
+// ══════════════════════════════════════════
+// AGENT PAGE
+// ══════════════════════════════════════════
+function buildAgent() {
+  return `
+    <div class="page-title">👥 Agent Portal</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div class="kpi4"><div class="kpi4-lbl">สมาชิกใต้สาย</div><div class="kpi4-val td-gold" id="ag-members">-</div><div class="kpi4-bar" style="background:var(--gold)"></div></div>
+      <div class="kpi4"><div class="kpi4-lbl">ค่าคอมสะสม</div><div class="kpi4-val td-green" id="ag-comm">-</div><div class="kpi4-bar" style="background:var(--green)"></div></div>
+    </div>
+    <div class="card">
+      <div class="sec-title">ลิ้งค์แนะนำ</div>
+      <div style="background:var(--dark);border:1px solid #B8860B33;border-radius:10px;padding:12px;font-size:12px;word-break:break-all;color:var(--gold);margin-bottom:10px" id="ag-link">กำลังโหลด...</div>
+      <button class="btn btn-outline btn-sm" onclick="copyRefLink()">📋 คัดลอกลิ้งค์</button>
+    </div>
+    <div class="card">
+      <div class="sec-title">สมาชิกในสาย</div>
+      <div id="ag-members-list"><div style="text-align:center;padding:20px;color:var(--t3)">กำลังโหลด...</div></div>
+    </div>`;
+}
+
+async function loadAgentData() {
+  try {
+    const d = await api('GET', '/agent/dashboard');
+    const am = document.getElementById('ag-members'); if(am) am.textContent = d.total_members||0;
+    const ac = document.getElementById('ag-comm'); if(ac) ac.textContent = fmtMoney(d.total_commission||0);
+  } catch(e) {}
+  try {
+    const d = await api('GET', '/agent/referral-link');
+    const link = d.url || d.referral_url || `https://courageous-fairy-114078.netlify.app?ref=${STATE.user?.referral_code||''}`;
+    const el = document.getElementById('ag-link'); if(el) el.textContent = link;
+  } catch(e) {
+    const el = document.getElementById('ag-link');
+    if(el) el.textContent = `https://courageous-fairy-114078.netlify.app?ref=${STATE.user?.referral_code||''}`;
+  }
+  try {
+    const d = await api('GET', '/agent/members');
+    const members = Array.isArray(d) ? d : (d.members||d.data||[]);
+    const el = document.getElementById('ag-members-list'); if(!el) return;
+    if (!members.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ยังไม่มีสมาชิก</div>'; return; }
+    el.innerHTML = members.slice(0,20).map(m=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #111">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--dark)">${(m.first_name||m.phone||'U')[0].toUpperCase()}</div>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:700;color:var(--t2)">${m.display_name||m.first_name||m.phone}</div>
+          <div style="font-size:10px;color:var(--t4)">${fmtDateShort(m.created_at)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--green);font-weight:700">${fmtMoney(m.commission_earned||0)}</div>
+      </div>`).join('');
+  } catch(e) {}
+}
+
+function copyRefLink() {
+  const el = document.getElementById('ag-link');
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => showToast('คัดลอกลิ้งค์แล้ว')).catch(()=>showToast('ไม่สามารถคัดลอกได้','err'));
+}
+
+// ══════════════════════════════════════════
+// LANDING COUNTDOWN
+// ══════════════════════════════════════════
+function startLandingCountdown() {
+  const updateCD = () => {
+    const now = new Date();
+    const next = new Date(); next.setHours(20,30,0,0);
+    if (next < now) next.setDate(next.getDate()+1);
+    const diff = next - now;
+    const h = Math.floor(diff/3600000), m = Math.floor((diff%3600000)/60000), s = Math.floor((diff%60000)/1000);
+    ['h','m','s'].forEach((u,i)=>{
+      const v = [h,m,s][i];
+      const el = document.getElementById('lcd-'+u); if(el) el.textContent = String(v).padStart(2,'0');
+    });
+  };
+  updateCD();
+  const t = setInterval(updateCD, 1000);
+  document.getElementById('pg-landing').dataset.cdTimer = t;
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  // Hide loading after 1.5s
+  setTimeout(() => {
+    document.getElementById('loading').classList.add('hide');
+  }, 1500);
+
+  // Check auth
+  if (STATE.token && STATE.user) {
+    // Pre-load wallet data
+    await loadWalletData();
+    navTo('home');
+  } else {
+    showPage('landing');
+  }
+
+  // Handle resize
+  window.addEventListener('resize', () => {
+    if (STATE.currentPage && STATE.currentPage !== 'landing' && STATE.currentPage !== 'auth') {
+      const isPC = window.innerWidth >= 900;
+      const sidebar = document.getElementById('sidebar');
+      const pcMain = document.getElementById('pc-main');
+      const mWrapper = document.getElementById('mobile-wrapper');
+      if (isPC) {
+        if(sidebar) sidebar.style.display='flex';
+        if(pcMain) pcMain.style.display='flex';
+        if(mWrapper) mWrapper.style.display='none';
+        renderPage(STATE.currentPage);
+      } else {
+        if(sidebar) sidebar.style.display='none';
+        if(pcMain) pcMain.style.display='none';
+        if(mWrapper) mWrapper.style.display='flex';
+        renderPage(STATE.currentPage);
+      }
+    }
+  });
+});
 </script>
 </body>
 </html>
