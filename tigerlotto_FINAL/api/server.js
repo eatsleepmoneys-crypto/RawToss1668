@@ -70,9 +70,24 @@ const { Server }  = require('socket.io');
 const fs          = require('fs');
 
 const app    = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
+
+const ALLOWED_ORIGINS = [
+  'https://courageous-fairy-114078.netlify.app',
+  'https://rawtoss1668-production.up.railway.app',
+  'http://localhost:3000',
+];
+const corsOriginFn = (origin, callback) => {
+  if (!origin) return callback(null, true);
+  if (ALLOWED_ORIGINS.includes(origin) || /\.netlify\.app$/.test(origin)) {
+    return callback(null, true);
+  }
+  callback(new Error('Not allowed by CORS'));
+};
+
 const io     = new Server(server, {
-  cors: { origin: process.env.APP_URL || '*', credentials: true },
+  cors: { origin: corsOriginFn, credentials: true },
   transports: ['websocket', 'polling'],
 });
 global.io = io;
@@ -80,7 +95,7 @@ global.io = io;
 // ── Middleware ────────────────────────────────────────────────
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
-app.use(cors({ origin: process.env.APP_URL || '*', credentials: true }));
+app.use(cors({ origin: corsOriginFn, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
