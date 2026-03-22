@@ -159,6 +159,8 @@ function updateNavUser() {
     document.getElementById('navBal').textContent =
       '💰 ฿' + parseFloat(STATE.wallet.balance || 0).toLocaleString();
   }
+  const adminSec = document.getElementById('sb-admin-sec');
+  if (adminSec) adminSec.style.display = (STATE.user.role === 'admin' || STATE.user.role === 'superadmin') ? 'block' : 'none';
 }
 
 // ── Data Loaders ──────────────────────────────────────────────
