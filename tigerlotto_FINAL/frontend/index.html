@@ -991,16 +991,17 @@ async function initBuy() {
   STATE.buyNumber = '';
   STATE.buyAmount = 0;
   try {
-    const d = await api('GET', '/lottery/types');
+    const raw = await api('GET', '/lottery/types');
+    const d = Array.isArray(raw) ? raw : (raw.data || raw.types || []);
     STATE.lotteryTypes = d;
     const EMOJIS = {thai:'🇹🇭',lao:'🇱🇦',hanoi:'🇻🇳',malay:'🇲🇾',stock:'📈',yeekee:'⚡',ping_pong:'🏓'};
     const grid = document.getElementById('buy-type-grid');
     if (!grid) return;
     grid.innerHTML = d.map(t => `
-      <div class="type-card" onclick="selectBuyType(${t.id},'${t.name_th||t.name}')" id="tc-${t.id}">
-        <div style="font-size:28px;margin-bottom:8px">${EMOJIS[t.slug]||'🎰'}</div>
-        <div style="font-size:13px;font-weight:900;color:var(--gold);margin-bottom:3px">${t.name_th||t.name}</div>
-        <div style="font-size:11px;color:var(--green)">x${t.payout_3top||900} (3 ตัวบน)</div>
+      <div class="type-card" onclick="selectBuyType(${t.id},'${t.name_th||t.name||t.code}')" id="tc-${t.id}">
+        <div style="font-size:28px;margin-bottom:8px">${EMOJIS[t.slug||t.code]||'🎰'}</div>
+        <div style="font-size:13px;font-weight:900;color:var(--gold);margin-bottom:3px">${t.name_th||t.name||t.code}</div>
+        <div style="font-size:11px;color:var(--green)">${t.rounds_per_day ? t.rounds_per_day+' รอบ/วัน' : (t.schedule||'ตามงวด')}</div>
       </div>`).join('');
   } catch(e) { showToast('โหลดประเภทหวยไม่ได้','err'); }
 }
