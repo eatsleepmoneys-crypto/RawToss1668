@@ -333,7 +333,6 @@ async function renderSettings(el) {
   let settings = [];
   try { const res = await Admin.settings(); settings = res.data || []; } catch(e) { toast(e.message,'err'); }
 
-  // group by group_name
   const groups = {};
   settings.forEach(s => {
     const g = s.group_name || 'ทั่วไป';
@@ -342,8 +341,8 @@ async function renderSettings(el) {
   });
 
   const groupIcons = {
-    'ทั่วไป':'⚙️','ระบบ':'🖥️','การเงิน':'💰','หวย':'🎯','โปรโมชั่น':'🎁',
-    'SMS':'📩','ความปลอดภัย':'🔒','แจ้งเตือน':'🔔'
+    'agent':'👥','betting':'🎲','payment':'💳','promo':'🎁','risk':'⚠️',
+    'system':'🖥️','sms':'📩','security':'🔒','notification':'🔔','ทั่วไป':'⚙️'
   };
 
   el.innerHTML = `
@@ -351,38 +350,47 @@ async function renderSettings(el) {
       <button onclick="renderSettings(document.getElementById('mainContent'))"
         style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">🔄 รีเฟรช</button>
     </div>
-    ${Object.keys(groups).map(grp => `
+    ${Object.keys(groups).map(grp => {
+      const safeGrp = grp.replace(/[^a-zA-Z0-9]/g,'_');
+      return `
       <div class="card" style="margin-bottom:12px;padding:0;overflow:hidden">
         <div style="padding:10px 14px;background:#0D0D0D;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:12px;font-weight:900;color:var(--gold)">${groupIcons[grp]||'⚙️'} ${grp}</span>
-          <button onclick="saveSettingGroup('${grp}')"
+          <button onclick="saveSettingGroup('${safeGrp}')"
             style="padding:3px 12px;border-radius:6px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:9px;font-weight:900;cursor:pointer;font-family:inherit">
             💾 บันทึกทั้งกลุ่ม
           </button>
         </div>
-        <div style="padding:8px 14px">
+        <div style="padding:4px 14px">
           ${groups[grp].map(s => `
-            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #0f0f0f" class="setting-row-${grp.replace(/\s/g,'_')}">
+            <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #0f0f0f" data-grp="${safeGrp}">
               <div style="flex:1;min-width:0">
-                <div style="font-size:11px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace">${s.key}</div>
+                <div style="font-size:11px;font-weight:700;color:var(--gold);font-family:'JetBrains Mono',monospace">${s.setting_key}</div>
                 <div style="font-size:9px;color:#444;margin-top:2px">${s.description||''}</div>
               </div>
-              <input id="setting-${s.key}" value="${(s.value||'').replace(/"/g,'&quot;')}"
+              <input id="setting-${s.setting_key}" value="${(s.value||'').replace(/"/g,'&quot;')}"
                 style="width:160px;height:32px;background:var(--dark);border:1.5px solid #FFD70022;border-radius:7px;
                        color:#fff;font-size:12px;font-weight:600;padding:0 10px;font-family:inherit;outline:none;flex-shrink:0"
                 onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#FFD70022'">
-              <button onclick="saveSetting('${s.key}')"
-                style="padding:3px 8px;border-radius:5px;background:#1A1200;border:1.5px solid #FFD70033;color:var(--gold);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0;white-space:nowrap">
+              <button onclick="saveSetting('${s.setting_key}')"
+                style="padding:3px 8px;border-radius:5px;background:#1A1200;border:1.5px solid #FFD70033;color:var(--gold);font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;flex-shrink:0">
                 บันทึก
               </button>
             </div>`).join('')}
         </div>
-      </div>`).join('')}
+      </div>`;
+    }).join('')}
     ${settings.length === 0 ? '<div class="card" style="text-align:center;padding:30px;color:#444">ไม่พบการตั้งค่า</div>' : ''}`;
 }
 
-async function saveSettingGroup(grp) {
-  const rows = document.querySelectorAll(`.setting-row-${grp.replace(/\s/g,'_')}`);
+async function saveSetting(key) {
+  const val = document.getElementById('setting-' + key)?.value;
+  try { await Admin.updateSetting(key, val); toast('✅ บันทึก ' + key); }
+  catch(e) { toast(e.message, 'err'); }
+}
+
+async function saveSettingGroup(safeGrp) {
+  const rows = document.querySelectorAll(`[data-grp="${safeGrp}"]`);
   let ok = 0, fail = 0;
   for (const row of rows) {
     const inp = row.querySelector('input');
@@ -393,12 +401,6 @@ async function saveSettingGroup(grp) {
   }
   if (fail === 0) toast(`✅ บันทึก ${ok} รายการแล้ว`);
   else toast(`บันทึกสำเร็จ ${ok} / ล้มเหลว ${fail}`, 'w');
-}
-
-async function saveSetting(key) {
-  const val = document.getElementById('setting-' + key)?.value;
-  try { await Admin.updateSetting(key, val); toast('✅ บันทึก ' + key); }
-  catch(e) { toast(e.message, 'err'); }
 }
 
 // ── REPORT ────────────────────────────────────────────────────
@@ -483,77 +485,39 @@ async function renderLotteryTypes(el) {
   try { const r = await Admin.lotteryTypes(); types = r.data || []; } catch(e) { toast(e.message,'err'); }
   el.innerHTML = `
     <div class="pg-title">🎯 ประเภทหวย
-      <div style="display:flex;gap:6px">
-        <button onclick="renderLotteryTypes(document.getElementById('mainContent'))"
-          style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">🔄 รีเฟรช</button>
-        <button onclick="openLotteryTypeModal()"
-          style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">+ เพิ่มประเภท</button>
-      </div>
+      <button onclick="renderLotteryTypes(document.getElementById('mainContent'))"
+        style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">🔄 รีเฟรช</button>
     </div>
     <div class="card" style="padding:0;overflow:hidden">
       <table>
         <thead><tr>
           <th style="padding:10px 12px">ประเภทหวย</th>
-          <th>หมวดหมู่</th>
-          <th>2 ตัวบน</th><th>2 ตัวล่าง</th><th>3 ตัวบน</th><th>3 ตัวโต้ด</th>
-          <th>วงเงิน/ใบ</th><th>สถานะ</th><th>จัดการ</th>
+          <th>รหัส</th><th>งวด/วัน</th><th>สถานะ</th><th>เปิด/ปิด</th>
         </tr></thead>
         <tbody>
           ${types.length ? types.map(t => `
-            <tr id="lt-row-${t.id}">
+            <tr>
               <td style="padding:10px 12px">
-                <span style="font-size:18px">${t.icon||'🎯'}</span>
-                <span style="color:#ccc;font-weight:700;margin-left:7px">${t.name||''}</span>
-                <div style="font-size:9px;color:#444;margin-top:2px;margin-left:27px">${t.description||''}</div>
+                <span style="font-size:20px">${t.icon||'🎯'}</span>
+                <span style="color:#ccc;font-weight:700;margin-left:8px">${t.name||''}</span>
+                ${t.description ? `<div style="font-size:9px;color:#444;margin-top:2px;margin-left:30px">${t.description}</div>` : ''}
               </td>
-              <td><span style="font-size:10px;background:#1A1200;color:var(--gold);border:1px solid #FFD70033;padding:2px 7px;border-radius:5px;font-weight:700">${t.category||'-'}</span></td>
-              <td><input id="lt-p2t-${t.id}" value="${t.payout_2_top||t.payout_2||90}" style="width:56px;height:28px;background:var(--dark);border:1px solid #FFD70022;border-radius:5px;color:var(--gold);font-size:12px;font-weight:700;text-align:center;font-family:inherit;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#FFD70022'"></td>
-              <td><input id="lt-p2b-${t.id}" value="${t.payout_2_bot||t.payout_2||85}" style="width:56px;height:28px;background:var(--dark);border:1px solid #FFD70022;border-radius:5px;color:var(--gold);font-size:12px;font-weight:700;text-align:center;font-family:inherit;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#FFD70022'"></td>
-              <td><input id="lt-p3t-${t.id}" value="${t.payout_3_top||t.payout_3||850}" style="width:56px;height:28px;background:var(--dark);border:1px solid #FFD70022;border-radius:5px;color:var(--gold);font-size:12px;font-weight:700;text-align:center;font-family:inherit;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#FFD70022'"></td>
-              <td><input id="lt-p3d-${t.id}" value="${t.payout_3_toad||150}" style="width:56px;height:28px;background:var(--dark);border:1px solid #FFD70022;border-radius:5px;color:var(--gold);font-size:12px;font-weight:700;text-align:center;font-family:inherit;outline:none" onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='#FFD70022'"></td>
-              <td><input id="lt-max-${t.id}" value="${t.max_bet_per_number||1000}" style="width:68px;height:28px;background:var(--dark);border:1px solid #FFD70022;border-radius:5px;color:#78BAFF;font-size:11px;font-weight:700;text-align:center;font-family:inherit;outline:none" onfocus="this.style.borderColor='var(--blue)'" onblur="this.style.borderColor='#FFD70022'"></td>
+              <td><span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gold);background:#1A1200;padding:2px 7px;border-radius:5px">${t.code||''}</span></td>
+              <td style="color:#78BAFF;font-weight:700">${t.rounds_per_day||'-'}</td>
+              <td><span class="badge ${t.is_active?'b-ok':'b-fail'}">${t.is_active?'● เปิด':'✕ ปิด'}</span></td>
               <td>
-                <div onclick="saveLotteryTypeToggle(${t.id},${t.is_active})"
+                <div onclick="toggleLotteryType(${t.id},${t.is_active})"
                   style="width:36px;height:20px;border-radius:10px;cursor:pointer;position:relative;display:inline-flex;align-items:center;
                          background:${t.is_active?'var(--green)':'#333'};transition:background .2s">
                   <div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s;left:${t.is_active?'19px':'3px'}"></div>
                 </div>
               </td>
-              <td>
-                <button onclick="saveLotteryTypeRates(${t.id})"
-                  style="padding:3px 8px;border-radius:5px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:9px;font-weight:900;cursor:pointer;font-family:inherit;margin-right:3px">💾</button>
-              </td>
             </tr>`).join('') :
-            '<tr><td colspan="9" style="text-align:center;padding:30px;color:#444">ไม่พบข้อมูลประเภทหวย</td></tr>'}
+            '<tr><td colspan="5" style="text-align:center;padding:30px;color:#444">ไม่พบข้อมูลประเภทหวย</td></tr>'}
+
         </tbody>
       </table>
     </div>`;
-}
-
-async function saveLotteryTypeRates(id) {
-  const body = {
-    payout_2_top:        parseInt(document.getElementById('lt-p2t-'+id)?.value)||0,
-    payout_2_bot:        parseInt(document.getElementById('lt-p2b-'+id)?.value)||0,
-    payout_3_top:        parseInt(document.getElementById('lt-p3t-'+id)?.value)||0,
-    payout_3_toad:       parseInt(document.getElementById('lt-p3d-'+id)?.value)||0,
-    max_bet_per_number:  parseInt(document.getElementById('lt-max-'+id)?.value)||0,
-  };
-  try {
-    await Admin.updateLotteryType(id, body);
-    toast('💾 บันทึกอัตราจ่ายแล้ว');
-  } catch(e) { toast(e.message, 'err'); }
-}
-
-async function saveLotteryTypeToggle(id, isActive) {
-  try {
-    await Admin.updateLotteryType(id, { is_active: isActive ? 0 : 1 });
-    toast((isActive ? '🔴 ปิด' : '🟢 เปิด') + ' หวยแล้ว');
-    renderLotteryTypes(document.getElementById('mainContent'));
-  } catch(e) { toast(e.message, 'err'); }
-}
-
-function openLotteryTypeModal() {
-  toast('ฟีเจอร์เพิ่มประเภทหวยใหม่กำลังพัฒนา', 'w');
 }
 
 // ── PROMOTIONS MANAGER ─────────────────────────────────────────
