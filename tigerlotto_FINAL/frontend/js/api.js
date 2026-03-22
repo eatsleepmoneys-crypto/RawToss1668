@@ -122,18 +122,18 @@ const Admin = {
 
 // ── Session Helpers ───────────────────────────────────────────
 function saveSession(token, user) {
-  localStorage.setItem('tgl_token', token);
-  localStorage.setItem('tgl_user',  JSON.stringify(user));
+  localStorage.setItem('tl_token', token);
+  localStorage.setItem('tl_user',  JSON.stringify(user));
 }
 function getSession() {
-  const token = localStorage.getItem('tgl_token');
-  const user  = JSON.parse(localStorage.getItem('tgl_user') || 'null');
+  const token = localStorage.getItem('tl_token');
+  const user  = JSON.parse(localStorage.getItem('tl_user') || 'null');
   return { token, user };
 }
 function clearSession() {
-  localStorage.removeItem('tgl_token');
-  localStorage.removeItem('tgl_user');
+  localStorage.removeItem('tl_token');
+  localStorage.removeItem('tl_user');
 }
 function isLoggedIn() {
-  return !!localStorage.getItem('tgl_token');
+  return !!localStorage.getItem('tl_token');
 }
