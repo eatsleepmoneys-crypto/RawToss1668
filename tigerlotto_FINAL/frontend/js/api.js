@@ -3,11 +3,11 @@
  * เชื่อมต่อ Backend API จริงทุก endpoint
  */
 
-const API_BASE = window.location.origin + '/api/v1';
+const API_BASE = 'https://rawtoss1668-production.up.railway.app/api/v1';
 
 // ── HTTP Helper ───────────────────────────────────────────────
 async function http(method, path, body = null, multipart = false) {
-  const token = localStorage.getItem('tgl_token');
+  const token = localStorage.getItem('tl_token');
   const headers = {};
   if (token) headers['Authorization'] = 'Bearer ' + token;
   if (!multipart && body) headers['Content-Type'] = 'application/json';
