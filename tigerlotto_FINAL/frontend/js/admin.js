@@ -18,6 +18,8 @@ const ADMIN_MENU = [
   { k:'kyc',          icon:'🪪', label:'ตรวจสอบ KYC'        },
   { k:'settings',     icon:'⚙️', label:'ตั้งค่าระบบ'        },
   { k:'report',       icon:'📑', label:'รายงาน'             },
+  { sec: 'การเชื่อมต่อ' },
+  { k:'api_manager', icon:'🔌', label:'API Manager' },
 ];
 
 let currentPage = 'dashboard';
@@ -63,6 +65,7 @@ async function navTo(key) {
       case 'kyc':          await renderKYC(el);          break;
       case 'settings':     await renderSettings(el);     break;
       case 'report':       await renderReport(el);       break;
+      case 'api_manager':  await renderApiManager(el);   break;
       default: el.innerHTML = '<div style="color:#555;padding:20px">หน้านี้กำลังพัฒนา</div>';
     }
   } catch(e) {
@@ -390,6 +393,15 @@ async function renderRounds(el) {
 }
 
 // ── LOGOUT ────────────────────────────────────────────────────
+// ── API MANAGER ────────────────────────────────────────────────
+async function renderApiManager(el) {
+  el.innerHTML = `
+    <div class="pg-title">🔌 API Manager</div>
+    <div style="border-radius:10px;overflow:hidden;border:1px solid #1e1e1e;height:calc(100vh - 110px)">
+      <iframe src="tigerlotto_api_manager.html" style="width:100%;height:100%;border:none;display:block"></iframe>
+    </div>`;
+}
+
 function doLogout() { clearSession(); location.href = '/'; }
 
 // ── TOAST ─────────────────────────────────────────────────────
