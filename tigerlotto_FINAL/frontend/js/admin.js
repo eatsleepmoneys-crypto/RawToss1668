@@ -6,20 +6,25 @@
 
 const ADMIN_MENU = [
   { sec: 'ภาพรวม' },
-  { k:'dashboard',    icon:'📊', label:'Dashboard'           },
-  { k:'users',        icon:'👥', label:'สมาชิก'              },
-  { k:'transactions', icon:'💳', label:'ธุรกรรม'             },
-  { k:'withdrawals',  icon:'📤', label:'อนุมัติถอน', badge:true },
-  { sec: 'หวย' },
-  { k:'rounds',       icon:'📅', label:'จัดการงวด'          },
-  { k:'enter_result', icon:'🏆', label:'บันทึกผล'           },
-  { k:'hot_numbers',  icon:'🔥', label:'เลขฮิต'             },
+  { k:'dashboard',      icon:'📊', label:'Dashboard'              },
+  { k:'users',          icon:'👥', label:'สมาชิก'                 },
+  { k:'transactions',   icon:'💳', label:'ธุรกรรม'                },
+  { k:'withdrawals',    icon:'📤', label:'อนุมัติถอน', badge:true  },
+  { sec: 'แทงหวย (Admin)' },
+  { k:'lottery_control',icon:'🔛', label:'เปิด/ปิดหวย'           },
+  { k:'rounds',         icon:'📅', label:'จัดการงวด'             },
+  { k:'enter_result',   icon:'🏆', label:'บันทึกผล'              },
+  { k:'hot_numbers',    icon:'🔥', label:'เลขฮิต'                },
+  { sec: 'สมาชิก & การเงิน' },
+  { k:'kyc',            icon:'🪪', label:'ตรวจสอบ KYC'           },
+  { k:'promotions_mgr', icon:'🎁', label:'จัดการโปรโมชั่น'       },
+  { k:'wallets',        icon:'💰', label:'กระเป๋าเงินสมาชิก'     },
   { sec: 'ระบบ' },
-  { k:'kyc',          icon:'🪪', label:'ตรวจสอบ KYC'        },
-  { k:'settings',     icon:'⚙️', label:'ตั้งค่าระบบ'        },
-  { k:'report',       icon:'📑', label:'รายงาน'             },
+  { k:'lottery_types',  icon:'🎯', label:'ประเภทหวย'             },
+  { k:'settings',       icon:'⚙️', label:'ตั้งค่าระบบ'           },
+  { k:'report',         icon:'📑', label:'รายงาน'                },
   { sec: 'การเชื่อมต่อ' },
-  { k:'api_manager', icon:'🔌', label:'API Manager' },
+  { k:'api_manager',    icon:'🔌', label:'API Manager'            },
 ];
 
 let currentPage = 'dashboard';
@@ -66,6 +71,10 @@ async function navTo(key) {
       case 'settings':     await renderSettings(el);     break;
       case 'report':       await renderReport(el);       break;
       case 'api_manager':  await renderApiManager(el);   break;
+      case 'lottery_control':  await renderLotteryControl(el);  break;
+      case 'lottery_types':    await renderLotteryTypes(el);    break;
+      case 'promotions_mgr':   await renderPromotionsMgr(el);   break;
+      case 'wallets':          await renderWallets(el);         break;
       default: el.innerHTML = '<div style="color:#555;padding:20px">หน้านี้กำลังพัฒนา</div>';
     }
   } catch(e) {
@@ -390,6 +399,115 @@ async function renderRounds(el) {
         </div>
       </div>`).join('') :
     '<div class="card" style="text-align:center;padding:30px;color:#444">ไม่มีงวดที่เปิดรับอยู่</div>'}`;
+}
+
+// ── LOTTERY CONTROL (เปิด/ปิดหวย) ─────────────────────────────
+async function renderLotteryControl(el) {
+  let types = [];
+  try { const r = await api('GET', '/lottery/types'); types = r.data || []; } catch {}
+  el.innerHTML = `
+    <div class="pg-title">🔛 เปิด/ปิดหวย
+      <button onclick="renderLotteryControl(document.getElementById('mainContent'))"
+        style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">🔄 รีเฟรช</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+      ${types.length ? types.map(t => `
+        <div class="card" style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:22px">${t.icon||'🎯'}</span>
+          <div style="flex:1">
+            <div style="font-size:12px;font-weight:700;color:#ccc">${t.name||''}</div>
+            <div style="font-size:9px;color:#555;margin-top:2px">${t.category||''}</div>
+          </div>
+          <div onclick="toggleLotteryType(${t.id},${t.is_active})"
+            style="width:38px;height:22px;border-radius:11px;cursor:pointer;position:relative;
+                   background:${t.is_active?'var(--green)':'#333'};transition:background .2s;flex-shrink:0">
+            <div style="position:absolute;top:3px;width:16px;height:16px;border-radius:50%;background:#fff;
+                        transition:left .2s;left:${t.is_active?'19px':'3px'}"></div>
+          </div>
+        </div>`).join('') :
+        '<div class="card" style="text-align:center;padding:30px;color:#444">ไม่พบข้อมูลประเภทหวย</div>'}
+    </div>`;
+}
+
+async function toggleLotteryType(id, isActive) {
+  try {
+    await api('PUT', '/admin/lottery-types/' + id, { is_active: isActive ? 0 : 1 });
+    toast((isActive ? '🔴 ปิด' : '🟢 เปิด') + ' หวยแล้ว');
+    renderLotteryControl(document.getElementById('mainContent'));
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ── LOTTERY TYPES (ประเภทหวย) ─────────────────────────────────
+async function renderLotteryTypes(el) {
+  let types = [];
+  try { const r = await api('GET', '/lottery/types'); types = r.data || []; } catch {}
+  el.innerHTML = `
+    <div class="pg-title">🎯 ประเภทหวย
+      <button onclick="openAddLotteryType()"
+        style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">+ เพิ่มประเภท</button>
+    </div>
+    <div class="card" style="padding:8px;overflow-x:auto">
+      <table>
+        <thead><tr><th>ชื่อ</th><th>หมวด</th><th>สถานะ</th><th>จ่าย 2 ตัว</th><th>จ่าย 3 ตัว</th><th>จัดการ</th></tr></thead>
+        <tbody>${types.map(t => `
+          <tr>
+            <td style="color:#ccc;font-weight:600">${t.icon||''} ${t.name||''}</td>
+            <td style="font-size:10px;color:#555">${t.category||''}</td>
+            <td><span class="badge ${t.is_active?'b-ok':'b-fail'}">${t.is_active?'เปิด':'ปิด'}</span></td>
+            <td style="color:var(--gold)">×${t.payout_2||0}</td>
+            <td style="color:var(--gold)">×${t.payout_3||0}</td>
+            <td>
+              <button onclick="toggleLotteryType(${t.id},${t.is_active})"
+                style="padding:2px 8px;border-radius:5px;font-size:9px;font-weight:700;cursor:pointer;font-family:inherit;
+                       background:${t.is_active?'#1a0a0a':'#0a1a0a'};border:1px solid ${t.is_active?'#D85A3033':'#3BD44133'};
+                       color:${t.is_active?'var(--red)':'var(--green)'}">
+                ${t.is_active?'ปิด':'เปิด'}
+              </button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function openAddLotteryType() {
+  toast('ฟีเจอร์นี้กำลังพัฒนา', 'w');
+}
+
+// ── PROMOTIONS MANAGER ─────────────────────────────────────────
+async function renderPromotionsMgr(el) {
+  el.innerHTML = `
+    <div class="pg-title">🎁 จัดการโปรโมชั่น
+      <button onclick="toast('ฟีเจอร์นี้กำลังพัฒนา','w')"
+        style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">+ เพิ่มโปรโมชั่น</button>
+    </div>
+    <div class="card" style="text-align:center;padding:40px;color:#444">
+      <div style="font-size:32px;margin-bottom:10px">🎁</div>
+      <div style="font-size:13px;font-weight:700;color:#555">ระบบจัดการโปรโมชั่นกำลังพัฒนา</div>
+      <div style="font-size:11px;color:#333;margin-top:6px">จะรองรับ: โบนัสสมัครใหม่, cashback, referral</div>
+    </div>`;
+}
+
+// ── WALLETS ────────────────────────────────────────────────────
+async function renderWallets(el) {
+  const res = await Admin.users({ limit: 30 });
+  const users = res.data || [];
+  el.innerHTML = `
+    <div class="pg-title">💰 กระเป๋าเงินสมาชิก</div>
+    <div class="card" style="padding:8px;overflow-x:auto">
+      <table>
+        <thead><tr><th>ชื่อ</th><th>เบอร์</th><th>ยอดคงเหลือ</th><th>VIP</th><th>โบนัส</th></tr></thead>
+        <tbody>${users.map(u => `
+          <tr>
+            <td style="color:#ccc;font-weight:600">${u.first_name||''} ${u.last_name||''}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${u.phone||''}</td>
+            <td style="font-size:13px;font-weight:700;color:var(--gold)">฿${parseFloat(u.balance||0).toLocaleString()}</td>
+            <td style="color:var(--gold)">⭐ ${u.vip_tier||'bronze'}</td>
+            <td style="color:var(--green)">฿${parseFloat(u.bonus_balance||0).toLocaleString()}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 // ── LOGOUT ────────────────────────────────────────────────────
