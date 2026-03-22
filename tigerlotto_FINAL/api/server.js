@@ -1,5 +1,5 @@
 /**
- * TigerLotto — Full Backend Server
+ * TigerLotto â Full Backend Server
  * Node.js 20 + Express 4 + MySQL 8
  *
  * Routes:
@@ -69,6 +69,14 @@ const http        = require('http');
 const { Server }  = require('socket.io');
 const fs          = require('fs');
 
+// Prevent unhandled rejections from crashing the server
+process.on('unhandledRejection', (reason) => {
+  console.error('[UnhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[UncaughtException]', err);
+});
+
 const app    = express();
 app.set('trust proxy', 1);
 const server = http.createServer(app);
@@ -92,7 +100,7 @@ const io     = new Server(server, {
 });
 global.io = io;
 
-// ── Middleware ────────────────────────────────────────────────
+// ââ Middleware ââââââââââââââââââââââââââââââââââââââââââââââââ
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(compression());
 app.use(cors({ origin: corsOriginFn, credentials: true }));
@@ -108,7 +116,7 @@ if (process.env.NODE_ENV !== 'production') app.use(morgan('dev'));
 
 // Rate limiting
 app.use('/api/', rateLimit({ windowMs: 15*60*1000, max: 300, standardHeaders: true, legacyHeaders: false }));
-app.use('/api/v1/auth/', rateLimit({ windowMs: 15*60*1000, max: 20, message: { error: 'RATE_LIMIT', message: 'ส่งคำขอถี่เกินไป' } }));
+app.use('/api/v1/auth/', rateLimit({ windowMs: 15*60*1000, max: 20, message: { error: 'RATE_LIMIT', message: 'à¸ªà¹à¸à¸à¸³à¸à¸­à¸à¸µà¹à¹à¸à¸´à¸à¹à¸' } }));
 
 // Static
 const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
@@ -116,7 +124,7 @@ fs.mkdirSync(uploadDir, { recursive: true });
 app.use('/uploads', express.static(uploadDir));
 app.use(express.static(path.join(__dirname, '../frontend')));
 
-// ── Import Controllers ─────────────────────────────────────────
+// ââ Import Controllers âââââââââââââââââââââââââââââââââââââââââ
 const authCtrl   = require('./controllers/authController');
 const walletCtrl = require('./controllers/walletController');
 const slipCtrl   = require('./controllers/slipController');
@@ -127,7 +135,7 @@ const bankCtrl   = require('./controllers/bankController');
 const { auth, adminOnly, agentOnly } = require('./middleware/auth');
 const { query, queryOne } = require('./config/db');
 
-// ── V1 Router ─────────────────────────────────────────────────
+// ââ V1 Router âââââââââââââââââââââââââââââââââââââââââââââââââ
 const v1 = express.Router();
 
 /* AUTH */
@@ -135,6 +143,43 @@ v1.post('/auth/register',   authCtrl.register);
 v1.post('/auth/login',      authCtrl.login);
 v1.post('/auth/otp/send',   authCtrl.sendOTP);
 v1.post('/auth/otp/verify', authCtrl.verifyOTP);
+
+/* ADMIN SETUP â à¸ªà¸£à¹à¸²à¸ Admin Account (à¹à¸à¹ ADMIN_SETUP_KEY à¸à¸µà¹à¸à¸³à¸«à¸à¸à¹à¸ env) */
+v1.post('/auth/setup-admin', async (req, res) => {
+  try {
+    const { setup_key, phone, password, first_name, last_name } = req.body;
+    const expectedKey = process.env.ADMIN_SETUP_KEY;
+    if (!expectedKey || setup_key !== expectedKey)
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Invalid setup key' });
+    if (!phone || !password || !first_name || !last_name)
+      return res.status(422).json({ error: 'VALIDATION', message: 'à¸à¹à¸­à¸¡à¸¹à¸¥à¹à¸¡à¹à¸à¸£à¸' });
+    const { v4: uuidv4 } = require('uuid');
+    const bcrypt = require('bcryptjs');
+    const jwt = require('jsonwebtoken');
+    const exists = await queryOne('SELECT id FROM users WHERE phone=?', [phone]);
+    if (exists) {
+      // Update existing user to admin
+      await query("UPDATE users SET role='superadmin', password_hash=? WHERE phone=?", [await bcrypt.hash(password, 12), phone]);
+      const user = await queryOne('SELECT id,uuid,phone,first_name,last_name,role FROM users WHERE phone=?', [phone]);
+      const token = jwt.sign({ id: user.id, uuid: user.uuid, role: user.role, phone: user.phone }, process.env.JWT_SECRET, { expiresIn: '7d' });
+      return res.json({ message: 'à¸­à¸±à¸à¹à¸à¸ superadmin à¸ªà¸³à¹à¸£à¹à¸', token, user });
+    }
+    const hash = await bcrypt.hash(password, 12);
+    const uuid = uuidv4();
+    const refCode = 'ADMIN-' + Math.random().toString(36).substr(2,6).toUpperCase();
+    const [row] = await query(
+      `INSERT INTO users (uuid,phone,password_hash,first_name,last_name,referral_code,role,vip_tier,is_verified) VALUES (?,?,?,?,?,?,'superadmin','diamond',1)`,
+      [uuid, phone, hash, first_name, last_name, refCode]
+    );
+    await query('INSERT INTO wallets (user_id,balance) VALUES (?,0)', [row.insertId]);
+    const user = await queryOne('SELECT id,uuid,phone,first_name,last_name,role FROM users WHERE id=?', [row.insertId]);
+    const token = jwt.sign({ id: user.id, uuid: user.uuid, role: user.role, phone: user.phone }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    res.status(201).json({ message: 'à¸ªà¸£à¹à¸²à¸ superadmin à¸ªà¸³à¹à¸£à¹à¸', token, user });
+  } catch (err) {
+    console.error('setup-admin error:', err);
+    res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
+  }
+});
 
 /* ME */
 v1.get('/me',               auth, async (req,res) => {
@@ -154,10 +199,10 @@ v1.put('/me/password',      auth, async (req,res) => {
   const bcrypt = require('bcryptjs');
   const { old_password, new_password } = req.body;
   if (!new_password || new_password.length < 8)
-    return res.status(422).json({ error: 'VALIDATION', message: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว' });
+    return res.status(422).json({ error: 'VALIDATION', message: 'à¸£à¸«à¸±à¸ªà¸à¹à¸²à¸à¹à¸«à¸¡à¹à¸à¹à¸­à¸à¸¡à¸µà¸­à¸¢à¹à¸²à¸à¸à¹à¸­à¸¢ 8 à¸à¸±à¸§' });
   const user = await queryOne('SELECT password_hash FROM users WHERE id=?', [req.user.id]);
   if (!await bcrypt.compare(old_password, user.password_hash))
-    return res.status(422).json({ error: 'WRONG_PASSWORD', message: 'รหัสผ่านเดิมไม่ถูกต้อง' });
+    return res.status(422).json({ error: 'WRONG_PASSWORD', message: 'à¸£à¸«à¸±à¸ªà¸à¹à¸²à¸à¹à¸à¸´à¸¡à¹à¸¡à¹à¸à¸¹à¸à¸à¹à¸­à¸' });
   await query('UPDATE users SET password_hash=? WHERE id=?', [await bcrypt.hash(new_password, 12), req.user.id]);
   res.json({ success: true });
 });
@@ -203,7 +248,7 @@ v1.get('/lottery/rounds/:id', async (req,res) => {
 });
 v1.get('/lottery/rounds/:id/result', async (req,res) => {
   const row = await queryOne('SELECT * FROM lottery_results WHERE round_id=?', [req.params.id]);
-  if (!row) return res.status(404).json({ error: 'NOT_FOUND', message: 'ยังไม่มีผล' });
+  if (!row) return res.status(404).json({ error: 'NOT_FOUND', message: 'à¸¢à¸±à¸à¹à¸¡à¹à¸¡à¸µà¸à¸¥' });
   res.json(row);
 });
 v1.get('/lottery/bet-types', async (req,res) => {
@@ -233,13 +278,15 @@ v1.delete('/slips/:id',      auth, slipCtrl.cancelSlip);
 
 /* NOTIFICATIONS */
 v1.get('/notifications',            auth, async (req,res) => {
-  const { is_read, page=1, limit=20 } = req.query;
-  const offset = (parseInt(page)-1)*parseInt(limit);
+  const page  = Math.max(1, parseInt(req.query.page)  || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 20));
+  const offset = (page - 1) * limit;
   let sql = 'SELECT * FROM notifications WHERE user_id=?';
   const params = [req.user.id];
-  if (is_read !== undefined) { sql += ' AND is_read=?'; params.push(parseInt(is_read)); }
+  const is_read = req.query.is_read;
+  if (is_read !== undefined && is_read !== '') { sql += ' AND is_read=?'; params.push(is_read === '1' ? 1 : 0); }
   sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-  params.push(parseInt(limit), offset);
+  params.push(limit, offset);
   const [data, unread] = await Promise.all([
     query(sql, params),
     queryOne('SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND is_read=0',[req.user.id]),
@@ -387,5 +434,5 @@ io.on('connection', socket => {
 /* Start */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
+  console.log(`ð¯ TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
 });
