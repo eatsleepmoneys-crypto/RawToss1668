@@ -686,11 +686,11 @@ function updateUserUI() {
   // Sidebar
   ['sb-av','mn-av'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = initials; });
   const un = document.getElementById('sb-un'); if(un) un.textContent = name;
-  const ur = document.getElementById('sb-ur'); if(ur) ur.textContent = u.role === 'admin' ? 'ผู้ดูแลระบบ' : u.role === 'agent' ? 'เอเย่นต์' : 'สมาชิก';
+  const ur = document.getElementById('sb-ur'); if(ur) ur.textContent = (u.role === 'admin' || u.role === 'superadmin') ? 'ผู้ดูแลระบบ' : u.role === 'agent' ? 'เอเย่นต์' : 'สมาชิก';
   const bl = document.getElementById('sb-bl'); if(bl) bl.textContent = bal;
   const mnbl = document.getElementById('mn-bl'); if(mnbl) mnbl.textContent = bal;
   // Admin/Agent links
-  if (u.role === 'admin' || u.role === 'agent') {
+  if (u.role === 'admin' || u.role === 'superadmin' || u.role === 'agent') {
     const s = document.getElementById('sb-admin-sec'); if(s) s.style.display = '';
   }
 }
