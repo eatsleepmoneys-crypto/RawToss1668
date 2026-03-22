@@ -260,24 +260,34 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
 .td-red{color:var(--red);font-weight:700}
 
 /* ── RESPONSIVE ── */
+/* Note: sidebar/pc-main/mobile-wrapper visibility is controlled by JavaScript showPage()/navTo()
+   CSS only handles grid layouts and landing-page desktop improvements */
 @media(min-width:900px){
-  #mobile-nav,#mobile-bottom,#mobile-wrapper{display:none!important}
-  #sidebar,#pc-main{display:flex!important}
   .ltype-grid{grid-template-columns:repeat(4,1fr)}
   .promo-grid{grid-template-columns:repeat(3,1fr)}
   .hot-grid{grid-template-columns:repeat(10,1fr)}
   .stats-band{grid-template-columns:repeat(4,1fr)}
   .kpi-grid4{grid-template-columns:repeat(4,1fr)}
+  .stats-row3{grid-template-columns:repeat(5,1fr)}
+  .type-select-grid{grid-template-columns:repeat(4,1fr)}
+  .home-hero{padding:24px 28px}
+  .pc-content{max-width:1100px;width:100%}
 }
 @media(max-width:899px){
-  #sidebar,#pc-main{display:none!important}
-  #mobile-wrapper{display:flex!important}
   .stats-band{grid-template-columns:repeat(2,1fr)}
   .kpi-grid4{grid-template-columns:repeat(2,1fr)}
   .ph-stats{grid-template-columns:repeat(2,1fr)}
   .type-select-grid{grid-template-columns:1fr 1fr}
 }
 @media(max-width:480px){.jackpot-box{flex-direction:column;gap:10px}}
+
+/* ── DESKTOP LANDING PAGE ── */
+@media(min-width:1024px){
+  .auth-wrap{max-width:480px}
+}
+@media(min-width:1280px){
+  .pc-content{max-width:1200px}
+}
 </style>
 </head>
 <body>
