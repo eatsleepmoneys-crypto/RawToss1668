@@ -1,8 +1,12 @@
 
+<script>if(window!==window.top)document.documentElement.classList.add('embedded')</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
 .a{font-family:'Noto Sans Thai',sans-serif;background:#0A0A0A;color:#fff;display:flex;height:720px;overflow:hidden}
+html.embedded .a{height:100vh}
+html.embedded .sb{display:none}
+html.embedded .topbar{display:none}
 
 /* SIDEBAR */
 .sb{width:200px;background:#0D0D0D;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;flex-shrink:0}
