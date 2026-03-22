@@ -118,6 +118,8 @@ const Admin = {
   settings:      ()       => get('/admin/settings'),
   updateSetting: (k, v)   => put(`/admin/settings/${k}`, { value: v }),
   report:        (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
+  lotteryTypes:      ()       => get('/lottery/types'),
+  updateLotteryType: (id, d)  => put(`/admin/lottery-types/${id}`, d),
 };
 
 // ── Session Helpers ───────────────────────────────────────────
