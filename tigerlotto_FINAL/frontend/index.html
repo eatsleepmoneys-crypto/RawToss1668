@@ -574,6 +574,7 @@ let STATE = {
   buyBetTypeDigits: 3,
   buyNumber: '',
   buyAmount: 0,
+  buySlip: [],  // [{number, betTypeId, betTypeName, payout, digits}]
   // Timers
   cdTimer: null,
 };
@@ -990,7 +991,7 @@ function buildBuy() {
         <div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">กำลังโหลด...</div>
       </div>
     </div>
-    <!-- Step 2: Enter number (no amount here) -->
+    <!-- Step 2: Enter numbers → add to slip -->
     <div id="buy-s2" style="display:none">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
         <button class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
@@ -999,44 +1000,57 @@ function buildBuy() {
       <div class="bet-type-tabs" id="bet-tabs"></div>
       <div class="num-display">
         <div style="font-size:30px;font-weight:900;color:var(--gold);letter-spacing:10px" id="num-disp">———</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px" id="num-hint">กดปุ่มตัวเลข</div>
+        <div style="font-size:10px;color:var(--t3);margin-top:3px" id="num-hint">กดตัวเลขให้ครบแล้วจะเพิ่มเข้าโพยอัตโนมัติ</div>
       </div>
       <div class="num-pad">
         ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
       </div>
+      <!-- Slip list (grows as numbers added) -->
+      <div id="slip-list-wrap" style="display:none;margin-top:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:11px;font-weight:700;color:var(--t2)">🎫 โพยของคุณ</div>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearSlip()">ล้างทั้งหมด</button>
+        </div>
+        <div id="slip-list"></div>
+        <button class="btn btn-gold btn-lg" style="margin-top:8px" onclick="goToSummary()">
+          📋 สรุปโพย (<span id="slip-count">0</span> เลข)
+        </button>
+      </div>
     </div>
-    <!-- Step 3: Summary slip + amount input + confirm -->
+    <!-- Step 3: Full slip summary + amount + confirm -->
     <div id="buy-s3" style="display:none">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-        <button class="btn btn-ghost btn-sm" onclick="buyStep(2)">← แก้เลข</button>
-        <div style="font-size:13px;font-weight:700;color:var(--gold)">สรุปโพย</div>
+        <button class="btn btn-ghost btn-sm" onclick="buyStep(2)">← เพิ่มเลข</button>
+        <div style="font-size:13px;font-weight:700;color:var(--gold)">สรุปโพยหวย</div>
       </div>
-      <!-- Slip summary card -->
-      <div style="background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid var(--gold2);border-radius:14px;padding:16px;margin-bottom:14px;text-align:center">
-        <div style="font-size:10px;color:var(--t3);margin-bottom:4px" id="bs-type">-</div>
-        <div style="font-size:11px;color:var(--t2);margin-bottom:8px" id="bs-btype">-</div>
-        <div id="bs-num" style="font-size:40px;font-weight:900;color:#fff;letter-spacing:12px;line-height:1;margin-bottom:6px">-</div>
-        <div style="font-size:11px;color:var(--green);font-weight:700" id="bs-payout">-</div>
+      <!-- All numbers in slip -->
+      <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px">
+        <div style="font-size:11px;color:var(--t3);margin-bottom:8px" id="bs-type">-</div>
+        <div id="slip-summary-list"></div>
       </div>
-      <!-- Amount entry -->
-      <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px">
-        <div style="font-size:12px;font-weight:700;color:var(--t1);margin-bottom:10px">💰 ใส่ยอดแทง (บาท)</div>
+      <!-- Amount per number -->
+      <div style="background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:var(--t1);margin-bottom:10px">💰 ยอดแทงต่อเลข (บาท)</div>
         <div class="amount-presets" id="amt-presets">
           ${[10,20,50,100,200,500,1000].map(a=>`<button class="amt-preset" onclick="setAmt(${a})">${a>=1000?(a/1000)+'K':a}</button>`).join('')}
         </div>
         <input class="finput" style="margin-bottom:0" type="number" id="buy-amt" placeholder="หรือกรอกยอดเอง (บาท)" min="1" max="100000"
           oninput="STATE.buyAmount=+this.value;updateWinPreview()">
       </div>
-      <!-- Win preview -->
-      <div style="background:var(--dark2);border:1px solid #B8860B33;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:var(--t2)">รับเงินถ้าถูก</span>
-        <span style="font-size:16px;font-weight:900;color:var(--green)" id="bs-win">฿0.00</span>
+      <!-- Totals -->
+      <div style="background:var(--dark2);border:1px solid #B8860B33;border-radius:10px;padding:10px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-bottom:4px">
+          <span>จำนวนเลข</span><span id="bs-count" style="color:var(--t1);font-weight:700">0 เลข</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:900;color:var(--gold)">
+          <span>ยอดรวมทั้งหมด</span><span id="bs-total">฿0.00</span>
+        </div>
       </div>
       <div style="background:var(--dark2);border:1px solid #ffffff11;border-radius:10px;padding:8px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:11px;color:var(--t3)">ยอดเงินคงเหลือ</span>
         <span style="font-size:13px;font-weight:700;color:var(--gold)">${STATE.wallet?fmtMoney(STATE.wallet.balance):'฿0.00'}</span>
       </div>
-      <button class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()">✅ ยืนยันแทงเลย</button>
+      <button class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()">✅ ยืนยันแทงทั้งหมด</button>
       <div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">ยอดจะหักจากกระเป๋าเงินทันที</div>
     </div>`;
 }
@@ -1045,6 +1059,7 @@ async function initBuy() {
   STATE.buyStep = 1;
   STATE.buyNumber = '';
   STATE.buyAmount = 0;
+  STATE.buySlip = [];
   try {
     const raw = await api('GET', '/lottery/types');
     const d = Array.isArray(raw) ? raw : (raw.data || raw.types || []);
@@ -1096,6 +1111,12 @@ async function loadBetTypes(typeId) {
 }
 
 function selectBetType(id, name, payout, digits) {
+  // Warn if slip has entries (different digits might conflict)
+  if (STATE.buySlip.length > 0 && digits !== STATE.buyBetTypeDigits) {
+    if (!confirm(`เปลี่ยนประเภทการแทงจะล้างโพยปัจจุบัน (${STATE.buySlip.length} เลข) ต้องการดำเนินการต่อ?`)) return;
+    STATE.buySlip = [];
+    renderSlipList();
+  }
   STATE.buyBetTypeId = id; STATE.buyBetTypeName = name;
   STATE.buyBetTypePayout = payout; STATE.buyBetTypeDigits = digits;
   STATE.buyNumber = '';
@@ -1109,9 +1130,9 @@ function np(k) {
   else if (k === 'CLR') { STATE.buyNumber = ''; }
   else if (STATE.buyNumber.length < STATE.buyBetTypeDigits) { STATE.buyNumber += k; }
   updateNumDisplay();
-  // Auto-advance to summary when number is complete
+  // Auto-add to slip when number is complete
   if (STATE.buyNumber.length === STATE.buyBetTypeDigits) {
-    setTimeout(() => autoGoSummary(), 160);
+    setTimeout(() => addToSlip(), 140);
   }
 }
 
@@ -1122,21 +1143,78 @@ function updateNumDisplay() {
   const digits = STATE.buyBetTypeDigits;
   if (!STATE.buyNumber) { d.textContent = '—'.repeat(digits); }
   else { d.textContent = STATE.buyNumber.padEnd(digits,'—'); }
-  if (h) h.textContent = `${STATE.buyNumber.length}/${digits} หลัก`;
+  if (h) h.textContent = STATE.buyNumber.length < digits
+    ? `กรอก ${digits} หลัก (${STATE.buyNumber.length}/${digits})`
+    : `✓ ครบ ${digits} หลัก — กำลังเพิ่ม...`;
 }
 
-function autoGoSummary() {
-  // Fill slip summary card
-  const bsType  = document.getElementById('bs-type');
-  const bsBtype = document.getElementById('bs-btype');
-  const bsNum   = document.getElementById('bs-num');
-  const bsPay   = document.getElementById('bs-payout');
-  if (bsType)  bsType.textContent  = STATE.buyTypeName;
-  if (bsBtype) bsBtype.textContent = STATE.buyBetTypeName;
-  if (bsNum)   bsNum.textContent   = STATE.buyNumber;
-  if (bsPay)   bsPay.textContent   = `อัตราจ่าย x${STATE.buyBetTypePayout}`;
+function addToSlip() {
+  const num = STATE.buyNumber;
+  if (!num || num.length < STATE.buyBetTypeDigits) return;
+  // Check duplicate
+  const dup = STATE.buySlip.find(s => s.number === num && s.betTypeId === STATE.buyBetTypeId);
+  if (dup) {
+    showToast(`เลข ${num} มีในโพยแล้ว`,'err');
+    STATE.buyNumber = '';
+    updateNumDisplay();
+    return;
+  }
+  STATE.buySlip.push({
+    number: num,
+    betTypeId: STATE.buyBetTypeId,
+    betTypeName: STATE.buyBetTypeName,
+    payout: STATE.buyBetTypePayout,
+    digits: STATE.buyBetTypeDigits,
+  });
+  STATE.buyNumber = '';
+  updateNumDisplay();
+  renderSlipList();
+  showToast(`เพิ่ม ${num} เข้าโพยแล้ว ✓`);
+}
+
+function renderSlipList() {
+  const wrap = document.getElementById('slip-list-wrap');
+  const list = document.getElementById('slip-list');
+  const cnt = document.getElementById('slip-count');
+  if (!wrap || !list) return;
+  const n = STATE.buySlip.length;
+  wrap.style.display = n > 0 ? 'block' : 'none';
+  if (cnt) cnt.textContent = n;
+  list.innerHTML = STATE.buySlip.map((s, i) => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--dark3);border-radius:8px;margin-bottom:5px;border:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px;font-weight:900;color:#fff;letter-spacing:4px">${s.number}</span>
+        <span style="font-size:10px;color:var(--t3)">${s.betTypeName} · x${s.payout}</span>
+      </div>
+      <button onclick="removeFromSlip(${i})" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>
+    </div>`).join('');
+}
+
+function removeFromSlip(i) {
+  STATE.buySlip.splice(i, 1);
+  renderSlipList();
+}
+
+function clearSlip() {
+  STATE.buySlip = [];
+  renderSlipList();
+}
+
+function goToSummary() {
+  if (!STATE.buySlip.length) { showToast('ยังไม่มีเลขในโพย','err'); return; }
+  // Fill summary step
+  const bsType = document.getElementById('bs-type');
+  if (bsType) bsType.textContent = `${STATE.buyTypeName} · ${STATE.buySlip[0].betTypeName}`;
+  const summaryList = document.getElementById('slip-summary-list');
+  if (summaryList) {
+    summaryList.innerHTML = STATE.buySlip.map(s => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #111">
+        <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:5px">${s.number}</span>
+        <span style="font-size:11px;color:var(--t3)">${s.betTypeName} · x${s.payout}</span>
+      </div>`).join('');
+  }
   STATE.buyAmount = 0;
-  const inp = document.getElementById('buy-amt'); if(inp) inp.value = '';
+  const inp = document.getElementById('buy-amt'); if (inp) inp.value = '';
   document.querySelectorAll('.amt-preset').forEach(b => b.classList.remove('on'));
   updateWinPreview();
   buyStep(3);
@@ -1144,8 +1222,11 @@ function autoGoSummary() {
 
 function updateWinPreview() {
   const amt = STATE.buyAmount || +(document.getElementById('buy-amt')?.value || 0);
-  const win = document.getElementById('bs-win');
-  if (win) win.textContent = fmtMoney(amt * STATE.buyBetTypePayout);
+  const cnt = STATE.buySlip.length || 1;
+  const bsCount = document.getElementById('bs-count');
+  const bsTotal = document.getElementById('bs-total');
+  if (bsCount) bsCount.textContent = `${cnt} เลข`;
+  if (bsTotal) bsTotal.textContent = fmtMoney(amt * cnt);
 }
 
 function setAmt(a) {
@@ -1165,31 +1246,33 @@ function buyStep(s) {
 }
 
 function buyGoConfirm() {
-  // Legacy entry point — redirect to auto summary if number ready
-  if (STATE.buyNumber.length === STATE.buyBetTypeDigits) { autoGoSummary(); }
-  else { showToast(`กรุณากรอกเลข ${STATE.buyBetTypeDigits} หลักให้ครบ`,'err'); }
+  goToSummary();
 }
 
 async function doSubmitBet() {
   const amt = STATE.buyAmount || +(document.getElementById('buy-amt')?.value || 0);
-  if (amt < 1) { showToast('กรุณาใส่ยอดแทงก่อน','err'); return; }
+  if (amt < 1) { showToast('กรุณาใส่ยอดแทงต่อเลขก่อน','err'); return; }
+  if (!STATE.buySlip.length) { showToast('ไม่มีเลขในโพย','err'); return; }
   STATE.buyAmount = amt;
   const btn = document.getElementById('buy-confirm-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
+  if (btn) { btn.disabled = true; btn.textContent = `กำลังส่ง ${STATE.buySlip.length} เลข...`; }
   try {
-    const payload = {
-      lottery_type_id: STATE.buyTypeId,
-      bet_type_id: STATE.buyBetTypeId,
-      numbers: [STATE.buyNumber],
-      amount: STATE.buyAmount
-    };
-    await api('POST', '/slips', payload);
-    showToast('แทงสำเร็จ! 🎰 โชคดีนะ');
+    // Submit each number in the slip
+    for (const s of STATE.buySlip) {
+      await api('POST', '/slips', {
+        lottery_type_id: STATE.buyTypeId,
+        bet_type_id: s.betTypeId,
+        numbers: [s.number],
+        amount: amt,
+      });
+    }
+    showToast(`แทงสำเร็จ ${STATE.buySlip.length} เลข! 🎰 โชคดีนะ`);
+    STATE.buySlip = [];
     await loadWalletData();
     navTo('slips');
   } catch(e) {
     showToast(e.message || 'แทงไม่สำเร็จ','err');
-    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันแทงเลย'; }
+    if (btn) { btn.disabled = false; btn.textContent = '✅ ยืนยันแทงทั้งหมด'; }
   }
 }
 
