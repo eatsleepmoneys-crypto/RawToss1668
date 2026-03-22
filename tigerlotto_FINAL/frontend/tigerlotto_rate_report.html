@@ -1,0 +1,590 @@
+<script>if(window!==window.top)document.documentElement.classList.add('embedded')</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+.a{font-family:'Noto Sans Thai',sans-serif;background:#0A0A0A;color:#fff;display:flex;height:720px;overflow:hidden}
+html.embedded .a{height:100vh}
+html.embedded .sb{display:none}
+html.embedded .topbar{display:none}
+
+/* SIDEBAR */
+.sb{width:190px;background:#0D0D0D;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;flex-shrink:0}
+.sb-brand{padding:13px 14px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px}
+.sb-logo{width:30px;height:30px;background:linear-gradient(135deg,#FFD700,#B8860B);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#0A0A0A;flex-shrink:0}
+.sb-name{font-size:13px;font-weight:900;color:#FFD700}
+.sb-sub{font-size:9px;color:#555}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0}
+.sb-nav::-webkit-scrollbar{width:0}
+.sb-sec{font-size:9px;color:#333;padding:10px 14px 4px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.sb-item{display:flex;align-items:center;gap:8px;padding:8px 14px;color:#666;cursor:pointer;transition:all .15s;border-left:2px solid transparent;font-size:12px;font-weight:600}
+.sb-item:hover{color:#ccc;background:#141414}
+.sb-item.on{color:#FFD700;background:#1A1200;border-left-color:#FFD700}
+.sb-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:44px;background:#0D0D0D;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+.tb-bread{font-size:11px;color:#555}
+.tb-bread span{color:#FFD700;font-weight:700}
+.content{flex:1;overflow-y:auto;padding:14px 16px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+
+/* PAGE */
+.page{display:none}
+.page.on{display:block}
+.pg-title{font-size:15px;font-weight:900;color:#FFD700;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.pg-title-btns{display:flex;gap:6px;flex-wrap:wrap}
+
+/* CARDS */
+.card{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:12px;margin-bottom:10px}
+.card-title{font-size:11px;font-weight:700;color:#ccc;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.card-act{font-size:9px;color:#555;cursor:pointer;transition:color .2s}
+.card-act:hover{color:#FFD700}
+
+/* RATE INPUTS */
+.rate-section{background:#111;border:1.5px solid #1e1e1e;border-radius:12px;margin-bottom:10px;overflow:hidden}
+.rs-header{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;background:#0D0D0D;border-bottom:1px solid #1a1a1a;cursor:pointer;user-select:none}
+.rs-title{font-size:13px;font-weight:900;color:#FFD700;display:flex;align-items:center;gap:7px}
+.rs-badge{font-size:9px;padding:2px 7px;border-radius:6px;font-weight:700}
+.rs-body{padding:12px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.rs-body.cols2{grid-template-columns:repeat(2,1fr)}
+.rs-body.cols4{grid-template-columns:repeat(4,1fr)}
+.rate-item{background:#0A0A0A;border:1px solid #1e1e1e;border-radius:8px;padding:10px;transition:border-color .2s}
+.rate-item:hover{border-color:#B8860B44}
+.ri-label{font-size:10px;color:#888;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between}
+.ri-label-txt{flex:1}
+.ri-rate-tag{font-size:8px;padding:1px 5px;border-radius:4px;font-weight:700}
+.ri-inp-row{display:flex;align-items:center;gap:5px}
+.ri-inp{flex:1;height:36px;background:#111;border:1.5px solid #FFD70033;border-radius:7px;color:#FFD700;font-size:16px;font-weight:900;text-align:center;font-family:inherit;outline:none;min-width:0;transition:border-color .2s}
+.ri-inp:focus{border-color:#FFD700;background:#1A1200}
+.ri-unit{font-size:10px;color:#555;white-space:nowrap}
+.ri-inp.changed{border-color:#3BD441;color:#3BD441}
+
+/* limit row */
+.limit-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #111}
+.limit-row:last-child{border-bottom:none}
+.lr-label{font-size:11px;color:#888}
+.lr-inp{width:100px;height:32px;background:#0A0A0A;border:1.5px solid #FFD70033;border-radius:7px;color:#FFD700;font-size:13px;font-weight:700;text-align:center;font-family:inherit;outline:none}
+.lr-inp:focus{border-color:#FFD700}
+
+/* lotto type toggle */
+.ltype-table{width:100%;border-collapse:collapse}
+.ltype-table th{font-size:9px;color:#444;text-align:left;padding:6px 8px;border-bottom:1px solid #1a1a1a;text-transform:uppercase}
+.ltype-table td{font-size:11px;color:#aaa;padding:8px 8px;border-bottom:1px solid #0f0f0f;vertical-align:middle}
+.ltype-table tr:last-child td{border-bottom:none}
+.ltype-table tr:hover td{background:#141414}
+.ti{width:40px;height:22px;border-radius:11px;cursor:pointer;position:relative;transition:background .2s;display:inline-flex;align-items:center;flex-shrink:0}
+.ti.on{background:#3BD441}
+.ti.off{background:#333}
+.ti-k{position:absolute;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;top:3px}
+.ti.on .ti-k{left:21px}
+.ti.off .ti-k{left:3px}
+.rate-inp-sm{width:58px;height:30px;background:#0A0A0A;border:1.5px solid #FFD70033;border-radius:6px;color:#FFD700;font-size:12px;font-weight:700;text-align:center;font-family:inherit;outline:none}
+.rate-inp-sm:focus{border-color:#FFD700}
+
+/* REPORT */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.kpi{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:12px;position:relative;overflow:hidden}
+.kpi-lbl{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+.kpi-val{font-size:20px;font-weight:900;margin-bottom:2px}
+.kpi-chg{font-size:9px}.up{color:#3BD441}.dn{color:#D85A30}
+.kpi-bar{position:absolute;bottom:0;left:0;right:0;height:2px}
+
+.charts-row{display:grid;grid-template-columns:3fr 2fr;gap:10px;margin-bottom:10px}
+.mini-bars{display:flex;align-items:flex-end;gap:3px;height:72px}
+.mb-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.mb{width:100%;border-radius:2px 2px 0 0}
+.mb-lbl{font-size:7px;color:#444}
+.donut-wrap{display:flex;flex-direction:column;gap:5px;margin-top:4px}
+.dl-item{display:flex;align-items:center;gap:7px;font-size:10px;color:#888}
+.dl-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dl-val{margin-left:auto;font-weight:700;color:#ccc}
+
+table{width:100%;border-collapse:collapse}
+th{font-size:9px;color:#444;text-align:left;padding:5px 7px;border-bottom:1px solid #1a1a1a;text-transform:uppercase;white-space:nowrap}
+td{font-size:10px;color:#aaa;padding:7px 7px;border-bottom:1px solid #0f0f0f;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#141414}
+.tg{color:#FFD700;font-weight:700}
+.tgr{color:#3BD441;font-weight:700}
+.tr{color:#D85A30;font-weight:700}
+.bdg{display:inline-block;padding:2px 7px;border-radius:6px;font-size:8px;font-weight:700}
+.b-ok{background:#0a1a0a;color:#3BD441;border:1px solid #3BD44133}
+.b-warn{background:#1A1200;color:#FFD700;border:1px solid #FFD70033}
+
+/* month tabs */
+.month-tabs{display:flex;gap:5px;margin-bottom:12px;overflow-x:auto}
+.month-tabs::-webkit-scrollbar{height:0}
+.mt{padding:5px 12px;border-radius:14px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;border:none;font-family:inherit;flex-shrink:0}
+.mt.on{background:linear-gradient(135deg,#FFD700,#B8860B);color:#0A0A0A}
+.mt:not(.on){background:#1A1200;border:1.5px solid #B8860B44;color:#FFD700}
+
+/* export bar */
+.export-bar{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-10px);background:#1A3A1A;border:2px solid #3BD441;color:#3BD441;padding:7px 18px;border-radius:9px;font-size:11px;font-weight:700;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.w{background:#3A1A00;border-color:#FFD700;color:#FFD700}
+</style>
+
+<div class="a">
+<!-- SIDEBAR -->
+<div class="sb">
+  <div class="sb-brand">
+    <div class="sb-logo">🐯</div>
+    <div><div class="sb-name">TigerLotto</div><div class="sb-sub">Admin Panel</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">อัตราจ่าย</div>
+    <div class="sb-item on" onclick="nav(this,'rates-main')"><span class="sb-icon">🎯</span>อัตราจ่ายหลัก</div>
+    <div class="sb-item" onclick="nav(this,'rates-lotto')"><span class="sb-icon">🇹🇭</span>แยกตามประเภทหวย</div>
+    <div class="sb-item" onclick="nav(this,'rates-limit')"><span class="sb-icon">🚫</span>จำกัดการแทง</div>
+    <div class="sb-item" onclick="nav(this,'rates-history')"><span class="sb-icon">📋</span>ประวัติการเปลี่ยนแปลง</div>
+    <div class="sb-sec">รายงาน</div>
+    <div class="sb-item" onclick="nav(this,'report-month')"><span class="sb-icon">📑</span>รายงานประจำเดือน</div>
+    <div class="sb-item" onclick="nav(this,'report-daily')"><span class="sb-icon">📅</span>รายงานรายวัน</div>
+    <div class="sb-item" onclick="nav(this,'report-lotto')"><span class="sb-icon">🎟</span>รายงานแยกหวย</div>
+    <div class="sb-item" onclick="nav(this,'report-member')"><span class="sb-icon">👥</span>รายงานสมาชิก</div>
+    <div class="sb-item" onclick="nav(this,'report-finance')"><span class="sb-icon">💰</span>รายงานการเงิน</div>
+  </nav>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="tb-bread">Admin / <span id="tbCrumb">อัตราจ่ายหลัก</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span style="font-size:9px;font-weight:700;padding:3px 9px;border-radius:8px;background:#0a1a0a;color:#3BD441;border:1px solid #3BD44133">PRODUCTION</span>
+      <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#B8860B);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#0A0A0A">SA</div>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- ═══════════════════ RATES MAIN ═══════════════════ -->
+    <div class="page on" id="p-rates-main">
+      <div class="pg-title">🎯 อัตราจ่ายหลัก
+        <div class="pg-title-btns">
+          <button onclick="resetRates()" style="padding:6px 13px;border-radius:7px;background:#1a0a0a;border:1.5px solid #D85A3033;color:#D85A30;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">↺ รีเซ็ต</button>
+          <button onclick="saveRates()" style="padding:6px 14px;border-radius:7px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">💾 บันทึกทั้งหมด</button>
+        </div>
+      </div>
+
+      <!-- 3 ตัว -->
+      <div class="rate-section">
+        <div class="rs-header" onclick="toggleSection(this)">
+          <div class="rs-title">🎯 หวย 3 ตัว <span class="rs-badge" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">5 ประเภท</span></div>
+          <span style="color:#B8860B;font-size:14px;transition:transform .2s">›</span>
+        </div>
+        <div class="rs-body">
+          <div class="rate-item">
+            <div class="ri-label"><span class="ri-label-txt">3 ตัวบน</span><span class="ri-rate-tag" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">บาทละ</span></div>
+            <div class="ri-inp-row"><input class="ri-inp" type="number" value="750" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div>
+          </div>
+          <div class="rate-item">
+            <div class="ri-label"><span class="ri-label-txt">3 ตัวล่าง</span><span class="ri-rate-tag" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">บาทละ</span></div>
+            <div class="ri-inp-row"><input class="ri-inp" type="number" value="450" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div>
+          </div>
+          <div class="rate-item">
+            <div class="ri-label"><span class="ri-label-txt">3 โต๊ด</span><span class="ri-rate-tag" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">บาทละ</span></div>
+            <div class="ri-inp-row"><input class="ri-inp" type="number" value="120" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div>
+          </div>
+          <div class="rate-item">
+            <div class="ri-label"><span class="ri-label-txt">3 ตัวหน้า</span><span class="ri-rate-tag" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">บาทละ</span></div>
+            <div class="ri-inp-row"><input class="ri-inp" type="number" value="550" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div>
+          </div>
+          <div class="rate-item">
+            <div class="ri-label"><span class="ri-label-txt">3 ตัวกลับ</span><span class="ri-rate-tag" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">บาทละ</span></div>
+            <div class="ri-inp-row"><input class="ri-inp" type="number" value="750" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 ตัว -->
+      <div class="rate-section">
+        <div class="rs-header" onclick="toggleSection(this)">
+          <div class="rs-title">🔢 หวย 2 ตัว <span class="rs-badge" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">6 ประเภท</span></div>
+          <span style="color:#B8860B;font-size:14px;transition:transform .2s">›</span>
+        </div>
+        <div class="rs-body cols4">
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">2 ตัวบน</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="75" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">2 ตัวล่าง</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="75" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">2 ตัวกลาง</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="75" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">2 โต๊ด</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="12" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">2 ตัวกลับ</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="75" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">6 ประตู</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="5" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+        </div>
+      </div>
+
+      <!-- วิ่ง -->
+      <div class="rate-section">
+        <div class="rs-header" onclick="toggleSection(this)">
+          <div class="rs-title">🏃 หวยวิ่ง <span class="rs-badge" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">4 ประเภท</span></div>
+          <span style="color:#B8860B;font-size:14px;transition:transform .2s">›</span>
+        </div>
+        <div class="rs-body cols4">
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">วิ่งบน</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="3.2" step="0.1" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">วิ่งล่าง</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="4.2" step="0.1" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">วิ่งกลาง</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="4.5" step="0.1" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">วิ่งทุกตำแหน่ง</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="10.0" step="0.1" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+        </div>
+      </div>
+
+      <!-- เลขชุด -->
+      <div class="rate-section">
+        <div class="rs-header" onclick="toggleSection(this)">
+          <div class="rs-title">🎲 เลขชุด / พิเศษ <span class="rs-badge" style="background:#1A1200;color:#FFD700;border:1px solid #B8860B44">3 ประเภท</span></div>
+          <span style="color:#B8860B;font-size:14px;transition:transform .2s">›</span>
+        </div>
+        <div class="rs-body">
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">4 ตัวบน</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="4000" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">4 ตัวโต๊ด</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="800" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+          <div class="rate-item"><div class="ri-label"><span class="ri-label-txt">5 ตัวตรง</span></div><div class="ri-inp-row"><input class="ri-inp" type="number" value="50000" oninput="markChanged(this)"><span class="ri-unit">บาท</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ RATES BY LOTTO TYPE ═══════════════════ -->
+    <div class="page" id="p-rates-lotto">
+      <div class="pg-title">🇹🇭 อัตราจ่ายแยกตามประเภทหวย
+        <button onclick="saveRates()" style="padding:6px 14px;border-radius:7px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">💾 บันทึก</button>
+      </div>
+      <div class="card">
+        <div class="card-title">ตั้งค่าอัตราจ่ายแต่ละประเภท <span class="card-act">Toggle เปิด/ปิดได้ทันที</span></div>
+        <div style="overflow-x:auto">
+          <table class="ltype-table">
+            <thead><tr><th>ประเภทหวย</th><th>3 ตัวบน</th><th>3 โต๊ด</th><th>2 ตัวบน</th><th>2 ตัวล่าง</th><th>วิ่งบน</th><th>วิ่งล่าง</th><th>เปิด</th></tr></thead>
+            <tbody id="ltypeTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ RATES LIMIT ═══════════════════ -->
+    <div class="page" id="p-rates-limit">
+      <div class="pg-title">🚫 จำกัดการแทง
+        <button onclick="saveRates()" style="padding:6px 14px;border-radius:7px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">💾 บันทึก</button>
+      </div>
+      <div class="card">
+        <div class="card-title">วงเงินแทงต่อครั้ง</div>
+        <div class="limit-row"><span class="lr-label">แทงขั้นต่ำ (บาท)</span><input class="lr-inp" type="number" value="1"></div>
+        <div class="limit-row"><span class="lr-label">แทงสูงสุดต่อเลข (บาท)</span><input class="lr-inp" type="number" value="5000"></div>
+        <div class="limit-row"><span class="lr-label">แทงสูงสุดต่อครั้ง (บาท)</span><input class="lr-inp" type="number" value="50000"></div>
+        <div class="limit-row"><span class="lr-label">จ่ายรางวัลสูงสุดต่องวด (บาท)</span><input class="lr-inp" type="number" value="999999"></div>
+        <div class="limit-row"><span class="lr-label">จำนวนรายการสูงสุดต่อโพย</span><input class="lr-inp" type="number" value="100"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">จำกัดเฉพาะประเภทแทง</div>
+        <div id="betLimits"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">จำกัดตาม Member Level</div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>Level</th><th>แทงสูงสุด/ครั้ง</th><th>ถอนสูงสุด/ครั้ง</th><th>เลขที่ปิดรับ</th></tr></thead>
+            <tbody>
+              <tr><td>🥉 Bronze</td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="5,000"></td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="20,000"></td><td style="color:#555">—</td></tr>
+              <tr><td>🥈 Silver</td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="10,000"></td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="50,000"></td><td style="color:#555">—</td></tr>
+              <tr><td>⭐ Gold</td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="20,000"></td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="100,000"></td><td style="color:#555">—</td></tr>
+              <tr><td>💎 Platinum</td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="50,000"></td><td><input style="width:70px;height:28px;background:#0A0A0A;border:1px solid #FFD70033;border-radius:5px;color:#FFD700;font-size:11px;text-align:center;font-family:inherit;outline:none" value="ไม่จำกัด"></td><td style="color:#555">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ RATES HISTORY ═══════════════════ -->
+    <div class="page" id="p-rates-history">
+      <div class="pg-title">📋 ประวัติการเปลี่ยนแปลงอัตรา</div>
+      <div class="card">
+        <table>
+          <thead><tr><th>วันที่/เวลา</th><th>ประเภท</th><th>รายการ</th><th>ก่อน</th><th>หลัง</th><th>โดย</th></tr></thead>
+          <tbody id="histTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════════════ REPORT MONTHLY ═══════════════════ -->
+    <div class="page" id="p-report-month">
+      <div class="pg-title">📑 รายงานสรุปประจำเดือน
+        <div class="pg-title-btns">
+          <button onclick="toast('Export PDF')" style="padding:6px 13px;border-radius:7px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">📥 PDF</button>
+          <button onclick="toast('Export Excel')" style="padding:6px 13px;border-radius:7px;background:#1A1200;border:1.5px solid #FFD700;color:#FFD700;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">📊 Excel</button>
+        </div>
+      </div>
+      <div class="month-tabs" id="monthTabs"></div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lbl">รายรับรวม</div><div class="kpi-val" style="color:#FFD700">฿124M</div><div class="kpi-chg up">↑ +18.4% vs ก.พ.</div><div class="kpi-bar" style="background:#FFD700"></div></div>
+        <div class="kpi"><div class="kpi-lbl">จ่ายรางวัล</div><div class="kpi-val" style="color:#D85A30">฿82M</div><div class="kpi-chg up">↑ +12.1% vs ก.พ.</div><div class="kpi-bar" style="background:#D85A30"></div></div>
+        <div class="kpi"><div class="kpi-lbl">กำไรสุทธิ</div><div class="kpi-val" style="color:#3BD441">฿42M</div><div class="kpi-chg up">↑ +28.5% vs ก.พ.</div><div class="kpi-bar" style="background:#3BD441"></div></div>
+        <div class="kpi"><div class="kpi-lbl">สมาชิกใหม่</div><div class="kpi-val" style="color:#78BAFF">4,841</div><div class="kpi-chg up">↑ +22.3% vs ก.พ.</div><div class="kpi-bar" style="background:#78BAFF"></div></div>
+      </div>
+      <div class="charts-row">
+        <div class="card">
+          <div class="card-title">รายรับรายวัน (มีนาคม) <span class="card-act">รายรับ | กำไร</span></div>
+          <div class="mini-bars">
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#B8860B,#FFD700);height:40px"></div><div class="mb-lbl">1</div></div>
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#B8860B,#FFD700);height:52px"></div><div class="mb-lbl">5</div></div>
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#B8860B,#FFD700);height:48px"></div><div class="mb-lbl">10</div></div>
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#B8860B,#FFD700);height:68px"></div><div class="mb-lbl">15</div></div>
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#D85A30,#FF8A5A);height:36px"></div><div class="mb-lbl">20</div></div>
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#B8860B,#FFD700);height:60px"></div><div class="mb-lbl">25</div></div>
+            <div class="mb-wrap"><div class="mb" style="background:linear-gradient(to top,#B8860B,#FFD700);height:44px"></div><div class="mb-lbl">31</div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">สัดส่วนหวย</div>
+          <div class="donut-wrap">
+            <div class="dl-item"><div class="dl-dot" style="background:#FFD700"></div>หวยรัฐบาล<span class="dl-val">51%</span></div>
+            <div class="dl-item"><div class="dl-dot" style="background:#3BD441"></div>ยี่กี<span class="dl-val">25%</span></div>
+            <div class="dl-item"><div class="dl-dot" style="background:#78BAFF"></div>หวยหุ้น<span class="dl-val">16%</span></div>
+            <div class="dl-item"><div class="dl-dot" style="background:#D85A30"></div>ฮานอย<span class="dl-val">8%</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">สรุปรายวัน — มีนาคม 2569</div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr><th>วันที่</th><th>รายรับ</th><th>จ่ายรางวัล</th><th>กำไร</th><th>%กำไร</th><th>สมาชิกใหม่</th><th>งวด</th></tr></thead>
+            <tbody id="dailySummary"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ REPORT DAILY ═══ -->
+    <div class="page" id="p-report-daily">
+      <div class="pg-title">📅 รายงานรายวัน — 15 มี.ค. 69
+        <div class="pg-title-btns">
+          <input type="date" value="2026-03-15" style="height:32px;background:#111;border:1.5px solid #B8860B44;border-radius:7px;color:#FFD700;font-size:11px;padding:0 10px;font-family:inherit;outline:none;cursor:pointer">
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lbl">ยอดขายวันนี้</div><div class="kpi-val" style="color:#FFD700">฿4.1M</div><div class="kpi-chg up">↑ +12.4%</div><div class="kpi-bar" style="background:#FFD700"></div></div>
+        <div class="kpi"><div class="kpi-lbl">จ่ายรางวัล</div><div class="kpi-val" style="color:#D85A30">฿2.7M</div><div class="kpi-chg dn">↑ +8.2%</div><div class="kpi-bar" style="background:#D85A30"></div></div>
+        <div class="kpi"><div class="kpi-lbl">กำไรวันนี้</div><div class="kpi-val" style="color:#3BD441">฿1.4M</div><div class="kpi-chg up">↑ +18.3%</div><div class="kpi-bar" style="background:#3BD441"></div></div>
+        <div class="kpi"><div class="kpi-lbl">ธุรกรรม</div><div class="kpi-val" style="color:#78BAFF">2,841</div><div class="kpi-chg up">↑ +5.1%</div><div class="kpi-bar" style="background:#78BAFF"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ยอดขายแยกตามประเภทหวย</div>
+        <table>
+          <thead><tr><th>ประเภท</th><th>ยอดขาย</th><th>จ่ายรางวัล</th><th>กำไร</th><th>%กำไร</th><th>รายการ</th></tr></thead>
+          <tbody>
+            <tr><td style="color:#FFD700;font-weight:700">🇹🇭 หวยรัฐบาล</td><td class="tg">฿2,091,000</td><td class="tr">฿1,377,000</td><td class="tgr">฿714,000</td><td class="tgr">34.1%</td><td>1,241</td></tr>
+            <tr><td style="color:#FFD700;font-weight:700">⚡ ยี่กี</td><td class="tg">฿1,025,000</td><td class="tr">฿675,000</td><td class="tgr">฿350,000</td><td class="tgr">34.1%</td><td>841</td></tr>
+            <tr><td style="color:#FFD700;font-weight:700">📈 หุ้น SET</td><td class="tg">฿656,000</td><td class="tr">฿432,000</td><td class="tgr">฿224,000</td><td class="tgr">34.1%</td><td>524</td></tr>
+            <tr><td style="color:#FFD700;font-weight:700">🌏 ฮานอย</td><td class="tg">฿328,000</td><td class="tr">฿216,000</td><td class="tgr">฿112,000</td><td class="tgr">34.1%</td><td>235</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ REPORT LOTTO ═══ -->
+    <div class="page" id="p-report-lotto">
+      <div class="pg-title">🎟 รายงานแยกตามประเภทหวย</div>
+      <div class="card">
+        <div class="card-title">เปรียบเทียบรายได้แต่ละประเภท — เดือนนี้</div>
+        <table>
+          <thead><tr><th>ประเภท</th><th>รายรับ</th><th>จ่ายรางวัล</th><th>กำไร</th><th>%กำไร</th><th>สมาชิก</th><th>แนวโน้ม</th></tr></thead>
+          <tbody>
+            <tr><td style="color:#FFD700;font-weight:700">🇹🇭 หวยรัฐบาล</td><td class="tg">฿63.24M</td><td class="tr">฿41.74M</td><td class="tgr">฿21.5M</td><td class="tgr">34%</td><td>18,241</td><td class="tgr">↑ +18%</td></tr>
+            <tr><td style="color:#FFD700;font-weight:700">⚡ ยี่กี</td><td class="tg">฿31M</td><td class="tr">฿20.46M</td><td class="tgr">฿10.54M</td><td class="tgr">34%</td><td>8,412</td><td class="tgr">↑ +24%</td></tr>
+            <tr><td style="color:#FFD700;font-weight:700">📈 หุ้น SET</td><td class="tg">฿19.84M</td><td class="tr">฿13.09M</td><td class="tgr">฿6.75M</td><td class="tgr">34%</td><td>5,214</td><td style="color:#FFD700;font-weight:700">→ +2%</td></tr>
+            <tr><td style="color:#FFD700;font-weight:700">🌏 ฮานอย</td><td class="tg">฿9.92M</td><td class="tr">฿6.55M</td><td class="tgr">฿3.37M</td><td class="tgr">34%</td><td>3,201</td><td class="tgr">↑ +31%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ REPORT MEMBER ═══ -->
+    <div class="page" id="p-report-member">
+      <div class="pg-title">👥 รายงานสมาชิก</div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lbl">สมาชิกทั้งหมด</div><div class="kpi-val" style="color:#FFD700">24,841</div><div class="kpi-chg up">↑ +4,841 เดือนนี้</div><div class="kpi-bar" style="background:#FFD700"></div></div>
+        <div class="kpi"><div class="kpi-lbl">แอ็กทีฟเดือนนี้</div><div class="kpi-val" style="color:#3BD441">18,240</div><div class="kpi-chg up">73.4% ของทั้งหมด</div><div class="kpi-bar" style="background:#3BD441"></div></div>
+        <div class="kpi"><div class="kpi-lbl">สมาชิกใหม่</div><div class="kpi-val" style="color:#78BAFF">4,841</div><div class="kpi-chg up">↑ +22.3%</div><div class="kpi-bar" style="background:#78BAFF"></div></div>
+        <div class="kpi"><div class="kpi-lbl">Retention Rate</div><div class="kpi-val" style="color:#B8860B">73.4%</div><div class="kpi-chg up">↑ +3.2%</div><div class="kpi-bar" style="background:#B8860B"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">สรุปสมาชิกแยก VIP Tier</div>
+        <table>
+          <thead><tr><th>Tier</th><th>จำนวน</th><th>%</th><th>ยอดแทงรวม</th><th>ARPU</th><th>Retention</th></tr></thead>
+          <tbody>
+            <tr><td>👑 Diamond</td><td>124</td><td>0.5%</td><td class="tg">฿18.4M</td><td class="tg">฿148,000</td><td class="tgr">98%</td></tr>
+            <tr><td>💎 Platinum</td><td>841</td><td>3.4%</td><td class="tg">฿42.1M</td><td class="tg">฿50,000</td><td class="tgr">95%</td></tr>
+            <tr><td>⭐ Gold</td><td>3,241</td><td>13%</td><td class="tg">฿38.2M</td><td class="tg">฿11,800</td><td class="tgr">88%</td></tr>
+            <tr><td>🥈 Silver</td><td>8,412</td><td>33.9%</td><td class="tg">฿20.1M</td><td class="tg">฿2,390</td><td class="bdg b-warn" style="font-size:10px">72%</td></tr>
+            <tr><td>🥉 Bronze</td><td>12,223</td><td>49.2%</td><td class="tg">฿5.2M</td><td class="tg">฿425</td><td style="color:#D85A30;font-weight:700">58%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ REPORT FINANCE ═══ -->
+    <div class="page" id="p-report-finance">
+      <div class="pg-title">💰 รายงานการเงิน
+        <div class="pg-title-btns">
+          <button onclick="toast('Export รายงานการเงิน')" style="padding:6px 14px;border-radius:7px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">📥 Export</button>
+        </div>
+      </div>
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-lbl">ฝากเงินรวม</div><div class="kpi-val" style="color:#3BD441">฿156M</div><div class="kpi-chg up">↑ +15.2%</div><div class="kpi-bar" style="background:#3BD441"></div></div>
+        <div class="kpi"><div class="kpi-lbl">ถอนเงินรวม</div><div class="kpi-val" style="color:#D85A30">฿112M</div><div class="kpi-chg dn">↑ +11.8%</div><div class="kpi-bar" style="background:#D85A30"></div></div>
+        <div class="kpi"><div class="kpi-lbl">รอถอน</div><div class="kpi-val" style="color:#FFD700">฿620K</div><div class="kpi-chg">23 รายการ</div><div class="kpi-bar" style="background:#FFD700"></div></div>
+        <div class="kpi"><div class="kpi-lbl">Commission จ่าย</div><div class="kpi-val" style="color:#78BAFF">฿2.4M</div><div class="kpi-chg up">↑ Agent 88 ราย</div><div class="kpi-bar" style="background:#78BAFF"></div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">ธุรกรรมล่าสุด</div>
+        <table>
+          <thead><tr><th>REF</th><th>สมาชิก</th><th>ประเภท</th><th>จำนวน</th><th>วิธี</th><th>สถานะ</th><th>เวลา</th></tr></thead>
+          <tbody>
+            <tr><td style="color:#444;font-family:monospace">TX25031501</td><td>นงนุช ว.</td><td>ถอนเงิน</td><td class="tr">-฿5,000</td><td>กสิกร</td><td><span class="bdg b-warn">รอ</span></td><td>14:22</td></tr>
+            <tr><td style="color:#444;font-family:monospace">TX25031502</td><td>สมชาย ป.</td><td>ฝากเงิน</td><td class="tgr">+฿10,000</td><td>QR</td><td><span class="bdg b-ok">สำเร็จ</span></td><td>13:55</td></tr>
+            <tr><td style="color:#444;font-family:monospace">TX25031503</td><td>วิภา ก.</td><td>รางวัล</td><td class="tg">+฿18,000</td><td>กระเป๋า</td><td><span class="bdg b-ok">สำเร็จ</span></td><td>13:47</td></tr>
+            <tr><td style="color:#444;font-family:monospace">TX25031504</td><td>ธนพล ร.</td><td>Commission</td><td class="tg">+฿1,240</td><td>กระเป๋า</td><td><span class="bdg b-ok">สำเร็จ</span></td><td>13:30</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- content -->
+</div><!-- main -->
+</div><!-- app -->
+
+<div class="toast" id="toast"></div>
+
+<script>
+// NAV
+const PAGE_MAP={'rates-main':'อัตราจ่ายหลัก','rates-lotto':'อัตราแยกประเภทหวย','rates-limit':'จำกัดการแทง','rates-history':'ประวัติการเปลี่ยนแปลง','report-month':'รายงานประจำเดือน','report-daily':'รายงานรายวัน','report-lotto':'รายงานแยกหวย','report-member':'รายงานสมาชิก','report-finance':'รายงานการเงิน'};
+function nav(el,key){
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.getElementById('p-'+key)?.classList.add('on');
+  document.getElementById('tbCrumb').textContent=PAGE_MAP[key]||key;
+}
+
+// SECTION TOGGLE
+function toggleSection(el){
+  const body=el.nextElementSibling;
+  const arrow=el.querySelector('span:last-child');
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'grid';
+  if(arrow)arrow.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+}
+
+// RATE CHANGED
+function markChanged(inp){inp.classList.add('changed');}
+function saveRates(){
+  document.querySelectorAll('.ri-inp.changed').forEach(i=>i.classList.remove('changed'));
+  toast('💾 บันทึกอัตราจ่ายทั้งหมดสำเร็จ!');
+}
+function resetRates(){
+  document.querySelectorAll('.ri-inp.changed').forEach(i=>i.classList.remove('changed'));
+  toast('↺ รีเซ็ตเป็นค่าเริ่มต้น','w');
+}
+
+// LTYPE TABLE
+const LTYPE_DATA=[
+  {icon:'🇹🇭',name:'หวยรัฐบาล',r3:750,tod3:120,r2:75,r2d:75,run1:3.2,run2:4.2,on:true},
+  {icon:'⚡',name:'ยี่กี',r3:700,tod3:115,r2:70,r2d:70,run1:3.0,run2:4.0,on:true},
+  {icon:'📈',name:'หุ้น SET เช้า',r3:680,tod3:110,r2:68,r2d:68,run1:2.8,run2:3.8,on:true},
+  {icon:'📈',name:'หุ้น SET บ่าย',r3:680,tod3:110,r2:68,r2d:68,run1:2.8,run2:3.8,on:true},
+  {icon:'🌏',name:'ฮานอย',r3:650,tod3:105,r2:65,r2d:65,run1:2.6,run2:3.6,on:true},
+  {icon:'🇱🇦',name:'ลาว',r3:620,tod3:100,r2:62,r2d:62,run1:2.5,run2:3.4,on:false},
+];
+function buildLtypeTable(){
+  document.getElementById('ltypeTable').innerHTML=LTYPE_DATA.map((r,i)=>`
+    <tr>
+      <td style="color:#FFD700;font-weight:700">${r.icon} ${r.name}</td>
+      <td><input class="rate-inp-sm" type="number" value="${r.r3}"></td>
+      <td><input class="rate-inp-sm" type="number" value="${r.tod3}"></td>
+      <td><input class="rate-inp-sm" type="number" value="${r.r2}"></td>
+      <td><input class="rate-inp-sm" type="number" value="${r.r2d}"></td>
+      <td><input class="rate-inp-sm" type="number" value="${r.run1}" style="width:48px"></td>
+      <td><input class="rate-inp-sm" type="number" value="${r.run2}" style="width:48px"></td>
+      <td><div class="ti ${r.on?'on':'off'}" onclick="togLtype(this,${i})"><div class="ti-k"></div></div></td>
+    </tr>`).join('');
+}
+function togLtype(el,i){
+  LTYPE_DATA[i].on=!LTYPE_DATA[i].on;
+  el.classList.toggle('on',LTYPE_DATA[i].on);
+  el.classList.toggle('off',!LTYPE_DATA[i].on);
+  toast((LTYPE_DATA[i].on?'เปิด':'ปิด')+' '+LTYPE_DATA[i].name);
+}
+
+// BET LIMITS TABLE
+function buildBetLimits(){
+  const items=[
+    {type:'3 ตัวบน',min:1,max:5000},{type:'3 ตัวล่าง',min:1,max:5000},
+    {type:'3 โต๊ด',min:1,max:10000},{type:'2 ตัวบน',min:1,max:5000},
+    {type:'2 ตัวล่าง',min:1,max:5000},{type:'วิ่งบน/ล่าง',min:1,max:20000},
+  ];
+  document.getElementById('betLimits').innerHTML=items.map(it=>`
+    <div class="limit-row">
+      <span class="lr-label">${it.type}</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:10px;color:#555">min</span><input class="lr-inp" type="number" value="${it.min}" style="width:60px">
+        <span style="font-size:10px;color:#555">max</span><input class="lr-inp" type="number" value="${it.max}">
+      </div>
+    </div>`).join('');
+}
+
+// HISTORY
+const HIST=[
+  {date:'15 มี.ค. 14:22',type:'3 ตัวบน',item:'หวยรัฐบาล',before:'700',after:'750',by:'SuperAdmin'},
+  {date:'10 มี.ค. 09:00',type:'2 ตัวบน',item:'ยี่กี',before:'68',after:'70',by:'Admin01'},
+  {date:'1 มี.ค. 08:30',type:'วงเงินสูงสุด',item:'Bronze Member',before:'3,000',after:'5,000',by:'SuperAdmin'},
+  {date:'25 ก.พ. 11:15',type:'3 โต๊ด',item:'ทุกประเภท',before:'110',after:'120',by:'Admin02'},
+];
+function buildHistory(){
+  document.getElementById('histTable').innerHTML=HIST.map(h=>`
+    <tr>
+      <td style="font-size:9px;color:#444;font-family:monospace">${h.date}</td>
+      <td style="color:#FFD700;font-weight:700">${h.type}</td>
+      <td>${h.item}</td>
+      <td class="tr">${h.before}</td>
+      <td class="tgr">${h.after}</td>
+      <td style="color:#78BAFF">${h.by}</td>
+    </tr>`).join('');
+}
+
+// MONTH TABS
+function buildMonthTabs(){
+  const months=['มีนาคม 69','กุมภาพันธ์ 69','มกราคม 69','ธันวาคม 68','พฤศจิกายน 68'];
+  document.getElementById('monthTabs').innerHTML=months.map((m,i)=>`
+    <button class="mt ${i===0?'on':''}" onclick="selMonth(this)">${m}</button>`).join('');
+}
+function selMonth(el){document.querySelectorAll('.mt').forEach(b=>b.classList.remove('on'));el.classList.add('on');toast('โหลดข้อมูล '+el.textContent);}
+
+// DAILY SUMMARY
+function buildDailySummary(){
+  const data=[
+    {d:'16 มี.ค.',rev:'฿4.2M',pay:'฿2.8M',profit:'฿1.4M',pct:'33.3%',new:248,round:'รอออก'},
+    {d:'15 มี.ค.',rev:'฿3.8M',pay:'฿2.5M',profit:'฿1.3M',pct:'34.2%',new:201,round:'ออกแล้ว'},
+    {d:'14 มี.ค.',rev:'฿4.1M',pay:'฿2.7M',profit:'฿1.4M',pct:'34.1%',new:188,round:'ออกแล้ว'},
+    {d:'13 มี.ค.',rev:'฿3.5M',pay:'฿2.3M',profit:'฿1.2M',pct:'34.3%',new:156,round:'ออกแล้ว'},
+    {d:'12 มี.ค.',rev:'฿2.9M',pay:'฿1.9M',profit:'฿1.0M',pct:'34.5%',new:134,round:'ออกแล้ว'},
+  ];
+  document.getElementById('dailySummary').innerHTML=data.map(r=>`
+    <tr>
+      <td>${r.d}</td>
+      <td class="tg">${r.rev}</td>
+      <td class="tr">${r.pay}</td>
+      <td class="tgr">${r.profit}</td>
+      <td class="tgr">${r.pct}</td>
+      <td>${r.new}</td>
+      <td><span class="bdg ${r.round==='ออกแล้ว'?'b-ok':'b-warn'}">${r.round}</span></td>
+    </tr>`).join('');
+}
+
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast on'+(type==='w'?' w':'');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2400);
+}
+
+// INIT
+buildLtypeTable();buildBetLimits();buildHistory();buildMonthTabs();buildDailySummary();
+</script>
