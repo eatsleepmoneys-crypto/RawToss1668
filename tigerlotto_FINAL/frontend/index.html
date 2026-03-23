@@ -1171,12 +1171,6 @@ async function loadBetTypes(typeId) {
 }
 
 function selectBetType(id, name, payout, digits) {
-  // Warn if slip has entries (different digits might conflict)
-  if (STATE.buySlip.length > 0 && digits !== STATE.buyBetTypeDigits) {
-    if (!confirm(`เปลี่ยนประเภทการแทงจะล้างโพยปัจจุบัน (${STATE.buySlip.length} เลข) ต้องการดำเนินการต่อ?`)) return;
-    STATE.buySlip = [];
-    renderSlipList();
-  }
   STATE.buyBetTypeId = id; STATE.buyBetTypeName = name;
   STATE.buyBetTypePayout = payout; STATE.buyBetTypeDigits = digits;
   STATE.buyNumber = '';
