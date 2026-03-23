@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TigerLotto — ตั้งค่า Super Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#060504;color:#F5EDD8;font-family:'Segoe UI',sans-serif;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:#0B0805;border:1px solid #3D2800;border-radius:16px;padding:32px;width:100%;max-width:440px;box-shadow:0 8px 40px #00000088}
+.logo{font-size:22px;font-weight:900;color:#FFD24C;margin-bottom:6px;text-align:center}
+.subtitle{font-size:12px;color:#7A6030;text-align:center;margin-bottom:28px}
+label{font-size:11px;font-weight:700;color:#BFA05A;display:block;margin-bottom:5px;margin-top:14px}
+input{width:100%;background:#100D08;border:1px solid #3D2800;border-radius:8px;padding:10px 14px;color:#F5EDD8;font-size:13px;outline:none;transition:border .2s;font-family:inherit}
+input:focus{border-color:#FFD24C}
+.btn{width:100%;margin-top:22px;padding:13px;background:linear-gradient(135deg,#FFD24C,#A67000);border:none;border-radius:10px;color:#1A0E00;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;box-shadow:0 4px 20px rgba(255,210,76,.3)}
+.btn:hover{opacity:.9}
+.msg{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:12px;display:none}
+.msg.ok{background:rgba(46,204,113,.1);border:1px solid rgba(46,204,113,.3);color:#2ECC71}
+.msg.err{background:rgba(224,85,53,.1);border:1px solid rgba(224,85,53,.3);color:#E05535}
+.note{font-size:10px;color:#4A3820;margin-top:20px;line-height:1.7;border-top:1px solid #251800;padding-top:14px}
+.note strong{color:#7A6030}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🐯 TigerLotto</div>
+  <div class="subtitle">ตั้งค่า Super Admin Account</div>
+
+  <label>Setup Key (ดูจาก Railway → Variables → ADMIN_SETUP_KEY)</label>
+  <input type="password" id="sk" placeholder="กรอก Setup Key">
+
+  <label>เบอร์โทรศัพท์ (username)</label>
+  <input type="text" id="ph" placeholder="0812345678">
+
+  <label>รหัสผ่าน</label>
+  <input type="password" id="pw" placeholder="รหัสผ่านอย่างน้อย 8 ตัว">
+
+  <label>ชื่อ</label>
+  <input type="text" id="fn" placeholder="ชื่อ" value="Super">
+
+  <label>นามสกุล</label>
+  <input type="text" id="ln" placeholder="นามสกุล" value="Admin">
+
+  <button class="btn" onclick="setup()">🔑 สร้าง Super Admin</button>
+
+  <div class="msg" id="msg"></div>
+
+  <div class="note">
+    <strong>วิธีใช้:</strong><br>
+    1. ไป Railway → โปรเจค → Variables<br>
+    2. เพิ่ม <strong>ADMIN_SETUP_KEY</strong> = รหัสลับที่คุณกำหนดเอง<br>
+    3. กรอก Setup Key เดิมนั้นในช่องด้านบน<br>
+    4. กรอกเบอร์โทรและรหัสผ่านสำหรับ Admin<br>
+    5. กดปุ่มสร้าง — จะได้รับ token สำหรับ login<br><br>
+    <strong>ล็อคอิน Admin:</strong> ไป <a href="admin.html" style="color:#FFD24C">admin.html</a><br>
+    <strong>หน้าแอปหลัก:</strong> ไป <a href="index.html?app=1" style="color:#FFD24C">index.html</a>
+  </div>
+</div>
+
+<script>
+const API = 'https://rawtoss1668-production.up.railway.app/api/v1';
+async function setup(){
+  const sk=document.getElementById('sk').value.trim();
+  const ph=document.getElementById('ph').value.trim();
+  const pw=document.getElementById('pw').value;
+  const fn=document.getElementById('fn').value.trim();
+  const ln=document.getElementById('ln').value.trim();
+  const msg=document.getElementById('msg');
+  if(!sk||!ph||!pw||!fn||!ln){showMsg('กรุณากรอกข้อมูลให้ครบ','err');return}
+  try{
+    const r=await fetch(API+'/auth/setup-admin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({setup_key:sk,phone:ph,password:pw,first_name:fn,last_name:ln})});
+    const d=await r.json();
+    if(r.ok){
+      showMsg('✅ สร้าง Super Admin สำเร็จ! Token: '+d.token.substring(0,30)+'...','ok');
+    } else {
+      showMsg('❌ '+( d.message||JSON.stringify(d)),'err');
+    }
+  }catch(e){showMsg('❌ เชื่อมต่อ API ไม่ได้: '+e.message,'err')}
+}
+function showMsg(t,type){const m=document.getElementById('msg');m.textContent=t;m.className='msg '+type;m.style.display='block'}
+</script>
+</body>
+</html>
