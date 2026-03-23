@@ -619,7 +619,7 @@ async function closeRound(id) {
 // ── LOTTERY CONTROL (เปิด/ปิดหวย) ─────────────────────────────
 async function renderLotteryControl(el) {
   let types = [];
-  try { const r = await api('GET', '/lottery/types'); types = r.data || []; } catch {}
+  try { const r = await api('GET', '/lottery/types?all=1'); types = r.data || []; } catch {}
   el.innerHTML = `
     <div class="pg-title">🔛 เปิด/ปิดหวย
       <button onclick="renderLotteryControl(document.getElementById('mainContent'))"
@@ -655,7 +655,7 @@ async function toggleLotteryType(id, isActive) {
 // ── LOTTERY TYPES (ประเภทหวย) ─────────────────────────────────
 async function renderLotteryTypes(el) {
   let types = [];
-  try { const r = await Admin.lotteryTypes(); types = r.data || []; } catch(e) { toast(e.message,'err'); }
+  try { const r = await Admin.lotteryTypes(true); types = r.data || []; } catch(e) { toast(e.message,'err'); }
   el.innerHTML = `
     <div class="pg-title">🎯 ประเภทหวย
       <button onclick="renderLotteryTypes(document.getElementById('mainContent'))"

@@ -118,7 +118,7 @@ const Admin = {
   settings:      ()       => get('/admin/settings'),
   updateSetting: (k, v)   => put(`/admin/settings/${k}`, { value: v }),
   report:        (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
-  lotteryTypes:      ()       => get('/lottery/types'),
+  lotteryTypes:      (all)    => get('/lottery/types' + (all ? '?all=1' : '')),
   updateLotteryType: (id, d)  => put(`/admin/lottery-types/${id}`, d),
   // Round management
   adminRounds:   (q)   => get('/admin/lottery/rounds'  + (q ? '?' + new URLSearchParams(q) : '')),

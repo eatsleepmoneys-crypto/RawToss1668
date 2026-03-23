@@ -228,7 +228,9 @@ v1.get('/wallet/transactions',   auth, walletCtrl.getTransactions);
 
 /* LOTTERY */
 v1.get('/lottery/types', async (req,res) => {
-  res.json({ data: await query('SELECT * FROM lottery_types WHERE is_active=1 ORDER BY sort_order') });
+  const all = req.query.all === '1';
+  const where = all ? '' : 'WHERE is_active=1';
+  res.json({ data: await query(`SELECT * FROM lottery_types ${where} ORDER BY sort_order`) });
 });
 v1.get('/lottery/rounds', async (req,res) => {
   const { lottery_type, status = 'open' } = req.query;
@@ -420,6 +422,20 @@ v1.get('/admin/hot-numbers', auth, adminOnly, async (req,res) => {
   if (bet_type_id) { sql+=' AND bet_type_id=?'; params.push(bet_type_id); }
   sql+=' ORDER BY total_amount DESC LIMIT ?'; params.push(parseInt(limit));
   res.json({ data: await query(sql,params) });
+});
+v1.put('/admin/lottery-types/:id', auth, adminOnly, async (req, res) => {
+  const { is_active, name, icon, description, rounds_per_day } = req.body;
+  const fields = [];
+  const vals   = [];
+  if (is_active     !== undefined) { fields.push('is_active=?');      vals.push(is_active ? 1 : 0); }
+  if (name          !== undefined) { fields.push('name=?');           vals.push(name); }
+  if (icon          !== undefined) { fields.push('icon=?');           vals.push(icon); }
+  if (description   !== undefined) { fields.push('description=?');    vals.push(description); }
+  if (rounds_per_day!== undefined) { fields.push('rounds_per_day=?'); vals.push(rounds_per_day); }
+  if (!fields.length) return res.status(422).json({ error:'NO_FIELDS' });
+  vals.push(req.params.id);
+  await query(`UPDATE lottery_types SET ${fields.join(',')} WHERE id=?`, vals);
+  res.json({ success:true });
 });
 v1.get('/admin/settings', auth, adminOnly, async (req,res) => {
   res.json({ data: await query('SELECT * FROM system_settings ORDER BY group_name, setting_key') });
