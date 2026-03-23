@@ -534,7 +534,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="sb-item" onclick="navTo('hotNumbers')" id="sbi-hotNumbers"><span class="sb-icon">🔥</span>เลขเด็ด</div>
     <div class="sb-item" onclick="navTo('profile')" id="sbi-profile"><span class="sb-icon">👤</span>โปรไฟล์</div>
     <div id="sb-admin-sec" style="display:none"><div class="sb-section">ผู้ดูแล</div>
-    <div class="sb-item" onclick="navTo('admin')" id="sbi-admin"><span class="sb-icon">⚙️</span>Admin Panel</div>
+    <div class="sb-item" onclick="window.location.href='admin.html'" id="sbi-admin"><span class="sb-icon">⚙️</span>Admin Panel</div>
     <div class="sb-item" onclick="navTo('agent')" id="sbi-agent"><span class="sb-icon">👥</span>Agent Portal</div></div>
   </div>
   <div class="sb-footer">
@@ -578,7 +578,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="pcnav-item" onclick="navTo('promotions')" id="pcn-promotions">🎁 โปรโมชั่น</div>
     <div class="pcnav-item" onclick="navTo('hotNumbers')" id="pcn-hotNumbers">🔥 เลขเด็ด</div>
     <div class="pcnav-item" onclick="navTo('profile')" id="pcn-profile">👤 โปรไฟล์</div>
-    <div class="pcnav-item" onclick="navTo('admin')" id="pcn-admin" style="display:none">⚙️ Admin Panel</div>
+    <div class="pcnav-item" onclick="window.location.href='admin.html'" id="pcn-admin" style="display:none">⚙️ Admin Panel</div>
     <div class="pcnav-item" onclick="navTo('agent')" id="pcn-agent" style="display:none">👥 Agent Portal</div>
   </div>
   <!-- Content -->
@@ -1115,12 +1115,12 @@ function buildBuy() {
           <span>ยอดรวมทั้งหมด</span><span id="bs-total">฿0.00</span>
         </div>
       </div>
-      <div style="background:var(--dark2);border:1px solid #ffffff11;border-radius:10px;padding:8px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:11px;color:var(--t3)">ยอดเงินคงเหลือ</span>
-        <span style="font-size:13px;font-weight:700;color:var(--gold)">${STATE.wallet?fmtMoney(STATE.wallet.balance):'฿0.00'}</span>
+      <div style="background:rgba(255,210,76,.06);border:1px solid var(--border2);border-radius:var(--r2);padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:11px;color:var(--t3)">💰 ยอดเงินคงเหลือ</span>
+        <span style="font-size:14px;font-weight:800;color:var(--gold)">${STATE.wallet?fmtMoney(STATE.wallet.balance):'฿0.00'}</span>
       </div>
-      <button class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()">✅ ยืนยันแทงทั้งหมด</button>
-      <div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">ยอดจะหักจากกระเป๋าเงินทันที</div>
+      <button class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()" style="width:100%;font-size:16px;font-weight:900;letter-spacing:.04em;box-shadow:0 4px 20px rgba(255,210,76,.25)">✅ ยืนยันแทงทั้งหมด</button>
+      <div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px;opacity:.8">ยอดจะหักจากกระเป๋าเงินทันที</div>
     </div>`;
 }
 
@@ -1351,11 +1351,11 @@ async function doSubmitBet() {
 // ══════════════════════════════════════════
 function buildSlips() {
   return `
-    <div class="page-title">🎫 โพยของฉัน</div>
-    <div class="slip-tabs">
+    <div class="page-title" style="background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">🎫 โพยของฉัน</div>
+    <div class="slip-tabs" style="background:var(--dark2);border:1px solid var(--border);border-radius:var(--r2);padding:4px;gap:4px;margin-bottom:14px">
       <div class="stab on" onclick="filterSlips('all')" id="stab-all">ทั้งหมด</div>
-      <div class="stab" onclick="filterSlips('pending')" id="stab-pending">รอผล</div>
-      <div class="stab" onclick="filterSlips('win')" id="stab-win">ถูกรางวัล 🎉</div>
+      <div class="stab" onclick="filterSlips('pending')" id="stab-pending">⏳ รอผล</div>
+      <div class="stab" onclick="filterSlips('win')" id="stab-win">🏆 ถูกรางวัล</div>
       <div class="stab" onclick="filterSlips('lose')" id="stab-lose">ไม่ถูก</div>
       <div class="stab" onclick="filterSlips('cancelled')" id="stab-cancelled">ยกเลิก</div>
     </div>
@@ -1387,12 +1387,13 @@ function renderSlips(f) {
   if (f !== 'all') slips = ALL_SLIPS.filter(s => s.status === f);
   if (!slips.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่มีโพย</div>'; return; }
   const STATUS_LABEL = {pending:'รอผล',win:'ถูกรางวัล',lose:'ไม่ถูก',cancelled:'ยกเลิก'};
-  const STATUS_COLOR = {pending:'var(--gold)',win:'var(--green)',lose:'var(--t3)',cancelled:'var(--red)'};
+  const STATUS_BG = {win:'rgba(255,210,76,.12)',pending:'rgba(120,186,255,.08)',lose:'rgba(224,85,53,.07)',cancelled:'rgba(100,100,100,.08)'};
+  const STATUS_BORDER = {win:'var(--border2)',pending:'rgba(120,186,255,.25)',lose:'rgba(224,85,53,.25)',cancelled:'var(--border)'};
   list.innerHTML = slips.map(s => `
-    <div class="slip-card${s.status==='win'?' slip-win':''}">
-      <div class="slip-head">
+    <div class="slip-card${s.status==='win'?' slip-win':''}" style="background:linear-gradient(135deg,var(--dark3),var(--dark2));border:1px solid ${STATUS_BORDER[s.status]||'var(--border2)'};border-radius:var(--r1);margin-bottom:10px;overflow:hidden;box-shadow:var(--sh1)">
+      <div class="slip-head" style="background:${STATUS_BG[s.status]||'transparent'};border-bottom:1px solid var(--border)">
         <div>
-          <div style="font-size:12px;font-weight:700;color:var(--t2)">${s.lottery_type_name||s.type_name||'หวย'} — ${s.bet_type_name||s.betType||'3 ตัวบน'}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--gold)">${s.lottery_type_name||s.type_name||'หวย'} — ${s.bet_type_name||s.betType||'3 ตัวบน'}</div>
           <div style="font-size:10px;color:var(--t4)">${fmtDate(s.created_at)}</div>
         </div>
         <div>
@@ -1400,13 +1401,13 @@ function renderSlips(f) {
         </div>
       </div>
       <div class="slip-body">
-        <div style="font-size:28px;font-weight:900;color:${s.status==='win'?'var(--green)':'#fff'};letter-spacing:4px;margin-bottom:4px">${s.numbers||s.bet_number||'-'}</div>
-        <div style="font-size:11px;color:var(--gold);font-weight:700">${s.bet_type_name||'แทง'}</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">ยอดแทง: ${fmtMoney(s.amount||s.bet_amount)}</div>
+        <div style="font-size:32px;font-weight:900;color:${s.status==='win'?'var(--gold)':'var(--t1)'};letter-spacing:5px;margin-bottom:6px;text-shadow:${s.status==='win'?'0 0 20px rgba(255,210,76,.4)':'none'}">${s.numbers||s.bet_number||'-'}</div>
+        <div style="font-size:11px;color:var(--gold2);font-weight:700;margin-bottom:2px">${s.bet_type_name||'แทง'}</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">ยอดแทง: <span style="color:var(--t2);font-weight:700">${fmtMoney(s.amount||s.bet_amount)}</span></div>
       </div>
-      <div class="slip-foot">
-        <div style="font-size:13px;font-weight:700;color:${s.status==='win'?'var(--green)':'var(--t2)'}">
-          ${s.status==='win'?'ได้รับ: '+fmtMoney(s.payout_amount||s.win_amount):'จ่ายได้: '+fmtMoney((s.amount||0)*(s.payout_rate||1))}
+      <div class="slip-foot" style="border-top:1px solid var(--border)">
+        <div style="font-size:13px;font-weight:800;color:${s.status==='win'?'var(--gold)':'var(--t2)'}">
+          ${s.status==='win'?'💰 ได้รับ: '+fmtMoney(s.payout_amount||s.win_amount):'จ่ายได้: '+fmtMoney((s.amount||0)*(s.payout_rate||1))}
         </div>
         ${s.status==='pending'?`<button class="btn btn-red btn-sm" onclick="openCancelSlip(${s.id})">ยกเลิก</button>`:''}
       </div>
@@ -1434,21 +1435,21 @@ async function confirmCancelSlip() {
 // ══════════════════════════════════════════
 function buildResults() {
   return `
-    <div class="page-title">🏆 ผลหวย</div>
-    <div class="card card-gold">
-      <div style="font-size:14px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:12px">🔍 ตรวจเลข</div>
+    <div class="page-title" style="background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">🏆 ผลหวย</div>
+    <div class="card card-gold" style="background:linear-gradient(135deg,var(--dark3),var(--dark2));border:1px solid var(--border2);border-radius:var(--r1);box-shadow:var(--sh-gold);margin-bottom:14px">
+      <div style="font-size:14px;font-weight:900;color:var(--gold);text-align:center;margin-bottom:12px;letter-spacing:.05em">🔍 ตรวจเลข</div>
       <div style="display:flex;gap:10px;margin-bottom:12px">
         <input class="finput" type="text" id="chk-num" placeholder="ใส่เลข" maxlength="6"
-          style="height:52px;font-size:22px;font-weight:900;text-align:center;letter-spacing:4px;margin-bottom:0;flex:1">
-        <button class="btn btn-gold btn-md" onclick="checkNumber()">ตรวจ</button>
+          style="height:52px;font-size:22px;font-weight:900;text-align:center;letter-spacing:4px;margin-bottom:0;flex:1;background:var(--dark);border:1px solid var(--border2);color:var(--gold)">
+        <button class="btn btn-gold btn-md" onclick="checkNumber()" style="font-weight:800;letter-spacing:.04em">ตรวจ</button>
       </div>
       <div id="chk-result" style="display:none"></div>
     </div>
-    <div class="slip-tabs" style="margin-bottom:12px">
+    <div class="slip-tabs" style="background:var(--dark2);border:1px solid var(--border);border-radius:var(--r2);padding:4px;gap:4px;margin-bottom:14px">
       <div class="stab on" onclick="filterResults('all')" id="rtab-all">ทั้งหมด</div>
-      <div class="stab" onclick="filterResults('thai')" id="rtab-thai">หวยไทย</div>
-      <div class="stab" onclick="filterResults('lao')" id="rtab-lao">หวยลาว</div>
-      <div class="stab" onclick="filterResults('hanoi')" id="rtab-hanoi">ฮานอย</div>
+      <div class="stab" onclick="filterResults('thai')" id="rtab-thai">🇹🇭 ไทย</div>
+      <div class="stab" onclick="filterResults('lao')" id="rtab-lao">🇱🇦 ลาว</div>
+      <div class="stab" onclick="filterResults('hanoi')" id="rtab-hanoi">🇻🇳 ฮานอย</div>
     </div>
     <div id="results-list"><div style="text-align:center;padding:40px;color:var(--t3)">กำลังโหลด...</div></div>`;
 }
@@ -1483,20 +1484,22 @@ function renderResults(f) {
     const back3 = r.result_3back || r.back3 || '-';
     const back2 = r.result_2back || r.back2 || '-';
     return `
-      <div class="result-card">
-        <div class="rc-head">
-          <div class="rc-title">${r.lottery_type_name||r.type_name||'หวย'}</div>
-          <div class="rc-date">${fmtDateShort(r.draw_date||r.created_at)}</div>
+      <div class="result-card" style="background:linear-gradient(135deg,var(--dark3),var(--dark2));border:1px solid var(--border2);border-radius:var(--r1);margin-bottom:12px;overflow:hidden;box-shadow:var(--sh1)">
+        <div class="rc-head" style="background:linear-gradient(90deg,rgba(255,210,76,.08),transparent);border-bottom:1px solid var(--border2);padding:12px 14px;display:flex;justify-content:space-between;align-items:center">
+          <div class="rc-title" style="font-size:14px;font-weight:900;color:var(--gold)">${r.lottery_type_name||r.type_name||'หวย'}</div>
+          <div class="rc-date" style="font-size:11px;color:var(--t4)">${fmtDateShort(r.draw_date||r.created_at)}</div>
         </div>
-        <div class="rc-body">
-          <div class="prize-row">
-            <div class="prize-lbl">รางวัลที่ 1</div>
-            <div class="prize-nums"><span class="pnum first">${first}</span></div>
-            <div class="prize-amount">฿6,000,000</div>
+        <div class="rc-body" style="padding:12px 14px">
+          <div class="prize-row" style="display:flex;align-items:center;margin-bottom:10px;gap:10px">
+            <div class="prize-lbl" style="font-size:11px;color:var(--gold2);font-weight:700;min-width:70px">🏆 รางวัลที่ 1</div>
+            <div class="prize-nums" style="flex:1;display:flex;gap:4px">
+              ${first.split('').map(c=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1A0E00;border-radius:50%;font-size:15px;font-weight:900">${c}</span>`).join('')}
+            </div>
+            <div class="prize-amount" style="font-size:11px;color:var(--gold);font-weight:700">฿6,000,000</div>
           </div>
-          ${front3!=='-'?`<div class="prize-row"><div class="prize-lbl">3 ตัวหน้า</div><div class="prize-nums"><span class="pnum">${front3}</span></div><div class="prize-amount">฿4,000</div></div>`:''}
-          ${back3!=='-'?`<div class="prize-row"><div class="prize-lbl">3 ตัวหลัง</div><div class="prize-nums"><span class="pnum">${back3}</span></div><div class="prize-amount">฿4,000</div></div>`:''}
-          ${back2!=='-'?`<div class="prize-row"><div class="prize-lbl">2 ตัวหลัง</div><div class="prize-nums"><span class="pnum">${back2}</span></div><div class="prize-amount">฿2,000</div></div>`:''}
+          ${front3!=='-'?`<div class="prize-row" style="display:flex;align-items:center;margin-bottom:8px;gap:10px"><div class="prize-lbl" style="font-size:11px;color:var(--t3);min-width:70px">3 ตัวหน้า</div><div class="prize-nums" style="flex:1"><span style="font-size:18px;font-weight:900;color:var(--t1);letter-spacing:3px">${front3}</span></div><div style="font-size:11px;color:var(--t2);font-weight:700">฿4,000</div></div>`:''}
+          ${back3!=='-'?`<div class="prize-row" style="display:flex;align-items:center;margin-bottom:8px;gap:10px"><div class="prize-lbl" style="font-size:11px;color:var(--t3);min-width:70px">3 ตัวหลัง</div><div class="prize-nums" style="flex:1"><span style="font-size:18px;font-weight:900;color:var(--t1);letter-spacing:3px">${back3}</span></div><div style="font-size:11px;color:var(--t2);font-weight:700">฿4,000</div></div>`:''}
+          ${back2!=='-'?`<div class="prize-row" style="display:flex;align-items:center;gap:10px"><div class="prize-lbl" style="font-size:11px;color:var(--t3);min-width:70px">2 ตัวหลัง</div><div class="prize-nums" style="flex:1"><span style="font-size:18px;font-weight:900;color:var(--t1);letter-spacing:3px">${back2}</span></div><div style="font-size:11px;color:var(--t2);font-weight:700">฿2,000</div></div>`:''}
         </div>
       </div>`;
   }).join('');
@@ -1531,63 +1534,64 @@ async function checkNumber() {
 // ══════════════════════════════════════════
 function buildWallet() {
   return `
-    <div class="page-title">💰 กระเป๋าเงิน</div>
-    <div class="wallet-bal-card">
-      <div style="position:absolute;top:-20px;right:-20px;width:140px;height:140px;border-radius:50%;background:radial-gradient(circle,#FFD70012,transparent);pointer-events:none"></div>
-      <div style="font-size:12px;color:var(--gold2);margin-bottom:6px">ยอดเงินปัจจุบัน</div>
-      <div style="font-size:38px;font-weight:900;color:var(--gold);line-height:1;margin-bottom:4px" id="w-bal">฿0.00</div>
-      <div style="font-size:11px;color:var(--t4);margin-bottom:16px">อัพเดทล่าสุด: <span id="w-upd">-</span></div>
+    <div class="page-title" style="background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">💰 กระเป๋าเงิน</div>
+    <div class="wallet-bal-card" style="background:linear-gradient(135deg,var(--dark3) 0%,var(--dark4) 100%);border:1px solid var(--border2);border-radius:var(--r1);box-shadow:var(--sh-gold),var(--sh1);position:relative;overflow:hidden;padding:20px 18px;margin-bottom:14px">
+      <div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(255,210,76,.1),transparent);pointer-events:none"></div>
+      <div style="position:absolute;bottom:-20px;left:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(166,112,0,.08),transparent);pointer-events:none"></div>
+      <div style="font-size:11px;color:var(--gold2);margin-bottom:6px;letter-spacing:.08em;text-transform:uppercase">💳 ยอดเงินปัจจุบัน</div>
+      <div style="font-size:42px;font-weight:900;color:var(--gold);line-height:1;margin-bottom:4px;text-shadow:0 0 30px rgba(255,210,76,.3)" id="w-bal">฿0.00</div>
+      <div style="font-size:11px;color:var(--t4);margin-bottom:18px">อัพเดทล่าสุด: <span id="w-upd">-</span></div>
       <div style="display:flex;gap:10px">
-        <button class="btn btn-gold btn-md" style="flex:1;border-radius:10px" onclick="walletTab('deposit')">⬇️ ฝากเงิน</button>
-        <button class="btn btn-outline btn-md" style="flex:1;border-radius:10px" onclick="walletTab('withdraw')">⬆️ ถอนเงิน</button>
+        <button class="btn btn-gold btn-md" style="flex:1;border-radius:var(--r2);font-weight:800;box-shadow:0 4px 16px rgba(255,210,76,.2)" onclick="walletTab('deposit')">⬇️ ฝากเงิน</button>
+        <button class="btn btn-outline btn-md" style="flex:1;border-radius:var(--r2);font-weight:800;border-color:var(--border2)" onclick="walletTab('withdraw')">⬆️ ถอนเงิน</button>
       </div>
     </div>
-    <div class="wallet-tabs">
-      <button class="wtab on" id="wt-history" onclick="walletTab('history')">ประวัติ</button>
-      <button class="wtab" id="wt-deposit" onclick="walletTab('deposit')">ฝากเงิน</button>
-      <button class="wtab" id="wt-withdraw" onclick="walletTab('withdraw')">ถอนเงิน</button>
-      <button class="wtab" id="wt-banks" onclick="walletTab('banks')">ธนาคาร</button>
+    <div class="wallet-tabs" style="background:var(--dark2);border:1px solid var(--border);border-radius:var(--r2);padding:4px;gap:4px;margin-bottom:14px;display:flex">
+      <button class="wtab on" id="wt-history" onclick="walletTab('history')" style="flex:1">ประวัติ</button>
+      <button class="wtab" id="wt-deposit" onclick="walletTab('deposit')" style="flex:1">ฝาก</button>
+      <button class="wtab" id="wt-withdraw" onclick="walletTab('withdraw')" style="flex:1">ถอน</button>
+      <button class="wtab" id="wt-banks" onclick="walletTab('banks')" style="flex:1">ธนาคาร</button>
     </div>
     <div id="wp-history" class="wallet-panel on">
       <div id="tx-list"><div style="text-align:center;padding:32px;color:var(--t3)">กำลังโหลด...</div></div>
     </div>
     <div id="wp-deposit" class="wallet-panel">
-      <div class="card">
-        <div class="sec-title">ฝากเงิน</div>
-        <div style="background:var(--dark);border:1px solid #B8860B33;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
-          <div style="font-size:11px;color:var(--gold2);margin-bottom:4px">โอนเงินมาที่</div>
-          <div style="font-size:15px;font-weight:700;color:#fff">ธนาคารกสิกรไทย (KBANK)</div>
-          <div style="font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px;margin:6px 0">XXX-X-XXXXX-X</div>
+      <div class="card" style="background:linear-gradient(135deg,var(--dark3),var(--dark2));border:1px solid var(--border2);border-radius:var(--r1)">
+        <div class="sec-title" style="color:var(--gold);font-size:15px;font-weight:900;margin-bottom:14px">⬇️ ฝากเงิน</div>
+        <div style="background:rgba(255,210,76,.05);border:1px solid var(--border2);border-radius:var(--r2);padding:14px;margin-bottom:14px;text-align:center">
+          <div style="font-size:11px;color:var(--gold2);margin-bottom:6px;letter-spacing:.06em">📲 โอนเงินมาที่</div>
+          <div style="font-size:15px;font-weight:700;color:var(--t1)">ธนาคารกสิกรไทย (KBANK)</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold);letter-spacing:4px;margin:8px 0;text-shadow:0 0 20px rgba(255,210,76,.3)">XXX-X-XXXXX-X</div>
           <div style="font-size:11px;color:var(--t3)">บริษัท ไทเกอร์ลอตโต้ จำกัด</div>
         </div>
-        <label class="flabel">จำนวนเงิน (บาท)</label>
-        <input class="finput" type="number" id="dep-amt" placeholder="ขั้นต่ำ 50 บาท" min="50">
-        <div style="border:2px dashed #FFD70033;border-radius:10px;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer;transition:border .2s" onclick="showToast('อัพโหลดสลิปทาง Line @tigerlotto','warn')">
-          <div style="font-size:24px;margin-bottom:6px">📷</div>
+        <label class="flabel" style="color:var(--t2)">จำนวนเงิน (บาท)</label>
+        <input class="finput" type="number" id="dep-amt" placeholder="ขั้นต่ำ 50 บาท" min="50" style="background:var(--dark3);border:1px solid var(--border2);color:var(--t1)">
+        <div style="border:2px dashed var(--border2);border-radius:var(--r2);padding:20px;text-align:center;margin-bottom:14px;cursor:pointer;transition:border .2s;background:rgba(255,210,76,.02)" onclick="showToast('อัพโหลดสลิปทาง Line @tigerlotto','warn')">
+          <div style="font-size:28px;margin-bottom:6px">📷</div>
           <div style="font-size:12px;color:var(--t3)">แตะเพื่ออัพโหลดสลิป (หรือ Line ทีม)</div>
         </div>
-        <button class="btn btn-gold btn-lg" onclick="doDeposit()">แจ้งฝากเงิน</button>
+        <button class="btn btn-gold btn-lg" onclick="doDeposit()" style="width:100%;font-weight:900;box-shadow:0 4px 20px rgba(255,210,76,.25)">แจ้งฝากเงิน</button>
       </div>
     </div>
     <div id="wp-withdraw" class="wallet-panel">
-      <div class="card">
-        <div class="sec-title">ถอนเงิน</div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:14px;padding:10px 14px;background:var(--dark);border-radius:10px">
+      <div class="card" style="background:linear-gradient(135deg,var(--dark3),var(--dark2));border:1px solid var(--border2);border-radius:var(--r1)">
+        <div class="sec-title" style="color:var(--gold);font-size:15px;font-weight:900;margin-bottom:14px">⬆️ ถอนเงิน</div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:14px;padding:12px 14px;background:rgba(255,210,76,.05);border:1px solid var(--border2);border-radius:var(--r2)">
           <span style="font-size:12px;color:var(--t3)">ถอนได้สูงสุด</span>
-          <span style="color:var(--gold);font-weight:700;font-size:14px" id="w-maxwit">฿0.00</span>
+          <span style="color:var(--gold);font-weight:800;font-size:15px" id="w-maxwit">฿0.00</span>
         </div>
-        <label class="flabel">จำนวนเงินถอน (บาท)</label>
-        <input class="finput" type="number" id="wit-amt" placeholder="ขั้นต่ำ 100 บาท" min="100">
-        <label class="flabel">บัญชีธนาคารปลายทาง</label>
-        <select class="finput" id="wit-bank-sel" style="cursor:pointer">
+        <label class="flabel" style="color:var(--t2)">จำนวนเงินถอน (บาท)</label>
+        <input class="finput" type="number" id="wit-amt" placeholder="ขั้นต่ำ 100 บาท" min="100" style="background:var(--dark3);border:1px solid var(--border2);color:var(--t1)">
+        <label class="flabel" style="color:var(--t2)">บัญชีธนาคารปลายทาง</label>
+        <select class="finput" id="wit-bank-sel" style="cursor:pointer;background:var(--dark3);border:1px solid var(--border2);color:var(--t1)">
           <option value="">-- เลือกบัญชีธนาคาร --</option>
         </select>
-        <button class="btn btn-gold btn-lg" onclick="doWithdraw()">ถอนเงิน</button>
-        <div style="text-align:center;font-size:10px;color:var(--t4);margin-top:8px">ดำเนินการภายใน 5 นาที</div>
+        <button class="btn btn-gold btn-lg" onclick="doWithdraw()" style="width:100%;font-weight:900;box-shadow:0 4px 20px rgba(255,210,76,.25)">ถอนเงิน</button>
+        <div style="text-align:center;font-size:10px;color:var(--t4);margin-top:8px;opacity:.8">ดำเนินการภายใน 5 นาที</div>
       </div>
     </div>
     <div id="wp-banks" class="wallet-panel">
-      <div class="sec-title">บัญชีธนาคาร <span class="sec-link" onclick="openModal('modal-addbank')">+ เพิ่ม</span></div>
+      <div class="sec-title" style="color:var(--gold);font-size:15px;font-weight:900;margin-bottom:12px">🏦 บัญชีธนาคาร <span class="sec-link" style="color:var(--gold2);font-size:13px" onclick="openModal('modal-addbank')">+ เพิ่ม</span></div>
       <div id="bank-list"><div style="text-align:center;padding:32px;color:var(--t3)">กำลังโหลด...</div></div>
     </div>`;
 }
@@ -1838,51 +1842,54 @@ function buildProfile() {
   const initials = (name[0]||'U').toUpperCase();
   const bal = STATE.wallet ? fmtMoney(STATE.wallet.balance) : '฿0.00';
   return `
-    <div class="page-title">👤 โปรไฟล์</div>
-    <div class="profile-hero">
+    <div class="page-title" style="background:linear-gradient(90deg,var(--gold),var(--gold2));-webkit-background-clip:text;-webkit-text-fill-color:transparent">👤 โปรไฟล์</div>
+    <div class="profile-hero" style="background:linear-gradient(135deg,var(--dark4) 0%,var(--dark3) 60%,var(--dark2) 100%);border:1px solid var(--border2);border-radius:var(--r1);box-shadow:var(--sh-gold),var(--sh1);margin-bottom:14px;padding:18px;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-30px;right:-30px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,210,76,.07),transparent);pointer-events:none"></div>
       <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
-        <div style="width:68px;height:68px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--dark);flex-shrink:0;border:3px solid #FFD70055" id="prof-av">${initials}</div>
+        <div style="position:relative;flex-shrink:0">
+          <div style="width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:900;color:#1A0E00;border:3px solid var(--gold);box-shadow:0 0 20px rgba(255,210,76,.3)" id="prof-av">${initials}</div>
+        </div>
         <div style="flex:1">
-          <div style="font-size:20px;font-weight:900;color:var(--gold);margin-bottom:2px" id="prof-name">${name}</div>
-          <div style="font-size:11px;color:var(--t4);margin-bottom:6px">ID: ${u.id||'-'} | ${u.phone||'-'}</div>
+          <div style="font-size:21px;font-weight:900;color:var(--gold);margin-bottom:2px;text-shadow:0 0 20px rgba(255,210,76,.2)" id="prof-name">${name}</div>
+          <div style="font-size:11px;color:var(--t4);margin-bottom:8px">ID: ${u.id||'-'} | ${u.phone||'-'}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <span style="padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;background:#1A1200;color:var(--gold);border:1px solid #B8860B55">${u.role==='admin'?'ผู้ดูแลระบบ':u.role==='agent'?'เอเย่นต์':'สมาชิก'}</span>
-            ${u.vip_tier&&u.vip_tier!=='none'?`<span style="padding:3px 10px;border-radius:10px;font-size:10px;font-weight:700;background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)">${u.vip_tier}</span>`:''}
+            <span style="padding:3px 12px;border-radius:10px;font-size:10px;font-weight:700;background:rgba(255,210,76,.1);color:var(--gold);border:1px solid var(--border2)">${u.role==='admin'?'👑 ผู้ดูแลระบบ':u.role==='agent'?'🤝 เอเย่นต์':'⭐ สมาชิก'}</span>
+            ${u.vip_tier&&u.vip_tier!=='none'?`<span style="padding:3px 12px;border-radius:10px;font-size:10px;font-weight:700;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#1A0E00">${u.vip_tier}</span>`:''}
           </div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="openEditProfileModal()">แก้ไข</button>
+        <button class="btn btn-outline btn-sm" style="border-color:var(--border2);color:var(--gold2);font-size:11px" onclick="openEditProfileModal()">แก้ไข</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border);padding-top:14px">
-        <div style="text-align:center;padding:0 8px;border-right:1px solid var(--border)">
-          <div style="font-size:18px;font-weight:900;color:var(--gold)">${bal}</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">ยอดเงิน</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--border2);padding-top:14px">
+        <div style="text-align:center;padding:0 6px;border-right:1px solid var(--border)">
+          <div style="font-size:15px;font-weight:900;color:var(--gold)">${bal}</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">ยอดเงิน</div>
         </div>
-        <div style="text-align:center;padding:0 8px;border-right:1px solid var(--border)" id="pstat-bets">
-          <div style="font-size:18px;font-weight:900;color:var(--gold)">-</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">แทงทั้งหมด</div>
+        <div style="text-align:center;padding:0 6px;border-right:1px solid var(--border)" id="pstat-bets">
+          <div style="font-size:15px;font-weight:900;color:var(--gold)">-</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">แทงทั้งหมด</div>
         </div>
-        <div style="text-align:center;padding:0 8px;border-right:1px solid var(--border)" id="pstat-wins">
-          <div style="font-size:18px;font-weight:900;color:var(--gold)">-</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">ถูกรางวัล</div>
+        <div style="text-align:center;padding:0 6px;border-right:1px solid var(--border)" id="pstat-wins">
+          <div style="font-size:15px;font-weight:900;color:var(--gold)">-</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">ถูกรางวัล</div>
         </div>
-        <div style="text-align:center;padding:0 8px" id="pstat-vip">
-          <div style="font-size:18px;font-weight:900;color:var(--gold)">${u.vip_tier||'Bronze'}</div>
-          <div style="font-size:10px;color:var(--t3);margin-top:2px">ระดับ VIP</div>
+        <div style="text-align:center;padding:0 6px" id="pstat-vip">
+          <div style="font-size:15px;font-weight:900;color:var(--gold)">${u.vip_tier||'Bronze'}</div>
+          <div style="font-size:9px;color:var(--t3);margin-top:3px">ระดับ VIP</div>
         </div>
       </div>
     </div>
-    <div class="card" style="padding:0;overflow:hidden">
-      <div class="pm-item" onclick="navTo('wallet')"><span style="font-size:18px;width:24px;text-align:center">💰</span><span class="pm-label">กระเป๋าเงิน</span><span style="font-size:12px;color:var(--gold);font-weight:700;margin-right:8px">${bal}</span><span style="color:var(--t4)">›</span></div>
-      <div class="pm-item" onclick="navTo('slips')"><span style="font-size:18px;width:24px;text-align:center">🎫</span><span class="pm-label">โพยของฉัน</span><span style="color:var(--t4)">›</span></div>
-      <div class="pm-item" onclick="navTo('promotions')"><span style="font-size:18px;width:24px;text-align:center">🎁</span><span class="pm-label">โปรโมชั่น</span><span style="color:var(--t4)">›</span></div>
-      <div class="pm-item" onclick="navTo('hotNumbers')"><span style="font-size:18px;width:24px;text-align:center">🔥</span><span class="pm-label">เลขเด็ด</span><span style="color:var(--t4)">›</span></div>
-      <div class="pm-item" onclick="openChangePassModal()"><span style="font-size:18px;width:24px;text-align:center">🔒</span><span class="pm-label">เปลี่ยนรหัสผ่าน</span><span style="color:var(--t4)">›</span></div>
-      ${u.role==='admin'?`<div class="pm-item" onclick="navTo('admin')"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
-      ${u.role==='agent'||u.role==='admin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
-      <div class="pm-item" onclick="doLogout()" style="border-top:1px solid var(--border)">
-        <span style="font-size:18px;width:24px;text-align:center">🚪</span>
-        <span style="flex:1;font-size:13px;font-weight:600;color:var(--red)">ออกจากระบบ</span>
-        <span style="color:var(--t4)">›</span>
+    <div class="card" style="padding:0;overflow:hidden;background:linear-gradient(135deg,var(--dark3),var(--dark2));border:1px solid var(--border2);border-radius:var(--r1)">
+      <div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="navTo('wallet')"><span style="font-size:18px;width:26px;text-align:center;color:var(--gold)">💰</span><span class="pm-label" style="color:var(--t1)">กระเป๋าเงิน</span><span style="font-size:12px;color:var(--gold);font-weight:800;margin-right:8px">${bal}</span><span style="color:var(--gold2);font-size:14px">›</span></div>
+      <div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="navTo('slips')"><span style="font-size:18px;width:26px;text-align:center">🎫</span><span class="pm-label" style="color:var(--t1)">โพยของฉัน</span><span style="color:var(--gold2);font-size:14px">›</span></div>
+      <div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="navTo('promotions')"><span style="font-size:18px;width:26px;text-align:center">🎁</span><span class="pm-label" style="color:var(--t1)">โปรโมชั่น</span><span style="color:var(--gold2);font-size:14px">›</span></div>
+      <div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="navTo('hotNumbers')"><span style="font-size:18px;width:26px;text-align:center">🔥</span><span class="pm-label" style="color:var(--t1)">เลขเด็ด</span><span style="color:var(--gold2);font-size:14px">›</span></div>
+      <div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="openChangePassModal()"><span style="font-size:18px;width:26px;text-align:center">🔒</span><span class="pm-label" style="color:var(--t1)">เปลี่ยนรหัสผ่าน</span><span style="color:var(--gold2);font-size:14px">›</span></div>
+      ${u.role==='admin'?`<div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="window.location.href='admin.html'"><span style="font-size:18px;width:26px;text-align:center">⚙️</span><span class="pm-label" style="color:var(--t1)">Admin Panel</span><span style="color:var(--gold2);font-size:14px">›</span></div>`:''}
+      ${u.role==='agent'||u.role==='admin'?`<div class="pm-item" style="border-bottom:1px solid var(--border)" onclick="navTo('agent')"><span style="font-size:18px;width:26px;text-align:center">👥</span><span class="pm-label" style="color:var(--t1)">Agent Portal</span><span style="color:var(--gold2);font-size:14px">›</span></div>`:''}
+      <div class="pm-item" onclick="doLogout()" style="background:rgba(224,85,53,.06);border-top:1px solid rgba(224,85,53,.2)">
+        <span style="font-size:18px;width:26px;text-align:center">🚪</span>
+        <span style="flex:1;font-size:13px;font-weight:700;color:var(--red)">ออกจากระบบ</span>
+        <span style="color:var(--red);opacity:.6;font-size:14px">›</span>
       </div>
     </div>`;
 }
