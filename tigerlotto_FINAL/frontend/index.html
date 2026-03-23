@@ -6,11 +6,11 @@
 <title>🐯 TigerLotto — หวยออนไลน์อัตราจ่ายสูง</title>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;700;900&display=swap" rel="stylesheet">
 <style>
-:root{--gold:#FFD700;--gold2:#B8860B;--gold3:#FFF4B8;--dark:#0A0A0A;--dark2:#0D0D0D;--dark3:#111;--dark4:#141414;--green:#3BD441;--red:#D85A30;--blue:#78BAFF;--border:#1e1e1e;--border2:#2a2a2a;--t1:#fff;--t2:#aaa;--t3:#666;--t4:#444}
+:root{--gold:#FFD700;--gold2:#B8860B;--gold3:#FFF4B8;--dark:#050505;--dark2:#0A0A0A;--dark3:#0E0E0E;--dark4:#131300;--green:#3BD441;--red:#D85A30;--blue:#78BAFF;--border:#2a2000;--border2:#3a2a00;--t1:#fff;--t2:#c8a84a;--t3:#7a6020;--t4:#4a3a10}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--t1);min-height:100vh;overflow-x:hidden}
-::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+::-webkit-scrollbar{width:3px;height:3px}::-webkit-scrollbar-thumb{background:#B8860B55;border-radius:2px}::-webkit-scrollbar-track{background:#0A0800}
 #toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-10px);padding:9px 22px;border-radius:12px;font-size:13px;font-weight:700;z-index:9999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast.ok{background:#0a1a0a;border:2px solid var(--green);color:var(--green)}
@@ -32,24 +32,26 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
 .modal-title{font-size:16px;font-weight:900;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
 .modal-close{background:none;border:none;color:var(--t3);font-size:20px;cursor:pointer;padding:2px 6px;line-height:1}
 .btn{font-family:inherit;font-weight:700;cursor:pointer;transition:all .2s;border:none;outline:none}
-.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)}
-.btn-gold:hover{box-shadow:0 4px 20px #FFD70030;transform:translateY(-1px)}
-.btn-outline{background:#1A1200;border:2px solid var(--gold);color:var(--gold)}
-.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--t2)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);box-shadow:0 2px 10px #FFD70030}
+.btn-gold:hover{box-shadow:0 4px 20px #FFD70050;transform:translateY(-1px);filter:brightness(1.08)}
+.btn-outline{background:#100C00;border:2px solid var(--gold);color:var(--gold)}
+.btn-outline:hover{background:#1A1200;box-shadow:0 0 12px #FFD70020}
+.btn-ghost{background:#0D0A00;border:1.5px solid var(--border2);color:var(--t2)}
+.btn-ghost:hover{border-color:var(--gold2);color:var(--gold)}
 .btn-red{background:#1a0505;border:2px solid var(--red);color:var(--red)}
 .btn-sm{padding:6px 14px;border-radius:8px;font-size:11px}
 .btn-md{padding:10px 20px;border-radius:10px;font-size:13px}
 .btn-lg{width:100%;padding:14px;border-radius:12px;font-size:15px}
 .flabel{display:block;font-size:12px;font-weight:700;color:var(--gold);margin-bottom:5px}
-.finput{width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:var(--t1);font-size:14px;padding:0 14px;font-family:inherit;outline:none;margin-bottom:12px;transition:border .2s}
-.finput:focus{border-color:var(--gold)}
-.finput::placeholder{color:#333;font-size:13px}
+.finput{width:100%;height:46px;background:#080600;border:2px solid #FFD70044;border-radius:10px;color:var(--t1);font-size:14px;padding:0 14px;font-family:inherit;outline:none;margin-bottom:12px;transition:border .2s}
+.finput:focus{border-color:var(--gold);box-shadow:0 0 8px #FFD70020}
+.finput::placeholder{color:#4a3a10;font-size:13px}
 .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700;white-space:nowrap}
 .badge-ok{background:#0a1a0a;color:var(--green);border:1px solid #3BD44133}
 .badge-pend{background:#1A1200;color:var(--gold);border:1px solid #FFD70033}
 .badge-fail{background:#1a0505;color:var(--red);border:1px solid #D85A3033}
 .badge-blue{background:#0a0a1a;color:var(--blue);border:1px solid #78BAFF33}
-.card{background:var(--dark3);border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px}
+.card{background:var(--dark3);border:1.5px solid #2a1a00;border-radius:12px;padding:14px;margin-bottom:12px}
 .sec-title{font-size:14px;font-weight:900;color:var(--gold);display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
 .sec-link{font-size:11px;color:var(--gold2);cursor:pointer}
 .page-title{font-size:17px;font-weight:900;color:var(--gold);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
@@ -62,36 +64,36 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
 /* ── PC TOP NAV (replaces sidebar) ── */
 #pc-main{margin-left:0;flex:1;display:flex;flex-direction:column;min-height:100vh}
 /* Row 1: brand + user strip */
-.pc-topbar{height:50px;background:var(--dark2);border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;position:sticky;top:0;z-index:100}
+.pc-topbar{height:50px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-bottom:2px solid #A07000;display:flex;align-items:center;justify-content:space-between;padding:0 20px;flex-shrink:0;position:sticky;top:0;z-index:100}
 .pc-brand{display:flex;align-items:center;gap:8px;cursor:pointer}
-.pc-brand-logo{width:28px;height:28px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:var(--dark)}
-.pc-brand-name{font-size:13px;font-weight:900;color:var(--gold)}
+.pc-brand-logo{width:28px;height:28px;background:var(--dark);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:var(--gold)}
+.pc-brand-name{font-size:13px;font-weight:900;color:var(--dark)}
 .pc-topbar-right{display:flex;align-items:center;gap:10px}
-.pc-bal-pill{background:#1A1200;border:1.5px solid var(--gold2);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer}
-.pc-notif{font-size:18px;cursor:pointer;position:relative}
-.pc-notif-dot{position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid var(--dark2)}
-.pc-user-chip{display:flex;align-items:center;gap:7px;cursor:pointer;background:var(--dark3);border:1px solid var(--border);border-radius:20px;padding:4px 10px 4px 5px}
-.pc-user-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:var(--dark)}
-.pc-user-name{font-size:11px;font-weight:700;color:var(--t2)}
+.pc-bal-pill{background:#00000033;border:1.5px solid #00000044;border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;color:var(--dark);cursor:pointer}
+.pc-notif{font-size:18px;cursor:pointer;position:relative;filter:brightness(0)}
+.pc-notif-dot{position:absolute;top:-2px;right:-2px;width:7px;height:7px;border-radius:50%;background:var(--red);border:1.5px solid var(--gold)}
+.pc-user-chip{display:flex;align-items:center;gap:7px;cursor:pointer;background:#00000033;border:1px solid #00000044;border-radius:20px;padding:4px 10px 4px 5px}
+.pc-user-av{width:24px;height:24px;border-radius:50%;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:var(--gold)}
+.pc-user-name{font-size:11px;font-weight:700;color:var(--dark)}
 /* Row 2: nav tabs */
-#pc-global-nav{background:var(--dark2);border-bottom:2px solid #B8860B22;display:flex;overflow-x:auto;flex-shrink:0;padding:0 16px;position:sticky;top:50px;z-index:90}
+#pc-global-nav{background:linear-gradient(135deg,var(--gold),var(--gold2));border-bottom:2px solid #A07000;display:flex;overflow-x:auto;flex-shrink:0;padding:0 8px;position:sticky;top:50px;z-index:90}
 #pc-global-nav::-webkit-scrollbar{height:0}
-.pcnav-item{padding:10px 14px;font-size:12px;font-weight:700;color:var(--t3);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0}
-.pcnav-item:hover{color:var(--t2);background:var(--dark4)}
-.pcnav-item.on{color:var(--gold);border-bottom-color:var(--gold)}
+.pcnav-item{padding:10px 14px;font-size:12px;font-weight:700;color:#3a2000;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0}
+.pcnav-item:hover{color:var(--dark);background:#FFD70033}
+.pcnav-item.on{color:var(--dark);border-bottom-color:var(--dark);background:#FFD70055;font-weight:900}
 /* Content area */
 .pc-content{flex:1;padding:20px 24px;overflow-y:auto;max-width:1200px;width:100%;margin:0 auto;align-self:center;box-sizing:border-box}
 
 /* ── MOBILE NAV ── */
-#mobile-nav{background:var(--dark2);border-bottom:2px solid #B8860B55;padding:10px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100;flex-shrink:0}
-.mn-logo{font-size:15px;font-weight:900;color:var(--gold);cursor:pointer;flex-shrink:0}
-.mn-logo span{color:#FFD70077;font-weight:400;font-size:11px}
+#mobile-nav{background:linear-gradient(135deg,var(--gold),var(--gold2));border-bottom:2px solid #A07000;padding:10px 16px;display:flex;align-items:center;gap:8px;position:sticky;top:0;z-index:100;flex-shrink:0}
+.mn-logo{font-size:15px;font-weight:900;color:var(--dark);cursor:pointer;flex-shrink:0}
+.mn-logo span{color:#00000066;font-weight:400;font-size:11px}
 .mn-right{display:flex;align-items:center;gap:10px;margin-left:auto;flex-shrink:0}
-.mn-bal{background:#1A1200;border:1.5px solid var(--gold2);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer}
-.mn-avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--dark);cursor:pointer;flex-shrink:0}
-#mobile-bottom{display:flex;background:var(--dark2);border-top:1px solid var(--border);position:sticky;bottom:0;z-index:100;flex-shrink:0}
-.bn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;transition:all .2s;border-top:2px solid transparent}
-.bn.on{border-top-color:var(--gold)}
+.mn-bal{background:#00000033;border:1.5px solid #00000044;border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--dark);cursor:pointer}
+.mn-avatar{width:30px;height:30px;border-radius:50%;background:var(--dark);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:var(--gold);cursor:pointer;flex-shrink:0}
+#mobile-bottom{display:flex;background:var(--dark);border-top:2px solid #B8860B55;position:sticky;bottom:0;z-index:100;flex-shrink:0}
+.bn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;transition:all .2s;border-top:3px solid transparent}
+.bn.on{border-top-color:var(--gold);background:#1A1000}
 .bn-ico{font-size:18px;margin-bottom:2px}
 .bn-lbl{font-size:9px;font-weight:700;color:var(--t4)}
 .bn.on .bn-lbl{color:var(--gold)}
@@ -171,19 +173,21 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
 /* ── BUY ── */
 .buy-step{display:none}.buy-step.on{display:block}
 .type-select-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
-.type-card{background:var(--dark3);border:2px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:all .2s;text-align:center}
-.type-card:hover{border-color:#B8860B55}.type-card.selected{border-color:var(--gold);background:#1A1200}
-.bet-type-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px}
-.bet-tab{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);color:var(--t3);background:var(--dark3);transition:all .2s}
-.bet-tab.on{border-color:var(--gold);color:var(--gold);background:#1A1200}
-.num-display{background:var(--dark);border:2px solid #FFD70033;border-radius:12px;padding:10px 14px;text-align:center;margin-bottom:10px;min-height:50px}
+.type-card{background:var(--dark3);border:2px solid #2a1a00;border-radius:14px;padding:16px;cursor:pointer;transition:all .2s;text-align:center}
+.type-card:hover{border-color:var(--gold2);background:#0D0900;box-shadow:0 2px 12px #FFD70015}.type-card.selected{border-color:var(--gold);background:#1A1000;box-shadow:0 0 18px #FFD70030}
+.bet-type-tabs{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+.bet-tab{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;border:1.5px solid var(--border);color:var(--t2);background:var(--dark3);transition:all .2s}
+.bet-tab:hover{border-color:#B8860B55;color:var(--gold)}
+.bet-tab.on{border-color:var(--gold);color:var(--dark);background:linear-gradient(135deg,var(--gold),var(--gold2))}
+.num-display{background:#080600;border:2px solid #FFD70066;border-radius:12px;padding:10px 14px;text-align:center;margin-bottom:10px;min-height:50px;box-shadow:0 0 16px #FFD70015 inset}
 .num-display-text{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:6px}
 .num-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
-.np-btn{height:44px;border-radius:10px;border:1.5px solid var(--border);background:var(--dark3);color:var(--t1);font-size:16px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit}
-.np-btn:hover{background:var(--dark4);border-color:#B8860B55}.np-btn:active{transform:scale(.95)}
+.np-btn{height:44px;border-radius:10px;border:1.5px solid var(--gold2);background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark);font-size:16px;font-weight:900;cursor:pointer;transition:all .15s;font-family:inherit;box-shadow:0 2px 6px #00000033}
+.np-btn:hover{background:linear-gradient(135deg,#FFE44D,var(--gold));box-shadow:0 4px 12px #FFD70044}.np-btn:active{transform:scale(.95)}
 .amount-presets{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-.amt-preset{padding:5px 11px;border-radius:8px;border:1.5px solid var(--border);background:var(--dark3);color:var(--t2);font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
-.amt-preset.on{border-color:var(--gold);color:var(--gold);background:#1A1200}
+.amt-preset{padding:5px 11px;border-radius:8px;border:1.5px solid #2a1a00;background:#0D0900;color:var(--t2);font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
+.amt-preset:hover{border-color:var(--gold2);color:var(--gold)}
+.amt-preset.on{border-color:var(--gold);color:var(--dark);background:linear-gradient(135deg,var(--gold),var(--gold2))}
 .buy-summary{background:var(--dark2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px}
 .buy-summary-row{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);padding:4px 0}
 .buy-summary-row.total{border-top:1px solid var(--border);margin-top:6px;padding-top:10px;font-size:15px;font-weight:900;color:var(--gold)}
@@ -212,8 +216,8 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
 .slip-tabs::-webkit-scrollbar{height:0}
 .stab{padding:12px 18px;font-size:12px;font-weight:700;color:var(--t4);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;flex-shrink:0}
 .stab.on{color:var(--gold);border-bottom-color:var(--gold)}
-.slip-card{background:var(--dark3);border:1.5px solid var(--border);border-radius:14px;margin-bottom:10px;overflow:hidden}
-.slip-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--dark4);border-bottom:1px solid var(--border)}
+.slip-card{background:var(--dark3);border:1.5px solid #2a1a00;border-radius:14px;margin-bottom:10px;overflow:hidden}
+.slip-head{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#0D0900;border-bottom:1px solid #2a1a00}
 .slip-num{font-size:26px;font-weight:900;color:#fff;letter-spacing:4px;margin:6px 0 4px}
 .slip-body{padding:12px 14px}
 .slip-foot{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-top:1px solid var(--border)}
@@ -549,7 +553,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
         <div class="pc-user-av" id="sb-av">U</div>
         <div class="pc-user-name" id="sb-un">-</div>
       </div>
-      <button class="btn btn-ghost btn-sm" style="border-radius:20px;font-size:11px;padding:4px 12px" onclick="doLogout()">ออก</button>
+      <button class="btn btn-sm" style="border-radius:20px;font-size:11px;padding:4px 12px;background:#00000033;border:1.5px solid #00000055;color:var(--dark);font-weight:700" onclick="doLogout()">ออก</button>
     </div>
   </div>
   <!-- Row 2: Global nav tabs -->
@@ -1049,30 +1053,25 @@ function buildBuy() {
         <div style="font-size:12px;font-weight:700;color:var(--gold)" id="buy-type-label">-</div>
       </div>
       <div class="bet-type-tabs" id="bet-tabs"></div>
-      <!-- Two-column: slip list LEFT, numpad RIGHT -->
-      <div style="display:flex;gap:10px;align-items:flex-start">
-        <!-- Left: slip list -->
-        <div id="slip-list-wrap" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:0">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-            <div style="font-size:11px;font-weight:700;color:var(--t2)">🎫 โพยของคุณ</div>
-            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearSlip()">ล้าง</button>
-          </div>
-          <div id="slip-list" style="flex:1;overflow-y:auto;max-height:260px"></div>
-          <div id="slip-empty" style="padding:20px 0;text-align:center;color:var(--t4);font-size:11px">ยังไม่มีเลข<br>กดตัวเลขทางขวา</div>
-          <button class="btn btn-gold" style="margin-top:8px;width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:10px;display:none" id="slip-summary-btn" onclick="goToSummary()">
-            📋 สรุปโพย<br><span id="slip-count" style="font-size:10px;font-weight:400;opacity:.85">0 เลข</span>
-          </button>
+      <!-- Single column: numpad centered top, slip below -->
+      <div class="num-display" style="margin-bottom:10px">
+        <div style="font-size:32px;font-weight:900;color:var(--gold);letter-spacing:10px" id="num-disp">———</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:3px" id="num-hint">กดตัวเลขให้ครบ</div>
+      </div>
+      <div class="num-pad" style="margin-bottom:14px">
+        ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
+      </div>
+      <!-- Slip list below numpad -->
+      <div id="slip-list-wrap">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <div style="font-size:11px;font-weight:700;color:var(--t2)">🎫 โพยของคุณ</div>
+          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearSlip()">ล้าง</button>
         </div>
-        <!-- Right: numpad -->
-        <div style="flex-shrink:0;width:200px">
-          <div class="num-display" style="margin-bottom:8px">
-            <div style="font-size:26px;font-weight:900;color:var(--gold);letter-spacing:10px" id="num-disp">———</div>
-            <div style="font-size:9px;color:var(--t3);margin-top:3px" id="num-hint">กดตัวเลขให้ครบ</div>
-          </div>
-          <div class="num-pad" style="gap:5px">
-            ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" style="height:38px;font-size:14px" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
-          </div>
-        </div>
+        <div id="slip-list" style="overflow-y:auto;max-height:220px"></div>
+        <div id="slip-empty" style="padding:16px 0;text-align:center;color:var(--t4);font-size:11px">ยังไม่มีเลข<br>กดตัวเลขด้านบน</div>
+        <button class="btn btn-gold" style="margin-top:8px;width:100%;padding:10px;font-size:13px;font-weight:700;border-radius:10px;display:none" id="slip-summary-btn" onclick="goToSummary()">
+          📋 สรุปโพย — <span id="slip-count">0 เลข</span>
+        </button>
       </div>
     </div>
     <!-- Step 3: Full slip summary + amount + confirm -->
@@ -1144,28 +1143,31 @@ function selectBuyType(id, name) {
 
 async function loadBetTypes(typeId) {
   const lbl = document.getElementById('buy-type-label'); if(lbl) lbl.textContent = STATE.buyTypeName;
-  try {
-    const d = await api('GET', '/lottery/bet-types');
-    const tabs = document.getElementById('bet-tabs'); if(!tabs) return;
-    const types = Array.isArray(d) ? d : (d.betTypes||d.data||[]);
-    const defaults = [
-      {id:1,name:'3 ตัวบน',name_th:'3 ตัวบน',digits:3,payout:900},
-      {id:2,name:'3 ตัวโต๊ด',name_th:'3 ตัวโต๊ด',digits:3,payout:150},
-      {id:3,name:'2 ตัวบน',name_th:'2 ตัวบน',digits:2,payout:90},
-      {id:4,name:'2 ตัวล่าง',name_th:'2 ตัวล่าง',digits:2,payout:90},
-      {id:5,name:'วิ่งบน',name_th:'วิ่งบน',digits:1,payout:3},
-      {id:6,name:'วิ่งล่าง',name_th:'วิ่งล่าง',digits:1,payout:4},
-    ];
-    const list = types.length ? types : defaults;
-    tabs.innerHTML = list.map((t,i) => `
-      <button class="bet-tab${i===0?' on':''}" onclick="selectBetType(${t.id},'${t.name_th||t.name}',${t.payout||900},${t.digits||3})">${t.name_th||t.name} x${t.payout||900}</button>`).join('');
-    if (list[0]) selectBetType(list[0].id, list[0].name_th||list[0].name, list[0].payout||900, list[0].digits||3);
-  } catch(e) {
-    const defaults = [{id:1,name_th:'3 ตัวบน',payout:900,digits:3},{id:2,name_th:'3 ตัวโต๊ด',payout:150,digits:3},{id:3,name_th:'2 ตัวบน',payout:90,digits:2},{id:4,name_th:'2 ตัวล่าง',payout:90,digits:2},{id:5,name_th:'วิ่งบน',payout:3,digits:1},{id:6,name_th:'วิ่งล่าง',payout:4,digits:1}];
-    const tabs = document.getElementById('bet-tabs'); if(!tabs) return;
-    tabs.innerHTML = defaults.map((t,i)=>`<button class="bet-tab${i===0?' on':''}" onclick="selectBetType(${t.id},'${t.name_th}',${t.payout},${t.digits})">${t.name_th} x${t.payout}</button>`).join('');
-    selectBetType(defaults[0].id, defaults[0].name_th, defaults[0].payout, defaults[0].digits);
+  // Fixed bet type list: 3-digit group and 2-digit group
+  const ALLOWED = [
+    {id:1,  name_th:'3 ตัวบน',          digits:3, payout:900},
+    {id:2,  name_th:'3 ตัวโต๊ด',         digits:3, payout:150},
+    {id:7,  name_th:'3 ตัวหมุน 6 ประตู', digits:3, payout:100},
+    {id:3,  name_th:'2 ตัวบน',           digits:2, payout:90},
+    {id:4,  name_th:'2 ตัวล่าง',          digits:2, payout:90},
+    {id:8,  name_th:'2 ตัวบนล่างกลับ',   digits:2, payout:80},
+  ];
+  const tabs = document.getElementById('bet-tabs'); if(!tabs) return;
+  const g3 = ALLOWED.filter(t => t.digits === 3);
+  const g2 = ALLOWED.filter(t => t.digits === 2);
+  function renderGroup(label, list) {
+    return `<div style="width:100%;margin-bottom:4px">
+      <div style="font-size:10px;font-weight:700;color:var(--t3);padding:4px 2px 4px;letter-spacing:.5px">${label}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${list.map(t => `<button class="bet-tab" data-id="${t.id}" onclick="selectBetType(${t.id},'${t.name_th}',${t.payout},${t.digits})">${t.name_th} <span style="font-size:10px;opacity:.7">x${t.payout}</span></button>`).join('')}
+      </div>
+    </div>`;
   }
+  tabs.innerHTML = renderGroup('🔢 3 ตัว', g3) + renderGroup('🔢 2 ตัว', g2);
+  // Auto-select first type
+  selectBetType(ALLOWED[0].id, ALLOWED[0].name_th, ALLOWED[0].payout, ALLOWED[0].digits);
+  const firstBtn = tabs.querySelector(`.bet-tab[data-id="${ALLOWED[0].id}"]`);
+  if (firstBtn) firstBtn.classList.add('on');
 }
 
 function selectBetType(id, name, payout, digits) {
@@ -1179,7 +1181,9 @@ function selectBetType(id, name, payout, digits) {
   STATE.buyBetTypePayout = payout; STATE.buyBetTypeDigits = digits;
   STATE.buyNumber = '';
   document.querySelectorAll('.bet-tab').forEach(t => t.classList.remove('on'));
-  event && event.target && event.target.classList.add('on');
+  const activeBtn = document.querySelector(`.bet-tab[data-id="${id}"]`);
+  if (activeBtn) activeBtn.classList.add('on');
+  else if (event && event.target && event.target.classList.contains('bet-tab')) event.target.classList.add('on');
   updateNumDisplay();
 }
 
