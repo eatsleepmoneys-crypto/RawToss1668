@@ -109,9 +109,7 @@ const Admin = {
   users:         (q)      => get('/admin/users'        + (q ? '?' + new URLSearchParams(q) : '')),
   userStatus:    (id, d)  => put(`/admin/users/${id}/status`, d),
   transactions:  (q)      => get('/admin/transactions' + (q ? '?' + new URLSearchParams(q) : '')),
-  approveTx:     (id)     => put(`/admin/transactions/${id}/approve`),
   approveWD:     (id)     => put(`/admin/transactions/${id}/approve`),
-  rejectTx:      (id, note) => put(`/admin/transactions/${id}/reject`, { note }),
   enterResult:   (rid, d) => post(`/admin/lottery/rounds/${rid}/result`, d),
   kycList:       (q)      => get('/admin/kyc'          + (q ? '?' + new URLSearchParams(q) : '')),
   approveKYC:    (id)     => put(`/admin/kyc/${id}/approve`),
@@ -120,13 +118,8 @@ const Admin = {
   settings:      ()       => get('/admin/settings'),
   updateSetting: (k, v)   => put(`/admin/settings/${k}`, { value: v }),
   report:        (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
-  lotteryTypes:      (all)    => get('/lottery/types' + (all ? '?all=1' : '')),
+  lotteryTypes:      ()       => get('/lottery/types'),
   updateLotteryType: (id, d)  => put(`/admin/lottery-types/${id}`, d),
-  // Round management
-  adminRounds:   (q)   => get('/admin/lottery/rounds'  + (q ? '?' + new URLSearchParams(q) : '')),
-  createRound:   (d)   => post('/admin/lottery/rounds', d),
-  closeRound:    (id)  => put(`/admin/lottery/rounds/${id}/close`),
-  openRound:     (id)  => put(`/admin/lottery/rounds/${id}/open`),
 };
 
 // ── Session Helpers ───────────────────────────────────────────

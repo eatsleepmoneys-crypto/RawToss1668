@@ -530,11 +530,14 @@ io.on('connection', socket => {
 });
 
 /* AUTO-CLOSE SCHEDULER */
-// ทุก 60 วินาที ตรวจงวดที่หมดเวลา → ปิดรับอัตโนมัติ
+// ทุก 60 วินาที ตรวจงวดที่หมดเวลา → ปิดรับ + ออกผลยี่กี่อัตโนมัติ
 async function autoCloseExpiredRounds() {
   try {
     const expired = await query(
-      "SELECT id, round_code FROM lottery_rounds WHERE status='open' AND close_at <= NOW()"
+      `SELECT r.id, r.round_code, lt.code AS type_code
+       FROM lottery_rounds r
+       JOIN lottery_types lt ON r.lottery_type_id = lt.id
+       WHERE r.status='open' AND r.close_at <= NOW()`
     );
     if (!expired.length) return;
     const ids = expired.map(r => r.id);
@@ -543,9 +546,118 @@ async function autoCloseExpiredRounds() {
       ids
     );
     expired.forEach(r => console.log(`[AUTO-CLOSE] งวด ${r.round_code} (id:${r.id}) ปิดรับอัตโนมัติ`));
+
+    // Auto-result Yeekee rounds immediately after closing
+    const yeekeeRounds = expired.filter(r => /yeekee|ยี่กี/.test(r.type_code || ''));
+    for (const r of yeekeeRounds) {
+      await autoResultYeekeeRound(r.id, r.round_code);
+    }
   } catch(err) {
     console.error('[AUTO-CLOSE] Error:', err.message);
   }
+}
+
+/* AUTO-RESULT YEEKEE */
+async function autoResultYeekeeRound(roundId, roundCode) {
+  try {
+    // Check not already resulted
+    const existing = await queryOne('SELECT id FROM lottery_results WHERE round_id=?', [roundId]);
+    if (existing) return;
+
+    // Generate random results
+    const r5 = () => String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+    const r3 = () => String(Math.floor(Math.random() * 1000)).padStart(3, '0');
+
+    const result_first   = r5();
+    const result_2_back  = result_first.slice(-2);
+    const result_3_back1 = r3();
+    const result_3_back2 = r3();
+    const result_3_front1= r3();
+    const result_3_front2= r3();
+
+    await query(
+      `INSERT INTO lottery_results
+       (round_id,result_first,result_2_back,result_3_back1,result_3_back2,result_3_front1,result_3_front2,entered_at)
+       VALUES (?,?,?,?,?,?,?,NOW())`,
+      [roundId, result_first, result_2_back, result_3_back1, result_3_back2, result_3_front1, result_3_front2]
+    );
+    await query("UPDATE lottery_rounds SET status='resulted', result_at=NOW() WHERE id=?", [roundId]);
+
+    console.log(`[AUTO-RESULT] ยี่กี่ ${roundCode} → ${result_first} (id:${roundId})`);
+
+    // Process payouts async
+    resultCtrl.processPayouts(roundId, {
+      result_first, result_2_back, result_3_back1, result_3_back2,
+      result_3_front1, result_3_front2
+    }).catch(err => console.error(`[AUTO-RESULT] Payout error round ${roundId}:`, err.message));
+  } catch(err) {
+    console.error(`[AUTO-RESULT] Error round ${roundId}:`, err.message);
+  }
+}
+
+/* AUTO-CREATE YEEKEE ROUNDS */
+async function autoCreateYeekeeRounds() {
+  try {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm   = String(now.getMonth() + 1).padStart(2, '0');
+    const dd   = String(now.getDate()).padStart(2, '0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+    const likePattern = `YEEKEE-${dateStr}-%`;
+
+    const [countRow] = await query(
+      'SELECT COUNT(*) AS c FROM lottery_rounds WHERE round_code LIKE ?',
+      [likePattern]
+    );
+    if (countRow.c > 0) return; // Already created today
+
+    const typeRow = await queryOne(
+      "SELECT id FROM lottery_types WHERE code='yeekee' OR code LIKE '%yeekee%' LIMIT 1"
+    );
+    if (!typeRow) { console.warn('[AUTO-CREATE-YK] lottery_type yeekee not found'); return; }
+
+    const typeId = typeRow.id;
+    const midnight = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    const INTERVAL_MS  = 16 * 60 * 1000;       // 16 minutes
+    const CLOSE_OFFSET = 15 * 60 * 1000 + 30 * 1000; // 15m30s
+    const RESULT_OFFSET= CLOSE_OFFSET + 30 * 1000;    // +30s
+
+    function toMySQLDT(d) {
+      return d.toISOString().replace('T', ' ').slice(0, 19);
+    }
+
+    for (let rr = 1; rr <= 90; rr++) {
+      const rrStr   = String(rr).padStart(2, '0');
+      const code    = `YEEKEE-${dateStr}-${rrStr}`;
+      const name    = `ยี่กี่ รอบที่ ${rr} (${dateStr})`;
+      const openAt  = new Date(midnight.getTime() + (rr - 1) * INTERVAL_MS);
+      const closeAt = new Date(openAt.getTime() + CLOSE_OFFSET);
+      const resultAt= new Date(openAt.getTime() + RESULT_OFFSET);
+      const status  = closeAt <= now ? 'closed' : 'open';
+
+      await query(
+        `INSERT IGNORE INTO lottery_rounds (lottery_type_id,round_code,round_name,open_at,close_at,result_at,status)
+         VALUES (?,?,?,?,?,?,?)`,
+        [typeId, code, name, toMySQLDT(openAt), toMySQLDT(closeAt), toMySQLDT(resultAt), status]
+      );
+    }
+    console.log(`[AUTO-CREATE-YK] สร้าง 90 รอบยี่กี่สำหรับ ${dateStr} เรียบร้อย`);
+  } catch(err) {
+    console.error('[AUTO-CREATE-YK] Error:', err.message);
+  }
+}
+
+/* Daily scheduler: re-create Yeekee rounds each day at 00:01 */
+let _lastYkCreateDate = '';
+function scheduleDailyYeekeeCreate() {
+  setInterval(() => {
+    const now = new Date();
+    const dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+    if (now.getHours() === 0 && now.getMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
+      _lastYkCreateDate = dateKey;
+      autoCreateYeekeeRounds();
+    }
+  }, 60_000);
 }
 
 /* Start */
@@ -553,7 +665,9 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
   setTimeout(() => {
+    autoCreateYeekeeRounds();
     autoCloseExpiredRounds();
     setInterval(autoCloseExpiredRounds, 60_000);
+    scheduleDailyYeekeeCreate();
   }, 5_000);
 });
