@@ -120,6 +120,11 @@ const Admin = {
   report:        (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
   lotteryTypes:      ()       => get('/lottery/types'),
   updateLotteryType: (id, d)  => put(`/admin/lottery-types/${id}`, d),
+  // Round management
+  adminRounds:   (q)   => get('/admin/lottery/rounds'  + (q ? '?' + new URLSearchParams(q) : '')),
+  createRound:   (d)   => post('/admin/lottery/rounds', d),
+  closeRound:    (id)  => put(`/admin/lottery/rounds/${id}/close`),
+  openRound:     (id)  => put(`/admin/lottery/rounds/${id}/open`),
 };
 
 // ── Session Helpers ───────────────────────────────────────────

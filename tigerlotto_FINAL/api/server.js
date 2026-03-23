@@ -370,6 +370,44 @@ v1.put('/admin/transactions/:id/approve', auth, adminOnly, async (req,res) => {
   await query('UPDATE wallets SET locked_balance=locked_balance-? WHERE user_id=?',[tx.amount,tx.user_id]);
   res.json({ success:true });
 });
+/* ADMIN ROUND MANAGEMENT */
+v1.get('/admin/lottery/rounds', auth, adminOnly, async (req, res) => {
+  const { status, lottery_type_id, limit = 50 } = req.query;
+  let sql = `SELECT r.*, lt.name AS lottery_name, lt.icon AS lottery_icon, lt.code AS lottery_code
+    FROM lottery_rounds r JOIN lottery_types lt ON r.lottery_type_id=lt.id WHERE 1=1`;
+  const params = [];
+  if (status) { sql += ' AND r.status=?'; params.push(status); }
+  if (lottery_type_id) { sql += ' AND r.lottery_type_id=?'; params.push(lottery_type_id); }
+  sql += ' ORDER BY r.close_at DESC LIMIT ?'; params.push(parseInt(limit));
+  res.json({ data: await query(sql, params) });
+});
+v1.post('/admin/lottery/rounds', auth, adminOnly, async (req, res) => {
+  const { lottery_type_id, round_code, round_name, open_at, close_at } = req.body;
+  if (!lottery_type_id || !round_code || !open_at || !close_at)
+    return res.status(422).json({ error:'VALIDATION', message:'กรุณาระบุข้อมูลให้ครบ' });
+  const existing = await queryOne('SELECT id FROM lottery_rounds WHERE round_code=?', [round_code]);
+  if (existing) return res.status(409).json({ error:'DUPLICATE', message:'รหัสงวดนี้มีอยู่แล้ว' });
+  await query(
+    `INSERT INTO lottery_rounds (lottery_type_id,round_code,round_name,open_at,close_at,status,created_by)
+     VALUES (?,?,?,?,?,'open',?)`,
+    [lottery_type_id, round_code, round_name||round_code, open_at, close_at, req.user.id]
+  );
+  res.json({ success:true, message:'สร้างงวดแล้ว' });
+});
+v1.put('/admin/lottery/rounds/:id/close', auth, adminOnly, async (req, res) => {
+  const round = await queryOne('SELECT id,status FROM lottery_rounds WHERE id=?', [req.params.id]);
+  if (!round) return res.status(404).json({ error:'NOT_FOUND', message:'ไม่พบงวด' });
+  if (['closed','resulted'].includes(round.status))
+    return res.status(409).json({ error:'ALREADY_CLOSED', message:'งวดนี้ปิดรับแล้ว' });
+  await query("UPDATE lottery_rounds SET status='closed',close_at=NOW() WHERE id=?", [req.params.id]);
+  res.json({ success:true, message:'ปิดรับงวดแล้ว' });
+});
+v1.put('/admin/lottery/rounds/:id/open', auth, adminOnly, async (req, res) => {
+  const round = await queryOne('SELECT id FROM lottery_rounds WHERE id=?', [req.params.id]);
+  if (!round) return res.status(404).json({ error:'NOT_FOUND' });
+  await query("UPDATE lottery_rounds SET status='open' WHERE id=?", [req.params.id]);
+  res.json({ success:true });
+});
 v1.post('/admin/lottery/rounds/:id/result', auth, adminOnly, resultCtrl.enterResult);
 v1.get('/admin/kyc',             auth, adminOnly, kycCtrl.adminListKYC);
 v1.put('/admin/kyc/:id/approve', auth, adminOnly, kycCtrl.approveKYC);

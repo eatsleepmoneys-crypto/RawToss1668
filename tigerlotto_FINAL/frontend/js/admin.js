@@ -207,36 +207,73 @@ async function approveWithdraw(id) {
 
 // ── ENTER RESULT ──────────────────────────────────────────────
 async function renderEnterResult(el) {
-  const res = await Lottery.rounds({ status: 'closed' });
+  const res = await Admin.adminRounds({ status:'closed', limit:30 });
   const rounds = res.data || [];
+
+  const noRoundHint = rounds.length === 0 ? `
+    <div style="background:#1A0A00;border:1px solid #D85A3033;border-radius:10px;padding:14px;margin-bottom:14px;display:flex;align-items:center;gap:12px">
+      <span style="font-size:20px">⚠️</span>
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--gold)">ไม่มีงวดที่รอกรอกผล</div>
+        <div style="font-size:10px;color:#777;margin-top:3px">
+          ต้อง <span style="color:var(--gold);cursor:pointer;font-weight:700" onclick="navTo('rounds')">สร้างงวด → ปิดรับ</span> ก่อน จึงจะกรอกผลได้
+        </div>
+      </div>
+    </div>` : '';
+
   el.innerHTML = `
-    <div class="pg-title">🏆 บันทึกผลรางวัล</div>
-    <div class="card">
-      <div style="margin-bottom:10px">
-        <label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:5px;display:block">เลือกงวด (ที่ปิดรับแล้ว)</label>
-        <select id="resultRoundId"
-          style="width:100%;height:40px;background:var(--dark);border:1.5px solid #FFD70033;border-radius:8px;color:var(--gold);font-size:12px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:10px">
-          <option value="">-- เลือกงวด --</option>
-          ${rounds.map(r => `<option value="${r.id}">${r.lottery_name||''} — ${r.round_code||''}</option>`).join('')}
-        </select>
+    <div class="pg-title">🏆 บันทึกผลรางวัล
+      <button onclick="renderEnterResult(document.getElementById('mainContent'))"
+        style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">🔄</button>
+    </div>
+    ${noRoundHint}
+    <div class="card" style="${rounds.length===0?'opacity:.5;pointer-events:none':''}">
+      <label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:6px;display:block">📅 เลือกงวด (ที่ปิดรับแล้ว)</label>
+      <select id="resultRoundId"
+        style="width:100%;height:42px;background:var(--dark);border:1.5px solid #FFD70033;border-radius:8px;color:var(--gold);font-size:12px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:14px">
+        <option value="">-- เลือกงวด --</option>
+        ${rounds.map(r=>`<option value="${r.id}">${r.lottery_name||''} — ${r.round_code||''}</option>`).join('')}
+      </select>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div>
+          <label style="font-size:10px;color:var(--gold);font-weight:700;display:block;margin-bottom:4px">🥇 รางวัลที่ 1 (6 หลัก) *</label>
+          <input class="finput" id="r1" placeholder="XXXXXX" maxlength="6"
+            style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;height:52px;margin-bottom:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--gold);font-weight:700;display:block;margin-bottom:4px">2 ตัวล่าง *</label>
+          <input class="finput" id="r2b" placeholder="XX" maxlength="2"
+            style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:900;letter-spacing:6px;text-align:center;height:52px;margin-bottom:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#aaa;font-weight:700;display:block;margin-bottom:4px">3 ตัวหลัง ชุดที่ 1</label>
+          <input class="finput" id="r3b1" placeholder="XXX" maxlength="3"
+            style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#aaa;font-weight:700;display:block;margin-bottom:4px">3 ตัวหลัง ชุดที่ 2</label>
+          <input class="finput" id="r3b2" placeholder="XXX" maxlength="3"
+            style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#aaa;font-weight:700;display:block;margin-bottom:4px">3 ตัวหน้า ชุดที่ 1</label>
+          <input class="finput" id="r3f1" placeholder="XXX" maxlength="3"
+            style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:#aaa;font-weight:700;display:block;margin-bottom:4px">3 ตัวหน้า ชุดที่ 2</label>
+          <input class="finput" id="r3f2" placeholder="XXX" maxlength="3"
+            style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:4px;text-align:center;margin-bottom:0">
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
-        <div><label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px;display:block">รางวัลที่ 1 (6 หลัก)</label>
-          <input class="finput" id="r1" placeholder="XXXXXX" maxlength="6" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:900;letter-spacing:4px;text-align:center"></div>
-        <div><label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px;display:block">2 ตัวท้าย</label>
-          <input class="finput" id="r2b" placeholder="XX" maxlength="2" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:900;letter-spacing:4px;text-align:center"></div>
-        <div><label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px;display:block">3 ตัวท้าย 1</label>
-          <input class="finput" id="r3b1" placeholder="XXX" maxlength="3" style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:3px;text-align:center"></div>
-        <div><label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px;display:block">3 ตัวท้าย 2</label>
-          <input class="finput" id="r3b2" placeholder="XXX" maxlength="3" style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:3px;text-align:center"></div>
-        <div><label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px;display:block">3 ตัวหน้า 1</label>
-          <input class="finput" id="r3f1" placeholder="XXX" maxlength="3" style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:3px;text-align:center"></div>
-        <div><label style="font-size:11px;color:var(--gold);font-weight:700;margin-bottom:4px;display:block">3 ตัวหน้า 2</label>
-          <input class="finput" id="r3f2" placeholder="XXX" maxlength="3" style="font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:900;letter-spacing:3px;text-align:center"></div>
+
+      <div style="background:#0a1a0a;border:1px solid #3BD44133;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:10px;color:#555">
+        ⚠️ หลังกด "บันทึกผล" ระบบจะ <strong style="color:#3BD441">คำนวณรางวัลอัตโนมัติ</strong> และโอนเงินให้ผู้ถูกทันที ตรวจสอบตัวเลขให้ถูกต้องก่อนกด
       </div>
-      <button onclick="submitResult()"
-        style="width:100%;height:46px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:15px;font-weight:900;cursor:pointer;font-family:inherit">
-        ✅ บันทึกผลและแจ้งเตือนผู้ถูกทันที
+      <button id="submit-result-btn" onclick="submitResult()"
+        style="width:100%;height:48px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;letter-spacing:.02em">
+        ✅ บันทึกผลและจ่ายรางวัลทันที
       </button>
     </div>`;
 }
@@ -245,18 +282,32 @@ async function submitResult() {
   const roundId = document.getElementById('resultRoundId')?.value;
   if (!roundId) return toast('กรุณาเลือกงวด', 'w');
   const body = {
-    result_first:  document.getElementById('r1')?.value,
-    result_2_back: document.getElementById('r2b')?.value,
-    result_3_back1:document.getElementById('r3b1')?.value,
-    result_3_back2:document.getElementById('r3b2')?.value,
-    result_3_front1:document.getElementById('r3f1')?.value,
-    result_3_front2:document.getElementById('r3f2')?.value,
+    result_first:   document.getElementById('r1')?.value.trim(),
+    result_2_back:  document.getElementById('r2b')?.value.trim(),
+    result_3_back1: document.getElementById('r3b1')?.value.trim(),
+    result_3_back2: document.getElementById('r3b2')?.value.trim(),
+    result_3_front1:document.getElementById('r3f1')?.value.trim(),
+    result_3_front2:document.getElementById('r3f2')?.value.trim(),
   };
-  if (!body.result_first) return toast('กรุณาใส่รางวัลที่ 1', 'w');
+  if (!body.result_first || body.result_first.length < 6) return toast('รางวัลที่ 1 ต้องมี 6 หลัก', 'w');
+  if (!body.result_2_back || body.result_2_back.length < 2) return toast('กรุณาใส่ 2 ตัวล่าง', 'w');
+
+  // ยืนยันก่อน submit
+  const round = document.getElementById('resultRoundId');
+  const roundName = round.options[round.selectedIndex]?.text || '';
+  if (!confirm(`ยืนยันบันทึกผล?\n${roundName}\nรางวัลที่ 1: ${body.result_first}\n2 ตัวล่าง: ${body.result_2_back}`)) return;
+
+  const btn = document.getElementById('submit-result-btn');
+  if (btn) { btn.disabled=true; btn.textContent='⏳ กำลังบันทึกและคำนวณรางวัล...'; }
   try {
     await Admin.enterResult(roundId, body);
-    toast('✅ บันทึกผลแล้ว กำลังคำนวณรางวัล...');
-  } catch(e) { toast(e.message, 'err'); }
+    toast('✅ บันทึกผลแล้ว! ระบบกำลังคำนวณรางวัลและโอนเงิน...');
+    // รีโหลดหน้าหลังจาก 1.5 วินาที
+    setTimeout(() => renderEnterResult(document.getElementById('mainContent')), 1500);
+  } catch(e) {
+    toast(e.message, 'err');
+    if (btn) { btn.disabled=false; btn.textContent='✅ บันทึกผลและจ่ายรางวัลทันที'; }
+  }
 }
 
 // ── HOT NUMBERS ───────────────────────────────────────────────
@@ -424,23 +475,145 @@ async function renderReport(el) {
 
 // ── ROUNDS ────────────────────────────────────────────────────
 async function renderRounds(el) {
-  const res = await Lottery.rounds({ status:'open' });
-  const rounds = res.data || [];
+  // Load lottery types (for create form)
+  let types = [];
+  try { const r = await Lottery.types(); types = Array.isArray(r) ? r : (r.data||[]); } catch {}
+  // Load all rounds (admin view — all statuses)
+  let rounds = [];
+  try { const r = await Admin.adminRounds({ limit:60 }); rounds = r.data||[]; } catch {}
+
+  const S_COLOR = { open:'#3BD441', closed:'#FFD700', resulted:'#78BAFF', upcoming:'#888', cancelled:'#D85A30' };
+  const S_LABEL = { open:'รับแทง', closed:'ปิดรับ', resulted:'ออกผลแล้ว', upcoming:'รอเปิด', cancelled:'ยกเลิก' };
+
   el.innerHTML = `
-    <div class="pg-title">📅 งวดที่เปิดรับอยู่</div>
-    ${rounds.length ? rounds.map(r => `
-      <div class="card" style="display:flex;align-items:center;gap:12px">
-        <div style="font-size:24px">${r.icon||'🎯'}</div>
-        <div style="flex:1">
-          <div style="font-size:13px;font-weight:700;color:var(--gold)">${r.name||''} — ${r.round_code||''}</div>
-          <div style="font-size:10px;color:#555;margin-top:2px">ปิดรับ: ${new Date(r.close_at).toLocaleString('th-TH')}</div>
+    <div class="pg-title">📅 จัดการงวดหวย
+      <button onclick="renderRounds(document.getElementById('mainContent'))"
+        style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">
+        🔄 รีเฟรช
+      </button>
+    </div>
+
+    <!-- ── สร้างงวดใหม่ ── -->
+    <div class="card" style="border-color:#FFD70033;margin-bottom:14px">
+      <div class="card-title" style="color:var(--gold);font-size:12px;margin-bottom:12px">➕ สร้างงวดใหม่</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div>
+          <label style="font-size:10px;color:var(--gold);font-weight:700;display:block;margin-bottom:4px">ประเภทหวย *</label>
+          <select id="cr-type" onchange="autoRoundCode()"
+            style="width:100%;height:40px;background:var(--dark);border:1.5px solid #FFD70033;border-radius:8px;color:#fff;font-size:12px;padding:0 10px;font-family:inherit;outline:none;margin-bottom:0">
+            <option value="">-- เลือกประเภท --</option>
+            ${types.map(t=>`<option value="${t.id}" data-code="${(t.code||t.slug||'').toUpperCase()}">${t.name_th||t.name||t.code}</option>`).join('')}
+          </select>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;font-weight:700;color:var(--gold)">฿${parseFloat(r.total_bet_amount||0).toLocaleString()}</div>
-          <div style="font-size:10px;color:#555">ยอดรวม</div>
+        <div>
+          <label style="font-size:10px;color:var(--gold);font-weight:700;display:block;margin-bottom:4px">รหัสงวด *</label>
+          <input class="finput" id="cr-code" placeholder="เช่น THAI-2026-04-01" style="margin-bottom:0">
         </div>
-      </div>`).join('') :
-    '<div class="card" style="text-align:center;padding:30px;color:#444">ไม่มีงวดที่เปิดรับอยู่</div>'}`;
+        <div>
+          <label style="font-size:10px;color:var(--gold);font-weight:700;display:block;margin-bottom:4px">⏰ เปิดรับ</label>
+          <input class="finput" type="datetime-local" id="cr-open" style="margin-bottom:0">
+        </div>
+        <div>
+          <label style="font-size:10px;color:var(--gold);font-weight:700;display:block;margin-bottom:4px">⏰ ปิดรับ</label>
+          <input class="finput" type="datetime-local" id="cr-close" style="margin-bottom:0">
+        </div>
+      </div>
+      <button onclick="createRound()"
+        style="margin-top:12px;padding:10px 28px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:13px;font-weight:900;cursor:pointer;font-family:inherit">
+        ➕ สร้างงวด
+      </button>
+    </div>
+
+    <!-- ── รายการงวดทั้งหมด ── -->
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="card-title" style="padding:10px 14px;border-bottom:1px solid #1e1e1e">
+        📋 งวดทั้งหมด &nbsp;<span style="color:#555;font-weight:400">${rounds.length} งวด</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th style="padding:8px 14px">งวด / รหัส</th>
+            <th>เปิด</th><th>ปิด</th>
+            <th>ยอดแทง</th><th>สถานะ</th><th>Action</th>
+          </tr></thead>
+          <tbody>
+            ${rounds.length ? rounds.map(r => {
+              const sc = S_COLOR[r.status]||'#888';
+              const sl = S_LABEL[r.status]||r.status;
+              const dtFmt = d => new Date(d).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'});
+              const actClose = r.status==='open' ?
+                `<button onclick="closeRound(${r.id})"
+                  style="padding:3px 9px;border-radius:6px;background:#1a0a0a;border:1px solid #D85A3033;color:var(--red);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px">
+                  🔒 ปิดรับ</button>` : '';
+              const actResult = r.status==='closed' ?
+                `<button onclick="navTo('enter_result')"
+                  style="padding:3px 9px;border-radius:6px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:10px;font-weight:900;cursor:pointer;font-family:inherit">
+                  🏆 กรอกผล</button>` : '';
+              return `<tr>
+                <td style="padding:8px 14px">
+                  <div style="font-size:12px;font-weight:700;color:#fff">${r.lottery_name||'-'}</div>
+                  <div style="font-size:9px;color:#555;font-family:'JetBrains Mono',monospace;margin-top:2px">${r.round_code||'-'}</div>
+                </td>
+                <td style="font-size:10px;color:#666">${r.open_at ? dtFmt(r.open_at) : '-'}</td>
+                <td style="font-size:10px;color:#666">${r.close_at ? dtFmt(r.close_at) : '-'}</td>
+                <td style="font-size:12px;font-weight:700;color:var(--gold)">฿${parseFloat(r.total_bet_amount||0).toLocaleString()}</td>
+                <td><span class="badge" style="color:${sc};background:${sc}22;border:1px solid ${sc}44">${sl}</span></td>
+                <td style="white-space:nowrap">${actClose}${actResult}</td>
+              </tr>`;
+            }).join('') : `<tr><td colspan="6" style="text-align:center;padding:30px;color:#444">ยังไม่มีงวด — สร้างงวดแรกด้านบน</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+
+  // ตั้งเวลา default
+  const pad = n => String(n).padStart(2,'0');
+  const toLocal = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const now = new Date();
+  const crOpen = document.getElementById('cr-open');
+  const crClose = document.getElementById('cr-close');
+  if (crOpen && !crOpen.value) crOpen.value = toLocal(now);
+  if (crClose && !crClose.value) {
+    const def = new Date(now); def.setHours(20,29,0,0);
+    if (def <= now) def.setDate(def.getDate()+1);
+    crClose.value = toLocal(def);
+  }
+}
+
+function autoRoundCode() {
+  const sel = document.getElementById('cr-type');
+  const inp = document.getElementById('cr-code');
+  if (!sel || !inp) return;
+  const code = sel.options[sel.selectedIndex]?.dataset?.code || '';
+  if (!code) return;
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  inp.value = `${code}-${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+}
+
+async function createRound() {
+  const lottery_type_id = document.getElementById('cr-type')?.value;
+  const round_code = document.getElementById('cr-code')?.value.trim().toUpperCase();
+  const open_at = document.getElementById('cr-open')?.value;
+  const close_at = document.getElementById('cr-close')?.value;
+  if (!lottery_type_id) return toast('กรุณาเลือกประเภทหวย', 'w');
+  if (!round_code)      return toast('กรุณาระบุรหัสงวด', 'w');
+  if (!open_at || !close_at) return toast('กรุณาระบุวันที่เปิด/ปิด', 'w');
+  if (new Date(close_at) <= new Date(open_at)) return toast('วันปิดต้องหลังวันเปิด', 'w');
+  try {
+    await Admin.createRound({ lottery_type_id, round_code, round_name: round_code, open_at, close_at });
+    toast('✅ สร้างงวดสำเร็จ');
+    renderRounds(document.getElementById('mainContent'));
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function closeRound(id) {
+  if (!confirm('ปิดรับงวดนี้?\nหลังปิดจะไม่สามารถรับยอดแทงเพิ่มได้')) return;
+  try {
+    await Admin.closeRound(id);
+    toast('🔒 ปิดรับแล้ว — ไปที่ "บันทึกผล" เพื่อกรอกผลรางวัล');
+    renderRounds(document.getElementById('mainContent'));
+  } catch(e) { toast(e.message, 'err'); }
 }
 
 // ── LOTTERY CONTROL (เปิด/ปิดหวย) ─────────────────────────────
