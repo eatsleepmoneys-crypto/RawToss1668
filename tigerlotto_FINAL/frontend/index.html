@@ -665,25 +665,34 @@ function showPage(name) {
 function navTo(page) {
   if (!STATE.token) { showAuth('login'); return; }
   STATE.currentPage = page;
+  const sidebar = document.getElementById('sidebar');
+  const pcMain  = document.getElementById('pc-main');
+  const mobileW = document.getElementById('mobile-wrapper');
   if (window.innerWidth >= 900) {
-    // For buy page: full-screen centered (no sidebar)
     document.body.classList.toggle('p-buy', page === 'buy');
-    document.getElementById('pc-main').style.display = 'flex';
-    document.getElementById('mobile-wrapper').style.display = 'none';
-    if (page !== 'buy') {
-      document.getElementById('sidebar').style.display = 'flex';
-      document.getElementById('pc-main').style.marginLeft = '200px';
+    mobileW.style.display = 'none';
+    pcMain.style.display  = 'flex';
+    if (page === 'buy') {
+      // Buy page: hide sidebar, full-width centered layout
+      sidebar.style.display    = 'none';
+      pcMain.style.marginLeft  = '0';
+      pcMain.style.flexDirection = 'column';
+    } else {
+      // All other pages: show sidebar
+      sidebar.style.display    = 'flex';
+      pcMain.style.marginLeft  = '200px';
+      pcMain.style.flexDirection = 'column';
     }
   } else {
     document.body.classList.remove('p-buy');
-    document.getElementById('mobile-wrapper').style.display = 'flex';
-    document.getElementById('sidebar').style.display = 'none';
-    document.getElementById('pc-main').style.display = 'none';
+    mobileW.style.display = 'flex';
+    sidebar.style.display = 'none';
+    pcMain.style.display  = 'none';
   }
   renderPage(page);
   updateNav(page);
   document.getElementById('pg-landing').style.display = 'none';
-  document.getElementById('pg-auth').style.display = 'none';
+  document.getElementById('pg-auth').style.display    = 'none';
 }
 
 function updateNav(page) {
@@ -747,13 +756,17 @@ function renderPage(name) {
       scroll.id = '_buy-scroll';
       scroll.className = 'buy-scroll-area';
       scroll.innerHTML = `<div class="buy-inner-card">${html}</div>`;
+      // Hide the normal pc-content area
+      const pcContent = document.getElementById('pc-content');
+      if (pcContent) pcContent.style.display = 'none';
       const pcTopbar = pcMain.querySelector('.pc-topbar');
       if (pcTopbar) { pcTopbar.after(topnav); topnav.after(scroll); }
       else { pcMain.appendChild(topnav); pcMain.appendChild(scroll); }
     } else {
-      // Leaving buy page: clean up injected elements
+      // Leaving buy page: clean up injected elements, restore pc-content
       ['_buy-topnav','_buy-scroll'].forEach(id => { const el = document.getElementById(id); if(el) el.remove(); });
-      document.getElementById('pc-content').innerHTML = html;
+      const pcContent = document.getElementById('pc-content');
+      if (pcContent) { pcContent.style.display = ''; pcContent.innerHTML = html; }
     }
   } else {
     document.getElementById('mobile-content').innerHTML = html;
