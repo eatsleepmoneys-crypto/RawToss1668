@@ -1084,7 +1084,7 @@ function buildBuy() {
     <!-- Step 1.5: Yeekee round selection -->
     <div id="buy-s15" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <button class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
         <div style="font-size:13px;font-weight:700;color:var(--gold)" id="yk-type-label">ยี่กี่</div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase;margin-bottom:12px">เลือกรอบที่ต้องการแทง</div>
@@ -1093,7 +1093,7 @@ function buildBuy() {
     <!-- Step 2: Enter numbers → add to slip -->
     <div id="buy-s2" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-        <button class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
         <div style="font-size:13px;font-weight:700;color:var(--gold)" id="buy-type-label">-</div>
       </div>
       <div class="bet-type-tabs" id="bet-tabs"></div>
@@ -1102,16 +1102,16 @@ function buildBuy() {
         <div style="font-size:9px;color:var(--t3);margin-top:4px;letter-spacing:.06em" id="num-hint">กดตัวเลขให้ครบ</div>
       </div>
       <div class="num-pad" style="margin-bottom:16px">
-        ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
+        ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button type="button" class="np-btn" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
       </div>
       <div id="slip-list-wrap">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
           <div style="font-size:12px;font-weight:700;color:var(--t2)">🎫 โพยของคุณ</div>
-          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 10px" onclick="clearSlip()">ล้างทั้งหมด</button>
+          <button type="button" class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 10px" onclick="clearSlip()">ล้างทั้งหมด</button>
         </div>
         <div id="slip-list" style="overflow-y:auto;max-height:220px"></div>
         <div id="slip-empty" style="padding:20px 0;text-align:center;color:var(--t4);font-size:11px;letter-spacing:.02em">ยังไม่มีเลข<br><span style="font-size:10px;opacity:.6">กดตัวเลขด้านบน</span></div>
-        <button class="btn btn-gold btn-lg" style="margin-top:10px;display:none" id="slip-summary-btn" onclick="goToSummary()">
+        <button type="button" class="btn btn-gold btn-lg" style="margin-top:10px;display:none" id="slip-summary-btn" onclick="goToSummary()">
           📋 สรุปโพย &nbsp;·&nbsp; <span id="slip-count">0 เลข</span>
         </button>
       </div>
@@ -1119,7 +1119,7 @@ function buildBuy() {
     <!-- Step 3: Full slip summary + amount + confirm -->
     <div id="buy-s3" style="display:none">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
-        <button class="btn btn-ghost btn-sm" onclick="buyStep(2)">← เพิ่มเลข</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="buyStep(2)">← เพิ่มเลข</button>
         <div style="font-size:14px;font-weight:900;color:var(--t1)">สรุปโพยหวย</div>
       </div>
       <div style="background:rgba(255,210,76,.04);border:1px solid var(--border2);border-radius:var(--r1);padding:14px;margin-bottom:14px">
@@ -1129,7 +1129,7 @@ function buildBuy() {
       <div style="background:rgba(255,210,76,.03);border:1px solid var(--border);border-radius:var(--r1);padding:16px;margin-bottom:12px">
         <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:12px;letter-spacing:.04em;text-transform:uppercase">⚡ ตั้งยอดให้ทุกเลข</div>
         <div class="amount-presets" id="amt-presets">
-          ${[10,20,50,100,200,500,1000].map(a=>`<button class="amt-preset" onclick="setAmt(${a})">${a>=1000?(a/1000)+'K':a}</button>`).join('')}
+          ${[10,20,50,100,200,500,1000].map(a=>`<button type="button" class="amt-preset" onclick="setAmt(${a})">${a>=1000?(a/1000)+'K':a}</button>`).join('')}
         </div>
         <input class="finput" style="margin-bottom:0" type="number" id="buy-amt" placeholder="หรือกรอกยอดเองให้ทุกเลข (บาท)" min="1" max="100000"
           oninput="setAmt(+this.value)">
@@ -1146,16 +1146,21 @@ function buildBuy() {
         <span style="font-size:11px;color:var(--t3)">ยอดเงินคงเหลือ</span>
         <span style="font-size:13px;font-weight:700;color:var(--gold)">${STATE.wallet?fmtMoney(STATE.wallet.balance):'฿0.00'}</span>
       </div>
-      <button class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()">✅ ยืนยันแทงทั้งหมด</button>
+      <button type="button" class="btn btn-gold btn-lg" id="buy-confirm-btn" onclick="doSubmitBet()">✅ ยืนยันแทงทั้งหมด</button>
       <div style="text-align:center;font-size:10px;color:var(--t3);margin-top:8px">ยอดจะหักจากกระเป๋าเงินทันที</div>
     </div>`;
 }
 
 async function initBuy() {
-  STATE.buyStep = 1;
-  STATE.buyNumber = '';
-  STATE.buyAmount = 0;
-  STATE.buySlip = [];
+  // If the user already has slip items, they are mid-flow — preserve their state.
+  // This prevents the mobile bottom-nav accidental tap from wiping the buy flow.
+  const resuming = STATE.buySlip && STATE.buySlip.length > 0;
+  if (!resuming) {
+    STATE.buyStep = 1;
+    STATE.buyNumber = '';
+    STATE.buyAmount = 0;
+    STATE.buySlip = [];
+  }
   try {
     const raw = await api('GET', '/lottery/types');
     const d = Array.isArray(raw) ? raw : (raw.data || raw.types || []);
@@ -1170,6 +1175,19 @@ async function initBuy() {
         <div style="font-size:11px;color:var(--green)">${t.rounds_per_day ? t.rounds_per_day+' รอบ/วัน' : (t.schedule||'ตามงวด')}</div>
       </div>`).join('');
   } catch(e) { showToast('โหลดประเภทหวยไม่ได้','err'); }
+  // After re-rendering the page HTML, restore mid-flow state
+  if (resuming) {
+    const step = STATE.buyStep || 1;
+    if (step === 3) {
+      goToSummary();
+    } else if (step === 2) {
+      buyStep(2);
+      if (STATE.buyTypeId) loadBetTypes(STATE.buyTypeId);
+      renderSlipList();
+    } else {
+      buyStep(step);
+    }
+  }
 }
 
 async function loadYeekeeRounds(typeId, typeCode) {
@@ -1266,7 +1284,7 @@ async function loadBetTypes(typeId) {
     return `<div style="width:100%;margin-bottom:4px">
       <div style="font-size:10px;font-weight:700;color:var(--t3);padding:4px 2px 4px;letter-spacing:.5px">${label}</div>
       <div style="display:flex;gap:5px;flex-wrap:wrap">
-        ${list.map(t => `<button class="bet-tab" data-id="${t.id}" onclick="selectBetType(${t.id},'${t.name_th}',${t.payout},${t.digits})">${t.name_th} <span style="font-size:10px;opacity:.7">x${t.payout}</span></button>`).join('')}
+        ${list.map(t => `<button type="button" class="bet-tab" data-id="${t.id}" onclick="selectBetType(${t.id},'${t.name_th}',${t.payout},${t.digits})">${t.name_th} <span style="font-size:10px;opacity:.7">x${t.payout}</span></button>`).join('')}
       </div>
     </div>`;
   }
@@ -1361,7 +1379,7 @@ function renderSlipList() {
         <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:4px;line-height:1">${s.number}</div>
         <div style="font-size:9px;color:var(--t3);margin-top:2px">${s.betTypeName} · x${s.payout}</div>
       </div>
-      <button onclick="removeFromSlip(${i})" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 5px;line-height:1">✕</button>
+      <button type="button" onclick="removeFromSlip(${i})" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 5px;line-height:1">✕</button>
     </div>`).join('');
 }
 
