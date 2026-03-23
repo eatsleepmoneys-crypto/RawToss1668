@@ -1595,19 +1595,26 @@ function buildWallet() {
     <div id="wp-deposit" class="wallet-panel">
       <div class="card">
         <div class="sec-title">ฝากเงิน</div>
-        <div style="background:var(--dark);border:1px solid #B8860B33;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
+        <div id="dep-bank-info" style="background:var(--dark);border:1px solid #B8860B33;border-radius:10px;padding:14px;margin-bottom:14px;text-align:center">
           <div style="font-size:11px;color:var(--gold2);margin-bottom:4px">โอนเงินมาที่</div>
-          <div style="font-size:15px;font-weight:700;color:#fff">ธนาคารกสิกรไทย (KBANK)</div>
-          <div style="font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px;margin:6px 0">XXX-X-XXXXX-X</div>
-          <div style="font-size:11px;color:var(--t3)">บริษัท ไทเกอร์ลอตโต้ จำกัด</div>
+          <div style="font-size:15px;font-weight:700;color:#fff" id="dep-bank-name">กำลังโหลด...</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px;margin:6px 0;cursor:pointer" id="dep-bank-num" onclick="copyDepAcc()">-</div>
+          <div style="font-size:11px;color:var(--t3)" id="dep-bank-aname">-</div>
+          <div style="font-size:10px;color:var(--t4);margin-top:4px">แตะเลขบัญชีเพื่อคัดลอก</div>
+        </div>
+        <div id="dep-qr-wrap" style="display:none;text-align:center;margin-bottom:12px">
+          <img id="dep-qr-img" src="" style="max-width:180px;border-radius:10px;border:2px solid #B8860B55">
+          <div style="font-size:10px;color:var(--t3);margin-top:4px">QR PromptPay</div>
         </div>
         <label class="flabel">จำนวนเงิน (บาท)</label>
         <input class="finput" type="number" id="dep-amt" placeholder="ขั้นต่ำ 50 บาท" min="50">
-        <div style="border:2px dashed #FFD70033;border-radius:10px;padding:20px;text-align:center;margin-bottom:12px;cursor:pointer;transition:border .2s" onclick="showToast('อัพโหลดสลิปทาง Line @tigerlotto','warn')">
-          <div style="font-size:24px;margin-bottom:6px">📷</div>
-          <div style="font-size:12px;color:var(--t3)">แตะเพื่ออัพโหลดสลิป (หรือ Line ทีม)</div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:12px">
+          ${[100,200,500,1000].map(v=>`<button class="btn btn-outline" style="padding:6px;font-size:11px;font-weight:700;border-radius:8px" onclick="document.getElementById('dep-amt').value=${v}">฿${v}</button>`).join('')}
         </div>
+        <label class="flabel">อ้างอิงสลิป / หมายเหตุ (ไม่บังคับ)</label>
+        <input class="finput" type="text" id="dep-note" placeholder="เช่น เลขอ้างอิงสลิป 6 หลักท้าย">
         <button class="btn btn-gold btn-lg" onclick="doDeposit()">แจ้งฝากเงิน</button>
+        <div style="text-align:center;font-size:10px;color:var(--t4);margin-top:8px">ยอดจะเข้าภายใน 5-15 นาที หลัง Admin ตรวจสอบสลิป</div>
       </div>
     </div>
     <div id="wp-withdraw" class="wallet-panel">
@@ -1644,8 +1651,37 @@ async function loadWallet() {
     const txs = Array.isArray(d) ? d : (d.transactions||d.data||[]);
     renderTransactions(txs);
   } catch(e) { const el = document.getElementById('tx-list'); if(el) el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่มีรายการ</div>'; }
+  // Load bank info for deposit form
+  loadDepositBankInfo();
   // Load banks
   loadBanks();
+}
+
+async function loadDepositBankInfo() {
+  try {
+    const b = await api('GET', '/settings/bank');
+    const nm = document.getElementById('dep-bank-name');
+    const nu = document.getElementById('dep-bank-num');
+    const an = document.getElementById('dep-bank-aname');
+    const da = document.getElementById('dep-amt');
+    if(nm) nm.textContent = b.bank_name || '-';
+    if(nu) nu.textContent = b.bank_account_number || '-';
+    if(an) an.textContent = b.bank_account_name || '-';
+    if(da) da.placeholder = `ขั้นต่ำ ${fmtMoney(b.min_deposit||50)}`;
+    if(da) da.min = b.min_deposit || 50;
+    if(b.deposit_qr_url) {
+      const qw = document.getElementById('dep-qr-wrap');
+      const qi = document.getElementById('dep-qr-img');
+      if(qw) qw.style.display = 'block';
+      if(qi) qi.src = b.deposit_qr_url;
+    }
+  } catch(e) {}
+}
+
+function copyDepAcc() {
+  const num = document.getElementById('dep-bank-num')?.textContent;
+  if(!num || num==='-') return;
+  navigator.clipboard.writeText(num).then(()=>showToast('คัดลอกเลขบัญชีแล้ว ✅')).catch(()=>{});
 }
 
 function renderTransactions(txs) {
@@ -1709,14 +1745,24 @@ function walletTab(tab) {
 }
 
 async function doDeposit() {
-  const amt = +(document.getElementById('dep-amt')?.value||0);
-  if (amt < 50) { showToast('ขั้นต่ำ 50 บาท','err'); return; }
+  const amt  = +(document.getElementById('dep-amt')?.value||0);
+  const note = document.getElementById('dep-note')?.value.trim() || '';
+  const minDep = +(document.getElementById('dep-amt')?.min || 50);
+  if (amt < minDep) { showToast(`ขั้นต่ำ ${fmtMoney(minDep)}`,'err'); return; }
+  const btn = document.querySelector('#wp-deposit .btn-gold');
+  if(btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
   try {
-    await api('POST', '/wallet/deposit', {amount: amt});
+    await api('POST', '/wallet/deposit', {amount: amt, note: note||undefined});
     showToast('แจ้งฝากเงินสำเร็จ รอการตรวจสอบ 🎉');
+    if(document.getElementById('dep-amt')) document.getElementById('dep-amt').value='';
+    if(document.getElementById('dep-note')) document.getElementById('dep-note').value='';
     await loadWallet();
     walletTab('history');
-  } catch(e) { showToast(e.message||'ฝากเงินไม่สำเร็จ','err'); }
+  } catch(e) {
+    showToast(e.message||'ฝากเงินไม่สำเร็จ','err');
+  } finally {
+    if(btn) { btn.disabled = false; btn.textContent = 'แจ้งฝากเงิน'; }
+  }
 }
 
 async function doWithdraw() {

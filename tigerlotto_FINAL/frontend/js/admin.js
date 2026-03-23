@@ -9,6 +9,7 @@ const ADMIN_MENU = [
   { k:'dashboard',      icon:'📊', label:'Dashboard'              },
   { k:'users',          icon:'👥', label:'สมาชิก'                 },
   { k:'transactions',   icon:'💳', label:'ธุรกรรม'                },
+  { k:'deposits',       icon:'📥', label:'อนุมัติฝาก', badge:true  },
   { k:'withdrawals',    icon:'📤', label:'อนุมัติถอน', badge:true  },
   { sec: 'แทงหวย (Admin)' },
   { k:'lottery_control',icon:'🔛', label:'เปิด/ปิดหวย'           },
@@ -34,8 +35,36 @@ window.addEventListener('DOMContentLoaded', () => {
   if (!isLoggedIn()) { location.href = '/'; return; }
   const { user } = getSession();
   if (!['admin','superadmin'].includes(user?.role)) { location.href = '/'; return; }
-  buildSidebar(); navTo('dashboard');
+  buildSidebar(); navTo('dashboard'); loadBadges();
 });
+
+async function loadBadges() {
+  try {
+    const [dep, wit, kyc] = await Promise.all([
+      Admin.transactions({ type:'deposit',  status:'pending', limit:1 }),
+      Admin.transactions({ type:'withdraw', status:'pending', limit:1 }),
+      Admin.kycList({ status:'pending', limit:1 }),
+    ]);
+    // totals require count — use data length as approx or add header later
+    // For now just set > 0 indicator
+    const setBadge = (id, data) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const count = data?.total ?? data?.data?.length ?? 0;
+      el.textContent = count > 99 ? '99+' : count;
+      el.style.display = count > 0 ? '' : 'none';
+    };
+    // Re-fetch full counts
+    const [depFull, witFull, kycFull] = await Promise.all([
+      Admin.transactions({ type:'deposit',  status:'pending', limit:200 }),
+      Admin.transactions({ type:'withdraw', status:'pending', limit:200 }),
+      Admin.kycList({ status:'pending', limit:200 }),
+    ]);
+    setBadge('badge-deposits',   depFull);
+    setBadge('badge-withdrawals', witFull);
+    setBadge('badge-kyc',         kycFull);
+  } catch(e) {}
+}
 
 function buildSidebar() {
   const nav = document.getElementById('sbNav');
@@ -63,6 +92,7 @@ async function navTo(key) {
       case 'dashboard':    await renderDashboard(el);    break;
       case 'users':        await renderUsers(el);        break;
       case 'transactions': await renderTransactions(el); break;
+      case 'deposits':     await renderDeposits(el);     break;
       case 'withdrawals':  await renderWithdrawals(el);  break;
       case 'rounds':       await renderRounds(el);       break;
       case 'enter_result': await renderEnterResult(el);  break;
@@ -165,6 +195,47 @@ async function renderTransactions(el) {
     </div>`;
 }
 
+// ── DEPOSITS ──────────────────────────────────────────────────
+async function renderDeposits(el) {
+  const res = await Admin.transactions({ type:'deposit', status:'pending', limit:50 });
+  const txs = res.data || [];
+  const badge = document.getElementById('badge-deposits');
+  if (badge) badge.textContent = txs.length;
+
+  el.innerHTML = `
+    <div class="pg-title">📥 อนุมัติฝากเงิน
+      <span style="font-size:12px;font-weight:400;color:#555">${txs.length} รายการรออนุมัติ</span>
+    </div>
+    ${txs.length ? `<div class="card" style="padding:8px;overflow-x:auto">
+      <table>
+        <thead><tr>
+          <th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วิธีชำระ</th><th>วันที่</th><th style="min-width:140px">จัดการ</th>
+        </tr></thead>
+        <tbody>${txs.map(tx => `
+          <tr>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
+            <td style="color:#ccc">${tx.first_name||''} ${tx.last_name||''}<br>
+              <span style="font-size:9px;color:#555">${tx.phone||''}</span>
+            </td>
+            <td style="font-size:14px;font-weight:900;color:var(--green)">+฿${parseFloat(tx.amount||0).toLocaleString()}</td>
+            <td style="font-size:10px;color:#78BAFF">${tx.payment_method||'bank_transfer'}</td>
+            <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
+            <td style="display:flex;gap:6px;padding:8px 4px">
+              <button onclick="approveTx(${tx.id},'deposit')"
+                style="padding:4px 10px;border-radius:6px;background:linear-gradient(135deg,#1a9e2a,#0f6e1b);border:none;color:#fff;font-size:10px;font-weight:900;cursor:pointer;font-family:inherit">
+                ✅ อนุมัติ
+              </button>
+              <button onclick="rejectTx(${tx.id},'deposit')"
+                style="padding:4px 10px;border-radius:6px;background:var(--dark3);border:1px solid var(--red);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">
+                ❌ ปฏิเสธ
+              </button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '<div class="card" style="text-align:center;padding:30px;color:#444">✅ ไม่มีรายการรออนุมัติ</div>'}`;
+}
+
 // ── WITHDRAWALS ───────────────────────────────────────────────
 async function renderWithdrawals(el) {
   const res = await Admin.transactions({ type:'withdraw', status:'pending', limit:50 });
@@ -178,17 +249,25 @@ async function renderWithdrawals(el) {
     </div>
     ${txs.length ? `<div class="card" style="padding:8px;overflow-x:auto">
       <table>
-        <thead><tr><th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วันที่</th><th>อนุมัติ</th></tr></thead>
+        <thead><tr>
+          <th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วันที่</th><th style="min-width:140px">จัดการ</th>
+        </tr></thead>
         <tbody>${txs.map(tx => `
           <tr>
             <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
-            <td style="color:#ccc">${tx.first_name||''} ${tx.last_name||''}<br><span style="font-size:9px;color:#555">${tx.phone||''}</span></td>
+            <td style="color:#ccc">${tx.first_name||''} ${tx.last_name||''}<br>
+              <span style="font-size:9px;color:#555">${tx.phone||''}</span>
+            </td>
             <td style="font-size:14px;font-weight:900;color:var(--gold)">฿${parseFloat(tx.amount||0).toLocaleString()}</td>
-            <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH')}</td>
-            <td>
-              <button onclick="approveWithdraw(${tx.id})"
+            <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
+            <td style="display:flex;gap:6px;padding:8px 4px">
+              <button onclick="approveTx(${tx.id},'withdraw')"
                 style="padding:4px 10px;border-radius:6px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:10px;font-weight:900;cursor:pointer;font-family:inherit">
                 ✅ อนุมัติ
+              </button>
+              <button onclick="rejectTx(${tx.id},'withdraw')"
+                style="padding:4px 10px;border-radius:6px;background:var(--dark3);border:1px solid var(--red);color:var(--red);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">
+                ❌ ปฏิเสธ
               </button>
             </td>
           </tr>`).join('')}
@@ -197,11 +276,24 @@ async function renderWithdrawals(el) {
     </div>` : '<div class="card" style="text-align:center;padding:30px;color:#444">✅ ไม่มีรายการรออนุมัติ</div>'}`;
 }
 
-async function approveWithdraw(id) {
+async function approveTx(id, type) {
+  if (!confirm(`ยืนยันอนุมัติ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'}?`)) return;
   try {
-    await Admin.approveWD(id);
-    toast('✅ อนุมัติถอนเงินแล้ว');
-    navTo('withdrawals');
+    await Admin.approveTx(id);
+    toast(`✅ อนุมัติ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'}แล้ว`);
+    navTo(type==='deposit'?'deposits':'withdrawals');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+async function approveWithdraw(id) { await approveTx(id, 'withdraw'); }
+
+async function rejectTx(id, type) {
+  const note = prompt(`เหตุผลปฏิเสธ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'} (ไม่บังคับ):`);
+  if (note === null) return; // cancel
+  try {
+    await Admin.rejectTx(id, note || 'ถูกปฏิเสธโดย Admin');
+    toast(`❌ ปฏิเสธ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'}แล้ว${type==='withdraw'?' เงินคืนอัตโนมัติ':''}`);
+    navTo(type==='deposit'?'deposits':'withdrawals');
   } catch(e) { toast(e.message, 'err'); }
 }
 

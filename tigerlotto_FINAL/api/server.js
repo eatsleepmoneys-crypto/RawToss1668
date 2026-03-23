@@ -232,6 +232,26 @@ v1.get('/lottery/types', async (req,res) => {
   const where = all ? '' : 'WHERE is_active=1';
   res.json({ data: await query(`SELECT * FROM lottery_types ${where} ORDER BY sort_order`) });
 });
+// Public: bank account info for deposit form
+v1.get('/settings/bank', async (req,res) => {
+  const keys = ['bank_name','bank_account_number','bank_account_name','bank_code','deposit_qr_url','min_deposit','max_deposit'];
+  const rows = await query(
+    `SELECT setting_key, value FROM system_settings WHERE setting_key IN (${keys.map(()=>'?').join(',')})`,
+    keys
+  );
+  const data = {};
+  rows.forEach(r => { data[r.setting_key] = r.value; });
+  // defaults if not configured
+  res.json({
+    bank_name:           data.bank_name           || 'ขอให้ Admin ตั้งค่าธนาคาร',
+    bank_account_number: data.bank_account_number || '-',
+    bank_account_name:   data.bank_account_name   || '-',
+    bank_code:           data.bank_code           || '',
+    deposit_qr_url:      data.deposit_qr_url      || '',
+    min_deposit:         parseFloat(data.min_deposit  || 50),
+    max_deposit:         parseFloat(data.max_deposit  || 100000),
+  });
+});
 v1.get('/lottery/rounds', async (req,res) => {
   const { lottery_type, status = 'open' } = req.query;
   let sql = `SELECT r.*, lt.name, lt.icon FROM lottery_rounds r JOIN lottery_types lt ON r.lottery_type_id=lt.id WHERE r.status=?`;
@@ -366,10 +386,38 @@ v1.get('/admin/transactions', auth, adminOnly, async (req,res) => {
   res.json({ data: await query(sql,params) });
 });
 v1.put('/admin/transactions/:id/approve', auth, adminOnly, async (req,res) => {
-  const tx = await queryOne("SELECT * FROM transactions WHERE id=? AND type='withdraw' AND status='pending'",[req.params.id]);
+  const tx = await queryOne("SELECT * FROM transactions WHERE id=? AND status='pending' AND type IN ('withdraw','deposit')",[req.params.id]);
+  if (!tx) return res.status(404).json({ error:'NOT_FOUND', message:'ไม่พบรายการหรืออัพเดทไม่ได้' });
+  if (tx.type === 'withdraw') {
+    await query("UPDATE transactions SET status='success',processed_by=?,processed_at=NOW() WHERE id=?",[req.user.id,req.params.id]);
+    await query('UPDATE wallets SET locked_balance=locked_balance-? WHERE user_id=?',[tx.amount,tx.user_id]);
+  } else {
+    // deposit: call approveDeposit to add balance
+    const walletCtrl = require('./controllers/walletController');
+    await walletCtrl.approveDeposit(tx.id, tx.user_id, tx.amount);
+  }
+  res.json({ success:true });
+});
+v1.put('/admin/transactions/:id/reject', auth, adminOnly, async (req,res) => {
+  const tx = await queryOne("SELECT * FROM transactions WHERE id=? AND status='pending'",[req.params.id]);
   if (!tx) return res.status(404).json({ error:'NOT_FOUND' });
-  await query("UPDATE transactions SET status='success',processed_by=?,processed_at=NOW() WHERE id=?",[req.user.id,req.params.id]);
-  await query('UPDATE wallets SET locked_balance=locked_balance-? WHERE user_id=?',[tx.amount,tx.user_id]);
+  const note = req.body.note || 'ถูกปฏิเสธ';
+  if (tx.type === 'withdraw') {
+    // คืนเงินกลับ
+    await query(
+      "UPDATE transactions SET status='rejected',processed_by=?,processed_at=NOW(),note=? WHERE id=?",
+      [req.user.id, note, req.params.id]
+    );
+    await query(
+      'UPDATE wallets SET balance=balance+?,locked_balance=locked_balance-?,total_withdraw=total_withdraw-? WHERE user_id=?',
+      [tx.amount, tx.amount, tx.amount, tx.user_id]
+    );
+  } else {
+    await query(
+      "UPDATE transactions SET status='rejected',processed_by=?,processed_at=NOW(),note=? WHERE id=?",
+      [req.user.id, note, req.params.id]
+    );
+  }
   res.json({ success:true });
 });
 /* ADMIN ROUND MANAGEMENT */
