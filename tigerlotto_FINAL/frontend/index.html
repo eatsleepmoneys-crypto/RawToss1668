@@ -1105,12 +1105,12 @@ function buildBuy() {
         <div id="slip-summary-list"></div>
       </div>
       <div style="background:rgba(255,210,76,.03);border:1px solid var(--border);border-radius:var(--r1);padding:16px;margin-bottom:12px">
-        <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:12px;letter-spacing:.04em;text-transform:uppercase">💰 ยอดแทงต่อเลข (บาท)</div>
+        <div style="font-size:11px;font-weight:700;color:var(--t2);margin-bottom:12px;letter-spacing:.04em;text-transform:uppercase">⚡ ตั้งยอดให้ทุกเลข</div>
         <div class="amount-presets" id="amt-presets">
           ${[10,20,50,100,200,500,1000].map(a=>`<button class="amt-preset" onclick="setAmt(${a})">${a>=1000?(a/1000)+'K':a}</button>`).join('')}
         </div>
-        <input class="finput" style="margin-bottom:0" type="number" id="buy-amt" placeholder="หรือกรอกยอดเอง (บาท)" min="1" max="100000"
-          oninput="STATE.buyAmount=+this.value;updateWinPreview()">
+        <input class="finput" style="margin-bottom:0" type="number" id="buy-amt" placeholder="หรือกรอกยอดเองให้ทุกเลข (บาท)" min="1" max="100000"
+          oninput="setAmt(+this.value)">
       </div>
       <div style="background:rgba(255,210,76,.06);border:1px solid var(--border2);border-radius:var(--r2);padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--t3);margin-bottom:6px">
@@ -1224,25 +1224,35 @@ function updateNumDisplay() {
 function addToSlip() {
   const num = STATE.buyNumber;
   if (!num || num.length < STATE.buyBetTypeDigits) return;
-  // Check duplicate
-  const dup = STATE.buySlip.find(s => s.number === num && s.betTypeId === STATE.buyBetTypeId);
-  if (dup) {
-    showToast(`เลข ${num} มีในโพยแล้ว`,'err');
-    STATE.buyNumber = '';
-    updateNumDisplay();
-    return;
+
+  // For "กลับ" types: auto-add reversed number too
+  const isReverse = STATE.buyBetTypeName.includes('กลับ');
+  const rev = num.split('').reverse().join('');
+  const numbersToAdd = [num];
+  if (isReverse && rev !== num) numbersToAdd.push(rev);
+
+  let added = 0;
+  for (const n of numbersToAdd) {
+    const dup = STATE.buySlip.find(s => s.number === n && s.betTypeId === STATE.buyBetTypeId);
+    if (dup) { showToast(`เลข ${n} มีในโพยแล้ว`, 'err'); continue; }
+    STATE.buySlip.push({
+      number: n,
+      betTypeId: STATE.buyBetTypeId,
+      betTypeName: STATE.buyBetTypeName,
+      payout: STATE.buyBetTypePayout,
+      digits: STATE.buyBetTypeDigits,
+      amount: STATE.buyAmount || 0,
+    });
+    added++;
   }
-  STATE.buySlip.push({
-    number: num,
-    betTypeId: STATE.buyBetTypeId,
-    betTypeName: STATE.buyBetTypeName,
-    payout: STATE.buyBetTypePayout,
-    digits: STATE.buyBetTypeDigits,
-  });
   STATE.buyNumber = '';
   updateNumDisplay();
   renderSlipList();
-  showToast(`เพิ่ม ${num} เข้าโพยแล้ว ✓`);
+  if (added > 0) {
+    const msg = isReverse && rev !== num && added === 2
+      ? `เพิ่ม ${num} + ${rev} (กลับ) ✓` : `เพิ่ม ${num} ✓`;
+    showToast(msg);
+  }
 }
 
 function renderSlipList() {
@@ -1277,37 +1287,52 @@ function clearSlip() {
 
 function goToSummary() {
   if (!STATE.buySlip.length) { showToast('ยังไม่มีเลขในโพย','err'); return; }
-  // Fill summary step
   const bsType = document.getElementById('bs-type');
   if (bsType) bsType.textContent = `${STATE.buyTypeName} · ${STATE.buySlip[0].betTypeName}`;
-  const summaryList = document.getElementById('slip-summary-list');
-  if (summaryList) {
-    summaryList.innerHTML = STATE.buySlip.map(s => `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid #111">
-        <span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:5px">${s.number}</span>
-        <span style="font-size:11px;color:var(--t3)">${s.betTypeName} · x${s.payout}</span>
-      </div>`).join('');
-  }
-  STATE.buyAmount = 0;
-  const inp = document.getElementById('buy-amt'); if (inp) inp.value = '';
+  renderSummaryList();
   document.querySelectorAll('.amt-preset').forEach(b => b.classList.remove('on'));
   updateWinPreview();
   buyStep(3);
 }
 
+function renderSummaryList() {
+  const summaryList = document.getElementById('slip-summary-list');
+  if (!summaryList) return;
+  summaryList.innerHTML = STATE.buySlip.map((s, idx) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:20px;font-weight:900;color:#fff;letter-spacing:4px;min-width:68px;line-height:1">${s.number}</span>
+      <span style="font-size:10px;color:var(--t3);flex:1;line-height:1.3">${s.betTypeName}<br><span style="color:var(--gold);font-weight:700">x${s.payout}</span></span>
+      <input type="number" class="slip-amt-inp" data-idx="${idx}"
+        value="${s.amount > 0 ? s.amount : ''}" placeholder="บาท" min="1"
+        oninput="setSlipAmt(${idx}, +this.value)"
+        style="width:76px;background:var(--dark3);border:1px solid var(--border2);color:var(--gold);font-weight:800;border-radius:8px;padding:6px 8px;font-size:13px;text-align:right;font-family:inherit;outline:none">
+    </div>`).join('');
+}
+
 function updateWinPreview() {
-  const amt = STATE.buyAmount || +(document.getElementById('buy-amt')?.value || 0);
-  const cnt = STATE.buySlip.length || 1;
+  const cnt = STATE.buySlip.length;
+  // Sum individual amounts from each slip entry
+  const total = STATE.buySlip.reduce((sum, s) => sum + (s.amount || 0), 0);
   const bsCount = document.getElementById('bs-count');
   const bsTotal = document.getElementById('bs-total');
   if (bsCount) bsCount.textContent = `${cnt} เลข`;
-  if (bsTotal) bsTotal.textContent = fmtMoney(amt * cnt);
+  if (bsTotal) bsTotal.textContent = fmtMoney(total);
+}
+
+function setSlipAmt(idx, val) {
+  if (STATE.buySlip[idx]) STATE.buySlip[idx].amount = +val || 0;
+  document.querySelectorAll('.amt-preset').forEach(b => b.classList.remove('on'));
+  updateWinPreview();
 }
 
 function setAmt(a) {
   STATE.buyAmount = a;
+  // Set all slip entries to this amount
+  STATE.buySlip.forEach(s => { s.amount = a; });
+  // Update all individual input fields
+  document.querySelectorAll('.slip-amt-inp').forEach(inp => { inp.value = a; });
   document.querySelectorAll('.amt-preset').forEach(b => b.classList.remove('on'));
-  event && event.target && event.target.classList.add('on');
+  if (event && event.target) event.target.classList.add('on');
   const inp = document.getElementById('buy-amt'); if(inp) inp.value = a;
   updateWinPreview();
 }
@@ -1325,23 +1350,22 @@ function buyGoConfirm() {
 }
 
 async function doSubmitBet() {
-  const amt = STATE.buyAmount || +(document.getElementById('buy-amt')?.value || 0);
-  if (amt < 1) { showToast('กรุณาใส่ยอดแทงต่อเลขก่อน','err'); return; }
   if (!STATE.buySlip.length) { showToast('ไม่มีเลขในโพย','err'); return; }
-  STATE.buyAmount = amt;
+  // Check that at least one entry has amount > 0
+  const validSlip = STATE.buySlip.filter(s => (s.amount || 0) >= 1);
+  if (!validSlip.length) { showToast('กรุณาใส่ยอดแทงให้ครบก่อน','err'); return; }
   const btn = document.getElementById('buy-confirm-btn');
-  if (btn) { btn.disabled = true; btn.textContent = `กำลังส่ง ${STATE.buySlip.length} เลข...`; }
+  if (btn) { btn.disabled = true; btn.textContent = `กำลังส่ง ${validSlip.length} เลข...`; }
   try {
-    // Submit each number in the slip
-    for (const s of STATE.buySlip) {
+    for (const s of validSlip) {
       await api('POST', '/slips', {
         lottery_type_id: STATE.buyTypeId,
         bet_type_id: s.betTypeId,
         numbers: [s.number],
-        amount: amt,
+        amount: s.amount,
       });
     }
-    showToast(`แทงสำเร็จ ${STATE.buySlip.length} เลข! 🎰 โชคดีนะ`);
+    showToast(`แทงสำเร็จ ${validSlip.length} เลข! 🎰 โชคดีนะ`);
     STATE.buySlip = [];
     await loadWalletData();
     navTo('slips');
