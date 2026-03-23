@@ -469,8 +469,31 @@ io.on('connection', socket => {
   socket.on('join_user',  id => socket.join(`user:${id}`));
 });
 
+/* AUTO-CLOSE SCHEDULER */
+// ทุก 60 วินาที ตรวจงวดที่หมดเวลา → ปิดรับอัตโนมัติ
+async function autoCloseExpiredRounds() {
+  try {
+    const expired = await query(
+      "SELECT id, round_code FROM lottery_rounds WHERE status='open' AND close_at <= NOW()"
+    );
+    if (!expired.length) return;
+    const ids = expired.map(r => r.id);
+    await query(
+      `UPDATE lottery_rounds SET status='closed' WHERE id IN (${ids.map(()=>'?').join(',')})`,
+      ids
+    );
+    expired.forEach(r => console.log(`[AUTO-CLOSE] งวด ${r.round_code} (id:${r.id}) ปิดรับอัตโนมัติ`));
+  } catch(err) {
+    console.error('[AUTO-CLOSE] Error:', err.message);
+  }
+}
+
 /* Start */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`ð¯ TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
+  console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
+  setTimeout(() => {
+    autoCloseExpiredRounds();
+    setInterval(autoCloseExpiredRounds, 60_000);
+  }, 5_000);
 });
