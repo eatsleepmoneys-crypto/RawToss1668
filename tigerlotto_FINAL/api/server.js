@@ -287,8 +287,7 @@ v1.get('/lottery/results', async (req,res) => {
     JOIN lottery_rounds r ON lr.round_id=r.id JOIN lottery_types lt ON r.lottery_type_id=lt.id WHERE 1=1`;
   const params = [];
   if (lottery_type) { sql += ' AND lt.code=?'; params.push(lottery_type); }
-  sql += ' ORDER BY lr.created_at DESC LIMIT ? OFFSET ?';
-  params.push(parseInt(limit), offset);
+  sql += ` ORDER BY lr.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
   res.json({ data: await query(sql, params) });
 });
 
@@ -307,8 +306,7 @@ v1.get('/notifications',            auth, async (req,res) => {
   const params = [req.user.id];
   const is_read = req.query.is_read;
   if (is_read !== undefined && is_read !== '') { sql += ' AND is_read=?'; params.push(is_read === '1' ? 1 : 0); }
-  sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-  params.push(limit, offset);
+  sql += ` ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`;
   const [data, unread] = await Promise.all([
     query(sql, params),
     queryOne('SELECT COUNT(*) AS c FROM notifications WHERE user_id=? AND is_read=0',[req.user.id]),
@@ -365,8 +363,7 @@ v1.get('/admin/users', auth, adminOnly, async (req,res) => {
   const params = [];
   if (role) { sql+=' AND role=?'; params.push(role); }
   if (is_active!==undefined) { sql+=' AND is_active=?'; params.push(is_active); }
-  sql+=' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-  params.push(parseInt(limit),offset);
+  sql+=` ORDER BY created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
   res.json({ data: await query(sql,params) });
 });
 v1.put('/admin/users/:id/status', auth, adminOnly, async (req,res) => {
@@ -381,8 +378,7 @@ v1.get('/admin/transactions', auth, adminOnly, async (req,res) => {
   const params=[];
   if (type) { sql+=' AND t.type=?'; params.push(type); }
   if (status) { sql+=' AND t.status=?'; params.push(status); }
-  sql+=' ORDER BY t.created_at DESC LIMIT ? OFFSET ?';
-  params.push(parseInt(limit),offset);
+  sql+=` ORDER BY t.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
   res.json({ data: await query(sql,params) });
 });
 v1.put('/admin/transactions/:id/approve', auth, adminOnly, async (req,res) => {
@@ -428,7 +424,7 @@ v1.get('/admin/lottery/rounds', auth, adminOnly, async (req, res) => {
   const params = [];
   if (status) { sql += ' AND r.status=?'; params.push(status); }
   if (lottery_type_id) { sql += ' AND r.lottery_type_id=?'; params.push(lottery_type_id); }
-  sql += ' ORDER BY r.close_at DESC LIMIT ?'; params.push(parseInt(limit));
+  sql += ` ORDER BY r.close_at DESC LIMIT ${parseInt(limit)}`;
   res.json({ data: await query(sql, params) });
 });
 v1.post('/admin/lottery/rounds', auth, adminOnly, async (req, res) => {
@@ -468,7 +464,7 @@ v1.get('/admin/hot-numbers', auth, adminOnly, async (req,res) => {
   const params=[];
   if (round_id) { sql+=' AND round_id=?'; params.push(round_id); }
   if (bet_type_id) { sql+=' AND bet_type_id=?'; params.push(bet_type_id); }
-  sql+=' ORDER BY total_amount DESC LIMIT ?'; params.push(parseInt(limit));
+  sql+=` ORDER BY total_amount DESC LIMIT ${parseInt(limit)}`;
   res.json({ data: await query(sql,params) });
 });
 v1.put('/admin/lottery-types/:id', auth, adminOnly, async (req, res) => {

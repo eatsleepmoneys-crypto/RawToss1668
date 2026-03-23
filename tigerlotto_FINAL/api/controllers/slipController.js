@@ -220,8 +220,7 @@ exports.getSlips = async (req, res) => {
       WHERE s.user_id=?`;
     const params = [req.user.id];
     if (status) { sql += ' AND s.status=?'; params.push(status); }
-    sql += ' ORDER BY s.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    sql += ` ORDER BY s.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
     const slips = await query(sql, params);
 
