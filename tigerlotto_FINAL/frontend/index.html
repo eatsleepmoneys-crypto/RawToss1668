@@ -998,23 +998,30 @@ function buildBuy() {
         <div style="font-size:12px;font-weight:700;color:var(--gold)" id="buy-type-label">-</div>
       </div>
       <div class="bet-type-tabs" id="bet-tabs"></div>
-      <div class="num-display">
-        <div style="font-size:30px;font-weight:900;color:var(--gold);letter-spacing:10px" id="num-disp">———</div>
-        <div style="font-size:10px;color:var(--t3);margin-top:3px" id="num-hint">กดตัวเลขให้ครบแล้วจะเพิ่มเข้าโพยอัตโนมัติ</div>
-      </div>
-      <div class="num-pad">
-        ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
-      </div>
-      <!-- Slip list (grows as numbers added) -->
-      <div id="slip-list-wrap" style="display:none;margin-top:4px">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-          <div style="font-size:11px;font-weight:700;color:var(--t2)">🎫 โพยของคุณ</div>
-          <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearSlip()">ล้างทั้งหมด</button>
+      <!-- Two-column: slip list LEFT, numpad RIGHT -->
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <!-- Left: slip list -->
+        <div id="slip-list-wrap" style="flex:1;min-width:0;display:flex;flex-direction:column;gap:0">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div style="font-size:11px;font-weight:700;color:var(--t2)">🎫 โพยของคุณ</div>
+            <button class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 8px" onclick="clearSlip()">ล้าง</button>
+          </div>
+          <div id="slip-list" style="flex:1;overflow-y:auto;max-height:260px"></div>
+          <div id="slip-empty" style="padding:20px 0;text-align:center;color:var(--t4);font-size:11px">ยังไม่มีเลข<br>กดตัวเลขทางขวา</div>
+          <button class="btn btn-gold" style="margin-top:8px;width:100%;padding:10px;font-size:12px;font-weight:700;border-radius:10px;display:none" id="slip-summary-btn" onclick="goToSummary()">
+            📋 สรุปโพย<br><span id="slip-count" style="font-size:10px;font-weight:400;opacity:.85">0 เลข</span>
+          </button>
         </div>
-        <div id="slip-list"></div>
-        <button class="btn btn-gold btn-lg" style="margin-top:8px" onclick="goToSummary()">
-          📋 สรุปโพย (<span id="slip-count">0</span> เลข)
-        </button>
+        <!-- Right: numpad -->
+        <div style="flex-shrink:0;width:200px">
+          <div class="num-display" style="margin-bottom:8px">
+            <div style="font-size:26px;font-weight:900;color:var(--gold);letter-spacing:10px" id="num-disp">———</div>
+            <div style="font-size:9px;color:var(--t3);margin-top:3px" id="num-hint">กดตัวเลขให้ครบ</div>
+          </div>
+          <div class="num-pad" style="gap:5px">
+            ${[1,2,3,4,5,6,7,8,9,'CLR',0,'⌫'].map(k=>`<button class="np-btn" style="height:38px;font-size:14px" onclick="np('${k}')">${k==='CLR'?'ล้าง':k}</button>`).join('')}
+          </div>
+        </div>
       </div>
     </div>
     <!-- Step 3: Full slip summary + amount + confirm -->
@@ -1173,20 +1180,22 @@ function addToSlip() {
 }
 
 function renderSlipList() {
-  const wrap = document.getElementById('slip-list-wrap');
   const list = document.getElementById('slip-list');
   const cnt = document.getElementById('slip-count');
-  if (!wrap || !list) return;
+  const emptyEl = document.getElementById('slip-empty');
+  const summaryBtn = document.getElementById('slip-summary-btn');
+  if (!list) return;
   const n = STATE.buySlip.length;
-  wrap.style.display = n > 0 ? 'block' : 'none';
-  if (cnt) cnt.textContent = n;
+  if (cnt) cnt.textContent = `${n} เลข`;
+  if (emptyEl) emptyEl.style.display = n > 0 ? 'none' : 'block';
+  if (summaryBtn) summaryBtn.style.display = n > 0 ? 'block' : 'none';
   list.innerHTML = STATE.buySlip.map((s, i) => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 10px;background:var(--dark3);border-radius:8px;margin-bottom:5px;border:1px solid var(--border)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:20px;font-weight:900;color:#fff;letter-spacing:4px">${s.number}</span>
-        <span style="font-size:10px;color:var(--t3)">${s.betTypeName} · x${s.payout}</span>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--dark3);border-radius:8px;margin-bottom:4px;border:1px solid var(--border)">
+      <div>
+        <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:4px;line-height:1">${s.number}</div>
+        <div style="font-size:9px;color:var(--t3);margin-top:2px">${s.betTypeName} · x${s.payout}</div>
       </div>
-      <button onclick="removeFromSlip(${i})" style="background:none;border:none;color:var(--red);font-size:16px;cursor:pointer;padding:2px 6px;line-height:1">✕</button>
+      <button onclick="removeFromSlip(${i})" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 5px;line-height:1">✕</button>
     </div>`).join('');
 }
 
