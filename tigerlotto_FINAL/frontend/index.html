@@ -139,6 +139,24 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
 .lcard-name{font-size:12px;font-weight:700;margin-bottom:3px}
 .lcard-payout{font-size:20px;font-weight:900;color:var(--gold);margin-bottom:2px}
 .lcard-rate{font-size:10px;color:var(--t4)}
+/* Category lottery cards */
+.lt-cat-section{margin-bottom:18px}
+.lt-cat-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:10px 14px;border-radius:10px}
+.lt-cat-title{font-size:14px;font-weight:900;display:flex;align-items:center;gap:6px}
+.lt-cat-sub{font-size:10px;opacity:.7}
+.lt-cat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.lt-cat-card{background:var(--dark3);border:1.5px solid var(--border);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;position:relative;overflow:hidden}
+.lt-cat-card:hover{transform:translateY(-2px);box-shadow:0 4px 16px #00000044}
+.lt-cat-card.active{border-color:var(--gold);background:#1A1200}
+.lt-cat-card.inactive{opacity:.5;cursor:not-allowed}
+.lt-cat-icon{font-size:26px;flex-shrink:0;line-height:1}
+.lt-cat-info{flex:1;min-width:0}
+.lt-cat-name{font-size:12px;font-weight:700;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lt-cat-round{font-size:10px;color:var(--t3);margin-bottom:3px}
+.lt-cat-status{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:2px 7px;border-radius:8px}
+.lt-cat-status.open{background:#0d2d0d;color:var(--green);border:1px solid #22c55e44}
+.lt-cat-status.closed{background:#1a0a0a;color:var(--red);border:1px solid #ef444444}
+@media(min-width:900px){.lt-cat-grid{grid-template-columns:repeat(3,1fr)}}
 .stats-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
 .stat3{background:var(--dark3);border:1.5px solid var(--border);border-radius:10px;padding:10px;text-align:center}
 .stat3-val{font-size:18px;font-weight:900;color:var(--gold)}
@@ -882,9 +900,9 @@ function buildHome() {
       <div class="stat3"><div class="stat3-val" id="hs-vip">-</div><div class="stat3-lbl">ระดับ VIP</div></div>
       <div class="stat3"><div class="stat3-val" id="hs-bonus">฿50</div><div class="stat3-lbl">โบนัส</div></div>
     </div>
-    <div class="sec-title">ประเภทหวย <span class="sec-link" onclick="navTo('buy')">แทงทั้งหมด ›</span></div>
-    <div class="ltype-grid" id="h-ltype">
-      <div style="text-align:center;padding:20px;color:var(--t3);grid-column:1/-1">กำลังโหลด...</div>
+    <!-- Lottery categories -->
+    <div id="h-ltype-wrap">
+      <div style="text-align:center;padding:30px;color:var(--t3)">กำลังโหลดประเภทหวย...</div>
     </div>
     <div class="card">
       <div class="sec-title">ผลหวยล่าสุด <span class="sec-link" onclick="navTo('results')">ดูทั้งหมด ›</span></div>
@@ -907,22 +925,66 @@ async function loadHome() {
     const hvip = document.getElementById('hs-vip'); if(hvip) hvip.textContent = me.vip_tier || 'Bronze';
     updateUserUI();
   } catch(e) {}
-  // Load lottery types
+  // Load lottery types — categorized
   try {
-    const d = await api('GET', '/lottery/types');
-    STATE.lotteryTypes = d;
-    const grid = document.getElementById('h-ltype');
-    if (!grid) return;
-    const EMOJIS = {thai:'🇹🇭', lao:'🇱🇦', hanoi:'🇻🇳', malay:'🇲🇾', stock:'📈', yeekee:'⚡', ping_pong:'🏓'};
-    const BG = {thai:'#1A1200',lao:'#0a0a1a',hanoi:'#0a1a0a',malay:'#0a1a1a',stock:'#1a0a0a',yeekee:'#1a1a00'};
-    grid.innerHTML = d.slice(0,8).map(t => `
-      <div class="lcard" onclick="navTo('buy');setTimeout(()=>selectBuyType(${t.id},'${t.name_th||t.name}'),200)">
-        <div class="lcard-emoji">${EMOJIS[t.slug]||'🎰'}</div>
-        <div class="lcard-name">${t.name_th||t.name}</div>
-        <div class="lcard-payout">x${t.payout_3top||900}</div>
-        <div class="lcard-rate">อัตราจ่าย 3 ตัวบน</div>
-      </div>`).join('');
-  } catch(e) { const g = document.getElementById('h-ltype'); if(g) g.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่สามารถโหลดข้อมูลได้</div>'; }
+    const raw = await api('GET', '/lottery/types');
+    const types = Array.isArray(raw) ? raw : (raw.data||raw.types||[]);
+    STATE.lotteryTypes = types;
+    const wrap = document.getElementById('h-ltype-wrap');
+    if (!wrap) return;
+
+    const EMOJIS = {thai:'🇹🇭',lao:'🇱🇦',hanoi:'🇻🇳',malay:'🇲🇾',malaysia:'🇲🇾',stock:'📈',yeekee:'⚡',ping_pong:'🏓',nikkei:'🇯🇵',dowjones:'🇺🇸',nasdaq:'💹',hangseng:'🇭🇰'};
+
+    // Classify each type into a category
+    function classify(t) {
+      const s = (t.code||t.slug||t.name||'').toLowerCase();
+      const n = (t.name_th||t.name||'').toLowerCase();
+      if (/yeekee|ยี่กี|ping.?pong|ปิงปอง|rapid/.test(s+n)) return 'yeekee';
+      if (/stock|หุ้น|nikkei|dow|nasdaq|hang|ftse|kospi/.test(s+n)) return 'stock';
+      return 'gov'; // default: government
+    }
+
+    const cats = { gov: [], stock: [], yeekee: [] };
+    types.forEach(t => cats[classify(t)].push(t));
+
+    const CAT_META = {
+      gov:    { label:'หวยรัฐบาล', icon:'🏛️', color:'#B8860B', bg:'linear-gradient(135deg,#1A1200,#0D0800)', border:'#B8860B33', desc:'หวยออกตามงวด' },
+      stock:  { label:'หวยหุ้น',   icon:'📈', color:'#22c55e', bg:'linear-gradient(135deg,#091a0d,#050d07)', border:'#22c55e33', desc:'ตามตลาดหุ้น' },
+      yeekee: { label:'หวยยี่กี่',  icon:'⚡', color:'#3b82f6', bg:'linear-gradient(135deg,#070b1a,#030508)', border:'#3b82f633', desc:'รอบถี่ ทุกวัน' },
+    };
+
+    const makeCard = (t) => {
+      const isOpen = t.is_active !== false && t.is_active !== 0;
+      const icon = EMOJIS[t.code||t.slug] || t.icon || '🎰';
+      const name = t.name_th || t.name || t.code;
+      const round = t.rounds_per_day ? `${t.rounds_per_day} รอบ/วัน` : (t.schedule || 'ตามงวด');
+      return `
+        <div class="lt-cat-card ${isOpen?'active':'inactive'}" onclick="${isOpen?`navTo('buy');setTimeout(()=>selectBuyType(${t.id},'${name}'),200)`:``}">
+          <div class="lt-cat-icon">${icon}</div>
+          <div class="lt-cat-info">
+            <div class="lt-cat-name">${name}</div>
+            <div class="lt-cat-round">${round}</div>
+            <span class="lt-cat-status ${isOpen?'open':'closed'}">${isOpen?'● เปิดรับ':'○ ปิด'}</span>
+          </div>
+        </div>`;
+    };
+
+    wrap.innerHTML = Object.entries(CAT_META).map(([key, meta]) => {
+      const list = cats[key];
+      if (!list.length) return '';
+      return `
+        <div class="lt-cat-section">
+          <div class="lt-cat-header" style="background:${meta.bg};border:1px solid ${meta.border}">
+            <div class="lt-cat-title" style="color:${meta.color}">${meta.icon} ${meta.label}</div>
+            <span class="lt-cat-sub" style="color:${meta.color}">${meta.desc} · ${list.length} รายการ</span>
+          </div>
+          <div class="lt-cat-grid">${list.map(makeCard).join('')}</div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    const g = document.getElementById('h-ltype-wrap');
+    if(g) g.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่สามารถโหลดข้อมูลได้</div>';
+  }
   // Load recent results
   try {
     const d = await api('GET', '/lottery/results');
