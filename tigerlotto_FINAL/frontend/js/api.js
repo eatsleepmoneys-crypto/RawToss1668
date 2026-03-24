@@ -33,6 +33,11 @@ const put  = (path, body)  => http('PUT',    path, body);
 const del  = (path)        => http('DELETE', path);
 const postForm = (path, fd) => http('POST',  path, fd, true);
 
+// Generic helper used by admin.js (and any page that loads api.js)
+async function api(method, path, body) {
+  return http(method.toUpperCase(), path, body || null);
+}
+
 // ── AUTH ──────────────────────────────────────────────────────
 const Auth = {
   register: (d)      => post('/auth/register',   d),
@@ -109,7 +114,9 @@ const Admin = {
   users:         (q)      => get('/admin/users'        + (q ? '?' + new URLSearchParams(q) : '')),
   userStatus:    (id, d)  => put(`/admin/users/${id}/status`, d),
   transactions:  (q)      => get('/admin/transactions' + (q ? '?' + new URLSearchParams(q) : '')),
+  approveTx:     (id)     => put(`/admin/transactions/${id}/approve`),
   approveWD:     (id)     => put(`/admin/transactions/${id}/approve`),
+  rejectTx:      (id, note) => put(`/admin/transactions/${id}/reject`, { note }),
   enterResult:   (rid, d) => post(`/admin/lottery/rounds/${rid}/result`, d),
   kycList:       (q)      => get('/admin/kyc'          + (q ? '?' + new URLSearchParams(q) : '')),
   approveKYC:    (id)     => put(`/admin/kyc/${id}/approve`),
@@ -118,8 +125,13 @@ const Admin = {
   settings:      ()       => get('/admin/settings'),
   updateSetting: (k, v)   => put(`/admin/settings/${k}`, { value: v }),
   report:        (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
-  lotteryTypes:      ()       => get('/lottery/types'),
+  lotteryTypes:      (all)    => get('/lottery/types' + (all ? '?all=1' : '')),
   updateLotteryType: (id, d)  => put(`/admin/lottery-types/${id}`, d),
+  // Round management
+  adminRounds:   (q)   => get('/admin/lottery/rounds'  + (q ? '?' + new URLSearchParams(q) : '')),
+  createRound:   (d)   => post('/admin/lottery/rounds', d),
+  closeRound:    (id)  => put(`/admin/lottery/rounds/${id}/close`),
+  openRound:     (id)  => put(`/admin/lottery/rounds/${id}/open`),
 };
 
 // ── Session Helpers ───────────────────────────────────────────
