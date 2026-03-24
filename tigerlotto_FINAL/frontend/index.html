@@ -2065,8 +2065,8 @@ function buildProfile() {
       <div class="pm-item" onclick="navTo('promotions')"><span style="font-size:18px;width:24px;text-align:center">🎁</span><span class="pm-label">โปรโมชั่น</span><span style="color:var(--t4)">›</span></div>
       <div class="pm-item" onclick="navTo('hotNumbers')"><span style="font-size:18px;width:24px;text-align:center">🔥</span><span class="pm-label">เลขเด็ด</span><span style="color:var(--t4)">›</span></div>
       <div class="pm-item" onclick="openChangePassModal()"><span style="font-size:18px;width:24px;text-align:center">🔒</span><span class="pm-label">เปลี่ยนรหัสผ่าน</span><span style="color:var(--t4)">›</span></div>
-      ${u.role==='admin'?`<div class="pm-item" onclick="window.location.href='admin.html'"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
-      ${u.role==='agent'||u.role==='admin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
+      ${u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="window.location.href='admin.html'"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
+      ${u.role==='agent'||u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
       <div class="pm-item" onclick="doLogout()" style="border-top:1px solid var(--border)">
         <span style="font-size:18px;width:24px;text-align:center">🚪</span>
         <span style="flex:1;font-size:13px;font-weight:600;color:var(--red)">ออกจากระบบ</span>
