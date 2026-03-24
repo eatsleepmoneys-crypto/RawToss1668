@@ -602,6 +602,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="bn" onclick="navTo('slips')" id="bn-slips"><div class="bn-ico">🎫</div><div class="bn-lbl">โพย</div></div>
     <div class="bn" onclick="navTo('wallet')" id="bn-wallet"><div class="bn-ico">💰</div><div class="bn-lbl">เงิน</div></div>
     <div class="bn" onclick="navTo('profile')" id="bn-profile"><div class="bn-ico">👤</div><div class="bn-lbl">โปร</div></div>
+    <div class="bn" onclick="window.location.href='admin.html'" id="bn-admin" style="display:none"><div class="bn-ico">⚙️</div><div class="bn-lbl">Admin</div></div>
   </div>
 </div>
 
@@ -770,6 +771,7 @@ function updateUserUI() {
   // Show Admin / Agent nav items
   const isAdmin = u.role === 'admin' || u.role === 'superadmin';
   const pcnAdmin = document.getElementById('pcn-admin'); if(pcnAdmin) pcnAdmin.style.display = isAdmin ? '' : 'none';
+  const bnAdmin = document.getElementById('bn-admin'); if(bnAdmin) bnAdmin.style.display = isAdmin ? '' : 'none';
   const pcnAgent = document.getElementById('pcn-agent'); if(pcnAgent) pcnAgent.style.display = (u.role === 'agent') ? '' : 'none';
 }
 
@@ -1376,8 +1378,11 @@ function renderSlipList() {
   list.innerHTML = STATE.buySlip.map((s, i) => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--dark3);border-radius:8px;margin-bottom:4px;border:1px solid var(--border)">
       <div>
-        <div style="font-size:18px;font-weight:900;color:#fff;letter-spacing:4px;line-height:1">${s.number}</div>
-        <div style="font-size:9px;color:var(--t3);margin-top:2px">${s.betTypeName} · x${s.payout}</div>
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <span style="font-size:18px;font-weight:900;color:#fff;letter-spacing:4px;line-height:1">${s.number}</span>
+          <span style="font-size:11px;font-weight:700;color:var(--gold);background:rgba(255,210,76,.12);border-radius:4px;padding:1px 6px">${s.betTypeName}</span>
+        </div>
+        <div style="font-size:10px;color:var(--t3);margin-top:2px">จ่าย x${s.payout}</div>
       </div>
       <button type="button" onclick="removeFromSlip(${i})" style="background:none;border:none;color:var(--red);font-size:15px;cursor:pointer;padding:2px 5px;line-height:1">✕</button>
     </div>`).join('');
@@ -1396,7 +1401,8 @@ function clearSlip() {
 function goToSummary() {
   if (!STATE.buySlip.length) { showToast('ยังไม่มีเลขในโพย','err'); return; }
   const bsType = document.getElementById('bs-type');
-  if (bsType) bsType.textContent = `${STATE.buyTypeName} · ${STATE.buySlip[0].betTypeName}`;
+  const uniqueTypes = [...new Set(STATE.buySlip.map(s => s.betTypeName))];
+  if (bsType) bsType.textContent = `${STATE.buyTypeName} · ${uniqueTypes.join(', ')}`;
   renderSummaryList();
   document.querySelectorAll('.amt-preset').forEach(b => b.classList.remove('on'));
   updateWinPreview();
