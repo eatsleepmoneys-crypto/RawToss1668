@@ -1345,16 +1345,27 @@ async function loadBetTypes(typeId) {
   selectBetType(ALLOWED[0].id, ALLOWED[0].name_th, ALLOWED[0].payout, ALLOWED[0].digits);
 }
 
-function selectBetType(id, name, payout, digits) {
-  // Multi-select: toggle within same digit group; switching groups clears selection
-  const existing = STATE.buyBetTypeIds.find(t => t.id === id);
-  const diffGroup = STATE.buyBetTypeIds.length > 0 && STATE.buyBetTypeIds[0].digits !== digits;
-  if (diffGroup) STATE.buyBetTypeIds = [];   // clear when switching digit group
+// Special "expand" types that always work standalone
+const SPECIAL_BET_IDS = new Set([7, 8]); // 6ประตู, 2ตัวบนล่างกลับ
 
-  if (existing) {
+function selectBetType(id, name, payout, digits) {
+  const isSpecial   = SPECIAL_BET_IDS.has(id);
+  const wasSelected = STATE.buyBetTypeIds.some(t => t.id === id);
+  const hasSpecial  = STATE.buyBetTypeIds.some(t => SPECIAL_BET_IDS.has(t.id));
+  const diffGroup   = !isSpecial && STATE.buyBetTypeIds.length > 0 && STATE.buyBetTypeIds[0].digits !== digits;
+
+  if (isSpecial) {
+    // Special type → always set to ONLY this one
+    STATE.buyBetTypeIds = [{id,name_th:name,payout,digits}];
+  } else if (hasSpecial || diffGroup) {
+    // Switching away from special, or changing digit group → reset to this one
+    STATE.buyBetTypeIds = [{id,name_th:name,payout,digits}];
+  } else if (wasSelected) {
+    // Toggle off — keep at least 1
     STATE.buyBetTypeIds = STATE.buyBetTypeIds.filter(t => t.id !== id);
-    if (!STATE.buyBetTypeIds.length) STATE.buyBetTypeIds = [{id,name_th:name,payout,digits}]; // keep at least 1
+    if (!STATE.buyBetTypeIds.length) STATE.buyBetTypeIds = [{id,name_th:name,payout,digits}];
   } else {
+    // Add to multi-select within same digit group
     STATE.buyBetTypeIds.push({id,name_th:name,payout,digits});
   }
 
