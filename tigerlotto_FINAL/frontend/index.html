@@ -1592,6 +1592,7 @@ async function loadSlips() {
     ALL_SLIPS = Array.isArray(d) ? d : (d.slips||d.data||[]);
     renderSlips(STATE.slipFilter);
   } catch(e) {
+    console.error('[loadSlips]', e);
     const el = document.getElementById('slips-list');
     if(el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่สามารถโหลดโพยได้</div>';
   }
