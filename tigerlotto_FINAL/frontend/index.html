@@ -535,7 +535,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="sb-item" onclick="navTo('hotNumbers')" id="sbi-hotNumbers"><span class="sb-icon">🔥</span>เลขเด็ด</div>
     <div class="sb-item" onclick="navTo('profile')" id="sbi-profile"><span class="sb-icon">👤</span>โปรไฟล์</div>
     <div id="sb-admin-sec" style="display:none"><div class="sb-section">ผู้ดูแล</div>
-    <div class="sb-item" onclick="window.location.href='admin.html'" id="sbi-admin"><span class="sb-icon">⚙️</span>Admin Panel</div>
+    <div class="sb-item" onclick="window.location.href='/admin.html'" id="sbi-admin"><span class="sb-icon">⚙️</span>Admin Panel</div>
     <div class="sb-item" onclick="navTo('agent')" id="sbi-agent"><span class="sb-icon">👥</span>Agent Portal</div></div>
   </div>
   <div class="sb-footer">
@@ -579,7 +579,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="pcnav-item" onclick="navTo('promotions')" id="pcn-promotions">🎁 โปรโมชั่น</div>
     <div class="pcnav-item" onclick="navTo('hotNumbers')" id="pcn-hotNumbers">🔥 เลขเด็ด</div>
     <div class="pcnav-item" onclick="navTo('profile')" id="pcn-profile">👤 โปรไฟล์</div>
-    <div class="pcnav-item" onclick="window.location.href='admin.html'" id="pcn-admin" style="display:none">⚙️ Admin Panel</div>
+    <div class="pcnav-item" onclick="window.location.href='/admin.html'" id="pcn-admin" style="display:none">⚙️ Admin Panel</div>
     <div class="pcnav-item" onclick="navTo('agent')" id="pcn-agent" style="display:none">👥 Agent Portal</div>
   </div>
   <!-- Content -->
@@ -602,7 +602,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="bn" onclick="navTo('slips')" id="bn-slips"><div class="bn-ico">🎫</div><div class="bn-lbl">โพย</div></div>
     <div class="bn" onclick="navTo('wallet')" id="bn-wallet"><div class="bn-ico">💰</div><div class="bn-lbl">เงิน</div></div>
     <div class="bn" onclick="navTo('profile')" id="bn-profile"><div class="bn-ico">👤</div><div class="bn-lbl">โปร</div></div>
-    <div class="bn" onclick="window.location.href='admin.html'" id="bn-admin" style="display:none"><div class="bn-ico">⚙️</div><div class="bn-lbl">Admin</div></div>
+    <div class="bn" onclick="window.location.href='/admin.html'" id="bn-admin" style="display:none"><div class="bn-ico">⚙️</div><div class="bn-lbl">Admin</div></div>
   </div>
 </div>
 
@@ -2146,7 +2146,7 @@ function buildProfile() {
       <div class="pm-item" onclick="navTo('promotions')"><span style="font-size:18px;width:24px;text-align:center">🎁</span><span class="pm-label">โปรโมชั่น</span><span style="color:var(--t4)">›</span></div>
       <div class="pm-item" onclick="navTo('hotNumbers')"><span style="font-size:18px;width:24px;text-align:center">🔥</span><span class="pm-label">เลขเด็ด</span><span style="color:var(--t4)">›</span></div>
       <div class="pm-item" onclick="openChangePassModal()"><span style="font-size:18px;width:24px;text-align:center">🔒</span><span class="pm-label">เปลี่ยนรหัสผ่าน</span><span style="color:var(--t4)">›</span></div>
-      ${u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="window.location.href='admin.html'"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
+      ${u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="window.location.href='/admin.html'"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
       ${u.role==='agent'||u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
       <div class="pm-item" onclick="doLogout()" style="border-top:1px solid var(--border)">
         <span style="font-size:18px;width:24px;text-align:center">🚪</span>
