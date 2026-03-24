@@ -1094,10 +1094,11 @@ function buildBuy() {
     </div>
     <!-- Step 2: Enter numbers → add to slip -->
     <div id="buy-s2" style="display:none">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
         <button type="button" class="btn btn-ghost btn-sm" onclick="buyStep(1)">← กลับ</button>
         <div style="font-size:13px;font-weight:700;color:var(--gold)" id="buy-type-label">-</div>
       </div>
+      <div id="buy-round-lbl" style="display:none;font-size:11px;color:var(--t3);background:rgba(255,210,76,.06);border:1px solid var(--border);border-radius:6px;padding:4px 10px;margin-bottom:10px"></div>
       <div class="bet-type-tabs" id="bet-tabs"></div>
       <div class="num-display" style="margin-bottom:14px">
         <div style="font-size:36px;font-weight:900;color:var(--gold);letter-spacing:12px;text-shadow:0 0 24px rgba(255,210,76,.3)" id="num-disp">———</div>
@@ -1261,8 +1262,23 @@ async function selectBuyType(id, name) {
     try {
       const raw = await api('GET', `/lottery/rounds?lottery_type=${encodeURIComponent(typeCode)}&status=open`);
       const rounds = Array.isArray(raw) ? raw : (raw.data || []);
-      STATE.buyRoundId = rounds.length ? rounds[0].id : null;
-    } catch(e) { STATE.buyRoundId = null; }
+      if (!rounds.length) {
+        showToast('ยังไม่มีงวดที่เปิดรับสำหรับหวยนี้ กรุณารอเปิดงวดใหม่', 'err');
+        return;
+      }
+      STATE.buyRoundId = rounds[0].id;
+      // Show round info badge in buy header
+      const roundLbl = document.getElementById('buy-round-lbl');
+      if (roundLbl) {
+        const r = rounds[0];
+        const closeAt = r.close_at ? new Date(r.close_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '';
+        roundLbl.textContent = `📋 งวด ${r.round_code||r.id}${closeAt?' · ปิด '+closeAt:''}`;
+        roundLbl.style.display = '';
+      }
+    } catch(e) {
+      showToast('โหลดงวดไม่สำเร็จ กรุณาลองใหม่', 'err');
+      return;
+    }
     buyStep(2);
     loadBetTypes(id);
   }
@@ -1470,6 +1486,7 @@ function buyGoConfirm() {
 
 async function doSubmitBet() {
   if (!STATE.buySlip.length) { showToast('ไม่มีเลขในโพย','err'); return; }
+  if (!STATE.buyRoundId) { showToast('ไม่พบงวดที่เปิดรับ กรุณากลับและเลือกประเภทหวยใหม่','err'); return; }
   // Check that at least one entry has amount > 0
   const validSlip = STATE.buySlip.filter(s => (s.amount || 0) >= 1);
   if (!validSlip.length) { showToast('กรุณาใส่ยอดแทงให้ครบก่อน','err'); return; }
@@ -2071,8 +2088,8 @@ function buildProfile() {
       <div class="pm-item" onclick="navTo('promotions')"><span style="font-size:18px;width:24px;text-align:center">🎁</span><span class="pm-label">โปรโมชั่น</span><span style="color:var(--t4)">›</span></div>
       <div class="pm-item" onclick="navTo('hotNumbers')"><span style="font-size:18px;width:24px;text-align:center">🔥</span><span class="pm-label">เลขเด็ด</span><span style="color:var(--t4)">›</span></div>
       <div class="pm-item" onclick="openChangePassModal()"><span style="font-size:18px;width:24px;text-align:center">🔒</span><span class="pm-label">เปลี่ยนรหัสผ่าน</span><span style="color:var(--t4)">›</span></div>
-      ${u.role==='admin'?`<div class="pm-item" onclick="window.location.href='admin.html'"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
-      ${u.role==='agent'||u.role==='admin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
+      ${u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="window.location.href='admin.html'"><span style="font-size:18px;width:24px;text-align:center">⚙️</span><span class="pm-label">Admin Panel</span><span style="color:var(--t4)">›</span></div>`:''}
+      ${u.role==='agent'||u.role==='admin'||u.role==='superadmin'?`<div class="pm-item" onclick="navTo('agent')"><span style="font-size:18px;width:24px;text-align:center">👥</span><span class="pm-label">Agent Portal</span><span style="color:var(--t4)">›</span></div>`:''}
       <div class="pm-item" onclick="doLogout()" style="border-top:1px solid var(--border)">
         <span style="font-size:18px;width:24px;text-align:center">🚪</span>
         <span style="flex:1;font-size:13px;font-weight:600;color:var(--red)">ออกจากระบบ</span>
