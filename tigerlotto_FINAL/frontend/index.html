@@ -1230,7 +1230,7 @@ function renderYeekeeRoundGrid(rounds) {
     const isCurrent = isOpen && r.id === currentId;
     const rn = roundNum(r.round_code);
     return `
-      <div onclick="${isOpen ? `selectYeekeeRound(${r.id})` : ''}"
+      <div onclick="${isOpen ? `selectYeekeeRound(${r.id})` : ''}" data-close-at="${r.close_at}"
         style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;
                background:${isCurrent ? 'rgba(234,179,8,.08)' : 'var(--dark2)'};
                border:1px solid ${isCurrent ? 'var(--gold)' : isOpen ? 'var(--border2)' : 'var(--border)'};
@@ -1239,7 +1239,8 @@ function renderYeekeeRoundGrid(rounds) {
           <div style="font-size:14px;font-weight:900;color:${isOpen ? 'var(--gold)' : 'var(--t3)'}">
             รอบที่ ${rn}${isCurrent ? ' <span style="font-size:10px;color:var(--gold);font-weight:700;background:rgba(234,179,8,.15);padding:1px 6px;border-radius:8px">● ถัดไป</span>' : ''}
           </div>
-          <div style="font-size:10px;color:var(--t3);margin-top:3px">${fmt(r.open_at)} → ${fmt(r.close_at)}</div>
+          <div style="font-size:10px;color:var(--t3);margin-top:3px">ปิดรับ: ${fmt(r.close_at)}</div>
+          ${isOpen ? `<div class="round-cd" style="font-size:10px;color:var(--gold);font-weight:700;margin-top:2px"></div>` : ''}
         </div>
         <div style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
                     background:${isOpen ? 'rgba(34,197,94,.15)' : 'rgba(255,255,255,.06)'};
@@ -1250,7 +1251,31 @@ function renderYeekeeRoundGrid(rounds) {
   }).join('');
 }
 
+let _roundCountdownTimer = null;
+function startRoundCountdowns() {
+  if (_roundCountdownTimer) { clearInterval(_roundCountdownTimer); _roundCountdownTimer = null; }
+  function tick() {
+    document.querySelectorAll('#yk-round-grid [data-close-at] .round-cd').forEach(el => {
+      const card = el.closest('[data-close-at]');
+      if (!card) return;
+      const diff = new Date(card.dataset.closeAt) - new Date();
+      if (diff <= 0) { el.textContent = 'ปิดรับแล้ว'; return; }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      const pad = n => String(n).padStart(2, '0');
+      el.textContent = h > 0 ? `ปิดใน ${h}:${pad(m)}:${pad(s)}` : `ปิดใน ${pad(m)}:${pad(s)}`;
+    });
+  }
+  tick();
+  _roundCountdownTimer = setInterval(tick, 1000);
+}
+function stopRoundCountdowns() {
+  if (_roundCountdownTimer) { clearInterval(_roundCountdownTimer); _roundCountdownTimer = null; }
+}
+
 function selectYeekeeRound(roundId) {
+  stopRoundCountdowns();
   STATE.buyRoundId = roundId;
   buyStep(2);
   loadBetTypes(STATE.buyTypeId);
@@ -1290,6 +1315,7 @@ async function loadRoundSelection(typeId, typeCode, isYeekee) {
       return;
     }
     if (grid) grid.innerHTML = isYeekee ? renderYeekeeRoundGrid(upcoming) : renderRoundGrid(upcoming);
+    startRoundCountdowns();
   } catch(e) {
     if (grid) grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--red)">โหลดรอบไม่สำเร็จ</div>';
   }
@@ -1303,13 +1329,14 @@ function renderRoundGrid(rounds) {
       + ' · ' + d.toLocaleTimeString('th-TH', { hour:'2-digit', minute:'2-digit' });
   }
   return rounds.map(r => `
-    <div onclick="selectYeekeeRound(${r.id})"
+    <div onclick="selectYeekeeRound(${r.id})" data-close-at="${r.close_at}"
       style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
              background:var(--dark2);border:1px solid var(--border2);border-radius:var(--r2);cursor:pointer;
              margin-bottom:4px">
       <div>
         <div style="font-size:14px;font-weight:900;color:var(--gold)">${r.round_name || r.round_code || 'งวด '+r.id}</div>
         <div style="font-size:10px;color:var(--t3);margin-top:3px">ปิดรับ: ${fmt(r.close_at)}</div>
+        <div class="round-cd" style="font-size:10px;color:var(--gold);font-weight:700;margin-top:2px"></div>
       </div>
       <div style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;
                   background:rgba(34,197,94,.15);color:var(--green)">🟢 เปิดรับ</div>
