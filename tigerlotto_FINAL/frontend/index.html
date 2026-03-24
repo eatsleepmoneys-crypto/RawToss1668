@@ -1804,6 +1804,16 @@ function buildWallet() {
         </div>
         <label class="flabel">อ้างอิงสลิป / หมายเหตุ (ไม่บังคับ)</label>
         <input class="finput" type="text" id="dep-note" placeholder="เช่น เลขอ้างอิงสลิป 6 หลักท้าย">
+        <label class="flabel" style="margin-top:8px">📎 แนบสลิปโอนเงิน (ไม่บังคับ)</label>
+        <label for="dep-slip" style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--dark);border:1px dashed #B8860B55;border-radius:10px;padding:10px 14px;margin-bottom:8px;color:var(--t3);font-size:12px">
+          <span style="font-size:20px">🖼️</span>
+          <span id="dep-slip-label">เลือกรูปสลิป...</span>
+          <input type="file" accept="image/*" id="dep-slip" style="display:none" onchange="previewDepSlip(this)">
+        </label>
+        <div id="dep-slip-preview" style="display:none;margin-bottom:12px;text-align:center">
+          <img id="dep-slip-img" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid #B8860B55">
+          <div style="font-size:10px;color:var(--t4);margin-top:4px">แตะเพื่อเปลี่ยนรูป</div>
+        </div>
         <button class="btn btn-gold btn-lg" onclick="doDeposit()">แจ้งฝากเงิน</button>
         <div style="text-align:center;font-size:10px;color:var(--t4);margin-top:8px">ยอดจะเข้าภายใน 5-15 นาที หลัง Admin ตรวจสอบสลิป</div>
       </div>
@@ -1935,6 +1945,21 @@ function walletTab(tab) {
   if (tab === 'banks') loadBanks();
 }
 
+function previewDepSlip(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const label = document.getElementById('dep-slip-label');
+  if (label) label.textContent = file.name;
+  const preview = document.getElementById('dep-slip-preview');
+  const img = document.getElementById('dep-slip-img');
+  const reader = new FileReader();
+  reader.onload = e => {
+    if (img) img.src = e.target.result;
+    if (preview) preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
 async function doDeposit() {
   const amt  = +(document.getElementById('dep-amt')?.value||0);
   const note = document.getElementById('dep-note')?.value.trim() || '';
@@ -1943,10 +1968,27 @@ async function doDeposit() {
   const btn = document.querySelector('#wp-deposit .btn-gold');
   if(btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
   try {
-    await api('POST', '/wallet/deposit', {amount: amt, note: note||undefined});
+    // Read slip image as base64 if provided
+    let slip_image = null;
+    const slipFile = document.getElementById('dep-slip')?.files?.[0];
+    if (slipFile) {
+      slip_image = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = e => resolve(e.target.result);
+        r.onerror = reject;
+        r.readAsDataURL(slipFile);
+      });
+    }
+    await api('POST', '/wallet/deposit', {amount: amt, note: note||undefined, slip_image: slip_image||undefined});
     showToast('แจ้งฝากเงินสำเร็จ รอการตรวจสอบ 🎉');
     if(document.getElementById('dep-amt')) document.getElementById('dep-amt').value='';
     if(document.getElementById('dep-note')) document.getElementById('dep-note').value='';
+    const slipInput = document.getElementById('dep-slip');
+    if (slipInput) slipInput.value = '';
+    const slipLabel = document.getElementById('dep-slip-label');
+    if (slipLabel) slipLabel.textContent = 'เลือกรูปสลิป...';
+    const slipPreview = document.getElementById('dep-slip-preview');
+    if (slipPreview) slipPreview.style.display = 'none';
     await loadWallet();
     walletTab('history');
   } catch(e) {

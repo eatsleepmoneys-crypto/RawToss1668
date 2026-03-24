@@ -209,7 +209,7 @@ async function renderDeposits(el) {
     ${txs.length ? `<div class="card" style="padding:8px;overflow-x:auto">
       <table>
         <thead><tr>
-          <th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วิธีชำระ</th><th>วันที่</th><th style="min-width:140px">จัดการ</th>
+          <th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วิธีชำระ</th><th>วันที่</th><th style="min-width:180px">จัดการ</th>
         </tr></thead>
         <tbody>${txs.map(tx => `
           <tr>
@@ -220,7 +220,11 @@ async function renderDeposits(el) {
             <td style="font-size:14px;font-weight:900;color:var(--green)">+฿${parseFloat(tx.amount||0).toLocaleString()}</td>
             <td style="font-size:10px;color:#78BAFF">${tx.payment_method||'bank_transfer'}</td>
             <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
-            <td style="display:flex;gap:6px;padding:8px 4px">
+            <td style="display:flex;flex-wrap:wrap;gap:6px;padding:8px 4px">
+              ${tx.slip_image ? `<button onclick="viewSlip(${tx.id})"
+                style="padding:4px 8px;border-radius:6px;background:var(--dark3);border:1px solid #78BAFF55;color:#78BAFF;font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">
+                🖼️ ดูสลิป
+              </button>` : ''}
               <button onclick="approveTx(${tx.id},'deposit')"
                 style="padding:4px 10px;border-radius:6px;background:linear-gradient(135deg,#1a9e2a,#0f6e1b);border:none;color:#fff;font-size:10px;font-weight:900;cursor:pointer;font-family:inherit">
                 ✅ อนุมัติ
@@ -274,6 +278,36 @@ async function renderWithdrawals(el) {
         </tbody>
       </table>
     </div>` : '<div class="card" style="text-align:center;padding:30px;color:#444">✅ ไม่มีรายการรออนุมัติ</div>'}`;
+}
+
+// slip cache: store base64 by tx id after first fetch
+const _slipCache = {};
+
+function viewSlip(txId) {
+  const cached = _slipCache[txId];
+  if (cached) { _openSlipModal(cached); return; }
+  // find the tx in current DOM data — slip_image already in the rendered data
+  // Re-fetch from admin transactions to get slip_image (it may be a base64 data URI)
+  Admin.transactions({ type: 'deposit', status: 'pending', limit: 50 }).then(res => {
+    const tx = (res.data || []).find(t => t.id === txId);
+    if (tx && tx.slip_image) {
+      _slipCache[txId] = tx.slip_image;
+      _openSlipModal(tx.slip_image);
+    } else {
+      toast('ไม่พบรูปสลิป', 'err');
+    }
+  }).catch(() => toast('โหลดสลิปไม่ได้', 'err'));
+}
+
+function _openSlipModal(src) {
+  const existing = document.getElementById('slip-modal-overlay');
+  if (existing) existing.remove();
+  const overlay = document.createElement('div');
+  overlay.id = 'slip-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:#000a;z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out';
+  overlay.onclick = () => overlay.remove();
+  overlay.innerHTML = `<img src="${src}" style="max-width:90vw;max-height:90vh;border-radius:12px;border:2px solid #B8860B55;box-shadow:0 0 40px #0008">`;
+  document.body.appendChild(overlay);
 }
 
 async function approveTx(id, type) {
