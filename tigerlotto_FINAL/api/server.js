@@ -84,11 +84,12 @@ const server = http.createServer(app);
 const ALLOWED_ORIGINS = [
   'https://courageous-fairy-114078.netlify.app',
   'https://rawtoss1668-production.up.railway.app',
+  'https://rawtoss1668.pages.dev',
   'http://localhost:3000',
 ];
 const corsOriginFn = (origin, callback) => {
   if (!origin) return callback(null, true);
-  if (ALLOWED_ORIGINS.includes(origin) || /\.netlify\.app$/.test(origin)) {
+  if (ALLOWED_ORIGINS.includes(origin) || /\.netlify\.app$/.test(origin) || /\.pages\.dev$/.test(origin)) {
     return callback(null, true);
   }
   callback(new Error('Not allowed by CORS'));

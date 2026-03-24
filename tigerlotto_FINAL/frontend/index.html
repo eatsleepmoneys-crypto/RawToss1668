@@ -1592,7 +1592,6 @@ async function loadSlips() {
     ALL_SLIPS = Array.isArray(d) ? d : (d.slips||d.data||[]);
     renderSlips(STATE.slipFilter);
   } catch(e) {
-    console.error('[loadSlips]', e);
     const el = document.getElementById('slips-list');
     if(el) el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่สามารถโหลดโพยได้</div>';
   }
@@ -1805,16 +1804,6 @@ function buildWallet() {
         </div>
         <label class="flabel">อ้างอิงสลิป / หมายเหตุ (ไม่บังคับ)</label>
         <input class="finput" type="text" id="dep-note" placeholder="เช่น เลขอ้างอิงสลิป 6 หลักท้าย">
-        <label class="flabel" style="margin-top:8px">📎 แนบสลิปโอนเงิน (ไม่บังคับ)</label>
-        <label for="dep-slip" style="display:flex;align-items:center;gap:8px;cursor:pointer;background:var(--dark);border:1px dashed #B8860B55;border-radius:10px;padding:10px 14px;margin-bottom:8px;color:var(--t3);font-size:12px">
-          <span style="font-size:20px">🖼️</span>
-          <span id="dep-slip-label">เลือกรูปสลิป...</span>
-          <input type="file" accept="image/*" id="dep-slip" style="display:none" onchange="previewDepSlip(this)">
-        </label>
-        <div id="dep-slip-preview" style="display:none;margin-bottom:12px;text-align:center">
-          <img id="dep-slip-img" style="max-width:100%;max-height:200px;border-radius:10px;border:1px solid #B8860B55">
-          <div style="font-size:10px;color:var(--t4);margin-top:4px">แตะเพื่อเปลี่ยนรูป</div>
-        </div>
         <button class="btn btn-gold btn-lg" onclick="doDeposit()">แจ้งฝากเงิน</button>
         <div style="text-align:center;font-size:10px;color:var(--t4);margin-top:8px">ยอดจะเข้าภายใน 5-15 นาที หลัง Admin ตรวจสอบสลิป</div>
       </div>
@@ -1996,12 +1985,6 @@ async function doDeposit() {
     showToast('แจ้งฝากเงินสำเร็จ รอการตรวจสอบ 🎉');
     if(document.getElementById('dep-amt')) document.getElementById('dep-amt').value='';
     if(document.getElementById('dep-note')) document.getElementById('dep-note').value='';
-    const slipInput = document.getElementById('dep-slip');
-    if (slipInput) slipInput.value = '';
-    const slipLabel = document.getElementById('dep-slip-label');
-    if (slipLabel) slipLabel.textContent = 'เลือกรูปสลิป...';
-    const slipPreview = document.getElementById('dep-slip-preview');
-    if (slipPreview) slipPreview.style.display = 'none';
     await loadWallet();
     walletTab('history');
   } catch(e) {

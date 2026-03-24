@@ -122,8 +122,7 @@ exports.getTransactions = async (req, res) => {
     let params = [req.user.id];
     if (type)   { sql += ' AND type=?';   params.push(type); }
     if (status) { sql += ' AND status=?'; params.push(status); }
-    sql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    sql += ` ORDER BY created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
 
     const [data, countRow] = await Promise.all([
       query(sql, params),

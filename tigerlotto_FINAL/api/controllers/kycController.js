@@ -93,8 +93,8 @@ exports.adminListKYC = async (req, res) => {
     const data = await query(
       `SELECT k.*, u.first_name, u.last_name, u.phone
        FROM user_kyc k JOIN users u ON k.user_id = u.id
-       WHERE k.status=? ORDER BY k.created_at ASC LIMIT ? OFFSET ?`,
-      [status, parseInt(limit), offset]
+       WHERE k.status=? ORDER BY k.created_at ASC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`,
+      [status]
     );
     const total = await queryOne('SELECT COUNT(*) AS c FROM user_kyc WHERE status=?', [status]);
     res.json({ data, total: total.c });
