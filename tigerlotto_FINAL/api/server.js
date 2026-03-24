@@ -600,9 +600,10 @@ async function autoResultYeekeeRound(roundId, roundCode) {
 async function autoCreateYeekeeRounds() {
   try {
     const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm   = String(now.getMonth() + 1).padStart(2, '0');
-    const dd   = String(now.getDate()).padStart(2, '0');
+    const thNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const yyyy = thNow.getUTCFullYear();
+    const mm   = String(thNow.getUTCMonth() + 1).padStart(2, '0');
+    const dd   = String(thNow.getUTCDate()).padStart(2, '0');
     const dateStr = `${yyyy}${mm}${dd}`;
     const likePattern = `YEEKEE-${dateStr}-%`;
 
@@ -618,7 +619,8 @@ async function autoCreateYeekeeRounds() {
     if (!typeRow) { console.warn('[AUTO-CREATE-YK] lottery_type yeekee not found'); return; }
 
     const typeId = typeRow.id;
-    const midnight = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    // Thai midnight = UTC midnight minus 7 hours (17:00 UTC previous day)
+    const thMidnightUTC = new Date(Date.UTC(yyyy, thNow.getUTCMonth(), thNow.getUTCDate()) - 7 * 60 * 60 * 1000);
     const INTERVAL_MS  = 16 * 60 * 1000;       // 16 minutes
     const CLOSE_OFFSET = 15 * 60 * 1000 + 30 * 1000; // 15m30s
     const RESULT_OFFSET= CLOSE_OFFSET + 30 * 1000;    // +30s
@@ -631,7 +633,7 @@ async function autoCreateYeekeeRounds() {
       const rrStr   = String(rr).padStart(2, '0');
       const code    = `YEEKEE-${dateStr}-${rrStr}`;
       const name    = `ยี่กี่ รอบที่ ${rr} (${dateStr})`;
-      const openAt  = new Date(midnight.getTime() + (rr - 1) * INTERVAL_MS);
+      const openAt  = new Date(thMidnightUTC.getTime() + (rr - 1) * INTERVAL_MS);
       const closeAt = new Date(openAt.getTime() + CLOSE_OFFSET);
       const resultAt= new Date(openAt.getTime() + RESULT_OFFSET);
       const status  = closeAt <= now ? 'closed' : 'open';
@@ -653,12 +655,36 @@ let _lastYkCreateDate = '';
 function scheduleDailyYeekeeCreate() {
   setInterval(() => {
     const now = new Date();
-    const dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-    if (now.getHours() === 0 && now.getMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
+    const thNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const dateKey = `${thNow.getUTCFullYear()}-${thNow.getUTCMonth()}-${thNow.getUTCDate()}`;
+    if (thNow.getUTCHours() === 0 && thNow.getUTCMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
       _lastYkCreateDate = dateKey;
       autoCreateYeekeeRounds();
     }
   }, 60_000);
+}
+
+/* AUTO-RESULT MISSED YEEKEE (rounds born as 'closed' with no result yet) */
+async function autoResultMissedYeekeeRounds() {
+  try {
+    const missed = await query(
+      `SELECT r.id, r.round_code
+       FROM lottery_rounds r
+       JOIN lottery_types lt ON r.lottery_type_id = lt.id
+       LEFT JOIN lottery_results lr ON lr.round_id = r.id
+       WHERE r.status IN ('closed','resulted')
+         AND lr.id IS NULL
+         AND (lt.code LIKE '%yeekee%' OR lt.code LIKE '%ยี่กี%')
+         AND r.close_at <= NOW()
+       LIMIT 20`
+    );
+    for (const r of missed) {
+      await autoResultYeekeeRound(r.id, r.round_code);
+    }
+    if (missed.length) console.log(`[AUTO-RESULT-MISSED] ออกผล ${missed.length} รอบที่ค้างอยู่`);
+  } catch(err) {
+    console.error('[AUTO-RESULT-MISSED] Error:', err.message);
+  }
 }
 
 /* Start */
@@ -671,7 +697,11 @@ server.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     autoCreateYeekeeRounds();
     autoCloseExpiredRounds();
-    setInterval(autoCloseExpiredRounds, 60_000);
+    autoResultMissedYeekeeRounds();
+    setInterval(() => {
+      autoCloseExpiredRounds();
+      autoResultMissedYeekeeRounds();
+    }, 60_000);
     scheduleDailyYeekeeCreate();
   }, 5_000);
 });
