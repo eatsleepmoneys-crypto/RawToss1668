@@ -664,6 +664,9 @@ function scheduleDailyYeekeeCreate() {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
+  // Migrate slip_image column to MEDIUMTEXT to support base64 image strings
+  const { pool } = require('./config/db');
+  pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
   setTimeout(() => {
     autoCreateYeekeeRounds();
     autoCloseExpiredRounds();

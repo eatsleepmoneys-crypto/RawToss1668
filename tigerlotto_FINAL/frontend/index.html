@@ -1961,6 +1961,23 @@ function previewDepSlip(input) {
   reader.readAsDataURL(file);
 }
 
+async function compressImage(file, maxWidth = 1200, quality = 0.75) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const scale = Math.min(1, maxWidth / img.width);
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = url;
+  });
+}
+
 async function doDeposit() {
   const amt  = +(document.getElementById('dep-amt')?.value||0);
   const note = document.getElementById('dep-note')?.value.trim() || '';
@@ -1969,16 +1986,11 @@ async function doDeposit() {
   const btn = document.querySelector('#wp-deposit .btn-gold');
   if(btn) { btn.disabled = true; btn.textContent = 'กำลังส่ง...'; }
   try {
-    // Read slip image as base64 if provided
+    // Compress slip image before encoding as base64
     let slip_image = null;
     const slipFile = document.getElementById('dep-slip')?.files?.[0];
     if (slipFile) {
-      slip_image = await new Promise((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = e => resolve(e.target.result);
-        r.onerror = reject;
-        r.readAsDataURL(slipFile);
-      });
+      slip_image = await compressImage(slipFile);
     }
     await api('POST', '/wallet/deposit', {amount: amt, note: note||undefined, slip_image: slip_image||undefined});
     showToast('แจ้งฝากเงินสำเร็จ รอการตรวจสอบ 🎉');
@@ -1993,7 +2005,9 @@ async function doDeposit() {
     await loadWallet();
     walletTab('history');
   } catch(e) {
-    showToast(e.message||'ฝากเงินไม่สำเร็จ','err');
+    const msg = e.message || 'ฝากเงินไม่สำเร็จ';
+    showToast(msg, 'err');
+    console.error('[doDeposit]', msg, e);
   } finally {
     if(btn) { btn.disabled = false; btn.textContent = 'แจ้งฝากเงิน'; }
   }
