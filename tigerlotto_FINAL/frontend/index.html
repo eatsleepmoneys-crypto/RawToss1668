@@ -575,6 +575,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="pcnav-item" onclick="navTo('buy')" id="pcn-buy">🎰 แทงหวย</div>
     <div class="pcnav-item" onclick="navTo('slips')" id="pcn-slips">🎫 โพยของฉัน</div>
     <div class="pcnav-item" onclick="navTo('results')" id="pcn-results">🏆 ผลหวย</div>
+    <div class="pcnav-item" onclick="navTo('history')" id="pcn-history">📅 ผลย้อนหลัง</div>
     <div class="pcnav-item" onclick="navTo('wallet')" id="pcn-wallet">💰 กระเป๋าเงิน</div>
     <div class="pcnav-item" onclick="navTo('promotions')" id="pcn-promotions">🎁 โปรโมชั่น</div>
     <div class="pcnav-item" onclick="navTo('hotNumbers')" id="pcn-hotNumbers">🔥 เลขเด็ด</div>
@@ -600,6 +601,7 @@ body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:var(--
     <div class="bn on" onclick="navTo('home')" id="bn-home"><div class="bn-ico">🏠</div><div class="bn-lbl">หลัก</div></div>
     <div class="bn" onclick="navTo('buy')" id="bn-buy"><div class="bn-ico">🎰</div><div class="bn-lbl">แทง</div></div>
     <div class="bn" onclick="navTo('slips')" id="bn-slips"><div class="bn-ico">🎫</div><div class="bn-lbl">โพย</div></div>
+    <div class="bn" onclick="navTo('history')" id="bn-history"><div class="bn-ico">📅</div><div class="bn-lbl">ย้อนหลัง</div></div>
     <div class="bn" onclick="navTo('wallet')" id="bn-wallet"><div class="bn-ico">💰</div><div class="bn-lbl">เงิน</div></div>
     <div class="bn" onclick="navTo('profile')" id="bn-profile"><div class="bn-ico">👤</div><div class="bn-lbl">โปร</div></div>
     <div class="bn" onclick="window.location.href='/admin.html'" id="bn-admin" style="display:none"><div class="bn-ico">⚙️</div><div class="bn-lbl">Admin</div></div>
@@ -695,7 +697,7 @@ document.querySelectorAll('.modal-bg').forEach(m => {
 // ══════════════════════════════════════════
 // NAVIGATION
 // ══════════════════════════════════════════
-const PC_BC_LABELS = {home:'หน้าหลัก',buy:'แทงหวย',slips:'โพยของฉัน',results:'ผลหวย',wallet:'กระเป๋าเงิน',promotions:'โปรโมชั่น',hotNumbers:'เลขเด็ด',profile:'โปรไฟล์',admin:'Admin',agent:'Agent'};
+const PC_BC_LABELS = {home:'หน้าหลัก',buy:'แทงหวย',slips:'โพยของฉัน',results:'ผลหวย',history:'ผลย้อนหลัง',wallet:'กระเป๋าเงิน',promotions:'โปรโมชั่น',hotNumbers:'เลขเด็ด',profile:'โปรไฟล์',admin:'Admin',agent:'Agent'};
 
 function showPage(name) {
   // Hide all top-level pages
@@ -803,6 +805,7 @@ function buildPage(name) {
     case 'buy': return buildBuy();
     case 'slips': return buildSlips();
     case 'results': return buildResults();
+    case 'history': return buildHistory();
     case 'wallet': return buildWallet();
     case 'promotions': return buildPromotions();
     case 'hotNumbers': return buildHotNumbers();
@@ -819,6 +822,7 @@ function afterRender(name) {
     case 'buy': initBuy(); break;
     case 'slips': loadSlips(); break;
     case 'results': loadResults(); break;
+    case 'history': loadHistory(); break;
     case 'wallet': loadWallet(); break;
     case 'promotions': loadPromotions(); break;
     case 'hotNumbers': loadHotNumbers(); break;
@@ -1826,6 +1830,143 @@ async function checkNumber() {
     </div>`;
   }
 }
+// ══════════════════════════════════════════
+// HISTORY PAGE  (ผลหวยย้อนหลัง)
+// ══════════════════════════════════════════
+function buildHistory() {
+  const today = new Date().toISOString().slice(0,10);
+  return `
+    <div class="page-title">📅 ผลหวยย้อนหลัง</div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+        <div style="flex:1;min-width:140px">
+          <label class="flabel">ประเภทหวย</label>
+          <select id="hist-type" class="finput" style="height:42px;margin-bottom:0" onchange="applyHistoryFilter()">
+            <option value="">ทั้งหมด</option>
+          </select>
+        </div>
+        <div style="flex:1;min-width:140px">
+          <label class="flabel">วันที่</label>
+          <input id="hist-date" class="finput" type="date" value="${today}" style="height:42px;margin-bottom:0" onchange="applyHistoryFilter()">
+        </div>
+      </div>
+    </div>
+    <div id="history-list"><div style="text-align:center;padding:40px;color:var(--t3)">กำลังโหลด...</div></div>
+    <div id="history-pagination" style="display:flex;justify-content:center;gap:10px;margin-top:14px"></div>`;
+}
+
+let HISTORY_TYPES = [];
+let HISTORY_PAGE  = 1;
+
+async function loadHistory() {
+  // Load lottery types for the dropdown
+  if (!HISTORY_TYPES.length) {
+    try {
+      const d = await api('GET', '/lottery/types?all=1', null, true);
+      HISTORY_TYPES = d.data || [];
+      const sel = document.getElementById('hist-type');
+      if (sel) {
+        HISTORY_TYPES.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t.id;
+          opt.textContent = (t.icon ? t.icon + ' ' : '') + t.name;
+          sel.appendChild(opt);
+        });
+      }
+    } catch(e) {}
+  }
+  HISTORY_PAGE = 1;
+  await fetchHistory();
+}
+
+async function applyHistoryFilter() {
+  HISTORY_PAGE = 1;
+  await fetchHistory();
+}
+
+async function fetchHistory(page) {
+  if (page) HISTORY_PAGE = page;
+  const typeId = document.getElementById('hist-type')?.value || '';
+  const date   = document.getElementById('hist-date')?.value  || new Date().toISOString().slice(0,10);
+  const listEl = document.getElementById('history-list');
+  const pageEl = document.getElementById('history-pagination');
+  if (listEl) listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">กำลังโหลด...</div>';
+
+  try {
+    let qs = `/lottery/results/history?date=${date}&page=${HISTORY_PAGE}&limit=30`;
+    if (typeId) qs += `&lottery_type_id=${typeId}`;
+    const res = await api('GET', qs, null, true);
+    const data = res.data || [];
+
+    if (!listEl) return;
+    if (!data.length) {
+      listEl.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่มีข้อมูลผลหวยในวันที่เลือก</div>';
+      if (pageEl) pageEl.innerHTML = '';
+      return;
+    }
+
+    // Group by lottery type for nicer display
+    const grouped = {};
+    data.forEach(r => {
+      const key = r.lottery_type_id;
+      if (!grouped[key]) grouped[key] = { name: r.lottery_name, icon: r.lottery_icon, code: r.lottery_code, rounds: [] };
+      grouped[key].rounds.push(r);
+    });
+
+    listEl.innerHTML = Object.values(grouped).map(g => {
+      const isYeekee = (g.code||'').toLowerCase().includes('yeekee') || g.name.includes('ยี่กี');
+      return `
+        <div style="margin-bottom:18px">
+          <div class="sec-title" style="margin-bottom:10px">${g.icon||'🎰'} ${g.name}</div>
+          ${g.rounds.map(r => {
+            const hasResult = r.result_id != null;
+            const first   = r.result_first   || '-';
+            const back2   = r.result_2_back  || '-';
+            const back31  = r.result_3_back1 || '-';
+            const back32  = r.result_3_back2 || '-';
+            const front31 = r.result_3_front1|| '-';
+            const front32 = r.result_3_front2|| '-';
+            const timeStr = r.close_at ? new Date(r.close_at).toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}) : '-';
+            const roundLabel = isYeekee
+              ? (r.round_name || r.round_code || `รอบ ${r.round_id}`)
+              : (r.round_name || r.round_code);
+            return `
+              <div class="result-card" style="margin-bottom:8px">
+                <div class="rc-head">
+                  <div class="rc-title" style="font-size:12px">${roundLabel}</div>
+                  <div class="rc-date">${timeStr}</div>
+                </div>
+                ${hasResult ? `
+                <div class="rc-body" style="padding:10px 14px">
+                  <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                    ${first!=='-'?`<div style="text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">รางวัลที่ 1</div><div style="font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px">${first}</div></div>`:''}
+                    ${back2!=='-'?`<div style="text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">2 ตัวล่าง</div><div style="font-size:18px;font-weight:900;color:var(--t1);letter-spacing:2px">${back2}</div></div>`:''}
+                    ${back31!=='-'?`<div style="text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">3 ตัวล่าง 1</div><div style="font-size:16px;font-weight:900;color:var(--t2);letter-spacing:2px">${back31}</div></div>`:''}
+                    ${back32!=='-'&&back32!==back31?`<div style="text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">3 ตัวล่าง 2</div><div style="font-size:16px;font-weight:900;color:var(--t2);letter-spacing:2px">${back32}</div></div>`:''}
+                    ${front31!=='-'?`<div style="text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">3 ตัวหน้า 1</div><div style="font-size:16px;font-weight:900;color:var(--t2);letter-spacing:2px">${front31}</div></div>`:''}
+                    ${front32!=='-'&&front32!==front31?`<div style="text-align:center"><div style="font-size:9px;color:var(--t3);margin-bottom:2px">3 ตัวหน้า 2</div><div style="font-size:16px;font-weight:900;color:var(--t2);letter-spacing:2px">${front32}</div></div>`:''}
+                  </div>
+                </div>` : `
+                <div class="rc-body" style="padding:10px 14px;text-align:center;color:var(--t4);font-size:11px">รอผล...</div>`}
+              </div>`;
+          }).join('')}
+        </div>`;
+    }).join('');
+
+    // Pagination
+    if (pageEl) {
+      const hasPrev = HISTORY_PAGE > 1;
+      const hasNext = data.length === 30;
+      pageEl.innerHTML = `
+        ${hasPrev ? `<button class="btn btn-ghost btn-sm" onclick="fetchHistory(${HISTORY_PAGE-1})">← ก่อนหน้า</button>` : ''}
+        <span style="font-size:12px;color:var(--t3);align-self:center">หน้า ${HISTORY_PAGE}</span>
+        ${hasNext ? `<button class="btn btn-ghost btn-sm" onclick="fetchHistory(${HISTORY_PAGE+1})">ถัดไป →</button>` : ''}`;
+    }
+  } catch(e) {
+    if (listEl) listEl.innerHTML = `<div style="text-align:center;padding:40px;color:var(--t3)">โหลดข้อมูลไม่ได้: ${e.message}</div>`;
+  }
+}
+
 // ══════════════════════════════════════════
 // WALLET PAGE
 // ══════════════════════════════════════════

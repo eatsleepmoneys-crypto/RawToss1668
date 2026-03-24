@@ -298,6 +298,38 @@ v1.get('/lottery/results', async (req,res) => {
   res.json({ data: await query(sql, params) });
 });
 
+/* LOTTERY RESULTS HISTORY */
+v1.get('/lottery/results/history', async (req, res) => {
+  const { lottery_type_id, date, page = 1, limit = 30 } = req.query;
+  const pageNum   = Math.max(1, parseInt(page) || 1);
+  const limitNum  = Math.min(100, Math.max(1, parseInt(limit) || 30));
+  const offset    = (pageNum - 1) * limitNum;
+  const dateStr   = date && /^\d{4}-\d{2}-\d{2}$/.test(date)
+    ? date
+    : new Date().toISOString().slice(0, 10);
+
+  let sql = `
+    SELECT r.id AS round_id, r.round_code, r.round_name, r.close_at, r.result_at, r.status,
+           lt.id AS lottery_type_id, lt.name AS lottery_name, lt.code AS lottery_code, lt.icon AS lottery_icon,
+           res.id AS result_id, res.result_first, res.result_2_back,
+           res.result_3_back1, res.result_3_back2, res.result_3_front1, res.result_3_front2,
+           res.entered_at
+    FROM lottery_rounds r
+    JOIN lottery_types lt ON r.lottery_type_id = lt.id
+    LEFT JOIN lottery_results res ON res.round_id = r.id
+    WHERE r.status IN ('resulted','closed')
+      AND DATE(r.close_at) = ?`;
+  const params = [dateStr];
+  if (lottery_type_id) { sql += ' AND r.lottery_type_id = ?'; params.push(parseInt(lottery_type_id)); }
+  sql += ` ORDER BY r.close_at DESC LIMIT ${limitNum} OFFSET ${offset}`;
+  try {
+    const data = await query(sql, params);
+    res.json({ data, date: dateStr, page: pageNum });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 /* SLIPS */
 v1.get('/slips',             auth, slipCtrl.getSlips);
 v1.get('/slips/:id',         auth, slipCtrl.getSlip);
@@ -602,6 +634,27 @@ async function autoResultYeekeeRound(roundId, roundCode) {
   }
 }
 
+/* AUTO-RESULT MISSED YEEKEE (closed but not resulted) */
+async function autoResultMissedYeekeeRounds() {
+  try {
+    const missed = await query(
+      `SELECT r.id, r.round_code
+       FROM lottery_rounds r
+       JOIN lottery_types lt ON r.lottery_type_id = lt.id
+       LEFT JOIN lottery_results res ON res.round_id = r.id
+       WHERE r.status = 'closed'
+         AND res.id IS NULL
+         AND (LOWER(lt.code) LIKE '%yeekee%' OR lt.name LIKE '%ยี่กี%')
+       LIMIT 20`
+    );
+    for (const r of missed) {
+      await autoResultYeekeeRound(r.id, r.round_code);
+    }
+  } catch(err) {
+    console.error('[AUTO-RESULT-MISSED] Error:', err.message);
+  }
+}
+
 /* AUTO-CREATE YEEKEE ROUNDS */
 async function autoCreateYeekeeRounds() {
   try {
@@ -677,7 +730,11 @@ server.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     autoCreateYeekeeRounds();
     autoCloseExpiredRounds();
-    setInterval(autoCloseExpiredRounds, 60_000);
+    autoResultMissedYeekeeRounds();
+    setInterval(async () => {
+      await autoCloseExpiredRounds();
+      await autoResultMissedYeekeeRounds();
+    }, 60_000);
     scheduleDailyYeekeeCreate();
   }, 5_000);
 });
