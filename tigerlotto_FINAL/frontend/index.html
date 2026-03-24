@@ -1606,34 +1606,43 @@ function filterSlips(f) {
 
 function renderSlips(f) {
   const list = document.getElementById('slips-list'); if(!list) return;
+  // Normalize status: DB stores 'active' for newly-created slips, treat as 'pending'
+  const normStatus = st => (st === 'active' ? 'pending' : st);
   let slips = ALL_SLIPS;
-  if (f !== 'all') slips = ALL_SLIPS.filter(s => s.status === f);
+  if (f !== 'all') slips = ALL_SLIPS.filter(s => normStatus(s.status) === f);
   if (!slips.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--t3)">ไม่มีโพย</div>'; return; }
   const STATUS_LABEL = {pending:'รอผล',win:'ถูกรางวัล',lose:'ไม่ถูก',cancelled:'ยกเลิก'};
-  const STATUS_COLOR = {pending:'var(--gold)',win:'var(--green)',lose:'var(--t3)',cancelled:'var(--red)'};
-  list.innerHTML = slips.map(s => `
-    <div class="slip-card${s.status==='win'?' slip-win':''}">
+  list.innerHTML = slips.map(s => {
+    const st = normStatus(s.status);
+    const items = s.items || [];
+    // Build compact number list from items
+    const numSummary = items.length
+      ? items.map(it => `<span style="font-size:14px;font-weight:900;color:#fff;letter-spacing:2px;margin-right:6px">${it.number}</span><span style="font-size:9px;color:var(--gold);opacity:.8">${it.bet_type_name||''}</span>`).join('<br>')
+      : `<span style="font-size:28px;font-weight:900;color:#fff;letter-spacing:4px">${s.number||'-'}</span>`;
+    const totalAmt = s.total_amount || s.amount || 0;
+    const isWin = st === 'win';
+    const badgeCls = isWin ? ' badge-ok' : (st === 'pending' ? ' badge-pend' : ' badge-fail');
+    return `
+    <div class="slip-card${isWin?' slip-win':''}">
       <div class="slip-head">
         <div>
-          <div style="font-size:12px;font-weight:700;color:var(--t2)">${s.lottery_type_name||s.type_name||'หวย'} — ${s.bet_type_name||s.betType||'3 ตัวบน'}</div>
-          <div style="font-size:10px;color:var(--t4)">${fmtDate(s.created_at)}</div>
+          <div style="font-size:12px;font-weight:700;color:var(--t2)">${s.lottery_name||s.lottery_type_name||'หวย'} · งวด ${s.round_code||''}</div>
+          <div style="font-size:10px;color:var(--t4)">${fmtDate(s.created_at)} · ${items.length} รายการ</div>
         </div>
-        <div>
-          <span class="badge${s.status==='win'?' badge-ok':s.status==='pending'?' badge-pend':' badge-fail'}">${STATUS_LABEL[s.status]||s.status}</span>
-        </div>
+        <span class="badge${badgeCls}">${STATUS_LABEL[st]||st}</span>
       </div>
-      <div class="slip-body">
-        <div style="font-size:28px;font-weight:900;color:${s.status==='win'?'var(--green)':'#fff'};letter-spacing:4px;margin-bottom:4px">${s.numbers||s.bet_number||'-'}</div>
-        <div style="font-size:11px;color:var(--gold);font-weight:700">${s.bet_type_name||'แทง'}</div>
-        <div style="font-size:12px;color:var(--t2);margin-top:2px">ยอดแทง: ${fmtMoney(s.amount||s.bet_amount)}</div>
+      <div class="slip-body" style="padding:8px 0">
+        ${numSummary}
+        <div style="font-size:12px;color:var(--t2);margin-top:6px">ยอดรวม: ${fmtMoney(totalAmt)}</div>
       </div>
       <div class="slip-foot">
-        <div style="font-size:13px;font-weight:700;color:${s.status==='win'?'var(--green)':'var(--t2)'}">
-          ${s.status==='win'?'ได้รับ: '+fmtMoney(s.payout_amount||s.win_amount):'จ่ายได้: '+fmtMoney((s.amount||0)*(s.payout_rate||1))}
+        <div style="font-size:13px;font-weight:700;color:${isWin?'var(--green)':'var(--t2)'}">
+          ${isWin ? 'ได้รับ: '+fmtMoney(s.payout_amount||s.win_amount||0) : ''}
         </div>
-        ${s.status==='pending'?`<button class="btn btn-red btn-sm" onclick="openCancelSlip(${s.id})">ยกเลิก</button>`:''}
+        ${st==='pending'?`<button class="btn btn-red btn-sm" type="button" onclick="openCancelSlip(${s.id})">ยกเลิก</button>`:''}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function openCancelSlip(id) {
