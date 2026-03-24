@@ -1202,9 +1202,10 @@ async function loadYeekeeRounds(typeId, typeCode) {
   const grid = document.getElementById('yk-round-grid');
   if (grid) grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">กำลังโหลดรอบ...</div>';
   try {
-    const raw = await api('GET', `/lottery/rounds?lottery_type=${encodeURIComponent(typeCode)}&status=open&limit=20`);
-    const rounds = Array.isArray(raw) ? raw : (raw.data || []);
-    if (grid) grid.innerHTML = rounds.length ? renderYeekeeRoundGrid(rounds) : '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่มีรอบที่เปิดรับขณะนี้</div>';
+    const raw = await api('GET', `/lottery/rounds?lottery_type_id=${typeId}&status=open&limit=30`);
+    const all = Array.isArray(raw) ? raw : (raw.data || []);
+    const upcoming = all.filter(r => new Date(r.close_at) > new Date()).slice(0, 15);
+    if (grid) grid.innerHTML = upcoming.length ? renderYeekeeRoundGrid(upcoming) : '<div style="text-align:center;padding:20px;color:var(--t3)">ไม่มีรอบที่เปิดรับขณะนี้</div>';
   } catch(e) {
     if (grid) grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--red)">โหลดรอบไม่สำเร็จ</div>';
   }
@@ -1221,16 +1222,23 @@ function renderYeekeeRoundGrid(rounds) {
     const parts = code.split('-');
     return parseInt(parts[parts.length - 1], 10) || code;
   }
+  const now = new Date();
+  // The "current" round is the first one whose close_at is still in the future
+  const currentId = rounds.length ? rounds[0].id : null;
   return rounds.map(r => {
-    const isOpen = r.status === 'open' && new Date(r.close_at) > new Date();
+    const isOpen = r.status === 'open' && new Date(r.close_at) > now;
+    const isCurrent = isOpen && r.id === currentId;
     const rn = roundNum(r.round_code);
     return `
       <div onclick="${isOpen ? `selectYeekeeRound(${r.id})` : ''}"
         style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;
-               background:var(--dark2);border:1px solid ${isOpen ? 'var(--border2)' : 'var(--border)'};
+               background:${isCurrent ? 'rgba(234,179,8,.08)' : 'var(--dark2)'};
+               border:1px solid ${isCurrent ? 'var(--gold)' : isOpen ? 'var(--border2)' : 'var(--border)'};
                border-radius:var(--r2);cursor:${isOpen ? 'pointer' : 'default'};opacity:${isOpen ? '1' : '.5'}">
         <div>
-          <div style="font-size:14px;font-weight:900;color:${isOpen ? 'var(--gold)' : 'var(--t3)'}">รอบที่ ${rn}</div>
+          <div style="font-size:14px;font-weight:900;color:${isOpen ? 'var(--gold)' : 'var(--t3)'}">
+            รอบที่ ${rn}${isCurrent ? ' <span style="font-size:10px;color:var(--gold);font-weight:700;background:rgba(234,179,8,.15);padding:1px 6px;border-radius:8px">● ถัดไป</span>' : ''}
+          </div>
           <div style="font-size:10px;color:var(--t3);margin-top:3px">${fmt(r.open_at)} → ${fmt(r.close_at)}</div>
         </div>
         <div style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
@@ -1256,7 +1264,8 @@ async function selectBuyType(id, name) {
 
   const typeObj = STATE.lotteryTypes.find(t => t.id === id);
   const typeCode = typeObj ? (typeObj.code || typeObj.slug || '') : '';
-  const isYeekee = /yeekee|ยี่กี|ping.?pong|ปิงปอง|rapid/.test(typeCode + (typeObj?.name_th || ''));
+  const typeName = typeObj ? (typeObj.name_th || typeObj.name || '') : '';
+  const isYeekee = /yeekee|ยี่กี่|ยี่กี|ping.?pong|ปิงปอง|rapid/i.test(typeCode + typeName);
 
   if (isYeekee) {
     await loadYeekeeRounds(id, typeCode);
