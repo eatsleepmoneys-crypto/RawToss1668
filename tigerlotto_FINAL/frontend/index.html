@@ -636,6 +636,7 @@ let STATE = {
   buyBetTypeName: '',
   buyBetTypePayout: 1,
   buyBetTypeDigits: 3,
+  buyBetTypeIds: [],   // multi-select: [{id,name_th,payout,digits}]
   buyNumber: '',
   buyAmount: 0,
   buySlip: [],  // [{number, betTypeId, betTypeName, payout, digits}]
@@ -1163,6 +1164,7 @@ async function initBuy() {
     STATE.buyNumber = '';
     STATE.buyAmount = 0;
     STATE.buySlip = [];
+    STATE.buyBetTypeIds = [];
   }
   try {
     const raw = await api('GET', '/lottery/types');
@@ -1306,22 +1308,60 @@ async function loadBetTypes(typeId) {
       </div>
     </div>`;
   }
-  tabs.innerHTML = renderGroup('🔢 3 ตัว', g3) + renderGroup('🔢 2 ตัว', g2);
-  // Auto-select first type
+  tabs.innerHTML = renderGroup('🔢 3 ตัว', g3) + renderGroup('🔢 2 ตัว', g2)
+    + `<div id="bet-multiselect-hint" style="display:none;font-size:10px;color:var(--gold);background:rgba(255,210,76,.08);border-radius:5px;padding:3px 8px;margin-top:4px"></div>`;
+  // Reset multi-select state then auto-select first type
+  STATE.buyBetTypeIds = [];
   selectBetType(ALLOWED[0].id, ALLOWED[0].name_th, ALLOWED[0].payout, ALLOWED[0].digits);
-  const firstBtn = tabs.querySelector(`.bet-tab[data-id="${ALLOWED[0].id}"]`);
-  if (firstBtn) firstBtn.classList.add('on');
 }
 
 function selectBetType(id, name, payout, digits) {
-  STATE.buyBetTypeId = id; STATE.buyBetTypeName = name;
-  STATE.buyBetTypePayout = payout; STATE.buyBetTypeDigits = digits;
+  // Multi-select: toggle within same digit group; switching groups clears selection
+  const existing = STATE.buyBetTypeIds.find(t => t.id === id);
+  const diffGroup = STATE.buyBetTypeIds.length > 0 && STATE.buyBetTypeIds[0].digits !== digits;
+  if (diffGroup) STATE.buyBetTypeIds = [];   // clear when switching digit group
+
+  if (existing) {
+    STATE.buyBetTypeIds = STATE.buyBetTypeIds.filter(t => t.id !== id);
+    if (!STATE.buyBetTypeIds.length) STATE.buyBetTypeIds = [{id,name_th:name,payout,digits}]; // keep at least 1
+  } else {
+    STATE.buyBetTypeIds.push({id,name_th:name,payout,digits});
+  }
+
+  // Primary type = first in list (determines digit count)
+  const primary = STATE.buyBetTypeIds[0];
+  STATE.buyBetTypeId = primary.id;
+  STATE.buyBetTypeName = primary.name_th;
+  STATE.buyBetTypePayout = primary.payout;
+  STATE.buyBetTypeDigits = primary.digits;
   STATE.buyNumber = '';
-  document.querySelectorAll('.bet-tab').forEach(t => t.classList.remove('on'));
-  const activeBtn = document.querySelector(`.bet-tab[data-id="${id}"]`);
-  if (activeBtn) activeBtn.classList.add('on');
-  else if (event && event.target && event.target.classList.contains('bet-tab')) event.target.classList.add('on');
+
+  // Sync tab highlights
+  const selectedIds = new Set(STATE.buyBetTypeIds.map(t => t.id));
+  document.querySelectorAll('.bet-tab').forEach(btn => {
+    btn.classList.toggle('on', selectedIds.has(+btn.dataset.id));
+  });
+
+  // Show multi-select hint
+  const hint = document.getElementById('bet-multiselect-hint');
+  if (hint) {
+    if (STATE.buyBetTypeIds.length > 1) {
+      hint.textContent = `✓ เลือก ${STATE.buyBetTypeIds.length} ประเภท: ${STATE.buyBetTypeIds.map(t=>t.name_th).join(', ')}`;
+      hint.style.display = '';
+    } else { hint.style.display = 'none'; }
+  }
   updateNumDisplay();
+}
+
+// Generate all unique permutations of a string
+function getPermutations(s) {
+  if (s.length <= 1) return [s];
+  const result = new Set();
+  for (let i = 0; i < s.length; i++) {
+    const rest = s.slice(0,i) + s.slice(i+1);
+    for (const p of getPermutations(rest)) result.add(s[i] + p);
+  }
+  return [...result];
 }
 
 function np(k) {
@@ -1351,34 +1391,52 @@ function addToSlip() {
   const num = STATE.buyNumber;
   if (!num || num.length < STATE.buyBetTypeDigits) return;
 
-  // For "กลับ" types: auto-add reversed number too
-  const isReverse = STATE.buyBetTypeName.includes('กลับ');
   const rev = num.split('').reverse().join('');
-  const numbersToAdd = [num];
-  if (isReverse && rev !== num) numbersToAdd.push(rev);
-
+  const amt = STATE.buyAmount || 0;
   let added = 0;
-  for (const n of numbersToAdd) {
-    const dup = STATE.buySlip.find(s => s.number === n && s.betTypeId === STATE.buyBetTypeId);
-    if (dup) { showToast(`เลข ${n} มีในโพยแล้ว`, 'err'); continue; }
-    STATE.buySlip.push({
-      number: n,
-      betTypeId: STATE.buyBetTypeId,
-      betTypeName: STATE.buyBetTypeName,
-      payout: STATE.buyBetTypePayout,
-      digits: STATE.buyBetTypeDigits,
-      amount: STATE.buyAmount || 0,
-    });
-    added++;
+  const newEntries = []; // collect all entries to add
+
+  for (const bt of (STATE.buyBetTypeIds.length ? STATE.buyBetTypeIds : [{
+      id: STATE.buyBetTypeId, name_th: STATE.buyBetTypeName,
+      payout: STATE.buyBetTypePayout, digits: STATE.buyBetTypeDigits}])) {
+
+    // ── Special: 3 ตัวหมุน 6 ประตู (id 7) → explode to all permutations as "3 ตัวบน" ──
+    if (bt.id === 7) {
+      const perms = getPermutations(num);
+      for (const p of perms) {
+        if (STATE.buySlip.find(s => s.number === p && s.betTypeId === 1)) continue;
+        newEntries.push({ number:p, betTypeId:1, betTypeName:'3 ตัวบน', payout:900, digits:3, amount:amt });
+      }
+      continue;
+    }
+
+    // ── Special: 2 ตัวบนล่างกลับ (id 8) → num(บน) + num(ล่าง) + rev(บน) + rev(ล่าง) ──
+    if (bt.id === 8) {
+      const pairs = rev !== num
+        ? [[num,3,'2 ตัวบน',90],[num,4,'2 ตัวล่าง',90],[rev,3,'2 ตัวบน',90],[rev,4,'2 ตัวล่าง',90]]
+        : [[num,3,'2 ตัวบน',90],[num,4,'2 ตัวล่าง',90]];
+      for (const [n,tid,tname,tpay] of pairs) {
+        if (STATE.buySlip.find(s => s.number === n && s.betTypeId === tid)) continue;
+        newEntries.push({ number:n, betTypeId:tid, betTypeName:tname, payout:tpay, digits:2, amount:amt });
+      }
+      continue;
+    }
+
+    // ── Normal types ──
+    if (STATE.buySlip.find(s => s.number === num && s.betTypeId === bt.id)) {
+      showToast(`เลข ${num} ประเภท ${bt.name_th} มีในโพยแล้ว`, 'err');
+      continue;
+    }
+    newEntries.push({ number:num, betTypeId:bt.id, betTypeName:bt.name_th, payout:bt.payout, digits:bt.digits, amount:amt });
   }
+
+  STATE.buySlip.push(...newEntries);
+  added = newEntries.length;
+
   STATE.buyNumber = '';
   updateNumDisplay();
   renderSlipList();
-  if (added > 0) {
-    const msg = isReverse && rev !== num && added === 2
-      ? `เพิ่ม ${num} + ${rev} (กลับ) ✓` : `เพิ่ม ${num} ✓`;
-    showToast(msg);
-  }
+  if (added > 0) showToast(`เพิ่ม ${added} รายการ ✓`);
 }
 
 function renderSlipList() {
