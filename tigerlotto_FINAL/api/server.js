@@ -655,6 +655,51 @@ async function autoResultMissedYeekeeRounds() {
   }
 }
 
+/* AUTO-CREATE HANOI ROUNDS (3 ประเภท ทุกวัน) */
+async function autoCreateHanoiRounds() {
+  // เวลาเปิด/ปิดแต่ละประเภท (ICT = UTC+7)
+  const schedule = [
+    { code: 'hanoi_special', name: 'ฮานอยพิเศษ',  openH: 9,  openM: 0,  closeH: 17, closeM: 0  },
+    { code: 'hanoi',         name: 'ฮานอยปกติ',   openH: 9,  openM: 0,  closeH: 18, closeM: 0  },
+    { code: 'hanoi_vip',     name: 'ฮานอย VIP',   openH: 9,  openM: 0,  closeH: 19, closeM: 0  },
+  ];
+
+  // วันนี้ (ICT)
+  const now = new Date();
+  const ict = new Date(now.getTime() + 7 * 3600 * 1000);
+  const yyyy = ict.getUTCFullYear();
+  const mm   = String(ict.getUTCMonth() + 1).padStart(2, '0');
+  const dd   = String(ict.getUTCDate()).padStart(2, '0');
+  const dateStr = `${yyyy}${mm}${dd}`;
+
+  try {
+    for (const s of schedule) {
+      // หา lottery_type_id
+      const lt = await queryOne('SELECT id FROM lottery_types WHERE code=?', [s.code]);
+      if (!lt) { console.log(`[HANOI-CREATE] type ${s.code} not found`); continue; }
+
+      const roundCode = `${s.code.toUpperCase()}-${dateStr}`;
+
+      // ตรวจว่ามีแล้วหรือยัง
+      const existing = await queryOne('SELECT id FROM lottery_rounds WHERE round_code=?', [roundCode]);
+      if (existing) continue;
+
+      // สร้าง timestamp ICT → UTC
+      const openAt  = new Date(Date.UTC(yyyy, ict.getUTCMonth(), ict.getUTCDate(), s.openH  - 7, s.openM));
+      const closeAt = new Date(Date.UTC(yyyy, ict.getUTCMonth(), ict.getUTCDate(), s.closeH - 7, s.closeM));
+
+      await query(
+        `INSERT INTO lottery_rounds (lottery_type_id, round_code, round_name, open_at, close_at, status, created_by)
+         VALUES (?, ?, ?, ?, ?, 'open', 0)`,
+        [lt.id, roundCode, `${s.name} ${dd}/${mm}/${yyyy}`, openAt, closeAt]
+      );
+      console.log(`[HANOI-CREATE] Created ${roundCode}`);
+    }
+  } catch (err) {
+    console.error('[HANOI-CREATE] Error:', err.message);
+  }
+}
+
 /* AUTO-CREATE YEEKEE ROUNDS */
 async function autoCreateYeekeeRounds() {
   try {
@@ -716,6 +761,7 @@ function scheduleDailyYeekeeCreate() {
     if (now.getHours() === 0 && now.getMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
       _lastYkCreateDate = dateKey;
       autoCreateYeekeeRounds();
+      autoCreateHanoiRounds();
     }
   }, 60_000);
 }
@@ -728,6 +774,7 @@ server.listen(PORT, '0.0.0.0', () => {
   const { pool } = require('./config/db');
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
   setTimeout(() => {
+    autoCreateHanoiRounds();
     autoCreateYeekeeRounds();
     autoCloseExpiredRounds();
     autoResultMissedYeekeeRounds();
