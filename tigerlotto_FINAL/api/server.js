@@ -128,6 +128,7 @@ const bankCtrl   = require('./controllers/bankController');
 const { auth, adminOnly, agentOnly } = require('./middleware/auth');
 const { query, queryOne } = require('./config/db');
 const { startLotteryFetcher, fetcherStatus } = require('./services/lotteryFetcher');
+const { startRoundManager } = require('./services/roundManager');
 
 // ── V1 Router ─────────────────────────────────────────────────
 const v1 = express.Router();
@@ -407,6 +408,7 @@ server.listen(PORT, '0.0.0.0', async () => {
     const { pool } = require('./config/db');
     await pool.execute('SELECT 1');
     startLotteryFetcher();
+    startRoundManager();
   } catch (err) {
     console.error('[FETCHER] DB not ready, lottery fetcher NOT started:', err.message);
   }
