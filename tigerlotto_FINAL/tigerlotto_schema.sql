@@ -433,11 +433,13 @@ SET FOREIGN_KEY_CHECKS = 1;
 
 -- ประเภทหวย
 INSERT INTO lottery_types (code, name, icon, rounds_per_day, sort_order) VALUES
-('gov',    'หวยรัฐบาลไทย', '🇹🇭', 2,  1),
-('yeekee', 'หวยยี่กี 24ชม.', '⚡', 90, 2),
-('set',    'หวยหุ้น SET',   '📈', 2,  3),
-('hanoi',  'หวยฮานอย',     '🌏', 1,  4),
-('laos',   'หวยลาว',        '🇱🇦', 1,  5);
+('gov',           'หวยรัฐบาลไทย',   '🇹🇭', 2,  1),
+('yeekee',        'หวยยี่กี 24ชม.',  '⚡',  90, 2),
+('set',           'หวยหุ้น SET',     '🇹🇭', 2,  3),
+('hanoi',         'หวยฮานอย',       '🇻🇳', 1,  4),
+('hanoi_vip',     'หวยฮานอย VIP',   '🇻🇳', 1,  5),
+('hanoi_special', 'หวยฮานอยพิเศษ', '🇻🇳', 1,  6),
+('laos',          'หวยลาว',          '🇱🇦', 1,  7);
 
 -- อัตราจ่ายหวยรัฐบาล
 INSERT INTO bet_types (lottery_type_id, code, name, digits, payout_rate, max_bet) VALUES

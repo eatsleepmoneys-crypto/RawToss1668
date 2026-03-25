@@ -194,11 +194,13 @@ function renderLottoGrid() {
   if (!grid) return;
 
   const TYPE_META = {
-    gov:    { icon:'🇹🇭', rate:'฿750', color:'#1A1200', border:'#B8860B55', sub:'งวด 16 มี.ค.' },
-    yeekee: { icon:'⚡', rate:'฿700', color:'#0a1a0a', border:'#3BD44133', sub:'90 รอบ/วัน' },
-    set:    { icon:'📈', rate:'฿680', color:'#0a0a1a', border:'#378ADD33', sub:'เช้า/บ่าย' },
-    hanoi:  { icon:'🌏', rate:'฿650', color:'#1a0a00', border:'#D85A3033', sub:'ทุกวัน' },
-    laos:   { icon:'🇱🇦', rate:'฿620', color:'#111',   border:'#1e1e1e',   sub:'ทุกวัน' },
+    gov:           { icon:'🇹🇭', rate:'฿750', color:'#1A1200', border:'#B8860B55', sub:'งวด 16 มี.ค.' },
+    yeekee:        { icon:'⚡',  rate:'฿700', color:'#0a1a0a', border:'#3BD44133', sub:'90 รอบ/วัน' },
+    set:           { icon:'🇹🇭', rate:'฿680', color:'#0a0a1a', border:'#378ADD33', sub:'เช้า/บ่าย' },
+    hanoi:         { icon:'🇻🇳', rate:'฿650', color:'#1a0a00', border:'#D85A3033', sub:'ทุกวัน 18:30' },
+    hanoi_vip:     { icon:'🇻🇳', rate:'฿680', color:'#1a0800', border:'#FFD70033', sub:'ทุกวัน 18:00' },
+    hanoi_special: { icon:'🇻🇳', rate:'฿660', color:'#1a0500', border:'#FF450033', sub:'ทุกวัน 17:30' },
+    laos:          { icon:'🇱🇦', rate:'฿620', color:'#111',    border:'#1e1e1e',   sub:'ทุกวัน 20:30' },
   };
 
   const types = STATE.lotteryTypes.length ? STATE.lotteryTypes : [
