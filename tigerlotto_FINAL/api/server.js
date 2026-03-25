@@ -180,7 +180,7 @@ v1.delete('/me/banks/:id',       auth, bankCtrl.remove);
 
 /* WALLET */
 v1.get('/wallet',                auth, walletCtrl.getWallet);
-v1.post('/wallet/deposit',       auth, walletCtrl.deposit);
+v1.post('/wallet/deposit',       auth, walletCtrl.upload.single('slip_image'), walletCtrl.deposit);
 v1.post('/wallet/withdraw',      auth, walletCtrl.withdraw);
 v1.get('/wallet/transactions',   auth, walletCtrl.getTransactions);
 
@@ -258,6 +258,20 @@ v1.put('/notifications/:id/read',   auth, async (req,res) => {
   res.json({ success:true });
 });
 
+/* PAYMENT BANK INFO (public) */
+v1.get('/payment/bank-info', async (req,res) => {
+  const [bank, acct, name] = await Promise.all([
+    queryOne("SELECT value FROM system_settings WHERE `key`='payment_bank_name'"),
+    queryOne("SELECT value FROM system_settings WHERE `key`='payment_bank_account'"),
+    queryOne("SELECT value FROM system_settings WHERE `key`='payment_bank_account_name'"),
+  ]);
+  res.json({
+    bank_name:       bank?.value  || 'ธนาคารกสิกรไทย (KBANK)',
+    account_number:  acct?.value  || '000-0-00000-0',
+    account_name:    name?.value  || 'บริษัท ไทเกอร์ลอตโต้ จำกัด',
+  });
+});
+
 /* PROMOTIONS */
 v1.get('/promotions', async (req,res) => {
   res.json({ data: await query('SELECT * FROM promotions WHERE is_active=1 ORDER BY is_featured DESC') });
@@ -283,14 +297,15 @@ v1.get('/agent/referral-link',      auth, agentOnly, agentCtrl.getReferralLink);
 
 /* ADMIN */
 v1.get('/admin/dashboard', auth, adminOnly, async (req,res) => {
-  const [members,active,withdraw,revenue,pending_kyc] = await Promise.all([
+  const [members,active,withdraw,revenue,pending_kyc,pending_dep] = await Promise.all([
     queryOne('SELECT COUNT(*) AS c FROM users WHERE role="member"'),
     queryOne('SELECT COUNT(*) AS c FROM users WHERE DATE(last_login_at)=CURDATE()'),
     queryOne('SELECT SUM(amount) AS t FROM transactions WHERE type="withdraw" AND status="pending"'),
     queryOne('SELECT SUM(amount) AS t FROM transactions WHERE type="bet" AND DATE(created_at)=CURDATE()'),
     queryOne('SELECT COUNT(*) AS c FROM user_kyc WHERE status="pending"'),
+    queryOne('SELECT COUNT(*) AS c FROM transactions WHERE type="deposit" AND status="pending"'),
   ]);
-  res.json({ total_members:members.c, active_today:active.c, pending_withdraw:withdraw.t||0, revenue_today:revenue.t||0, pending_kyc:pending_kyc.c });
+  res.json({ total_members:members.c, active_today:active.c, pending_withdraw:withdraw.t||0, revenue_today:revenue.t||0, pending_kyc:pending_kyc.c, pending_deposit:pending_dep.c });
 });
 v1.get('/admin/users', auth, adminOnly, async (req,res) => {
   const { page=1, limit=50, role, is_active } = req.query;
@@ -324,7 +339,24 @@ v1.put('/admin/transactions/:id/approve', auth, adminOnly, async (req,res) => {
   if (!tx) return res.status(404).json({ error:'NOT_FOUND' });
   await query("UPDATE transactions SET status='success',processed_by=?,processed_at=NOW() WHERE id=?",[req.user.id,req.params.id]);
   await query('UPDATE wallets SET locked_balance=locked_balance-? WHERE user_id=?',[tx.amount,tx.user_id]);
+  console.log(`[MANUAL APPROVE] admin_id=${req.user.id} approved withdraw tx_id=${req.params.id} amount=${tx.amount} user_id=${tx.user_id}`);
   res.json({ success:true });
+});
+v1.put('/admin/transactions/:id/approve-deposit', auth, adminOnly, async (req,res) => {
+  const tx = await queryOne("SELECT * FROM transactions WHERE id=? AND type='deposit' AND status='pending'",[req.params.id]);
+  if (!tx) return res.status(404).json({ error:'NOT_FOUND' });
+  await walletCtrl.approveDeposit(tx.id, tx.user_id, tx.amount);
+  await query("UPDATE transactions SET processed_by=?,note=CONCAT(IFNULL(note,''),' [MANUAL_APPROVED_BY:',?,']') WHERE id=?",[req.user.id,req.user.id,req.params.id]);
+  console.log(`[MANUAL APPROVE] admin_id=${req.user.id} approved deposit tx_id=${req.params.id} amount=${tx.amount} user_id=${tx.user_id}`);
+  res.json({ success:true });
+});
+v1.get('/admin/transactions/:id/slip', auth, adminOnly, async (req,res) => {
+  const tx = await queryOne('SELECT slip_image FROM transactions WHERE id=?',[req.params.id]);
+  if (!tx?.slip_image) return res.status(404).json({ error:'NOT_FOUND', message:'ไม่มีไฟล์สลิป' });
+  const slipName = tx.slip_image.replace(/^\/uploads\//, '');
+  const filePath = path.join(uploadDir, slipName);
+  if (!fs.existsSync(filePath)) return res.status(404).json({ error:'FILE_NOT_FOUND', message:'ไม่พบไฟล์สลิปบนเซิร์ฟเวอร์' });
+  res.sendFile(filePath);
 });
 v1.post('/admin/lottery/rounds/:id/result', auth, adminOnly, resultCtrl.enterResult);
 v1.get('/admin/kyc',             auth, adminOnly, kycCtrl.adminListKYC);

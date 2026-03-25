@@ -9,6 +9,7 @@ const ADMIN_MENU = [
   { k:'dashboard',    icon:'📊', label:'Dashboard'           },
   { k:'users',        icon:'👥', label:'สมาชิก'              },
   { k:'transactions', icon:'💳', label:'ธุรกรรม'             },
+  { k:'deposits',     icon:'📥', label:'อนุมัติฝาก', badge:true },
   { k:'withdrawals',  icon:'📤', label:'อนุมัติถอน', badge:true },
   { sec: 'หวย' },
   { k:'rounds',       icon:'📅', label:'จัดการงวด'          },
@@ -56,6 +57,7 @@ async function navTo(key) {
       case 'dashboard':    await renderDashboard(el);    break;
       case 'users':        await renderUsers(el);        break;
       case 'transactions': await renderTransactions(el); break;
+      case 'deposits':     await renderDeposits(el);     break;
       case 'withdrawals':  await renderWithdrawals(el);  break;
       case 'rounds':       await renderRounds(el);       break;
       case 'enter_result': await renderEnterResult(el);  break;
@@ -84,6 +86,10 @@ async function renderDashboard(el) {
     ${d.pending_kyc > 0 ? `<div style="background:#1a0800;border:1.5px solid #D85A3055;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
       <span style="font-size:12px;color:var(--red)">⚠️ รอตรวจสอบ KYC ${d.pending_kyc} รายการ</span>
       <button onclick="navTo('kyc')" style="padding:5px 12px;border-radius:7px;background:var(--red);border:none;color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">ดูเลย</button>
+    </div>` : ''}
+    ${(d.pending_deposit||0) > 0 ? `<div style="background:#0a1a0a;border:1.5px solid #3BD44133;border-radius:10px;padding:12px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:var(--green)">📥 รออนุมัติฝากเงิน ${d.pending_deposit} รายการ</span>
+      <button onclick="navTo('deposits')" style="padding:5px 12px;border-radius:7px;background:var(--green);border:none;color:var(--dark);font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">อนุมัติ</button>
     </div>` : ''}`;
 }
 
@@ -137,20 +143,110 @@ async function renderTransactions(el) {
     <div class="pg-title">💳 ธุรกรรม</div>
     <div class="card" style="padding:8px;overflow-x:auto">
       <table>
-        <thead><tr><th>REF</th><th>สมาชิก</th><th>ประเภท</th><th>จำนวน</th><th>สถานะ</th><th>เวลา</th></tr></thead>
+        <thead><tr><th>REF</th><th>สมาชิก</th><th>ประเภท</th><th>จำนวน</th><th>สถานะ</th><th>เวลา</th><th>สลิป</th></tr></thead>
         <tbody>${txs.map(tx => `
           <tr>
             <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
             <td style="font-size:11px;color:#ccc">${tx.first_name||''} ${tx.last_name||''}</td>
-            <td><span class="badge ${tx.type==='deposit'||tx.type==='win'?'b-ok':tx.type==='withdraw'?'b-fail':'b-pend'}">${tx.type}</span></td>
+            <td>
+              <span class="badge ${tx.type==='deposit'||tx.type==='win'?'b-ok':tx.type==='withdraw'?'b-fail':'b-pend'}">${tx.type}</span>
+              ${tx.type==='deposit' ? (tx.note&&tx.note.includes('[AUTO:')
+                ? '<span class="badge" style="background:#0a1a0a;border:1px solid #3BD44133;color:var(--green);font-size:8px;margin-left:3px">🤖 Auto</span>'
+                : '<span class="badge" style="background:#1a1a0a;border:1px solid #FFD70033;color:#888;font-size:8px;margin-left:3px">👤 Manual</span>') : ''}
+            </td>
             <td style="font-size:12px;font-weight:700;color:${['deposit','win','bonus'].includes(tx.type)?'var(--green)':'var(--red)'}">
               ${['deposit','win','bonus'].includes(tx.type)?'+':'-'}฿${parseFloat(tx.amount||0).toLocaleString()}</td>
             <td><span class="badge ${tx.status==='success'?'b-ok':tx.status==='pending'?'b-pend':'b-fail'}">${tx.status}</span></td>
             <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
+            <td style="display:flex;gap:3px">
+              ${tx.slip_image ? `<button onclick="viewSlip(${tx.id})"
+                style="padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;cursor:pointer;font-family:inherit;background:#0a1a0a;border:1px solid #3BD44133;color:var(--green)">
+                🖼 สลิป
+              </button>` : ''}
+              ${tx.type==='deposit'&&tx.status==='pending' ? `<button onclick="approveDeposit(${tx.id})"
+                style="padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;cursor:pointer;font-family:inherit;background:#1A1200;border:1px solid #FFD70033;color:var(--gold)">
+                ✅ อนุมัติ
+              </button>` : ''}
+            </td>
           </tr>`).join('')}
         </tbody>
       </table>
     </div>`;
+}
+
+async function viewSlip(txId) {
+  const token = localStorage.getItem('tgl_token');
+  const url = Admin.slipUrl(txId) + (token ? '?token=' + token : '');
+  // เปิดสลิปใน overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer';
+  overlay.innerHTML = `
+    <div style="font-size:12px;color:#888;margin-bottom:10px">คลิกที่ใดก็ได้เพื่อปิด</div>
+    <img src="${Admin.slipUrl(txId)}" style="max-width:90vw;max-height:80vh;border-radius:12px;border:2px solid var(--gold2)"
+      onerror="this.parentElement.parentElement.remove();toast('โหลดสลิปไม่ได้','err')">`;
+  overlay.onclick = () => overlay.remove();
+  document.body.appendChild(overlay);
+  // ใส่ Authorization header ผ่าน fetch แล้ว blob URL แทน
+  const tok = localStorage.getItem('tgl_token');
+  if (tok) {
+    overlay.querySelector('img').remove();
+    const img2 = document.createElement('img');
+    img2.style.cssText = 'max-width:90vw;max-height:80vh;border-radius:12px;border:2px solid var(--gold2)';
+    try {
+      const r = await fetch(Admin.slipUrl(txId), { headers: { Authorization: 'Bearer ' + tok } });
+      if (!r.ok) throw new Error('error');
+      const blob = await r.blob();
+      img2.src = URL.createObjectURL(blob);
+    } catch { img2.alt = 'โหลดสลิปไม่ได้'; img2.style.color='var(--red)'; }
+    overlay.appendChild(img2);
+  }
+}
+
+async function approveDeposit(id) {
+  try {
+    await Admin.approveDeposit(id);
+    toast('✅ อนุมัติฝากเงินแล้ว ยอดเงินเข้าบัญชีสมาชิกแล้ว');
+    navTo('transactions');
+  } catch(e) { toast(e.message, 'err'); }
+}
+
+// ── PENDING DEPOSITS ──────────────────────────────────────────
+async function renderDeposits(el) {
+  const res = await Admin.transactions({ type:'deposit', status:'pending', limit:50 });
+  const txs = res.data || [];
+  const badge = document.getElementById('badge-deposits');
+  if (badge) badge.textContent = txs.length;
+
+  el.innerHTML = `
+    <div class="pg-title">📥 อนุมัติฝากเงิน
+      <span style="font-size:12px;font-weight:400;color:#555">${txs.length} รายการรออนุมัติ</span>
+    </div>
+    ${txs.length ? `<div class="card" style="padding:8px;overflow-x:auto">
+      <table>
+        <thead><tr><th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วันที่</th><th>สลิป</th><th>อนุมัติ</th></tr></thead>
+        <tbody>${txs.map(tx => `
+          <tr>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
+            <td style="color:#ccc">${tx.first_name||''} ${tx.last_name||''}<br>
+              <span style="font-size:9px;color:#555">${tx.phone||''}</span></td>
+            <td style="font-size:14px;font-weight:900;color:var(--green)">+฿${parseFloat(tx.amount||0).toLocaleString()}</td>
+            <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
+            <td>
+              ${tx.slip_image ? `<button onclick="viewSlip(${tx.id})"
+                style="padding:4px 10px;border-radius:6px;background:#0a1a0a;border:1.5px solid #3BD44133;color:var(--green);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">
+                🖼 ดูสลิป
+              </button>` : '<span style="font-size:10px;color:#555">ไม่มีสลิป</span>'}
+            </td>
+            <td>
+              <button onclick="approveDeposit(${tx.id})"
+                style="padding:4px 10px;border-radius:6px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:10px;font-weight:900;cursor:pointer;font-family:inherit">
+                ✅ อนุมัติ
+              </button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>` : '<div class="card" style="text-align:center;padding:30px;color:#444">✅ ไม่มีรายการรออนุมัติ</div>'}`;
 }
 
 // ── WITHDRAWALS ───────────────────────────────────────────────

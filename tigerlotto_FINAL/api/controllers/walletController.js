@@ -1,9 +1,29 @@
 const { query, queryOne, transaction } = require('../config/db');
 const { v4: uuidv4 } = require('uuid');
+const path   = require('path');
+const fs     = require('fs');
+const multer = require('multer');
 
 function refNo(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2,4).toUpperCase()}`;
 }
+
+// ── Multer: slip upload ────────────────────────────────────────
+const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../../uploads');
+fs.mkdirSync(uploadDir, { recursive: true });
+
+const slipStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, uploadDir),
+  filename:    (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
+    cb(null, `slip_${Date.now()}_${Math.random().toString(36).substr(2,6)}${ext}`);
+  },
+});
+const slipFilter = (_req, file, cb) => {
+  if (/^image\/(jpeg|jpg|png|webp)$/.test(file.mimetype)) cb(null, true);
+  else cb(new Error('รองรับเฉพาะ jpg/png/webp เท่านั้น'), false);
+};
+exports.upload = multer({ storage: slipStorage, fileFilter: slipFilter, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // ── GET /wallet ───────────────────────────────────────────────
 exports.getWallet = async (req, res) => {
@@ -19,9 +39,15 @@ exports.getWallet = async (req, res) => {
 // ── POST /wallet/deposit ──────────────────────────────────────
 exports.deposit = async (req, res) => {
   try {
-    const { amount, payment_method, slip_image } = req.body;
+    const { amount, payment_method } = req.body;
+    // slip_image มาจาก multer req.file
+    const slip_image = req.file ? `/uploads/${req.file.filename}` : null;
+
     if (!amount || amount < 1)
       return res.status(422).json({ error: 'VALIDATION', message: 'จำนวนเงินไม่ถูกต้อง' });
+
+    if (payment_method === 'bank_transfer' && !slip_image)
+      return res.status(422).json({ error: 'VALIDATION', message: 'กรุณาแนบสลิปโอนเงิน' });
 
     const wallet = await queryOne('SELECT balance FROM wallets WHERE user_id=?', [req.user.id]);
     const ref = refNo('DEP');
@@ -29,19 +55,54 @@ exports.deposit = async (req, res) => {
     const txId = await transaction(async (conn) => {
       const [tx] = await conn.execute(
         `INSERT INTO transactions (ref_no,user_id,type,amount,balance_before,balance_after,payment_method,slip_image,status,note)
-         VALUES (?,?,'deposit',?,?,?,'${payment_method||'bank_transfer'}',?,'pending','ฝากเงิน')`,
-        [ref, req.user.id, amount, wallet.balance, wallet.balance, slip_image || null]
+         VALUES (?,?,'deposit',?,?,?,?,?,'pending','ฝากเงิน')`,
+        [ref, req.user.id, amount, wallet.balance, wallet.balance, payment_method || 'bank_transfer', slip_image]
       );
       return tx.insertId;
     });
 
-    // ถ้า QR PromptPay → auto approve (ในระบบจริงต้องรอ webhook จากธนาคาร)
+    let auto_approved  = false;
+    let verify_message = 'รอตรวจสอบโดย admin';
+
     if (payment_method === 'qr_promptpay') {
+      // QR PromptPay → auto approve (ในระบบจริงต้องรอ webhook จากธนาคาร)
       await approveDeposit(txId, req.user.id, amount);
+      await query("UPDATE transactions SET note='ฝากเงิน [AUTO:qr_promptpay]' WHERE id=?", [txId]);
+      auto_approved  = true;
+      verify_message = 'อนุมัติอัตโนมัติ (QR PromptPay)';
+    } else if (req.file) {
+      // ตรวจสลิปผ่าน SlipOK API
+      const result = await verifySlip(req.file.path, parseFloat(amount));
+      if (result.valid) {
+        const transRef = result.data?.transRef || '';
+        await approveDeposit(txId, req.user.id, amount);
+        await query("UPDATE transactions SET note=? WHERE id=?",
+          [`ฝากเงิน [AUTO:${transRef}]`, txId]);
+        auto_approved  = true;
+        verify_message = `ยืนยันสลิปอัตโนมัติ (ref: ${transRef})`;
+      } else {
+        const reason = result.reason || 'UNKNOWN';
+        if (!result.skip) {
+          await query("UPDATE transactions SET note=? WHERE id=?",
+            [`ฝากเงิน [PENDING:${reason}]`, txId]);
+        }
+        verify_message = result.skip
+          ? 'ระบบตรวจสลิปไม่ได้เปิดใช้งาน รอ admin ตรวจสอบ'
+          : `ตรวจสลิปไม่ผ่าน (${reason}) รอ admin ตรวจสอบ`;
+      }
     }
 
-    res.status(201).json({ transaction_id: txId, ref_no: ref, status: 'pending', amount });
+    res.status(201).json({
+      transaction_id: txId,
+      ref_no: ref,
+      status: auto_approved ? 'success' : 'pending',
+      amount,
+      auto_approved,
+      verify_message,
+    });
   } catch (err) {
+    // ลบไฟล์ถ้า transaction ล้มเหลว
+    if (req.file) fs.unlink(req.file.path, () => {});
     res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
   }
 };

@@ -57,9 +57,10 @@ const Me = {
 // ── WALLET ────────────────────────────────────────────────────
 const Wallet = {
   get:          ()   => get('/wallet'),
-  deposit:      (d)  => post('/wallet/deposit',  d),
+  deposit:      (fd) => postForm('/wallet/deposit', fd),
   withdraw:     (d)  => post('/wallet/withdraw', d),
   transactions: (q)  => get('/wallet/transactions' + (q ? '?' + new URLSearchParams(q) : '')),
+  bankInfo:     ()   => get('/payment/bank-info'),
 };
 
 // ── LOTTERY ───────────────────────────────────────────────────
@@ -105,19 +106,21 @@ const Agent = {
 
 // ── ADMIN ─────────────────────────────────────────────────────
 const Admin = {
-  dashboard:     ()       => get('/admin/dashboard'),
-  users:         (q)      => get('/admin/users'        + (q ? '?' + new URLSearchParams(q) : '')),
-  userStatus:    (id, d)  => put(`/admin/users/${id}/status`, d),
-  transactions:  (q)      => get('/admin/transactions' + (q ? '?' + new URLSearchParams(q) : '')),
-  approveWD:     (id)     => put(`/admin/transactions/${id}/approve`),
-  enterResult:   (rid, d) => post(`/admin/lottery/rounds/${rid}/result`, d),
-  kycList:       (q)      => get('/admin/kyc'          + (q ? '?' + new URLSearchParams(q) : '')),
-  approveKYC:    (id)     => put(`/admin/kyc/${id}/approve`),
-  rejectKYC:     (id, d)  => put(`/admin/kyc/${id}/reject`, d),
-  hotNumbers:    (q)      => get('/admin/hot-numbers'  + (q ? '?' + new URLSearchParams(q) : '')),
-  settings:      ()       => get('/admin/settings'),
-  updateSetting: (k, v)   => put(`/admin/settings/${k}`, { value: v }),
-  report:        (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
+  dashboard:      ()       => get('/admin/dashboard'),
+  users:          (q)      => get('/admin/users'        + (q ? '?' + new URLSearchParams(q) : '')),
+  userStatus:     (id, d)  => put(`/admin/users/${id}/status`, d),
+  transactions:   (q)      => get('/admin/transactions' + (q ? '?' + new URLSearchParams(q) : '')),
+  approveWD:      (id)     => put(`/admin/transactions/${id}/approve`),
+  approveDeposit: (id)     => put(`/admin/transactions/${id}/approve-deposit`),
+  slipUrl:        (id)     => `${API_BASE}/admin/transactions/${id}/slip`,
+  enterResult:    (rid, d) => post(`/admin/lottery/rounds/${rid}/result`, d),
+  kycList:        (q)      => get('/admin/kyc'          + (q ? '?' + new URLSearchParams(q) : '')),
+  approveKYC:     (id)     => put(`/admin/kyc/${id}/approve`),
+  rejectKYC:      (id, d)  => put(`/admin/kyc/${id}/reject`, d),
+  hotNumbers:     (q)      => get('/admin/hot-numbers'  + (q ? '?' + new URLSearchParams(q) : '')),
+  settings:       ()       => get('/admin/settings'),
+  updateSetting:  (k, v)   => put(`/admin/settings/${k}`, { value: v }),
+  report:         (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
 };
 
 // ── Session Helpers ───────────────────────────────────────────

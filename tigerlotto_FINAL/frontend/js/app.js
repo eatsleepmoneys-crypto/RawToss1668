@@ -31,21 +31,34 @@ const TABS = [
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
-  // Hide loading after 1.5s
-  setTimeout(() => {
-    document.getElementById('loading').classList.add('hide');
-  }, 1500);
+  // บังคับ hide loading ไม่เกิน 3 วินาทีเสมอ
+  const hideLoading = () => {
+    const el = document.getElementById('loading');
+    if (el) el.classList.add('hide');
+  };
+  setTimeout(hideLoading, 3000);
 
   buildBottomNav();
   buildNavLinks();
 
-  if (isLoggedIn()) {
-    const { user } = getSession();
-    STATE.user = user;
-    showApp();
-    await Promise.all([loadWallet(), loadLotteryTypes()]);
-    renderHome();
-  } else {
+  try {
+    if (isLoggedIn()) {
+      const { user } = getSession();
+      STATE.user = user;
+      showApp();
+      hideLoading();
+      await Promise.all([
+        loadWallet().catch(() => {}),
+        loadLotteryTypes().catch(() => {})
+      ]);
+      renderHome();
+    } else {
+      hideLoading();
+      showAuth();
+    }
+  } catch(e) {
+    console.error('Init error:', e);
+    hideLoading();
     showAuth();
   }
 });
@@ -572,17 +585,67 @@ async function loadTransactions() {
   }
 }
 
-function openDeposit() { document.getElementById('depositModal').classList.add('open'); }
+async function openDeposit() {
+  // reset form
+  document.getElementById('dep-amount').value = '';
+  document.getElementById('dep-method').value = 'bank_transfer';
+  document.getElementById('dep-slip-file').value = '';
+  document.getElementById('dep-slip-preview').style.display = 'none';
+  document.getElementById('dep-slip-label').textContent = '📎 เลือกรูปสลิป (jpg/png/webp)';
+  onDepMethodChange();
+
+  // โหลดข้อมูลบัญชีธนาคาร
+  try {
+    const info = await Wallet.bankInfo();
+    document.getElementById('dep-bank-name').textContent  = info.bank_name;
+    document.getElementById('dep-bank-acct').textContent  = info.account_number;
+    document.getElementById('dep-bank-owner').textContent = 'ชื่อบัญชี: ' + info.account_name;
+  } catch {
+    document.getElementById('dep-bank-name').textContent = 'กรุณาติดต่อ admin เพื่อรับเลขบัญชี';
+  }
+
+  document.getElementById('depositModal').classList.add('open');
+}
+
+function onDepMethodChange() {
+  const method = document.getElementById('dep-method').value;
+  const isBank = method === 'bank_transfer';
+  document.getElementById('dep-slip-section').style.display = isBank ? 'block' : 'none';
+  document.getElementById('dep-bank-info').style.display    = isBank ? 'block' : 'none';
+}
+
+function onSlipFileChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('dep-slip-img').src = e.target.result;
+    document.getElementById('dep-slip-preview').style.display = 'block';
+    document.getElementById('dep-slip-label').textContent = '✅ ' + file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
 function openWithdraw() { toast('กรุณาเพิ่มบัญชีธนาคารก่อนในหน้าโปรไฟล์', 'warn'); }
 
 async function doDeposit() {
-  const amount = parseFloat(document.getElementById('dep-amount').value);
+  const amount         = parseFloat(document.getElementById('dep-amount').value);
   const payment_method = document.getElementById('dep-method').value;
+  const slipFile       = document.getElementById('dep-slip-file').files[0];
+
   if (!amount || amount < 1) return toast('กรุณาระบุจำนวนเงิน', 'warn');
+  if (payment_method === 'bank_transfer' && !slipFile)
+    return toast('กรุณาแนบสลิปโอนเงิน', 'warn');
+
+  const fd = new FormData();
+  fd.append('amount', amount);
+  fd.append('payment_method', payment_method);
+  if (slipFile) fd.append('slip_image', slipFile);
+
   try {
-    await Wallet.deposit({ amount, payment_method });
+    await Wallet.deposit(fd);
     closeModal('depositModal');
-    toast('✅ ส่งคำขอฝากเงินแล้ว รอการยืนยัน');
+    toast('✅ ส่งคำขอฝากเงินแล้ว รอ admin ยืนยัน');
     await loadWallet(); updateNavUser(); renderWallet();
   } catch (e) { toast(e.message, 'err'); }
 }

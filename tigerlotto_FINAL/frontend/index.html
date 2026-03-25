@@ -364,14 +364,41 @@
 <div class="modal-bg" id="depositModal" onclick="if(event.target===this)closeModal('depositModal')">
   <div class="modal-box">
     <div class="modal-title">📥 ฝากเงิน</div>
+
+    <!-- ข้อมูลบัญชีโอนเงิน -->
+    <div id="dep-bank-info" style="background:#0a1a0a;border:1.5px solid #3BD44133;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:6px">🏦 บัญชีรับโอนเงิน</div>
+      <div id="dep-bank-name" style="font-size:13px;font-weight:700;color:#fff">กำลังโหลด...</div>
+      <div id="dep-bank-acct" style="font-size:20px;font-weight:900;color:var(--gold);font-family:'JetBrains Mono',monospace;letter-spacing:2px;margin:4px 0">—</div>
+      <div id="dep-bank-owner" style="font-size:12px;color:#888">—</div>
+      <div style="font-size:10px;color:#555;margin-top:4px">⚠️ โอนแล้วแนบสลิปด้านล่างทุกครั้ง</div>
+    </div>
+
     <label class="flabel">จำนวนเงิน (บาท)</label>
     <input class="finput" id="dep-amount" type="number" placeholder="เช่น 500" min="1">
+
     <label class="flabel">วิธีฝาก</label>
-    <select id="dep-method" style="width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:var(--gold);font-size:13px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:12px;cursor:pointer">
-      <option value="qr_promptpay">📱 QR พร้อมเพย์ (อัตโนมัติ)</option>
+    <select id="dep-method" onchange="onDepMethodChange()" style="width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:var(--gold);font-size:13px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:12px;cursor:pointer">
       <option value="bank_transfer">🏦 โอนธนาคาร (แนบสลิป)</option>
+      <option value="qr_promptpay">📱 QR พร้อมเพย์ (อัตโนมัติ)</option>
       <option value="truemoney">💚 TrueMoney</option>
     </select>
+
+    <!-- แนบสลิป -->
+    <div id="dep-slip-section">
+      <label class="flabel">แนบสลิปโอนเงิน <span style="color:var(--red)">*</span></label>
+      <div id="dep-slip-preview" style="display:none;text-align:center;margin-bottom:8px">
+        <img id="dep-slip-img" src="" alt="slip"
+          style="max-width:100%;max-height:180px;border-radius:10px;border:2px solid var(--gold2);display:inline-block">
+      </div>
+      <label for="dep-slip-file" id="dep-slip-label"
+        style="display:flex;align-items:center;justify-content:center;width:100%;height:46px;border-radius:10px;background:#1A1200;border:2px dashed var(--gold2);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px">
+        📎 เลือกรูปสลิป (jpg/png/webp)
+      </label>
+      <input type="file" id="dep-slip-file" accept="image/jpeg,image/png,image/webp"
+        style="display:none" onchange="onSlipFileChange(this)">
+    </div>
+
     <button class="btn-gold" onclick="doDeposit()"
       style="width:100%;height:46px;border-radius:10px;font-size:14px;display:block;margin-bottom:8px">
       ✅ ยืนยันฝากเงิน
