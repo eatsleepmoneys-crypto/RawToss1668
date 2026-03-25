@@ -23,7 +23,9 @@
     "compression": "^1.7.4",
     "socket.io": "^4.7.2",
     "uuid": "^9.0.1",
-    "axios": "^1.6.2"
+    "axios": "^1.6.2",
+    "node-cron": "^3.0.3",
+    "cheerio": "^1.0.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"

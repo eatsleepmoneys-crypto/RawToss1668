@@ -53,6 +53,7 @@
  *   GET    /api/v1/admin/hot-numbers
  *   GET    /api/v1/admin/settings
  *   PUT    /api/v1/admin/settings/:key
+ *   GET    /api/v1/admin/lottery/fetcher/status
  *   GET    /api/v1/admin/reports/monthly
  *   GET    /health
  */
@@ -126,6 +127,7 @@ const kycCtrl    = require('./controllers/kycController');
 const bankCtrl   = require('./controllers/bankController');
 const { auth, adminOnly, agentOnly } = require('./middleware/auth');
 const { query, queryOne } = require('./config/db');
+const { startLotteryFetcher, fetcherStatus } = require('./services/lotteryFetcher');
 
 // ── V1 Router ─────────────────────────────────────────────────
 const v1 = express.Router();
@@ -343,6 +345,18 @@ v1.put('/admin/settings/:key', auth, adminOnly, async (req,res) => {
   await query("UPDATE system_settings SET value=?,updated_by=?,updated_at=NOW() WHERE `key`=?",[req.body.value,req.user.id,req.params.key]);
   res.json({ success:true });
 });
+v1.get('/admin/lottery/fetcher/status', auth, adminOnly, (req, res) => {
+  const now = new Date();
+  const statusWithMeta = Object.fromEntries(
+    Object.entries(fetcherStatus).map(([code, s]) => [code, {
+      ...s,
+      lastRun:     s.lastRun     ? s.lastRun.toISOString()     : null,
+      lastSuccess: s.lastSuccess ? s.lastSuccess.toISOString() : null,
+    }])
+  );
+  res.json({ data: statusWithMeta, serverTime: now.toISOString() });
+});
+
 v1.get('/admin/reports/monthly', auth, adminOnly, async (req,res) => {
   const { year=new Date().getFullYear(), month=new Date().getMonth()+1 } = req.query;
   const [revenue,payout,members,bets] = await Promise.all([
@@ -386,6 +400,14 @@ io.on('connection', socket => {
 
 /* Start */
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
+  // ตรวจ DB connection ก่อน start fetcher
+  try {
+    const { pool } = require('./config/db');
+    await pool.execute('SELECT 1');
+    startLotteryFetcher();
+  } catch (err) {
+    console.error('[FETCHER] DB not ready, lottery fetcher NOT started:', err.message);
+  }
 });
