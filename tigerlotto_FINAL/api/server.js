@@ -655,6 +655,38 @@ async function autoResultMissedYeekeeRounds() {
   }
 }
 
+/* AUTO-CREATE LAO ROUND (ทุกวัน) */
+async function autoCreateLaoRound() {
+  try {
+    const now = new Date();
+    const ict = new Date(now.getTime() + 7 * 3600 * 1000);
+    const yyyy = ict.getUTCFullYear();
+    const mm   = String(ict.getUTCMonth() + 1).padStart(2, '0');
+    const dd   = String(ict.getUTCDate()).padStart(2, '0');
+    const dateStr = `${yyyy}${mm}${dd}`;
+
+    const lt = await queryOne("SELECT id FROM lottery_types WHERE code='laos'");
+    if (!lt) return;
+
+    const roundCode = `LAOS-${dateStr}`;
+    const existing  = await queryOne('SELECT id FROM lottery_rounds WHERE round_code=?', [roundCode]);
+    if (existing) return;
+
+    // เปิด 09:00 / ปิด 19:20 ICT
+    const openAt  = new Date(Date.UTC(yyyy, ict.getUTCMonth(), ict.getUTCDate(), 9  - 7, 0));
+    const closeAt = new Date(Date.UTC(yyyy, ict.getUTCMonth(), ict.getUTCDate(), 19 - 7, 20));
+
+    await query(
+      `INSERT INTO lottery_rounds (lottery_type_id, round_code, round_name, open_at, close_at, status, created_by)
+       VALUES (?, ?, ?, ?, ?, 'open', NULL)`,
+      [lt.id, roundCode, `หวยลาว ${dd}/${mm}/${yyyy}`, openAt, closeAt]
+    );
+    console.log(`[LAO-CREATE] Created ${roundCode} | close: ${closeAt.toISOString()}`);
+  } catch (err) {
+    console.error('[LAO-CREATE] Error:', err.message);
+  }
+}
+
 /* AUTO-CREATE HANOI ROUNDS (3 ประเภท ทุกวัน) */
 async function autoCreateHanoiRounds() {
   // เวลาเปิด/ปิดแต่ละประเภท (ICT = UTC+7)
@@ -762,6 +794,7 @@ function scheduleDailyYeekeeCreate() {
       _lastYkCreateDate = dateKey;
       autoCreateYeekeeRounds();
       autoCreateHanoiRounds();
+      autoCreateLaoRound();
     }
   }, 60_000);
 }
@@ -774,6 +807,7 @@ server.listen(PORT, '0.0.0.0', () => {
   const { pool } = require('./config/db');
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
   setTimeout(() => {
+    autoCreateLaoRound();
     autoCreateHanoiRounds();
     autoCreateYeekeeRounds();
     autoCloseExpiredRounds();
