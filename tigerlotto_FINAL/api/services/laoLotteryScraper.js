@@ -9,7 +9,7 @@ const { query, queryOne } = require('../config/db');
 const { processPayouts } = require('../controllers/resultController');
 
 const LOTTO_URL = 'https://laosassociationlottery.com/en/home/';
-const LAO_TYPE_CODE = 'LAO'; // lottery_types.code ในฐานข้อมูล
+const LAO_TYPE_CODE = 'laos'; // lottery_types.code ในฐานข้อมูล
 
 // ── scrape ผลล่าสุดจากเว็บ ──────────────────────────────────────
 async function fetchLatestLaoResult() {
