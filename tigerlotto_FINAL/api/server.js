@@ -690,7 +690,7 @@ async function autoCreateHanoiRounds() {
 
       await query(
         `INSERT INTO lottery_rounds (lottery_type_id, round_code, round_name, open_at, close_at, status, created_by)
-         VALUES (?, ?, ?, ?, ?, 'open', 0)`,
+         VALUES (?, ?, ?, ?, ?, 'open', NULL)`,
         [lt.id, roundCode, `${s.name} ${dd}/${mm}/${yyyy}`, openAt, closeAt]
       );
       console.log(`[HANOI-CREATE] Created ${roundCode}`);
