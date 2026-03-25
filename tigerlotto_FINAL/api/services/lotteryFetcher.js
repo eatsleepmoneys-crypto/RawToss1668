@@ -7,6 +7,7 @@
 const cron    = require('node-cron');
 const axios   = require('axios');
 const cheerio = require('cheerio');
+const crypto  = require('crypto');
 
 const { query, queryOne, transaction } = require('../config/db');
 const { processPayouts } = require('../controllers/resultController');
@@ -22,7 +23,24 @@ const fetcherStatus = {
   hanoi:         { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
   hanoi_vip:     { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
   hanoi_special: { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
+  yeekee:        { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
 };
+
+// ── Generate: ผลหวยยี่กีอัตโนมัติ ─────────────────────────────
+function generateYeekeeResult() {
+  const rand3 = () => String(crypto.randomInt(0, 1000)).padStart(3, '0');
+
+  const first5 = String(crypto.randomInt(0, 100000)).padStart(5, '0');
+
+  return {
+    result_first:    first5,
+    result_2_back:   first5.slice(-2),
+    result_3_back1:  first5.slice(-3),
+    result_3_back2:  rand3(),
+    result_3_front1: rand3(),
+    result_3_front2: rand3(),
+  };
+}
 
 // ── Internal: บันทึกผลลง DB ────────────────────────────────────
 async function enterResultInternal(lotteryCode, resultData) {
@@ -330,12 +348,19 @@ function startLotteryFetcher() {
     fetchWithRetry('hanoi_special', fetchHanoiSpecial);
   }, { timezone: TIMEZONE });
 
+  // หวยยี่กี — ทุก 16 นาที ตลอด 24 ชม.
+  cron.schedule('*/16 * * * *', () => {
+    console.log('[FETCHER] Triggering: yeekee (auto-generate)');
+    fetchWithRetry('yeekee', async () => generateYeekeeResult());
+  }, { timezone: TIMEZONE });
+
   console.log('[FETCHER] Schedules registered:');
   console.log('  gov           → 1st & 16th @ 15:05 Asia/Bangkok');
   console.log('  laos          → daily @ 20:35 Asia/Bangkok');
   console.log('  hanoi         → daily @ 18:35 Asia/Bangkok');
   console.log('  hanoi_vip     → daily @ 18:05 Asia/Bangkok');
   console.log('  hanoi_special → daily @ 17:35 Asia/Bangkok');
+  console.log('  yeekee        → every 16 min (auto-generated)');
 }
 
 module.exports = { startLotteryFetcher, fetcherStatus };
