@@ -737,6 +737,38 @@ server.listen(PORT, '0.0.0.0', () => {
     }, 60_000);
     scheduleDailyYeekeeCreate();
 
+    // ── หวยฮานอย: ดึงผลอัตโนมัติ 3 ประเภท ──────────────────
+    const { runHanoiType } = require('./services/hanoiScraper');
+    let _lastHanoiSpecial = '', _lastHanoiNormal = '', _lastHanoiVip = '';
+    setInterval(async () => {
+      const now = new Date();
+      const ict = new Date(now.getTime() + 7 * 3600 * 1000);
+      const h = ict.getUTCHours();
+      const m = ict.getUTCMinutes();
+      const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
+
+      // ฮานอยพิเศษ: 17:35, 17:40
+      if (h === 17 && (m === 35 || m === 40) && dateKey !== _lastHanoiSpecial) {
+        _lastHanoiSpecial = dateKey;
+        console.log('[HANOI] Trigger พิเศษ');
+        await runHanoiType('special');
+      }
+      // ฮานอยปกติ: 18:35, 18:40
+      if (h === 18 && (m === 35 || m === 40) && dateKey !== _lastHanoiNormal) {
+        _lastHanoiNormal = dateKey;
+        console.log('[HANOI] Trigger ปกติ');
+        await runHanoiType('normal');
+      }
+      // ฮานอย VIP: 19:35, 19:40
+      if (h === 19 && (m === 35 || m === 40) && dateKey !== _lastHanoiVip) {
+        _lastHanoiVip = dateKey;
+        console.log('[HANOI] Trigger VIP');
+        await runHanoiType('vip');
+      }
+    }, 60_000);
+    console.log('[HANOI] Scheduler started — พิเศษ 17:35 / ปกติ 18:35 / VIP 19:35 ICT');
+    // ─────────────────────────────────────────────────────────
+
     // ── หวยลาว: ดึงผลอัตโนมัติ ──────────────────────────────
     // ออกผลทุกวัน ~19:55 ICT (UTC+7 = 12:55 UTC)
     // รัน 20:00, 20:05, 20:10 เพื่อ retry ถ้าเว็บช้า
