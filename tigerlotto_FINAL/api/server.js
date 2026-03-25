@@ -736,5 +736,28 @@ server.listen(PORT, '0.0.0.0', () => {
       await autoResultMissedYeekeeRounds();
     }, 60_000);
     scheduleDailyYeekeeCreate();
+
+    // ── หวยลาว: ดึงผลอัตโนมัติ ──────────────────────────────
+    // ออกผลทุกวัน ~19:55 ICT (UTC+7 = 12:55 UTC)
+    // รัน 20:00, 20:05, 20:10 เพื่อ retry ถ้าเว็บช้า
+    const { runLaoScraper } = require('./services/laoLotteryScraper');
+    let _lastLaoDate = '';
+    setInterval(async () => {
+      const now = new Date();
+      // UTC+7: offset 7 ชั่วโมง
+      const ict = new Date(now.getTime() + 7 * 3600 * 1000);
+      const h = ict.getUTCHours();
+      const m = ict.getUTCMinutes();
+      const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
+      // รันที่ 20:00, 20:05, 20:10 ICT
+      const isRunTime = h === 20 && (m === 0 || m === 5 || m === 10);
+      if (isRunTime && dateKey !== _lastLaoDate) {
+        _lastLaoDate = dateKey;
+        console.log(`[LAO SCRAPER] Scheduled trigger at ICT ${h}:${String(m).padStart(2,'0')}`);
+        await runLaoScraper();
+      }
+    }, 60_000);
+    console.log('[LAO SCRAPER] Scheduler started — will run daily at 20:00 ICT');
+    // ─────────────────────────────────────────────────────────
   }, 5_000);
 });
