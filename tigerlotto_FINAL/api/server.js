@@ -655,6 +655,39 @@ async function autoResultMissedYeekeeRounds() {
   }
 }
 
+/* AUTO-CREATE GOV LOTTERY ROUND (วันที่ 1 และ 16 ของเดือน) */
+async function autoCreateGovRound() {
+  try {
+    const ict = new Date(Date.now() + 7 * 3600 * 1000);
+    const d   = ict.getUTCDate();
+    if (d !== 1 && d !== 16) return; // ไม่ใช่วันออกหวย
+
+    const yyyy = ict.getUTCFullYear();
+    const mm   = String(ict.getUTCMonth() + 1).padStart(2, '0');
+    const dd   = String(d).padStart(2, '0');
+
+    const lt = await queryOne("SELECT id FROM lottery_types WHERE code='gov'");
+    if (!lt) return;
+
+    const roundCode = `GOV-${yyyy}${mm}${dd}`;
+    const existing  = await queryOne('SELECT id FROM lottery_rounds WHERE round_code=?', [roundCode]);
+    if (existing) return;
+
+    // เปิด 00:00 / ปิด 15:00 ICT
+    const openAt  = new Date(Date.UTC(yyyy, ict.getUTCMonth(), d, 0  - 7 + 24, 0));
+    const closeAt = new Date(Date.UTC(yyyy, ict.getUTCMonth(), d, 15 - 7,      0));
+
+    await query(
+      `INSERT INTO lottery_rounds (lottery_type_id, round_code, round_name, open_at, close_at, status, created_by)
+       VALUES (?, ?, ?, ?, ?, 'open', NULL)`,
+      [lt.id, roundCode, `หวยรัฐบาล ${dd}/${mm}/${yyyy}`, openAt, closeAt]
+    );
+    console.log(`[GOV-CREATE] Created ${roundCode}`);
+  } catch (err) {
+    console.error('[GOV-CREATE] Error:', err.message);
+  }
+}
+
 /* AUTO-CREATE LAO ROUND (ทุกวัน) */
 async function autoCreateLaoRound() {
   try {
@@ -795,6 +828,7 @@ function scheduleDailyYeekeeCreate() {
       autoCreateYeekeeRounds();
       autoCreateHanoiRounds();
       autoCreateLaoRound();
+      autoCreateGovRound();
     }
   }, 60_000);
 }
@@ -807,6 +841,7 @@ server.listen(PORT, '0.0.0.0', () => {
   const { pool } = require('./config/db');
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
   setTimeout(() => {
+    autoCreateGovRound();
     autoCreateLaoRound();
     autoCreateHanoiRounds();
     autoCreateYeekeeRounds();
@@ -871,6 +906,27 @@ server.listen(PORT, '0.0.0.0', () => {
       }
     }, 60_000);
     console.log('[LAO SCRAPER] Scheduler started — will run daily at 20:00 ICT');
+
+    // ── หวยรัฐบาล: ดึงผลอัตโนมัติ (วันที่ 1 และ 16) ────────────
+    const { runGovScraper, isGovLotteryDay } = require('./services/govLotteryScraper');
+    let _lastGovDate = '';
+    setInterval(async () => {
+      if (!isGovLotteryDay()) return;
+      const now2 = new Date();
+      const ict2 = new Date(now2.getTime() + 7 * 3600 * 1000);
+      const h2 = ict2.getUTCHours();
+      const m2 = ict2.getUTCMinutes();
+      const dateKey2 = `${ict2.getUTCFullYear()}-${ict2.getUTCMonth()}-${ict2.getUTCDate()}`;
+      // รันที่ 16:30, 17:00, 17:30 ICT
+      const isRunTime2 = (h2 === 16 && m2 === 30) || (h2 === 17 && m2 === 0) || (h2 === 17 && m2 === 30);
+      if (isRunTime2 && dateKey2 !== _lastGovDate) {
+        _lastGovDate = dateKey2;
+        console.log(`[GOV SCRAPER] Trigger at ICT ${h2}:${String(m2).padStart(2,'0')}`);
+        await runGovScraper();
+      }
+    }, 60_000);
+    console.log('[GOV SCRAPER] Scheduler started — วันที่ 1 และ 16 เวลา 16:30 ICT');
+    // ─────────────────────────────────────────────────────────────
     // ─────────────────────────────────────────────────────────
   }, 5_000);
 });
