@@ -37,6 +37,16 @@ exports.getWallet = async (req, res) => {
   }
 };
 
+// ── GET /api/v1/admin/deposits/pending ──────────────────────
+exports.getPendingDeposits = async (req, res) => {
+  try {
+    const deposits = await query('SELECT * FROM transactions WHERE status = ?',[ 'pending' ]);
+    res.json(deposits);
+  } catch (error) {
+    res.status(500).json({ error: 'SERVER_ERROR', message: error.message });
+  }
+};
+
 // ── POST /wallet/deposit ──────────────────────────────────────
 exports.deposit = async (req, res) => {
   try {
