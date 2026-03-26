@@ -54,8 +54,13 @@ exports.getMembers = async (req, res) => {
        WHERE u.referred_by = ?
        GROUP BY u.id
        ORDER BY w.total_bet DESC
+<<<<<<< HEAD
        LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`,
       [agent.id, req.user.id]
+=======
+       LIMIT ? OFFSET ?`,
+      [agent.id, req.user.id, parseInt(limit), offset]
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
     );
 
     const total = await queryOne('SELECT COUNT(*) AS c FROM users WHERE referred_by=?', [req.user.id]);
@@ -107,7 +112,12 @@ exports.getCommissions = async (req, res) => {
                WHERE c.agent_id = ?`;
     const params = [agent.id];
     if (status) { sql += ' AND c.status=?'; params.push(status); }
+<<<<<<< HEAD
     sql += ` ORDER BY c.created_at DESC LIMIT ${parseInt(limit)} OFFSET ${parseInt(offset)}`;
+=======
+    sql += ' ORDER BY c.created_at DESC LIMIT ? OFFSET ?';
+    params.push(parseInt(limit), offset);
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
 
     const [data, pending] = await Promise.all([
       query(sql, params),

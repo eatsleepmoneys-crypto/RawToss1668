@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
+<<<<<<< HEAD
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>🐯 TigerLotto — หวยออนไลน์อัตราจ่ายสูง</title>
@@ -2675,5 +2676,425 @@ window.addEventListener('DOMContentLoaded', async () => {
   });
 });
 </script>
+=======
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>🐯 TigerLotto — หวยออนไลน์</title>
+  <meta name="description" content="หวยออนไลน์อัตราจ่ายสูง ครบทุกประเภท จ่ายจริง จ่ายเร็ว">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --gold:#FFD700; --gold2:#B8860B; --dark:#0A0A0A;
+      --dark2:#0D0D0D; --dark3:#111; --green:#3BD441;
+      --red:#D85A30; --blue:#78BAFF;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Noto Sans Thai',sans-serif;background:var(--dark);color:#fff;min-height:100vh}
+    #app{display:flex;flex-direction:column;min-height:100vh}
+
+    /* Loading */
+    #loading{position:fixed;inset:0;background:var(--dark);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s}
+    #loading.hide{opacity:0;pointer-events:none}
+    .ld-logo{font-size:60px;margin-bottom:16px;animation:bounce 1s infinite}
+    .ld-text{font-size:20px;font-weight:900;color:var(--gold)}
+    .ld-bar{width:200px;height:4px;background:#1a1a1a;border-radius:2px;margin-top:16px;overflow:hidden}
+    .ld-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold2));border-radius:2px;animation:fill 1.5s ease forwards}
+    @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+    @keyframes fill{from{width:0}to{width:100%}}
+
+    /* Pages */
+    .page{display:none;flex:1;flex-direction:column}
+    .page.active{display:flex}
+
+    /* NAV */
+    nav{background:var(--dark2);border-bottom:2px solid #B8860B55;padding:10px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;flex-shrink:0;position:sticky;top:0;z-index:50}
+    .nav-logo{font-size:15px;font-weight:900;color:var(--gold);cursor:pointer;flex-shrink:0}
+    .nav-logo span{color:#FFD70077;font-weight:400;font-size:12px}
+    #navLinks{flex:1;display:flex;justify-content:center;gap:5px;flex-wrap:wrap}
+    .nav-bal{background:#1A1200;border:1.5px solid var(--gold2);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--gold);cursor:pointer;white-space:nowrap}
+    .nav-avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--dark);cursor:pointer;flex-shrink:0}
+
+    /* BOTTOM NAV */
+    .bottom-nav{display:flex;background:var(--dark2);border-top:1px solid #1e1e1e;position:sticky;bottom:0;z-index:50}
+    .bn{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 4px;cursor:pointer;border-top:2px solid transparent;transition:all .2s}
+    .bn.on{border-top-color:var(--gold)}
+    .bn-ico{font-size:18px;margin-bottom:2px}
+    .bn-lbl{font-size:9px;font-weight:700;color:#555}
+    .bn.on .bn-lbl{color:var(--gold)}
+
+    /* SCROLL */
+    .scroll{flex:1;overflow-y:auto;padding:14px 16px}
+    .scroll::-webkit-scrollbar{width:3px}
+    .scroll::-webkit-scrollbar-thumb{background:#2a2a2a}
+
+    /* CARD */
+    .card{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:12px;padding:14px;margin-bottom:12px}
+
+    /* BUTTONS — all inline or these safe classes */
+    .btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-weight:900;font-family:inherit;cursor:pointer;transition:all .2s}
+    .btn-gold:hover{box-shadow:0 4px 20px #FFD70040;transform:translateY(-1px)}
+    .btn-outline{background:#1A1200;border:2px solid var(--gold);color:var(--gold);font-weight:700;font-family:inherit;cursor:pointer}
+
+    /* FORM */
+    .flabel{display:block;font-size:12px;font-weight:700;color:var(--gold);margin-bottom:5px}
+    .finput{width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:#fff;font-size:14px;padding:0 14px;font-family:inherit;outline:none;margin-bottom:12px;transition:border .2s}
+    .finput:focus{border-color:var(--gold)}
+    .finput::placeholder{color:#333;font-size:13px}
+
+    /* BADGES */
+    .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:9px;font-weight:700}
+    .badge-ok{background:#0a1a0a;color:var(--green);border:1px solid #3BD44133}
+    .badge-pend{background:#1A1200;color:var(--gold);border:1px solid #FFD70033}
+    .badge-fail{background:#1a0a0a;color:var(--red);border:1px solid #D85A3033}
+
+    /* TOAST */
+    #toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-12px);background:#1A3A1A;border:2px solid var(--green);color:var(--green);padding:8px 20px;border-radius:10px;font-size:12px;font-weight:700;z-index:9998;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+    #toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+    #toast.err{background:#3A0000;border-color:var(--red);color:var(--red)}
+    #toast.warn{background:#3A1A00;border-color:var(--gold);color:var(--gold)}
+
+    /* AUTH */
+    .auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--dark)}
+    .auth-box{width:100%;max-width:360px;background:var(--dark3);border:2px solid #B8860B44;border-radius:18px;padding:28px 24px}
+    .auth-logo{text-align:center;margin-bottom:24px}
+    .auth-icon{width:70px;height:70px;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:20px;display:flex;align-items:center;justify-content:center;font-size:36px;margin:0 auto 12px;box-shadow:0 8px 28px #FFD70030}
+    .auth-tabs{display:flex;background:var(--dark);border-radius:10px;padding:4px;gap:4px;margin-bottom:18px}
+    .auth-tab{flex:1;height:36px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:transparent;font-family:inherit;color:#555;transition:all .2s}
+    .auth-tab.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:var(--dark)}
+
+    /* KPI */
+    .kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+    .kpi{background:var(--dark3);border:1px solid #1e1e1e;border-radius:10px;padding:12px;position:relative;overflow:hidden}
+    .kpi-lbl{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px}
+    .kpi-val{font-size:20px;font-weight:900;color:var(--gold)}
+    .kpi-sub{font-size:9px;color:#3BD441;margin-top:2px}
+    .kpi-bar{position:absolute;bottom:0;left:0;right:0;height:2px}
+
+    /* LOTTO CARDS */
+    .lotto-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+    .lotto-card{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:14px;padding:14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+    .lotto-card:hover{border-color:#B8860B55;transform:translateY(-2px)}
+    .lotto-card-name{font-size:13px;font-weight:900;color:var(--gold);margin-bottom:4px}
+    .lotto-card-rate{font-size:22px;font-weight:900;color:var(--gold)}
+    .lotto-card-time{font-size:10px;color:#888;margin-top:6px;padding-top:6px;border-top:1px solid #1a1a1a}
+
+    /* SLIP */
+    .slip-card{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:14px;margin-bottom:10px;overflow:hidden}
+    .slip-hdr{padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;background:var(--dark2)}
+    .slip-ico{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .slip-name{font-size:13px;font-weight:900;color:var(--gold)}
+    .slip-total{font-size:15px;font-weight:900;color:var(--gold)}
+
+    /* SECTION TITLE */
+    .sec-title{font-size:13px;font-weight:700;color:var(--gold);margin-bottom:10px;display:flex;justify-content:space-between}
+    .sec-link{font-size:11px;color:var(--gold2);cursor:pointer}
+
+    /* STAT ROW */
+    .stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+    .stat-c{background:var(--dark3);border:1.5px solid #1e1e1e;border-radius:10px;padding:12px;text-align:center}
+    .stat-v{font-size:18px;font-weight:900;color:var(--gold)}
+    .stat-l{font-size:10px;color:#555;margin-top:2px}
+
+    /* EMPTY */
+    .empty{text-align:center;padding:40px 20px;color:#444}
+    .empty-ico{font-size:44px;margin-bottom:10px;opacity:.35}
+
+    /* COUNTDOWN */
+    .cd{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:700;padding:2px 8px;border-radius:7px}
+    .cd-ok{background:#0a1a0a;color:var(--green);border:1px solid #3BD44133}
+    .cd-warn{background:#1A1200;color:var(--gold);border:1px solid #FFD70033}
+    .cd-hot{background:#1A0A00;color:#FF8A5A;border:1px solid #D85A3055}
+    .cd-dot{width:5px;height:5px;border-radius:50%;animation:pulse 1s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+    /* MODAL */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;display:none;align-items:flex-end;justify-content:center}
+    .modal-bg.open{display:flex}
+    .modal-box{background:var(--dark2);border-radius:16px 16px 0 0;border-top:2px solid var(--gold2);width:100%;max-width:480px;padding:20px 20px 28px;max-height:85vh;overflow-y:auto}
+    .modal-title{font-size:16px;font-weight:900;color:var(--gold);margin-bottom:8px}
+
+    /* WALLET */
+    .bal-card{background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid var(--gold2);border-radius:16px;padding:20px;margin-bottom:14px}
+    .bal-amt{font-size:38px;font-weight:900;color:var(--gold);line-height:1}
+
+    /* TX LIST */
+    .tx-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #111}
+    .tx-item:last-child{border-bottom:none}
+    .tx-ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .tx-info{flex:1;min-width:0}
+    .tx-name{font-size:13px;font-weight:600;color:#ccc}
+    .tx-date{font-size:10px;color:#444}
+    .tx-amt{font-size:15px;font-weight:900}
+    .pos{color:var(--green)}.neg{color:var(--red)}.gold{color:var(--gold)}
+
+    @media(max-width:480px){
+      .kpi-grid{grid-template-columns:1fr 1fr}
+      .lotto-grid{grid-template-columns:1fr 1fr}
+      nav{gap:5px}
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading">
+  <div class="ld-logo">🐯</div>
+  <div class="ld-text">TigerLotto</div>
+  <div class="ld-bar"><div class="ld-fill"></div></div>
+</div>
+
+<div id="app">
+
+  <!-- PAGE: AUTH -->
+  <div class="page active" id="pg-auth" style="min-height:100vh">
+    <div class="auth-wrap">
+      <div class="auth-box">
+        <div class="auth-logo">
+          <div class="auth-icon">🐯</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold)">TigerLotto</div>
+          <div style="font-size:12px;color:#555;margin-top:3px">หวยออนไลน์อัตราจ่ายสูงสุดในไทย</div>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab on" id="tab-login" onclick="authMode('login')">เข้าสู่ระบบ</button>
+          <button class="auth-tab" id="tab-reg" onclick="authMode('register')">สมัครสมาชิก</button>
+        </div>
+        <!-- Login -->
+        <div id="form-login">
+          <label class="flabel">เบอร์โทรศัพท์</label>
+          <input class="finput" id="login-phone" type="tel" placeholder="0XX-XXX-XXXX">
+          <label class="flabel">รหัสผ่าน</label>
+          <input class="finput" id="login-pass" type="password" placeholder="รหัสผ่าน">
+          <div style="text-align:right;font-size:11px;color:var(--gold2);cursor:pointer;margin-bottom:14px">ลืมรหัสผ่าน?</div>
+          <button class="btn-gold" id="btn-login" onclick="doLogin()"
+            style="width:100%;height:50px;border-radius:12px;font-size:16px;display:block">
+            🐯 เข้าสู่ระบบ
+          </button>
+          <div style="text-align:center;margin-top:14px;font-size:12px;color:#555">
+            ยังไม่มีบัญชี?
+            <span style="color:var(--gold2);cursor:pointer" onclick="authMode('register')"> สมัครฟรี →</span>
+          </div>
+        </div>
+        <!-- Register -->
+        <div id="form-reg" style="display:none">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div><label class="flabel">ชื่อ</label><input class="finput" id="reg-fname" placeholder="ชื่อ"></div>
+            <div><label class="flabel">นามสกุล</label><input class="finput" id="reg-lname" placeholder="นามสกุล"></div>
+          </div>
+          <label class="flabel">เบอร์โทรศัพท์</label>
+          <input class="finput" id="reg-phone" type="tel" placeholder="0XX-XXX-XXXX">
+          <label class="flabel">รหัสผ่าน (อย่างน้อย 8 ตัว)</label>
+          <input class="finput" id="reg-pass" type="password" placeholder="รหัสผ่าน">
+          <label class="flabel">รหัสแนะนำ (ถ้ามี)</label>
+          <input class="finput" id="reg-ref" placeholder="เช่น TGL-XXXXXX" style="margin-bottom:14px">
+          <button class="btn-gold" onclick="doRegister()"
+            style="width:100%;height:50px;border-radius:12px;font-size:16px;display:block">
+            ✅ สมัครสมาชิกฟรี
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PAGE: MAIN APP -->
+  <div class="page" id="pg-app" style="flex-direction:column">
+    <nav>
+      <div class="nav-logo" onclick="setTab(0)">🐯Tiger<span>Lotto</span></div>
+      <div id="navLinks"></div>
+      <div class="nav-bal" id="navBal" onclick="setTab(3)">💰 ฿0</div>
+      <div class="nav-avatar" id="navAv" onclick="setTab(4)">?</div>
+    </nav>
+
+    <!-- TAB CONTENTS -->
+    <div class="scroll" id="tab-home" style="display:block">
+      <!-- HERO -->
+      <div style="background:linear-gradient(135deg,#1A1200,#0D0800);border:2px solid #B8860B55;border-radius:16px;padding:18px;margin-bottom:14px;position:relative;overflow:hidden">
+        <div style="position:absolute;top:-20px;right:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,#FFD70012,transparent)"></div>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#1a0800;border:1px solid #D85A3055;border-radius:12px;padding:4px 12px;font-size:10px;font-weight:700;color:#FF8A5A;margin-bottom:10px">
+          <span style="width:6px;height:6px;border-radius:50%;background:#FF5555;animation:pulse 1s infinite;display:inline-block"></span>
+          LIVE DRAW กำลังออกผล
+        </div>
+        <div style="font-size:22px;font-weight:900;color:var(--gold);margin-bottom:6px">หวยออนไลน์ที่<br><span style="background:linear-gradient(135deg,#FFD700,#FFF4B8,#B8860B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">เชื่อถือได้ที่สุด</span></div>
+        <div style="font-size:13px;color:#888;margin-bottom:16px">อัตราจ่ายสูง · จ่ายจริง จ่ายเร็ว · สมัครฟรีรับ ฿50</div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-gold" onclick="setTab(1)"
+            style="flex:1;height:44px;border-radius:11px;font-size:14px">
+            🎟 ซื้อหวยเลย
+          </button>
+          <button class="btn-outline" onclick="setTab(2)"
+            style="flex:1;height:44px;border-radius:11px;font-size:14px">
+            📊 ตรวจผล
+          </button>
+        </div>
+      </div>
+      <!-- STATS -->
+      <div class="stat-row">
+        <div class="stat-c"><div class="stat-v">24K+</div><div class="stat-l">สมาชิก</div></div>
+        <div class="stat-c"><div class="stat-v">฿82M</div><div class="stat-l">จ่ายแล้ว</div></div>
+        <div class="stat-c"><div class="stat-v">99.8%</div><div class="stat-l">พึงพอใจ</div></div>
+      </div>
+      <!-- LOTTO TYPES -->
+      <div class="sec-title">🎯 เลือกประเภทหวย<span class="sec-link" onclick="setTab(1)">ดูทั้งหมด →</span></div>
+      <div class="lotto-grid" id="lottoGrid"></div>
+      <!-- RECENT RESULTS -->
+      <div class="sec-title">📊 ผลล่าสุด<span class="sec-link" onclick="setTab(2)">ดูทั้งหมด →</span></div>
+      <div class="card" id="recentResults"></div>
+    </div>
+
+    <div class="scroll" id="tab-buy" style="display:none">
+      <div style="font-size:15px;font-weight:900;color:var(--gold);margin-bottom:12px">🎟 ซื้อหวย</div>
+      <div id="buyRounds"></div>
+    </div>
+
+    <div class="scroll" id="tab-result" style="display:none">
+      <div style="font-size:15px;font-weight:900;color:var(--gold);margin-bottom:12px">📊 ผลรางวัล</div>
+      <div id="resultList"></div>
+    </div>
+
+    <div class="scroll" id="tab-wallet" style="display:none">
+      <div class="bal-card">
+        <div style="font-size:12px;color:var(--gold2);margin-bottom:4px">💰 ยอดเงินคงเหลือ</div>
+        <div class="bal-amt">฿<span id="walletBal">0</span></div>
+        <div style="font-size:11px;color:#555;margin-top:6px">โบนัส: ฿<span id="walletBonus">0</span></div>
+        <div style="display:flex;gap:8px;margin-top:14px">
+          <button class="btn-gold" onclick="openDeposit()"
+            style="flex:1;height:40px;border-radius:10px;font-size:13px">📥 ฝากเงิน</button>
+          <button class="btn-outline" onclick="openWithdraw()"
+            style="flex:1;height:40px;border-radius:10px;font-size:13px">📤 ถอนเงิน</button>
+        </div>
+      </div>
+      <div class="sec-title">📋 ธุรกรรมล่าสุด</div>
+      <div class="card" id="txList" style="padding:8px 14px"></div>
+    </div>
+
+    <div class="scroll" id="tab-profile" style="display:none">
+      <div class="card" style="text-align:center;padding:24px">
+        <div style="width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold2));display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:900;color:var(--dark);margin:0 auto 10px" id="profileAvatar">?</div>
+        <div style="font-size:18px;font-weight:900;color:var(--gold)" id="profileName">-</div>
+        <div style="font-size:11px;color:#555;margin-top:2px" id="profilePhone">-</div>
+        <div style="font-size:11px;color:var(--gold2);margin-top:4px" id="profileVip">⭐ Bronze</div>
+      </div>
+      <div class="stat-row" id="profileStats"></div>
+      <!-- MY SLIPS -->
+      <div class="sec-title">📋 โพยของฉัน<span class="sec-link" onclick="loadMySlips()">โหลดใหม่</span></div>
+      <div id="mySlips"></div>
+      <!-- Quick links -->
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+        <button onclick="setTabByKey('promo')"
+          style="height:44px;border-radius:10px;background:#1A1200;border:1.5px solid #B8860B44;color:var(--gold);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">
+          🎁 โปรโมชั่น
+        </button>
+        <button onclick="setTabByKey('notif')"
+          style="height:44px;border-radius:10px;background:#1A1200;border:1.5px solid #B8860B44;color:var(--gold);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">
+          🔔 แจ้งเตือน
+        </button>
+        <button onclick="setTabByKey('agent')"
+          style="height:44px;border-radius:10px;background:#1A1200;border:1.5px solid #B8860B44;color:var(--gold);font-size:12px;font-weight:700;font-family:inherit;cursor:pointer">
+          🎯 Agent
+        </button>
+      </div>
+      <button onclick="window.location.href='/admin.html'"
+        style="width:100%;height:44px;border-radius:10px;background:#1A1200;border:2px solid var(--gold2);color:var(--gold);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:8px">
+        ⚙️ Admin Panel
+      </button>
+      <button onclick="doLogout()"
+        style="width:100%;height:44px;border-radius:10px;background:#1a0a0a;border:2px solid #D85A3055;color:var(--red);font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-top:0">
+        🚪 ออกจากระบบ
+      </button>
+    </div>
+
+
+    <!-- Hidden tabs — promo, notif, agent -->
+    <div class="scroll" id="tab-promo" style="display:none"></div>
+    <div class="scroll" id="tab-notif" style="display:none"></div>
+    <div class="scroll" id="tab-agent" style="display:none"></div>
+
+    <div class="bottom-nav" id="bottomNav"></div>
+  </div>
+
+</div><!-- #app -->
+
+<!-- MODAL: Cancel Slip -->
+<div class="modal-bg" id="cancelModal" onclick="if(event.target===this)closeModal('cancelModal')">
+  <div class="modal-box">
+    <div class="modal-title">⚠️ ยืนยันยกเลิกโพย</div>
+    <div style="font-size:12px;color:#888;margin-bottom:14px" id="cancelModalSub"></div>
+    <div style="background:#111;border:1.5px solid #B8860B44;border-radius:10px;padding:12px;margin-bottom:12px" id="cancelModalBody"></div>
+    <div style="background:#1a0800;border:1.5px solid #D85A3033;border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#FF8A5A">
+      ⚠️ หลังยกเลิกไม่สามารถกลับคืนได้ · เงินจะคืนเข้ากระเป๋าทันที
+    </div>
+    <div style="display:flex;gap:8px">
+      <button id="cancelConfirmBtn"
+        style="flex:1;height:46px;border-radius:10px;background:var(--red);border:none;color:#fff;font-size:14px;font-weight:900;cursor:pointer;font-family:inherit">
+        ✕ ยืนยันยกเลิก
+      </button>
+      <button onclick="closeModal('cancelModal')"
+        style="height:46px;padding:0 18px;border-radius:10px;background:#1A1200;border:2px solid var(--gold);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">
+        กลับ
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Deposit -->
+<div class="modal-bg" id="depositModal" onclick="if(event.target===this)closeModal('depositModal')">
+  <div class="modal-box">
+    <div class="modal-title">📥 ฝากเงิน</div>
+
+    <!-- ข้อมูลบัญชีโอนเงิน -->
+    <div id="dep-bank-info" style="background:#0a1a0a;border:1.5px solid #3BD44133;border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;color:var(--green);font-weight:700;margin-bottom:6px">🏦 บัญชีรับโอนเงิน</div>
+      <div id="dep-bank-name" style="font-size:13px;font-weight:700;color:#fff">กำลังโหลด...</div>
+      <div id="dep-bank-acct" style="font-size:20px;font-weight:900;color:var(--gold);font-family:'JetBrains Mono',monospace;letter-spacing:2px;margin:4px 0">—</div>
+      <div id="dep-bank-owner" style="font-size:12px;color:#888">—</div>
+      <div style="font-size:10px;color:#555;margin-top:4px">⚠️ โอนแล้วแนบสลิปด้านล่างทุกครั้ง</div>
+    </div>
+
+    <label class="flabel">จำนวนเงิน (บาท)</label>
+    <input class="finput" id="dep-amount" type="number" placeholder="เช่น 500" min="1">
+
+    <label class="flabel">วิธีฝาก</label>
+    <select id="dep-method" onchange="onDepMethodChange()" style="width:100%;height:46px;background:var(--dark);border:2px solid #FFD70033;border-radius:10px;color:var(--gold);font-size:13px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:12px;cursor:pointer">
+      <option value="bank_transfer">🏦 โอนธนาคาร (แนบสลิป)</option>
+      <option value="qr_promptpay">📱 QR พร้อมเพย์ (อัตโนมัติ)</option>
+      <option value="truemoney">💚 TrueMoney</option>
+    </select>
+
+    <!-- แนบสลิป -->
+    <div id="dep-slip-section">
+      <label class="flabel">แนบสลิปโอนเงิน <span style="color:var(--red)">*</span></label>
+      <div id="dep-slip-preview" style="display:none;text-align:center;margin-bottom:8px">
+        <img id="dep-slip-img" src="" alt="slip"
+          style="max-width:100%;max-height:180px;border-radius:10px;border:2px solid var(--gold2);display:inline-block">
+      </div>
+      <label for="dep-slip-file" id="dep-slip-label"
+        style="display:flex;align-items:center;justify-content:center;width:100%;height:46px;border-radius:10px;background:#1A1200;border:2px dashed var(--gold2);color:var(--gold);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:12px">
+        📎 เลือกรูปสลิป (jpg/png/webp)
+      </label>
+      <input type="file" id="dep-slip-file" accept="image/jpeg,image/png,image/webp"
+        style="display:none" onchange="onSlipFileChange(this)">
+    </div>
+
+    <button class="btn-gold" onclick="doDeposit()"
+      style="width:100%;height:46px;border-radius:10px;font-size:14px;display:block;margin-bottom:8px">
+      ✅ ยืนยันฝากเงิน
+    </button>
+    <button onclick="closeModal('depositModal')"
+      style="width:100%;height:40px;border-radius:10px;background:#1A1200;border:2px solid var(--gold);color:var(--gold);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer">
+      ยกเลิก
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script src="js/result.js"></script>
+<script src="js/notification.js"></script>
+<script src="js/promo.js"></script>
+<script src="js/agent.js"></script>
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
 </body>
 </html>

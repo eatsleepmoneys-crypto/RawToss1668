@@ -57,7 +57,11 @@ exports.register = async (req, res) => {
       );
 
       // Welcome bonus
+<<<<<<< HEAD
       const bonusSetting = await queryOne("SELECT value FROM system_settings WHERE setting_key='bonus_welcome'");
+=======
+      const bonusSetting = await queryOne("SELECT value FROM system_settings WHERE `key`='bonus_welcome'");
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
       const bonusAmt = parseFloat(bonusSetting?.value || 50);
       if (bonusAmt > 0) {
         await conn.execute(

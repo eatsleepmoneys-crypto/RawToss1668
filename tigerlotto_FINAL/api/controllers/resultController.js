@@ -140,11 +140,25 @@ function checkWin(item, result, ltCode) {
     case '3_tod':
       isWin = sortStr(num) === sortStr((result.result_first||'').slice(-3)); break;
     case '2_top':
+<<<<<<< HEAD
     case '2_bot':
       isWin = num === back2; break;
     case 'run_top':
     case 'run_bot':
       isWin = (result.result_first||'').includes(num); break;
+=======
+      // 2 ตัวบน = 2 หลักท้ายของรางวัลที่ 1
+      isWin = num === (result.result_first||'').slice(-2); break;
+    case '2_bot':
+      // 2 ตัวล่าง = result_2_back (เลขท้าย 2 ตัวล่าง)
+      isWin = num === back2; break;
+    case 'run_top':
+      // วิ่งบน = ตัวเลขหลักเดียวต้องอยู่ในรางวัลที่ 1 (ตรวจแต่ละหลัก)
+      isWin = (result.result_first||'').split('').includes(num); break;
+    case 'run_bot':
+      // วิ่งล่าง = ตัวเลขหลักเดียวต้องอยู่ใน result_2_back
+      isWin = (back2||'').split('').includes(num); break;
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
     default:
       isWin = false;
   }

@@ -31,14 +31,24 @@ const TABS = [
 
 // ── Init ──────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', async () => {
+<<<<<<< HEAD
   // Hide loading after 1.5s
   setTimeout(() => {
     document.getElementById('loading').classList.add('hide');
   }, 1500);
+=======
+  // บังคับ hide loading ไม่เกิน 3 วินาทีเสมอ
+  const hideLoading = () => {
+    const el = document.getElementById('loading');
+    if (el) el.classList.add('hide');
+  };
+  setTimeout(hideLoading, 3000);
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
 
   buildBottomNav();
   buildNavLinks();
 
+<<<<<<< HEAD
   if (isLoggedIn()) {
     const { user } = getSession();
     STATE.user = user;
@@ -46,6 +56,26 @@ window.addEventListener('DOMContentLoaded', async () => {
     await Promise.all([loadWallet(), loadLotteryTypes()]);
     renderHome();
   } else {
+=======
+  try {
+    if (isLoggedIn()) {
+      const { user } = getSession();
+      STATE.user = user;
+      showApp();
+      hideLoading();
+      await Promise.all([
+        loadWallet().catch(() => {}),
+        loadLotteryTypes().catch(() => {})
+      ]);
+      renderHome();
+    } else {
+      hideLoading();
+      showAuth();
+    }
+  } catch(e) {
+    console.error('Init error:', e);
+    hideLoading();
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
     showAuth();
   }
 });
@@ -159,8 +189,11 @@ function updateNavUser() {
     document.getElementById('navBal').textContent =
       '💰 ฿' + parseFloat(STATE.wallet.balance || 0).toLocaleString();
   }
+<<<<<<< HEAD
   const adminSec = document.getElementById('sb-admin-sec');
   if (adminSec) adminSec.style.display = (STATE.user.role === 'admin' || STATE.user.role === 'superadmin') ? 'block' : 'none';
+=======
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
 }
 
 // ── Data Loaders ──────────────────────────────────────────────
@@ -196,11 +229,21 @@ function renderLottoGrid() {
   if (!grid) return;
 
   const TYPE_META = {
+<<<<<<< HEAD
     gov:    { icon:'🇹🇭', rate:'฿750', color:'#1A1200', border:'#B8860B55', sub:'งวด 16 มี.ค.' },
     yeekee: { icon:'⚡', rate:'฿700', color:'#0a1a0a', border:'#3BD44133', sub:'90 รอบ/วัน' },
     set:    { icon:'📈', rate:'฿680', color:'#0a0a1a', border:'#378ADD33', sub:'เช้า/บ่าย' },
     hanoi:  { icon:'🌏', rate:'฿650', color:'#1a0a00', border:'#D85A3033', sub:'ทุกวัน' },
     laos:   { icon:'🇱🇦', rate:'฿620', color:'#111',   border:'#1e1e1e',   sub:'ทุกวัน' },
+=======
+    gov:           { icon:'🇹🇭', rate:'฿750', color:'#1A1200', border:'#B8860B55', sub:'งวด 16 มี.ค.' },
+    yeekee:        { icon:'⚡',  rate:'฿700', color:'#0a1a0a', border:'#3BD44133', sub:'90 รอบ/วัน' },
+    set:           { icon:'🇹🇭', rate:'฿680', color:'#0a0a1a', border:'#378ADD33', sub:'เช้า/บ่าย' },
+    hanoi:         { icon:'🇻🇳', rate:'฿650', color:'#1a0a00', border:'#D85A3033', sub:'ทุกวัน 18:30' },
+    hanoi_vip:     { icon:'🇻🇳', rate:'฿680', color:'#1a0800', border:'#FFD70033', sub:'ทุกวัน 18:00' },
+    hanoi_special: { icon:'🇻🇳', rate:'฿660', color:'#1a0500', border:'#FF450033', sub:'ทุกวัน 17:30' },
+    laos:          { icon:'🇱🇦', rate:'฿620', color:'#111',    border:'#1e1e1e',   sub:'ทุกวัน 20:30' },
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
   };
 
   const types = STATE.lotteryTypes.length ? STATE.lotteryTypes : [
@@ -572,6 +615,7 @@ async function loadTransactions() {
   }
 }
 
+<<<<<<< HEAD
 function openDeposit() { document.getElementById('depositModal').classList.add('open'); }
 function openWithdraw() { toast('กรุณาเพิ่มบัญชีธนาคารก่อนในหน้าโปรไฟล์', 'warn'); }
 
@@ -583,6 +627,69 @@ async function doDeposit() {
     await Wallet.deposit({ amount, payment_method });
     closeModal('depositModal');
     toast('✅ ส่งคำขอฝากเงินแล้ว รอการยืนยัน');
+=======
+async function openDeposit() {
+  // reset form
+  document.getElementById('dep-amount').value = '';
+  document.getElementById('dep-method').value = 'bank_transfer';
+  document.getElementById('dep-slip-file').value = '';
+  document.getElementById('dep-slip-preview').style.display = 'none';
+  document.getElementById('dep-slip-label').textContent = '📎 เลือกรูปสลิป (jpg/png/webp)';
+  onDepMethodChange();
+
+  // โหลดข้อมูลบัญชีธนาคาร
+  try {
+    const info = await Wallet.bankInfo();
+    document.getElementById('dep-bank-name').textContent  = info.bank_name;
+    document.getElementById('dep-bank-acct').textContent  = info.account_number;
+    document.getElementById('dep-bank-owner').textContent = 'ชื่อบัญชี: ' + info.account_name;
+  } catch {
+    document.getElementById('dep-bank-name').textContent = 'กรุณาติดต่อ admin เพื่อรับเลขบัญชี';
+  }
+
+  document.getElementById('depositModal').classList.add('open');
+}
+
+function onDepMethodChange() {
+  const method = document.getElementById('dep-method').value;
+  const isBank = method === 'bank_transfer';
+  document.getElementById('dep-slip-section').style.display = isBank ? 'block' : 'none';
+  document.getElementById('dep-bank-info').style.display    = isBank ? 'block' : 'none';
+}
+
+function onSlipFileChange(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('dep-slip-img').src = e.target.result;
+    document.getElementById('dep-slip-preview').style.display = 'block';
+    document.getElementById('dep-slip-label').textContent = '✅ ' + file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+function openWithdraw() { toast('กรุณาเพิ่มบัญชีธนาคารก่อนในหน้าโปรไฟล์', 'warn'); }
+
+async function doDeposit() {
+  const amount         = parseFloat(document.getElementById('dep-amount').value);
+  const payment_method = document.getElementById('dep-method').value;
+  const slipFile       = document.getElementById('dep-slip-file').files[0];
+
+  if (!amount || amount < 1) return toast('กรุณาระบุจำนวนเงิน', 'warn');
+  if (payment_method === 'bank_transfer' && !slipFile)
+    return toast('กรุณาแนบสลิปโอนเงิน', 'warn');
+
+  const fd = new FormData();
+  fd.append('amount', amount);
+  fd.append('payment_method', payment_method);
+  if (slipFile) fd.append('slip_image', slipFile);
+
+  try {
+    await Wallet.deposit(fd);
+    closeModal('depositModal');
+    toast('✅ ส่งคำขอฝากเงินแล้ว รอ admin ยืนยัน');
+>>>>>>> 963772466667b80e38a573e2bf388c68b0ff4d12
     await loadWallet(); updateNavUser(); renderWallet();
   } catch (e) { toast(e.message, 'err'); }
 }
