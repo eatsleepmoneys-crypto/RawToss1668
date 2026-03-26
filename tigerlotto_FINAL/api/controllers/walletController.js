@@ -3,6 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 const path   = require('path');
 const fs     = require('fs');
 const multer = require('multer');
+const { verifySlip } = require('../services/slipVerifier');
 
 function refNo(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2,4).toUpperCase()}`;
