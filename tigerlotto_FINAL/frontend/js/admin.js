@@ -6,25 +6,22 @@
 
 const ADMIN_MENU = [
   { sec: 'ภาพรวม' },
-  { k:'dashboard',      icon:'📊', label:'Dashboard'              },
-  { k:'users',          icon:'👥', label:'สมาชิก'                 },
-  { k:'transactions',   icon:'💳', label:'ธุรกรรม'                },
+  { k:'dashboard',      icon:'📊', label:'ภาพรวม'                },
+  { k:'users',          icon:'👥', label:'ผู้ใช้'                 },
+  { k:'lotteries',      icon:'🎰', label:'ประเภทหวย'             },
+  { k:'rounds',         icon:'🔄', label:'งวดหวย'                },
+  { k:'bets',           icon:'📋', label:'รายการแทง'             },
   { k:'deposits',       icon:'📥', label:'อนุมัติฝาก', badge:true  },
   { k:'withdrawals',    icon:'📤', label:'อนุมัติถอน', badge:true  },
-  { sec: 'แทงหวย (Admin)' },
+  { k:'results',        icon:'🏆', label:'ผลหวย'                 },
+  { k:'settings',       icon:'⚙️', label:'ตั้งค่า'               },
+  { sec: 'เพิ่มเติม' },
+  { k:'transactions',   icon:'💳', label:'ธุรกรรมทั้งหมด'        },
   { k:'lottery_control',icon:'🔛', label:'เปิด/ปิดหวย'           },
-  { k:'rounds',         icon:'📅', label:'จัดการงวด'             },
-  { k:'enter_result',   icon:'🏆', label:'บันทึกผล'              },
+  { k:'enter_result',   icon:'✏️', label:'บันทึกผล (Manual)'     },
   { k:'hot_numbers',    icon:'🔥', label:'เลขฮิต'                },
-  { sec: 'สมาชิก & การเงิน' },
   { k:'kyc',            icon:'🪪', label:'ตรวจสอบ KYC'           },
-  { k:'promotions_mgr', icon:'🎁', label:'จัดการโปรโมชั่น'       },
-  { k:'wallets',        icon:'💰', label:'กระเป๋าเงินสมาชิก'     },
-  { sec: 'ระบบ' },
-  { k:'lottery_types',  icon:'🎯', label:'ประเภทหวย'             },
-  { k:'settings',       icon:'⚙️', label:'ตั้งค่าระบบ'           },
   { k:'report',         icon:'📑', label:'รายงาน'                },
-  { sec: 'การเชื่อมต่อ' },
   { k:'api_manager',    icon:'🔌', label:'API Manager'            },
 ];
 
@@ -91,6 +88,9 @@ async function navTo(key) {
     switch(key) {
       case 'dashboard':    await renderDashboard(el);    break;
       case 'users':        await renderUsers(el);        break;
+      case 'lotteries':    await renderLotteryTypes(el); break;  // alias
+      case 'bets':         await renderTransactions(el); break;  // alias
+      case 'results':      await renderEnterResult(el);  break;  // alias
       case 'transactions': await renderTransactions(el); break;
       case 'deposits':     await renderDeposits(el);     break;
       case 'withdrawals':  await renderWithdrawals(el);  break;

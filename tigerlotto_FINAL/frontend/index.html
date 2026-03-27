@@ -625,7 +625,7 @@ let STATE = {
   token: localStorage.getItem('tl_token') || null,
   user: JSON.parse(localStorage.getItem('tl_user') || 'null'),
   wallet: null,
-  currentPage: 'landing',
+  currentPage: 'home',
   lotteryTypes: [],
   slipFilter: 'all',
   resultFilter: 'all',
@@ -635,6 +635,7 @@ let STATE = {
   buyStep: 1,
   buyTypeId: null,
   buyTypeName: '',
+  buyTypeCode: null,
   buyBetTypeId: null,
   buyBetTypeName: '',
   buyBetTypePayout: 1,
@@ -644,6 +645,9 @@ let STATE = {
   buyAmount: 0,
   buySlip: [],  // [{number, betTypeId, betTypeName, payout, digits}]
   buyRoundId: null,
+  buyRoundCode: null,
+  buyCloseAt: null,
+  _roundsCache: {},    // id -> round object
   // Timers
   cdTimer: null,
 };
@@ -1282,19 +1286,23 @@ function stopRoundCountdowns() {
 function selectYeekeeRound(roundId) {
   stopRoundCountdowns();
   STATE.buyRoundId = roundId;
+  const cached = STATE._roundsCache[roundId];
+  STATE.buyRoundCode = cached ? (cached.round_code || null) : null;
+  STATE.buyCloseAt   = cached ? (cached.close_at  || null) : null;
   buyStep(2);
   loadBetTypes(STATE.buyTypeId);
 }
 
 async function selectBuyType(id, name) {
   STATE.buyTypeId = id; STATE.buyTypeName = name;
-  STATE.buyRoundId = null;
+  STATE.buyRoundId = null; STATE.buyRoundCode = null; STATE.buyCloseAt = null;
   document.querySelectorAll('.type-card').forEach(c => c.classList.remove('selected'));
   const tc = document.getElementById('tc-'+id); if(tc) tc.classList.add('selected');
 
   const typeObj = STATE.lotteryTypes.find(t => t.id === id);
   const typeCode = typeObj ? (typeObj.code || typeObj.slug || '') : '';
   const typeName = typeObj ? (typeObj.name_th || typeObj.name || '') : '';
+  STATE.buyTypeCode = typeCode;
   const isYeekee = /yeekee|ยี่กี่|ยี่กี|ping.?pong|ปิงปอง|rapid/i.test(typeCode + typeName);
 
   // All lottery types show round selection screen
@@ -1308,13 +1316,14 @@ async function loadRoundSelection(typeId, typeCode, isYeekee) {
   const grid = document.getElementById('yk-round-grid');
   if (grid) grid.innerHTML = '<div style="text-align:center;padding:20px;color:var(--t3)">กำลังโหลดรอบ...</div>';
   try {
-    const limit = isYeekee ? 30 : 10;
+    const limit = isYeekee ? 90 : 30;
     const raw = await api('GET', `/lottery/rounds?lottery_type_id=${typeId}&status=open&limit=${limit}`);
     const all = Array.isArray(raw) ? raw : (raw.data || []);
     const now = new Date();
-    const upcoming = isYeekee
-      ? all.filter(r => new Date(r.close_at) > now).slice(0, 15)
-      : all.filter(r => new Date(r.close_at) > now);
+    const upcoming = all.filter(r => new Date(r.close_at) > now);
+    // Cache rounds by id so selectYeekeeRound can read roundCode & closeAt
+    STATE._roundsCache = {};
+    upcoming.forEach(r => { STATE._roundsCache[r.id] = r; });
     if (!upcoming.length) {
       if (grid) grid.innerHTML = '<div style="text-align:center;padding:24px;color:var(--t3)">ไม่มีงวดที่เปิดรับขณะนี้<br><span style="font-size:11px;opacity:.6">กรุณารอเปิดงวดใหม่</span></div>';
       return;
