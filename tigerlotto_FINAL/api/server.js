@@ -833,13 +833,15 @@ async function autoCreateYeekeeRounds() {
   }
 }
 
-/* Daily scheduler: re-create Yeekee rounds each day at 00:01 */
+/* Daily scheduler: re-create rounds each day at 00:01 ICT */
 let _lastYkCreateDate = '';
 function scheduleDailyYeekeeCreate() {
   setInterval(() => {
     const now = new Date();
-    const dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-    if (now.getHours() === 0 && now.getMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
+    // Always use ICT (UTC+7) for day-boundary check
+    const ict = new Date(now.getTime() + 7 * 3600 * 1000);
+    const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
+    if (ict.getUTCHours() === 0 && ict.getUTCMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
       _lastYkCreateDate = dateKey;
       autoCreateYeekeeRounds();
       autoCreateHanoiRounds();
@@ -881,21 +883,33 @@ server.listen(PORT, '0.0.0.0', () => {
 
       // ฮานอยพิเศษ: 17:35, 17:40
       if (h === 17 && (m === 35 || m === 40) && dateKey !== _lastHanoiSpecial) {
-        _lastHanoiSpecial = dateKey;
         console.log('[HANOI] Trigger พิเศษ');
-        await runHanoiType('special');
+        try {
+          await runHanoiType('special');
+          _lastHanoiSpecial = dateKey; // set only on success so :40 can retry if :35 fails
+        } catch (err) {
+          console.error('[HANOI] พิเศษ scraper failed:', err.message);
+        }
       }
       // ฮานอยปกติ: 18:35, 18:40
       if (h === 18 && (m === 35 || m === 40) && dateKey !== _lastHanoiNormal) {
-        _lastHanoiNormal = dateKey;
         console.log('[HANOI] Trigger ปกติ');
-        await runHanoiType('normal');
+        try {
+          await runHanoiType('normal');
+          _lastHanoiNormal = dateKey;
+        } catch (err) {
+          console.error('[HANOI] ปกติ scraper failed:', err.message);
+        }
       }
       // ฮานอย VIP: 19:35, 19:40
       if (h === 19 && (m === 35 || m === 40) && dateKey !== _lastHanoiVip) {
-        _lastHanoiVip = dateKey;
         console.log('[HANOI] Trigger VIP');
-        await runHanoiType('vip');
+        try {
+          await runHanoiType('vip');
+          _lastHanoiVip = dateKey;
+        } catch (err) {
+          console.error('[HANOI] VIP scraper failed:', err.message);
+        }
       }
     }, 60_000);
     console.log('[HANOI] Scheduler started — พิเศษ 17:35 / ปกติ 18:35 / VIP 19:35 ICT');
@@ -916,9 +930,13 @@ server.listen(PORT, '0.0.0.0', () => {
       // รันที่ 20:00, 20:05, 20:10 ICT
       const isRunTime = h === 20 && (m === 0 || m === 5 || m === 10);
       if (isRunTime && dateKey !== _lastLaoDate) {
-        _lastLaoDate = dateKey;
         console.log(`[LAO SCRAPER] Scheduled trigger at ICT ${h}:${String(m).padStart(2,'0')}`);
-        await runLaoScraper();
+        try {
+          await runLaoScraper();
+          _lastLaoDate = dateKey; // set only on success so next slot can retry
+        } catch (err) {
+          console.error('[LAO SCRAPER] scraper failed:', err.message);
+        }
       }
     }, 60_000);
     console.log('[LAO SCRAPER] Scheduler started — will run daily at 20:00 ICT');
@@ -936,9 +954,13 @@ server.listen(PORT, '0.0.0.0', () => {
       // รันที่ 16:30, 17:00, 17:30 ICT
       const isRunTime2 = (h2 === 16 && m2 === 30) || (h2 === 17 && m2 === 0) || (h2 === 17 && m2 === 30);
       if (isRunTime2 && dateKey2 !== _lastGovDate) {
-        _lastGovDate = dateKey2;
         console.log(`[GOV SCRAPER] Trigger at ICT ${h2}:${String(m2).padStart(2,'0')}`);
-        await runGovScraper();
+        try {
+          await runGovScraper();
+          _lastGovDate = dateKey2; // set only on success so next slot can retry
+        } catch (err) {
+          console.error('[GOV SCRAPER] scraper failed:', err.message);
+        }
       }
     }, 60_000);
     console.log('[GOV SCRAPER] Scheduler started — วันที่ 1 และ 16 เวลา 16:30 ICT');
