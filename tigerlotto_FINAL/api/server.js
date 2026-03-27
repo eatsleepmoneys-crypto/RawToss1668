@@ -785,9 +785,11 @@ async function autoCreateHanoiRounds() {
 async function autoCreateYeekeeRounds() {
   try {
     const now = new Date();
-    const yyyy = now.getFullYear();
-    const mm   = String(now.getMonth() + 1).padStart(2, '0');
-    const dd   = String(now.getDate()).padStart(2, '0');
+    // Use ICT (UTC+7) date — critical on UTC servers where local date differs from ICT
+    const ict  = new Date(now.getTime() + 7 * 3600 * 1000);
+    const yyyy = ict.getUTCFullYear();
+    const mm   = String(ict.getUTCMonth() + 1).padStart(2, '0');
+    const dd   = String(ict.getUTCDate()).padStart(2, '0');
     const dateStr = `${yyyy}${mm}${dd}`;
     const likePattern = `YEEKEE-${dateStr}-%`;
 
@@ -803,28 +805,31 @@ async function autoCreateYeekeeRounds() {
     if (!typeRow) { console.warn('[AUTO-CREATE-YK] lottery_type yeekee not found'); return; }
 
     const typeId = typeRow.id;
-    const midnight = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+    // ICT midnight as UTC milliseconds, then convert back to ICT string for MySQL (UTC+7 DB)
+    const ictMidnightMs = Date.UTC(yyyy, ict.getUTCMonth(), ict.getUTCDate()) - 7 * 3600 * 1000;
     const INTERVAL_MS  = 16 * 60 * 1000;       // 16 minutes
     const CLOSE_OFFSET = 15 * 60 * 1000 + 30 * 1000; // 15m30s
     const RESULT_OFFSET= CLOSE_OFFSET + 30 * 1000;    // +30s
 
-    function toMySQLDT(d) {
+    // Convert UTC ms to ICT DATETIME string (what MySQL UTC+7 expects)
+    function toICTStr(ms) {
+      const d = new Date(ms + 7 * 3600 * 1000);
       return d.toISOString().replace('T', ' ').slice(0, 19);
     }
 
     for (let rr = 1; rr <= 90; rr++) {
-      const rrStr   = String(rr).padStart(2, '0');
-      const code    = `YEEKEE-${dateStr}-${rrStr}`;
-      const name    = `ยี่กี่ รอบที่ ${rr} (${dateStr})`;
-      const openAt  = new Date(midnight.getTime() + (rr - 1) * INTERVAL_MS);
-      const closeAt = new Date(openAt.getTime() + CLOSE_OFFSET);
-      const resultAt= new Date(openAt.getTime() + RESULT_OFFSET);
-      const status  = closeAt <= now ? 'closed' : 'open';
+      const rrStr    = String(rr).padStart(2, '0');
+      const code     = `YEEKEE-${dateStr}-${rrStr}`;
+      const name     = `ยี่กี่ รอบที่ ${rr} (${dateStr})`;
+      const openAtMs  = ictMidnightMs + (rr - 1) * INTERVAL_MS;
+      const closeAtMs = openAtMs + CLOSE_OFFSET;
+      const resultAtMs= openAtMs + RESULT_OFFSET;
+      const status   = closeAtMs <= now.getTime() ? 'closed' : 'open';
 
       await query(
         `INSERT IGNORE INTO lottery_rounds (lottery_type_id,round_code,round_name,open_at,close_at,result_at,status)
          VALUES (?,?,?,?,?,?,?)`,
-        [typeId, code, name, toMySQLDT(openAt), toMySQLDT(closeAt), toMySQLDT(resultAt), status]
+        [typeId, code, name, toICTStr(openAtMs), toICTStr(closeAtMs), toICTStr(resultAtMs), status]
       );
     }
     console.log(`[AUTO-CREATE-YK] สร้าง 90 รอบยี่กี่สำหรับ ${dateStr} เรียบร้อย`);
@@ -833,13 +838,14 @@ async function autoCreateYeekeeRounds() {
   }
 }
 
-/* Daily scheduler: re-create Yeekee rounds each day at 00:01 */
+/* Daily scheduler: re-create rounds each day at 00:01 ICT */
 let _lastYkCreateDate = '';
 function scheduleDailyYeekeeCreate() {
   setInterval(() => {
     const now = new Date();
-    const dateKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
-    if (now.getHours() === 0 && now.getMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
+    const ict = new Date(now.getTime() + 7 * 3600 * 1000); // ICT = UTC+7
+    const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
+    if (ict.getUTCHours() === 0 && ict.getUTCMinutes() >= 1 && dateKey !== _lastYkCreateDate) {
       _lastYkCreateDate = dateKey;
       autoCreateYeekeeRounds();
       autoCreateHanoiRounds();
@@ -871,60 +877,62 @@ server.listen(PORT, '0.0.0.0', () => {
 
     // ── หวยฮานอย: ดึงผลอัตโนมัติ 3 ประเภท ──────────────────
     const { runHanoiType } = require('./services/hanoiScraper');
+    // ใช้ minute-level key เพื่อให้ retry ที่ :35 และ :40 ทำงานได้อิสระ
     let _lastHanoiSpecial = '', _lastHanoiNormal = '', _lastHanoiVip = '';
     setInterval(async () => {
       const now = new Date();
       const ict = new Date(now.getTime() + 7 * 3600 * 1000);
       const h = ict.getUTCHours();
       const m = ict.getUTCMinutes();
-      const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
+      const minuteKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}-${h}-${m}`;
 
-      // ฮานอยพิเศษ: 17:35, 17:40
-      if (h === 17 && (m === 35 || m === 40) && dateKey !== _lastHanoiSpecial) {
-        _lastHanoiSpecial = dateKey;
+      // ฮานอยพิเศษ: 17:35, 17:40 (retry หากรอบแรกล้มเหลว)
+      if (h === 17 && (m === 35 || m === 40) && minuteKey !== _lastHanoiSpecial) {
+        _lastHanoiSpecial = minuteKey;
         console.log('[HANOI] Trigger พิเศษ');
         await runHanoiType('special');
       }
       // ฮานอยปกติ: 18:35, 18:40
-      if (h === 18 && (m === 35 || m === 40) && dateKey !== _lastHanoiNormal) {
-        _lastHanoiNormal = dateKey;
+      if (h === 18 && (m === 35 || m === 40) && minuteKey !== _lastHanoiNormal) {
+        _lastHanoiNormal = minuteKey;
         console.log('[HANOI] Trigger ปกติ');
         await runHanoiType('normal');
       }
       // ฮานอย VIP: 19:35, 19:40
-      if (h === 19 && (m === 35 || m === 40) && dateKey !== _lastHanoiVip) {
-        _lastHanoiVip = dateKey;
+      if (h === 19 && (m === 35 || m === 40) && minuteKey !== _lastHanoiVip) {
+        _lastHanoiVip = minuteKey;
         console.log('[HANOI] Trigger VIP');
         await runHanoiType('vip');
       }
     }, 60_000);
-    console.log('[HANOI] Scheduler started — พิเศษ 17:35 / ปกติ 18:35 / VIP 19:35 ICT');
+    console.log('[HANOI] Scheduler started — พิเศษ 17:35/17:40 / ปกติ 18:35/18:40 / VIP 19:35/19:40 ICT');
     // ─────────────────────────────────────────────────────────
 
     // ── หวยลาว: ดึงผลอัตโนมัติ ──────────────────────────────
     // ออกผลทุกวัน ~19:55 ICT (UTC+7 = 12:55 UTC)
     // รัน 20:00, 20:05, 20:10 เพื่อ retry ถ้าเว็บช้า
     const { runLaoScraper } = require('./services/laoLotteryScraper');
+    // ใช้ minute-level key เพื่อให้ 20:00, 20:05, 20:10 retry ได้อิสระ
     let _lastLaoDate = '';
     setInterval(async () => {
       const now = new Date();
-      // UTC+7: offset 7 ชั่วโมง
       const ict = new Date(now.getTime() + 7 * 3600 * 1000);
       const h = ict.getUTCHours();
       const m = ict.getUTCMinutes();
-      const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
+      const minuteKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}-${h}-${m}`;
       // รันที่ 20:00, 20:05, 20:10 ICT
       const isRunTime = h === 20 && (m === 0 || m === 5 || m === 10);
-      if (isRunTime && dateKey !== _lastLaoDate) {
-        _lastLaoDate = dateKey;
+      if (isRunTime && minuteKey !== _lastLaoDate) {
+        _lastLaoDate = minuteKey;
         console.log(`[LAO SCRAPER] Scheduled trigger at ICT ${h}:${String(m).padStart(2,'0')}`);
         await runLaoScraper();
       }
     }, 60_000);
-    console.log('[LAO SCRAPER] Scheduler started — will run daily at 20:00 ICT');
+    console.log('[LAO SCRAPER] Scheduler started — will run daily at 20:00/20:05/20:10 ICT');
 
     // ── หวยรัฐบาล: ดึงผลอัตโนมัติ (วันที่ 1 และ 16) ────────────
     const { runGovScraper, isGovLotteryDay } = require('./services/govLotteryScraper');
+    // ใช้ minute-level key เพื่อให้ retry ที่ 16:30, 17:00, 17:30 ทำงานได้อิสระ
     let _lastGovDate = '';
     setInterval(async () => {
       if (!isGovLotteryDay()) return;
@@ -932,16 +940,16 @@ server.listen(PORT, '0.0.0.0', () => {
       const ict2 = new Date(now2.getTime() + 7 * 3600 * 1000);
       const h2 = ict2.getUTCHours();
       const m2 = ict2.getUTCMinutes();
-      const dateKey2 = `${ict2.getUTCFullYear()}-${ict2.getUTCMonth()}-${ict2.getUTCDate()}`;
-      // รันที่ 16:30, 17:00, 17:30 ICT
+      const minuteKey2 = `${ict2.getUTCFullYear()}-${ict2.getUTCMonth()}-${ict2.getUTCDate()}-${h2}-${m2}`;
+      // รันที่ 16:30, 17:00, 17:30 ICT (retry หากเว็บช้า/ล้มเหลว)
       const isRunTime2 = (h2 === 16 && m2 === 30) || (h2 === 17 && m2 === 0) || (h2 === 17 && m2 === 30);
-      if (isRunTime2 && dateKey2 !== _lastGovDate) {
-        _lastGovDate = dateKey2;
+      if (isRunTime2 && minuteKey2 !== _lastGovDate) {
+        _lastGovDate = minuteKey2;
         console.log(`[GOV SCRAPER] Trigger at ICT ${h2}:${String(m2).padStart(2,'0')}`);
         await runGovScraper();
       }
     }, 60_000);
-    console.log('[GOV SCRAPER] Scheduler started — วันที่ 1 และ 16 เวลา 16:30 ICT');
+    console.log('[GOV SCRAPER] Scheduler started — วันที่ 1 และ 16 เวลา 16:30/17:00/17:30 ICT');
     // ─────────────────────────────────────────────────────────────
     // ─────────────────────────────────────────────────────────
   }, 5_000);
