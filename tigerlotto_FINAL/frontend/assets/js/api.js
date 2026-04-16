@@ -87,11 +87,15 @@ const AuthAPI = {
 /* ─── Admin Auth API ─── */
 const AdminAuthAPI = {
   login: async (email, password, role) => {
-    const data = await apiFetch('/auth/admin/login', {
+    const res = await apiFetch('/auth/admin/login', {
       method: 'POST', body: JSON.stringify({ email, password, role })
     }, 'admin');
-    if (data.token) Token.setAdmin(data.token);
-    return data;
+    // Backend wraps payload in res.data: { token, admin }
+    const token = res.data?.token || res.token;
+    const admin = res.data?.admin || res.admin;
+    if (token) Token.setAdmin(token);
+    // Return flat object so admin/index.html can access data.token / data.admin directly
+    return { ...res, token, admin };
   },
 
   me: () => apiFetch('/auth/admin/me', {}, 'admin'),
