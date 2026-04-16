@@ -395,6 +395,39 @@ async function migrate() {
     }
   };
 
+  // 0. Drop FKs from OLD schema tables that reference our new tables
+  //    MySQL 9.x enforces column-type compatibility even with FK_CHECKS=0 at CREATE time
+  console.log('\n🔗 Dropping old-schema FKs that reference our tables...');
+  try {
+    const OUR_TABLES = [
+      'agents','members','admins','lottery_types','lottery_rounds',
+      'bets','deposits','withdrawals','transactions','notifications',
+      'admin_logs','otps','settings','promotions','lottery_results'
+    ];
+    const placeholders = OUR_TABLES.map(() => '?').join(',');
+    const [fkRows] = await conn.query(
+      `SELECT DISTINCT kcu.TABLE_NAME, kcu.CONSTRAINT_NAME
+       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+       JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+         ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+         AND tc.TABLE_SCHEMA = kcu.CONSTRAINT_SCHEMA
+         AND tc.TABLE_NAME = kcu.TABLE_NAME
+       WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
+         AND kcu.REFERENCED_TABLE_NAME IN (${placeholders})
+         AND kcu.TABLE_NAME NOT IN (${placeholders})
+         AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'`,
+      [...OUR_TABLES, ...OUR_TABLES]
+    );
+    for (const row of fkRows) {
+      await run(
+        `DROP FK ${row.CONSTRAINT_NAME} on ${row.TABLE_NAME}`,
+        `ALTER TABLE \`${row.TABLE_NAME}\` DROP FOREIGN KEY \`${row.CONSTRAINT_NAME}\``
+      );
+    }
+  } catch (e) {
+    console.warn(`   ⚠️  FK scan error: ${e.message.substring(0, 120)}`);
+  }
+
   // 1. Drop all tables (FK-safe: disable checks first so old-schema FKs don't block)
   console.log('\n📦 Dropping tables...');
   await conn.query('SET FOREIGN_KEY_CHECKS = 0');
