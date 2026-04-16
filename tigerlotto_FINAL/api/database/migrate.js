@@ -41,10 +41,15 @@ async function migrate() {
   const conn = await mysql.createConnection(connConfig);
   const sql  = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 
-  // Execute each statement individually so failures don't abort the whole migration
-  const stmts = sql.split(/;\s*\n/).map(s => s.trim()).filter(s => s.length > 2 && !s.startsWith('--'));
+  // Execute each statement individually — strip leading comments, skip pure-comment blocks
+  const stmts = sql.split(/;\s*\n/).map(s => {
+    // Remove lines that are purely comments so we can detect if there's real SQL
+    const noComments = s.split('\n').filter(l => !l.trim().startsWith('--')).join('\n').trim();
+    return { raw: s.trim(), sql: noComments };
+  }).filter(({ sql }) => sql.length > 2);
+
   let ok = 0, fail = 0;
-  for (const stmt of stmts) {
+  for (const { raw, sql: stmt } of stmts) {
     try {
       await conn.query(stmt);
       ok++;
