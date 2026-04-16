@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('express-async-errors'); // auto-catch async route errors → prevents 502 hangs
 const express    = require('express');
 // cors package replaced by manual CORS middleware (see below)
 const helmet     = require('helmet');
