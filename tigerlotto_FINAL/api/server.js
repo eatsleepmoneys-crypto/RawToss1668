@@ -10,6 +10,10 @@ const cron       = require('node-cron');
 
 const app = express();
 
+// ─── Trust Proxy (Railway / Heroku sit behind a load balancer) ────────────────
+// Required so express-rate-limit can read X-Forwarded-For without throwing
+app.set('trust proxy', 1);
+
 // ─── Security Headers ─────────────────────────────
 // Disable CORP/COEP to allow cross-origin API access from Cloudflare Pages
 app.use(helmet({
