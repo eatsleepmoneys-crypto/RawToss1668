@@ -109,7 +109,7 @@ app.use((err, req, res, next) => {
   const status = err.status || 500;
   res.status(status).json({
     success: false,
-    message: process.env.NODE_ENV === 'production' ? 'เกิดข้อผิดพลาดภายในระบบ' : err.message,
+    message: err.message, // TODO: hide in production after debugging
   });
 });
 
