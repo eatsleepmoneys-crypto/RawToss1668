@@ -168,37 +168,46 @@ router.post('/admin/login', loginLimit,
   body('email').isEmail().withMessage('กรุณากรอก Email'),
   body('password').notEmpty(),
   async (req, res) => {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
-    const { email, password } = req.body;
-    const [admin] = await query('SELECT * FROM admins WHERE email=? AND is_active=1', [email]);
-    if (!admin) return res.status(401).json({ success: false, message: 'Email หรือรหัสผ่านไม่ถูกต้อง' });
+      const { email, password } = req.body;
+      const [admin] = await query('SELECT * FROM admins WHERE email=? AND is_active=1', [email]);
+      if (!admin) return res.status(401).json({ success: false, message: 'Email หรือรหัสผ่านไม่ถูกต้อง' });
 
-    if (admin.locked_until && new Date(admin.locked_until) > new Date()) {
-      return res.status(429).json({ success: false, message: 'บัญชีถูกล็อค กรุณารอสักครู่' });
+      if (admin.locked_until && new Date(admin.locked_until) > new Date()) {
+        return res.status(429).json({ success: false, message: 'บัญชีถูกล็อค กรุณารอสักครู่' });
+      }
+
+      const match = await bcrypt.compare(password, admin.password);
+      if (!match) {
+        const attempts = admin.login_attempts + 1;
+        const lockUntil = attempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000) : null;
+        await query('UPDATE admins SET login_attempts=?, locked_until=? WHERE id=?', [attempts, lockUntil, admin.id]);
+        return res.status(401).json({ success: false, message: `รหัสผ่านไม่ถูกต้อง (${attempts}/5)` });
+      }
+
+      await query('UPDATE admins SET login_attempts=0, locked_until=NULL, last_login_at=NOW(), last_login_ip=? WHERE id=?',
+        [req.ip, admin.id]);
+
+      // Log activity (ignore error if table missing)
+      try {
+        await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+          [admin.id, 'login', 'เข้าสู่ระบบ Admin', req.ip]);
+      } catch (logErr) {
+        console.warn('admin_logs insert failed (non-fatal):', logErr.message);
+      }
+
+      const token = signAdminToken(admin);
+      res.json({
+        success: true, message: 'เข้าสู่ระบบสำเร็จ',
+        data: { token, admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role } }
+      });
+    } catch (err) {
+      console.error('Admin login error:', err);
+      res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด: ' + err.message });
     }
-
-    const match = await bcrypt.compare(password, admin.password);
-    if (!match) {
-      const attempts = admin.login_attempts + 1;
-      const lockUntil = attempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000) : null;
-      await query('UPDATE admins SET login_attempts=?, locked_until=? WHERE id=?', [attempts, lockUntil, admin.id]);
-      return res.status(401).json({ success: false, message: `รหัสผ่านไม่ถูกต้อง (${attempts}/5)` });
-    }
-
-    await query('UPDATE admins SET login_attempts=0, locked_until=NULL, last_login_at=NOW(), last_login_ip=? WHERE id=?',
-      [req.ip, admin.id]);
-
-    // Log activity
-    await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
-      [admin.id, 'login', 'เข้าสู่ระบบ Admin', req.ip]);
-
-    const token = signAdminToken(admin);
-    res.json({
-      success: true, message: 'เข้าสู่ระบบสำเร็จ',
-      data: { token, admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role } }
-    });
   }
 );
 
