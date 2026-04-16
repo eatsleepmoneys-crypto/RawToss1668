@@ -28,6 +28,8 @@ app.use(cors({
     if (!origin) return cb(null, true);
     // Railway URLs: *.up.railway.app → อนุญาตทั้งหมด
     if (origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) return cb(null, true);
+    // Cloudflare Pages: *.pages.dev → อนุญาต
+    if (origin.endsWith('.pages.dev')) return cb(null, true);
     // whitelist จาก .env
     if (allowedOrigins.includes(origin)) return cb(null, true);
     cb(null, true); // dev mode: อนุญาตทุก origin (เปลี่ยนเป็น false ใน production จริง)
