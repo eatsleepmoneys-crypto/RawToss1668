@@ -1,31 +1,68 @@
 const mysql = require('mysql2/promise');
+require('dotenv').config();
+
+// ─── Railway DATABASE_URL support ───
+// Railway MySQL ให้ DATABASE_URL แบบ:
+// mysql://user:pass@host:port/dbname
+function parseDbUrl(url) {
+  try {
+    const u = new URL(url);
+    return {
+      host    : u.hostname,
+      port    : parseInt(u.port) || 3306,
+      database: u.pathname.replace('/', ''),
+      user    : u.username,
+      password: u.password,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const dbUrl = process.env.DATABASE_URL || process.env.MYSQL_URL;
+const dbConfig = dbUrl ? parseDbUrl(dbUrl) : null;
 
 const pool = mysql.createPool({
-  host:               process.env.DB_HOST     || 'localhost',
-  port:               parseInt(process.env.DB_PORT || 3306),
-  user:               process.env.DB_USER,
-  password:           process.env.DB_PASS,
-  database:           process.env.DB_NAME,
-  waitForConnections: true,
-  connectionLimit:    10,
-  queueLimit:         0,
-  charset:            'utf8mb4',
-  timezone:           '+07:00',
+  host    : dbConfig?.host     || process.env.DB_HOST     || process.env.MYSQLHOST     || 'localhost',
+  port    : dbConfig?.port     || process.env.DB_PORT     || process.env.MYSQLPORT     || 3306,
+  database: dbConfig?.database || process.env.DB_NAME     || process.env.MYSQLDATABASE || 'tigerlotto',
+  user    : dbConfig?.user     || process.env.DB_USER     || process.env.MYSQLUSER     || 'root',
+  password: dbConfig?.password || process.env.DB_PASS     || process.env.MYSQLPASSWORD || '',
+
+  waitForConnections : true,
+  connectionLimit    : 20,
+  queueLimit         : 0,
+  charset            : 'utf8mb4',
+  timezone           : '+07:00',
+  decimalNumbers     : true,
+
+  // Railway ต้องการ SSL บางครั้ง
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
 });
 
-async function query(sql, params = []) {
+// ─── Test connection ───
+pool.getConnection()
+  .then(conn => {
+    const dbName = dbConfig?.database || process.env.DB_NAME || 'tigerlotto';
+    console.log('✅ MySQL connected:', dbName);
+    conn.release();
+  })
+  .catch(err => {
+    console.error('❌ MySQL connection error:', err.message);
+    process.exit(1);
+  });
+
+// ─── Helpers ───
+const query = async (sql, params = []) => {
   const [rows] = await pool.execute(sql, params);
   return rows;
-}
-async function queryOne(sql, params = []) {
-  const rows = await query(sql, params);
-  return rows[0] || null;
-}
-async function transaction(fn) {
+};
+
+const transaction = async (callback) => {
   const conn = await pool.getConnection();
+  await conn.beginTransaction();
   try {
-    await conn.beginTransaction();
-    const result = await fn(conn);
+    const result = await callback(conn);
     await conn.commit();
     return result;
   } catch (err) {
@@ -34,6 +71,6 @@ async function transaction(fn) {
   } finally {
     conn.release();
   }
-}
+};
 
-module.exports = { pool, query, queryOne, transaction };
+module.exports = { pool, query, transaction };
