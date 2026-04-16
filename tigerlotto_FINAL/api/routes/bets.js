@@ -101,7 +101,7 @@ router.get('/:uuid', authMember, async (req, res) => {
 });
 
 // ─── ADMIN: GET /api/bets/admin/list ─────────────
-router.get('/admin/list', authAdmin, rbac.require('bets.view'), async (req, res) => {
+router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, res) => {
   const { page=1, limit=30, round_id, member_id, status, bet_type } = req.query;
   const offset = (page-1)*limit;
   const where = []; const params = [];
@@ -119,7 +119,7 @@ router.get('/admin/list', authAdmin, rbac.require('bets.view'), async (req, res)
 });
 
 // ─── ADMIN: PATCH /api/bets/admin/:id/cancel ─────
-router.patch('/admin/:id/cancel', authAdmin, rbac.require('bets.cancel'), async (req, res) => {
+router.patch('/admin/:id/cancel', authAdmin, rbac.requirePerm('bets.cancel'), async (req, res) => {
   const [bet] = await query('SELECT * FROM bets WHERE id=? AND status="waiting"', [req.params.id]);
   if (!bet) return res.status(400).json({ success: false, message: 'ไม่พบรายการหรือยกเลิกไม่ได้' });
   await transaction(async (conn) => {

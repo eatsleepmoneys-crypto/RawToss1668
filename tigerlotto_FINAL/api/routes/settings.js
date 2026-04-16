@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 });
 
 // GET /api/settings/admin/all — all settings for admin
-router.get('/admin/all', authAdmin, rbac.require('settings.view'), async (req, res) => {
+router.get('/admin/all', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
   const { group } = req.query;
   const where = group ? 'WHERE `group`=?' : '';
   const rows = await query(`SELECT * FROM settings ${where} ORDER BY \`group\`,\`key\``, group ? [group] : []);
@@ -26,7 +26,7 @@ router.get('/admin/all', authAdmin, rbac.require('settings.view'), async (req, r
 });
 
 // PUT /api/settings/admin — update one or many settings
-router.put('/admin', authAdmin, rbac.require('settings.manage'), async (req, res) => {
+router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   const updates = req.body; // { key: value, ... }
   if (!updates || typeof updates !== 'object')
     return res.status(400).json({ success: false, message: 'Invalid body' });
@@ -42,13 +42,13 @@ router.put('/admin', authAdmin, rbac.require('settings.manage'), async (req, res
 });
 
 // GET /api/settings/admin/api-keys — sensitive API settings (superadmin only)
-router.get('/admin/api-keys', authAdmin, rbac.require('api.view'), async (req, res) => {
+router.get('/admin/api-keys', authAdmin, rbac.requirePerm('api.view'), async (req, res) => {
   const rows = await query('SELECT * FROM settings WHERE `group` IN ("line","sms","payment","security")');
   res.json({ success: true, data: rows });
 });
 
 // PUT /api/settings/admin/api-keys
-router.put('/admin/api-keys', authAdmin, rbac.require('api.manage'), async (req, res) => {
+router.put('/admin/api-keys', authAdmin, rbac.requirePerm('api.manage'), async (req, res) => {
   const updates = req.body;
   for (const [key, value] of Object.entries(updates)) {
     // Upsert
@@ -62,7 +62,7 @@ router.put('/admin/api-keys', authAdmin, rbac.require('api.manage'), async (req,
 });
 
 // POST /api/settings/admin/maintenance
-router.post('/admin/maintenance', authAdmin, rbac.require('settings.manage'), async (req, res) => {
+router.post('/admin/maintenance', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   const { enabled, message } = req.body;
   await query('UPDATE settings SET value=? WHERE `key`="maintenance_mode"', [String(enabled)]);
   if (message) await query('INSERT INTO settings (`key`,value,type,`group`) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',

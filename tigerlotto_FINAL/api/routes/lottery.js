@@ -102,13 +102,13 @@ router.post('/check', async (req, res) => {
 // ════════════════════════════════════
 
 // GET /api/lottery/admin/types
-router.get('/admin/types', authAdmin, rbac.require('lottery.view'), async (req, res) => {
+router.get('/admin/types', authAdmin, rbac.requirePerm('lottery.view'), async (req, res) => {
   const rows = await query('SELECT * FROM lottery_types ORDER BY sort_order');
   res.json({ success: true, data: rows });
 });
 
 // PATCH /api/lottery/admin/types/:id — update rates, status
-router.patch('/admin/types/:id', authAdmin, rbac.require('lottery.manage'), async (req, res) => {
+router.patch('/admin/types/:id', authAdmin, rbac.requirePerm('lottery.manage'), async (req, res) => {
   const { name, status, min_bet, max_bet, rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot } = req.body;
   await query(
     `UPDATE lottery_types SET
@@ -126,7 +126,7 @@ router.patch('/admin/types/:id', authAdmin, rbac.require('lottery.manage'), asyn
 });
 
 // GET /api/lottery/admin/rounds
-router.get('/admin/rounds', authAdmin, rbac.require('rounds.view'), async (req, res) => {
+router.get('/admin/rounds', authAdmin, rbac.requirePerm('rounds.view'), async (req, res) => {
   const { status, lottery_id } = req.query;
   const where = [];
   const params = [];
@@ -141,7 +141,7 @@ router.get('/admin/rounds', authAdmin, rbac.require('rounds.view'), async (req, 
 });
 
 // POST /api/lottery/admin/rounds — create round
-router.post('/admin/rounds', authAdmin, rbac.require('rounds.manage'),
+router.post('/admin/rounds', authAdmin, rbac.requirePerm('rounds.manage'),
   body('lottery_id').isInt(), body('draw_date').isDate(), body('close_at').notEmpty(),
   async (req, res) => {
     const err = validationResult(req);
@@ -155,13 +155,13 @@ router.post('/admin/rounds', authAdmin, rbac.require('rounds.manage'),
 );
 
 // PATCH /api/lottery/admin/rounds/:id/close
-router.patch('/admin/rounds/:id/close', authAdmin, rbac.require('rounds.manage'), async (req, res) => {
+router.patch('/admin/rounds/:id/close', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
   await query('UPDATE lottery_rounds SET status="closed" WHERE id=?', [req.params.id]);
   res.json({ success: true, message: 'ปิดรับงวดแล้ว' });
 });
 
 // POST /api/lottery/admin/results — announce result + auto payout
-router.post('/admin/results', authAdmin, rbac.require('results.announce'),
+router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
   body('round_id').isInt(),
   body('prize_1st').isLength({ min: 6, max: 6 }).withMessage('รางวัลที่ 1 ต้องเป็น 6 หลัก'),
   body('prize_last_2').isLength({ min: 2, max: 2 }),

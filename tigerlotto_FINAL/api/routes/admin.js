@@ -9,7 +9,7 @@ const rbac = require('../middleware/rbac');
 // ══════════════════════════════════════
 //  DASHBOARD STATS
 // ══════════════════════════════════════
-router.get('/dashboard', authAdmin, rbac.require('reports.view'), async (req, res) => {
+router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
   const [members]  = await query('SELECT COUNT(*) c FROM members');
   const [newToday] = await query('SELECT COUNT(*) c FROM members WHERE DATE(created_at)=CURDATE()');
   const [depToday] = await query('SELECT COALESCE(SUM(amount),0) total FROM deposits WHERE status="approved" AND DATE(approved_at)=CURDATE()');
@@ -56,12 +56,12 @@ router.get('/dashboard', authAdmin, rbac.require('reports.view'), async (req, re
 // ══════════════════════════════════════
 //  AGENTS
 // ══════════════════════════════════════
-router.get('/agents', authAdmin, rbac.require('agents.view'), async (req, res) => {
+router.get('/agents', authAdmin, rbac.requirePerm('agents.view'), async (req, res) => {
   const rows = await query('SELECT id,uuid,name,phone,commission_rate,balance,total_commission,status,created_at FROM agents ORDER BY id DESC');
   res.json({ success: true, data: rows });
 });
 
-router.post('/agents', authAdmin, rbac.require('agents.manage'),
+router.post('/agents', authAdmin, rbac.requirePerm('agents.manage'),
   body('name').notEmpty(), body('phone').matches(/^0[0-9]{8,9}$/), body('password').isLength({min:8}),
   async (req, res) => {
     const err = validationResult(req);
@@ -74,7 +74,7 @@ router.post('/agents', authAdmin, rbac.require('agents.manage'),
   }
 );
 
-router.patch('/agents/:id', authAdmin, rbac.require('agents.manage'), async (req, res) => {
+router.patch('/agents/:id', authAdmin, rbac.requirePerm('agents.manage'), async (req, res) => {
   const { commission_rate, status } = req.body;
   await query('UPDATE agents SET commission_rate=COALESCE(?,commission_rate), status=COALESCE(?,status) WHERE id=?',
     [commission_rate, status, req.params.id]);
@@ -84,12 +84,12 @@ router.patch('/agents/:id', authAdmin, rbac.require('agents.manage'), async (req
 // ══════════════════════════════════════
 //  ADMIN USERS (Multi-level)
 // ══════════════════════════════════════
-router.get('/admins', authAdmin, rbac.require('admins.view'), async (req, res) => {
+router.get('/admins', authAdmin, rbac.requirePerm('admins.view'), async (req, res) => {
   const rows = await query('SELECT id,uuid,name,email,role,is_active,two_fa_enabled,last_login_at,created_at FROM admins ORDER BY id ASC');
   res.json({ success: true, data: rows });
 });
 
-router.post('/admins', authAdmin, rbac.require('admins.create'),
+router.post('/admins', authAdmin, rbac.requirePerm('admins.create'),
   body('name').notEmpty(), body('email').isEmail(), body('password').isLength({min:8}),
   body('role').isIn(['admin','finance','staff']),
   async (req, res) => {
@@ -107,7 +107,7 @@ router.post('/admins', authAdmin, rbac.require('admins.create'),
   }
 );
 
-router.patch('/admins/:id', authAdmin, rbac.require('admins.edit'), async (req, res) => {
+router.patch('/admins/:id', authAdmin, rbac.requirePerm('admins.edit'), async (req, res) => {
   if (parseInt(req.params.id) === req.admin.id && req.body.role)
     return res.status(400).json({ success:false, message:'ไม่สามารถเปลี่ยน role ตัวเองได้' });
   const { name, role, is_active } = req.body;
@@ -116,14 +116,14 @@ router.patch('/admins/:id', authAdmin, rbac.require('admins.edit'), async (req, 
   res.json({ success: true, message: 'อัพเดท Admin แล้ว' });
 });
 
-router.delete('/admins/:id', authAdmin, rbac.require('admins.delete'), async (req, res) => {
+router.delete('/admins/:id', authAdmin, rbac.requirePerm('admins.delete'), async (req, res) => {
   if (parseInt(req.params.id) === req.admin.id)
     return res.status(400).json({ success:false, message:'ไม่สามารถลบตัวเองได้' });
   await query('UPDATE admins SET is_active=0 WHERE id=?', [req.params.id]);
   res.json({ success: true, message: 'ปิดการใช้งาน Admin แล้ว' });
 });
 
-router.patch('/admins/:id/reset-password', authAdmin, rbac.require('admins.edit'),
+router.patch('/admins/:id/reset-password', authAdmin, rbac.requirePerm('admins.edit'),
   body('new_password').isLength({min:8}),
   async (req, res) => {
     const hashed = await bcrypt.hash(req.body.new_password, 12);
@@ -135,7 +135,7 @@ router.patch('/admins/:id/reset-password', authAdmin, rbac.require('admins.edit'
 // ══════════════════════════════════════
 //  REPORTS
 // ══════════════════════════════════════
-router.get('/reports/summary', authAdmin, rbac.require('reports.view'), async (req, res) => {
+router.get('/reports/summary', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
   const { from, to } = req.query;
   const dateFrom = from || new Date(Date.now() - 30*86400000).toISOString().slice(0,10);
   const dateTo   = to   || new Date().toISOString().slice(0,10);
@@ -176,7 +176,7 @@ router.get('/reports/summary', authAdmin, rbac.require('reports.view'), async (r
 });
 
 // GET /api/admin/logs
-router.get('/logs', authAdmin, rbac.require('logs.view'), async (req, res) => {
+router.get('/logs', authAdmin, rbac.requirePerm('logs.view'), async (req, res) => {
   const { page=1, limit=30, admin_id, action } = req.query;
   const offset = (page-1)*limit;
   const where=[]; const params=[];
@@ -190,7 +190,7 @@ router.get('/logs', authAdmin, rbac.require('logs.view'), async (req, res) => {
 });
 
 // POST /api/admin/announce — broadcast notification
-router.post('/announce', authAdmin, rbac.require('settings.view'),
+router.post('/announce', authAdmin, rbac.requirePerm('settings.view'),
   body('title').notEmpty(), body('body').notEmpty(),
   async (req, res) => {
     const { title, body: bodyText, member_id } = req.body;

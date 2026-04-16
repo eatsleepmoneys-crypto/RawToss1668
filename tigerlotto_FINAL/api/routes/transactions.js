@@ -143,7 +143,7 @@ router.get('/deposit-status', authMember, async (req, res) => {
 // ══════════════════════════════
 
 // GET /api/transactions/admin/deposits
-router.get('/admin/deposits', authAdmin, rbac.require('deposits.view'), async (req, res) => {
+router.get('/admin/deposits', authAdmin, rbac.requirePerm('deposits.view'), async (req, res) => {
   const { status='pending', page=1, limit=20 } = req.query;
   const offset = (page-1)*limit;
   const where = status !== 'all' ? 'WHERE d.status=?' : '';
@@ -157,7 +157,7 @@ router.get('/admin/deposits', authAdmin, rbac.require('deposits.view'), async (r
 });
 
 // PATCH /api/transactions/admin/deposits/:id/approve
-router.patch('/admin/deposits/:id/approve', authAdmin, rbac.require('deposits.approve'), async (req, res) => {
+router.patch('/admin/deposits/:id/approve', authAdmin, rbac.requirePerm('deposits.approve'), async (req, res) => {
   const [dep] = await query('SELECT * FROM deposits WHERE id=? AND status="pending"', [req.params.id]);
   if (!dep) return res.status(400).json({ success: false, message: 'ไม่พบรายการหรืออนุมัติแล้ว' });
   await approveDeposit(dep.id, dep.member_id, dep.amount, req.admin.id);
@@ -167,7 +167,7 @@ router.patch('/admin/deposits/:id/approve', authAdmin, rbac.require('deposits.ap
 });
 
 // PATCH /api/transactions/admin/deposits/:id/reject
-router.patch('/admin/deposits/:id/reject', authAdmin, rbac.require('deposits.approve'), async (req, res) => {
+router.patch('/admin/deposits/:id/reject', authAdmin, rbac.requirePerm('deposits.approve'), async (req, res) => {
   const { note } = req.body;
   const [dep] = await query('SELECT * FROM deposits WHERE id=? AND status="pending"', [req.params.id]);
   if (!dep) return res.status(400).json({ success: false, message: 'ไม่พบรายการ' });
@@ -183,7 +183,7 @@ router.patch('/admin/deposits/:id/reject', authAdmin, rbac.require('deposits.app
 // ══════════════════════════════
 
 // GET /api/transactions/admin/withdrawals
-router.get('/admin/withdrawals', authAdmin, rbac.require('withdrawals.view'), async (req, res) => {
+router.get('/admin/withdrawals', authAdmin, rbac.requirePerm('withdrawals.view'), async (req, res) => {
   const { status='pending', page=1, limit=20 } = req.query;
   const offset = (page-1)*limit;
   const where = status !== 'all' ? 'WHERE w.status=?' : '';
@@ -197,7 +197,7 @@ router.get('/admin/withdrawals', authAdmin, rbac.require('withdrawals.view'), as
 });
 
 // PATCH /api/transactions/admin/withdrawals/:id/process
-router.patch('/admin/withdrawals/:id/process', authAdmin, rbac.require('withdrawals.process'), async (req, res) => {
+router.patch('/admin/withdrawals/:id/process', authAdmin, rbac.requirePerm('withdrawals.process'), async (req, res) => {
   const { ref_no } = req.body;
   const [wd] = await query('SELECT * FROM withdrawals WHERE id=? AND status IN ("pending","processing")', [req.params.id]);
   if (!wd) return res.status(400).json({ success: false, message: 'ไม่พบรายการ' });
@@ -212,7 +212,7 @@ router.patch('/admin/withdrawals/:id/process', authAdmin, rbac.require('withdraw
 });
 
 // PATCH /api/transactions/admin/withdrawals/:id/reject
-router.patch('/admin/withdrawals/:id/reject', authAdmin, rbac.require('withdrawals.process'), async (req, res) => {
+router.patch('/admin/withdrawals/:id/reject', authAdmin, rbac.requirePerm('withdrawals.process'), async (req, res) => {
   const { note } = req.body;
   const [wd] = await query('SELECT * FROM withdrawals WHERE id=? AND status="pending"', [req.params.id]);
   if (!wd) return res.status(400).json({ success: false, message: 'ไม่พบรายการ' });

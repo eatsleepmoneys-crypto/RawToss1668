@@ -49,8 +49,8 @@ const PERMISSIONS = {
   'logs.view':             ['admin','superadmin'],
 };
 
-// Middleware factory: require(permission)
-const require = (permission) => (req, res, next) => {
+// Middleware factory: requirePerm(permission)
+const requirePerm = (permission) => (req, res, next) => {
   const admin = req.admin;
   if (!admin) return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
 
@@ -79,4 +79,4 @@ const minRole = (minLevel) => (req, res, next) => {
   next();
 };
 
-module.exports = { require, can, minRole, PERMISSIONS, ROLE_LEVEL };
+module.exports = { requirePerm, can, minRole, PERMISSIONS, ROLE_LEVEL };

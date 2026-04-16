@@ -108,7 +108,7 @@ router.get('/referrals', authMember, async (req, res) => {
 // ══════════════════════════════════════
 
 // GET /api/members/admin/list
-router.get('/admin/list', authAdmin, rbac.require('members.view'), async (req, res) => {
+router.get('/admin/list', authAdmin, rbac.requirePerm('members.view'), async (req, res) => {
   const { page=1, limit=20, search='', status='' } = req.query;
   const offset = (page-1)*limit;
   const where = [];
@@ -124,7 +124,7 @@ router.get('/admin/list', authAdmin, rbac.require('members.view'), async (req, r
 });
 
 // GET /api/members/admin/:id
-router.get('/admin/:id', authAdmin, rbac.require('members.view'), async (req, res) => {
+router.get('/admin/:id', authAdmin, rbac.requirePerm('members.view'), async (req, res) => {
   const [m] = await query('SELECT * FROM members WHERE id=?', [req.params.id]);
   if (!m) return res.status(404).json({ success: false, message: 'ไม่พบสมาชิก' });
   const txn = await query('SELECT * FROM transactions WHERE member_id=? ORDER BY id DESC LIMIT 30', [m.id]);
@@ -132,7 +132,7 @@ router.get('/admin/:id', authAdmin, rbac.require('members.view'), async (req, re
 });
 
 // PATCH /api/members/admin/:id/status — ban/unban
-router.patch('/admin/:id/status', authAdmin, rbac.require('members.ban'), async (req, res) => {
+router.patch('/admin/:id/status', authAdmin, rbac.requirePerm('members.ban'), async (req, res) => {
   const { status, note } = req.body;
   await query('UPDATE members SET status=? WHERE id=?', [status, req.params.id]);
   await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
@@ -141,7 +141,7 @@ router.patch('/admin/:id/status', authAdmin, rbac.require('members.ban'), async 
 });
 
 // PATCH /api/members/admin/:id/credit — adjust balance
-router.patch('/admin/:id/credit', authAdmin, rbac.require('members.credit'), async (req, res) => {
+router.patch('/admin/:id/credit', authAdmin, rbac.requirePerm('members.credit'), async (req, res) => {
   const { amount, type = 'bonus', note } = req.body; // type: bonus | deduct
   if (!amount || isNaN(amount)) return res.status(400).json({ success: false, message: 'จำนวนเงินไม่ถูกต้อง' });
 
