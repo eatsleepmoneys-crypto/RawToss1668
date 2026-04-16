@@ -7,14 +7,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Auto-detect: localhost → local | *.railway.app → same-origin | Cloudflare Pages → Railway
-const _isLocal = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
-const _isRailway = location.hostname.endsWith('.railway.app') || location.hostname.endsWith('.up.railway.app');
-window.API_BASE = _isLocal
+// localhost → local dev backend | อื่นๆ → same-origin /api
+// (Railway: /api คือ backend ตัวเอง | Cloudflare Pages: /api ผ่าน Pages Function proxy)
+window.API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? 'http://localhost:3000/api'
-  : _isRailway
-    ? (location.origin + '/api')
-    : 'https://rawtoss1668-production.up.railway.app/api';
+  : '/api';
 </script>
 <script src="../assets/js/api.js"></script>
 <style>
