@@ -1,54 +1,67 @@
 /**
  * Cloudflare Pages Function — API Proxy
  * /api/* → https://rawtoss1668-production.up.railway.app/api/*
- *
- * เหตุผลที่ใช้ proxy:
- * - บราวเซอร์เรียก /api/... บน rawtoss1668.pages.dev (same-origin → ไม่มี CORS preflight)
- * - Cloudflare ส่งต่อ request ไป Railway แบบ server-to-server (ไม่ต้องส่ง Origin → ไม่มี CORS)
  */
 
 const BACKEND = 'https://rawtoss1668-production.up.railway.app';
 
 export async function onRequest(context) {
-  const url = new URL(context.request.url);
+  const { request } = context;
+  const url = new URL(request.url);
   const targetUrl = BACKEND + url.pathname + url.search;
 
-  // สร้าง headers ใหม่ — ลบ hop-by-hop headers ออก
-  const headers = new Headers(context.request.headers);
-  headers.delete('host');
-  headers.delete('cf-connecting-ip');
-  headers.delete('cf-ipcountry');
-  headers.delete('cf-ray');
-  headers.delete('cf-visitor');
-  headers.delete('x-forwarded-for');
-  headers.delete('x-forwarded-proto');
+  // Build forward headers (strip hop-by-hop Cloudflare headers)
+  const forwardHeaders = new Headers();
+  for (const [key, value] of request.headers.entries()) {
+    const lower = key.toLowerCase();
+    if (
+      lower === 'host' ||
+      lower.startsWith('cf-') ||
+      lower === 'x-forwarded-for' ||
+      lower === 'x-forwarded-proto' ||
+      lower === 'x-real-ip'
+    ) {
+      continue;
+    }
+    forwardHeaders.set(key, value);
+  }
 
-  const isBodyMethod = !['GET', 'HEAD', 'OPTIONS'].includes(context.request.method.toUpperCase());
+  // Read body as ArrayBuffer to avoid streaming issues in Cloudflare Workers
+  const method = request.method.toUpperCase();
+  let body = undefined;
+  if (!['GET', 'HEAD'].includes(method)) {
+    try {
+      const buf = await request.arrayBuffer();
+      body = buf.byteLength > 0 ? buf : undefined;
+    } catch (_) {
+      // no body
+    }
+  }
 
   try {
-    const response = await fetch(targetUrl, {
-      method: context.request.method,
-      headers,
-      body: isBodyMethod ? context.request.body : undefined,
+    const backendResponse = await fetch(targetUrl, {
+      method,
+      headers: forwardHeaders,
+      body,
     });
 
-    // ส่งกลับ response ตรงๆ (ไม่ต้องเพิ่ม CORS headers เพราะ same-origin)
-    const responseHeaders = new Headers(response.headers);
-    // ลบ CORS headers จาก Railway ออก (ไม่จำเป็นเพราะ same-origin)
-    responseHeaders.delete('access-control-allow-origin');
-    responseHeaders.delete('access-control-allow-credentials');
-    responseHeaders.delete('access-control-allow-methods');
-    responseHeaders.delete('access-control-allow-headers');
+    // Forward response headers, strip CORS (no longer needed — same origin)
+    const responseHeaders = new Headers();
+    for (const [key, value] of backendResponse.headers.entries()) {
+      const lower = key.toLowerCase();
+      if (lower.startsWith('access-control-')) continue;
+      responseHeaders.set(key, value);
+    }
 
-    return new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
+    return new Response(backendResponse.body, {
+      status: backendResponse.status,
+      statusText: backendResponse.statusText,
       headers: responseHeaders,
     });
   } catch (err) {
-    return new Response(JSON.stringify({ success: false, message: 'Proxy error: ' + err.message }), {
-      status: 502,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ success: false, message: 'Proxy error: ' + err.message }),
+      { status: 502, headers: { 'Content-Type': 'application/json' } }
+    );
   }
 }
