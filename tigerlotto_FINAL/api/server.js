@@ -86,6 +86,22 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'TigerLotto API running', ts: new Date().toISOString() });
 });
 
+// ─── Debug: list DB tables ────────────────────────
+app.get('/api/debug/tables', async (req, res) => {
+  try {
+    const { query } = require('./config/db');
+    const rows = await query(
+      `SELECT TABLE_NAME, TABLE_ROWS
+       FROM INFORMATION_SCHEMA.TABLES
+       WHERE TABLE_SCHEMA = DATABASE()
+       ORDER BY TABLE_NAME`
+    );
+    res.json({ success: true, database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'railway', tables: rows });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ─── SPA Fallback: admin ──────────────────────────
 app.get('/admin', (req, res) => {
   const adminPath = path.join(FRONTEND_PATH, 'admin/index.html');
