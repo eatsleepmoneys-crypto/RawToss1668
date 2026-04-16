@@ -817,15 +817,11 @@ select.fi option{background:var(--card2)}
 // ══════════════════════════════════════════
 
 /* ─── Config ─── */
-// localhost → local dev | *.railway.app → same-origin | อื่นๆ (Cloudflare Pages) → Railway direct
-const _h = location.hostname;
-const _isLocal   = _h === 'localhost' || _h === '127.0.0.1';
-const _isRailway = _h.endsWith('.railway.app') || _h.endsWith('.up.railway.app');
-window.API_BASE = _isLocal
+// localhost → local dev backend | อื่นๆ → /api same-origin
+// (Railway: /api = API เอง | Cloudflare Pages: /api ผ่าน Pages Function proxy → Railway)
+window.API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? 'http://localhost:3000/api'
-  : _isRailway
-    ? (location.origin + '/api')
-    : 'https://rawtoss1668-production.up.railway.app/api';
+  : '/api';
 
 /* ─── State ─── */
 let curRate = 750, curBetType = '3top', curRoundId = null, otpTimer = null;
