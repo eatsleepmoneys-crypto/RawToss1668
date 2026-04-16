@@ -160,13 +160,13 @@ const AdminAPI = {
   // Dashboard
   dashboard: () => apiFetch('/admin/dashboard', {}, 'admin'),
 
-  // Members
-  listMembers : (params = {}) => apiFetch('/admin/members/list?' + new URLSearchParams(params), {}, 'admin'),
-  getMember   : (id) => apiFetch(`/admin/members/${id}`, {}, 'admin'),
+  // Members  (mounted at /api/members → route /admin/*)
+  listMembers : (params = {}) => apiFetch('/members/admin/list?' + new URLSearchParams(params), {}, 'admin'),
+  getMember   : (id) => apiFetch(`/members/admin/${id}`, {}, 'admin'),
   setMemberStatus: (id, status, reason) =>
-    apiFetch(`/admin/members/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }, 'admin'),
+    apiFetch(`/members/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }, 'admin'),
   adjustCredit: (id, amount, type, note) =>
-    apiFetch(`/admin/members/${id}/credit`, { method: 'PATCH', body: JSON.stringify({ amount, type, note }) }, 'admin'),
+    apiFetch(`/members/admin/${id}/credit`, { method: 'PATCH', body: JSON.stringify({ amount, type, note }) }, 'admin'),
 
   // Agents
   listAgents  : (params = {}) => apiFetch('/admin/agents?' + new URLSearchParams(params), {}, 'admin'),
@@ -174,9 +174,12 @@ const AdminAPI = {
   updateAgent : (id, data) => apiFetch(`/admin/agents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
 
   // Admins
-  listAdmins  : () => apiFetch('/admin/admins', {}, 'admin'),
-  createAdmin : (data) => apiFetch('/admin/admins', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
-  updateAdmin : (id, data) => apiFetch(`/admin/admins/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  listAdmins          : () => apiFetch('/admin/admins', {}, 'admin'),
+  createAdmin         : (data) => apiFetch('/admin/admins', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
+  updateAdmin         : (id, data) => apiFetch(`/admin/admins/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  deleteAdmin         : (id) => apiFetch(`/admin/admins/${id}`, { method: 'DELETE' }, 'admin'),
+  resetAdminPassword  : (id, new_password) =>
+    apiFetch(`/admin/admins/${id}/reset-password`, { method: 'PATCH', body: JSON.stringify({ new_password }) }, 'admin'),
 
   // Lottery admin
   getLotteryTypes : () => apiFetch('/lottery/admin/types', {}, 'admin'),
@@ -193,16 +196,16 @@ const AdminAPI = {
   // Deposits admin
   listDeposits   : (params = {}) => apiFetch('/transactions/admin/deposits?' + new URLSearchParams(params), {}, 'admin'),
   approveDeposit : (id, note) =>
-    apiFetch(`/transactions/admin/deposits/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'approve', note }) }, 'admin'),
+    apiFetch(`/transactions/admin/deposits/${id}/approve`, { method: 'PATCH', body: JSON.stringify({ note }) }, 'admin'),
   rejectDeposit  : (id, note) =>
-    apiFetch(`/transactions/admin/deposits/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'reject', note }) }, 'admin'),
+    apiFetch(`/transactions/admin/deposits/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ note }) }, 'admin'),
 
   // Withdrawals admin
   listWithdrawals   : (params = {}) => apiFetch('/transactions/admin/withdrawals?' + new URLSearchParams(params), {}, 'admin'),
-  processWithdrawal : (id, note) =>
-    apiFetch(`/transactions/admin/withdrawals/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'process', note }) }, 'admin'),
+  processWithdrawal : (id, ref_no) =>
+    apiFetch(`/transactions/admin/withdrawals/${id}/process`, { method: 'PATCH', body: JSON.stringify({ ref_no }) }, 'admin'),
   rejectWithdrawal  : (id, note) =>
-    apiFetch(`/transactions/admin/withdrawals/${id}`, { method: 'PATCH', body: JSON.stringify({ action: 'reject', note }) }, 'admin'),
+    apiFetch(`/transactions/admin/withdrawals/${id}/reject`, { method: 'PATCH', body: JSON.stringify({ note }) }, 'admin'),
 
   // Reports
   reportSummary: (params = {}) => apiFetch('/admin/reports/summary?' + new URLSearchParams(params), {}, 'admin'),

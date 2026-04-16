@@ -421,6 +421,7 @@ async function afterNav(page){
   try{
     if(page==='dashboard') await loadDashboard();
     else if(page==='members') await loadMembers();
+    else if(page==='agents') await loadAgents();
     else if(page==='deposits') await loadDeposits();
     else if(page==='withdrawals') await loadWithdrawals();
     else if(page==='bets') await loadBets();
@@ -435,62 +436,136 @@ async function afterNav(page){
 
 /* ── Dashboard ── */
 async function loadDashboard(){
-  const d = await API.AdminAPI.dashboard();
-  const s = d.stats;
+  const res = await API.AdminAPI.dashboard();
+  const s = res.data || {};
   const setVal = (id, v) => { const el=document.getElementById(id); if(el) el.textContent=v; };
-  setVal('dash-members',  Number(s.total_members||0).toLocaleString());
-  setVal('dash-deposits', '฿'+Number(s.total_deposits_today||0).toLocaleString());
-  setVal('dash-bets',     '฿'+Number(s.total_bets_today||0).toLocaleString());
-  setVal('dash-pending',  s.pending_deposits||0);
-  // Revenue chart
-  if(d.revenue_chart && window._dashChart){
-    window._dashChart.data.labels = d.revenue_chart.map(r=>r.date);
-    window._dashChart.data.datasets[0].data = d.revenue_chart.map(r=>r.revenue);
+  const fmt    = (n) => '฿' + Number(n||0).toLocaleString('th-TH');
+  const fmtNum = (n) => Number(n||0).toLocaleString('th-TH');
+
+  // KPI cards
+  setVal('dash-members',   fmtNum(s.members));
+  setVal('dash-new-today', '▲ สมาชิกใหม่วันนี้ ' + fmtNum(s.new_today) + ' คน');
+  setVal('dash-deposits',  fmt(s.dep_today));
+  setVal('dash-bets',      fmt(s.bet_today));
+  setVal('dash-bet-cnt',   '▲ ' + fmtNum(s.bet_count_today) + ' รายการแทง');
+  setVal('dash-pending',   fmtNum(s.pending_wd));
+
+  // Pending panel
+  setVal('dash-pend-dep',     fmtNum(s.pending_dep) + ' รายการ');
+  setVal('dash-pend-wd',      fmtNum(s.pending_wd) + ' รายการ');
+  setVal('dash-open-rounds',  fmtNum(s.open_rounds) + ' งวด');
+
+  // Stats today panel
+  setVal('dash-stat-new',    fmtNum(s.new_today) + ' คน');
+  setVal('dash-stat-dep',    fmt(s.dep_today));
+  setVal('dash-stat-wd',     fmt(s.wd_today));
+  setVal('dash-stat-profit', fmt(s.profit_today));
+  setVal('dash-stat-bets',   fmtNum(s.bet_count_today) + ' รายการ');
+
+  // Top bettors
+  const topEl = document.getElementById('dash-top-bettors');
+  if(topEl){
+    const top = s.top_bettors || [];
+    topEl.innerHTML = top.length === 0
+      ? '<div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">ยังไม่มีรายการแทงวันนี้</div>'
+      : top.map((r,i) => `
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px">
+          <span style="color:var(--gold);font-weight:700;width:16px">${i+1}</span>
+          <span style="flex:1">${r.name}</span>
+          <span style="color:var(--gold2);font-weight:700">${fmt(r.total)}</span>
+        </div>`).join('');
+  }
+
+  // Revenue 7-day chart
+  if(s.revenue_7days && window._dashChart){
+    window._dashChart.data.labels = s.revenue_7days.map(r => r.d);
+    window._dashChart.data.datasets[0].data = s.revenue_7days.map(r => parseFloat(r.total||0));
     window._dashChart.update();
+  }
+
+  // Bet-by-type chart
+  if(s.bet_by_type && window._lotteryChart){
+    window._lotteryChart.data.labels = s.bet_by_type.map(r => r.name);
+    window._lotteryChart.data.datasets[0].data = s.bet_by_type.map(r => parseFloat(r.total||0));
+    window._lotteryChart.update();
   }
 }
 
 /* ── Members ── */
 async function loadMembers(page=1, search=''){
   const d = await API.AdminAPI.listMembers({ page, limit:20, search });
+  const rows = d.data || [];
   const tbody = document.getElementById('members-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.members||[]).map(m=>`
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่พบข้อมูลสมาชิก</td></tr>'
+    : rows.map(m=>`
     <tr>
-      <td>${m.id}</td>
-      <td>${m.full_name}</td>
-      <td>${m.phone}</td>
-      <td>${m.bank_name||'-'}</td>
-      <td style="color:var(--gold2);font-weight:700">฿${Number(m.balance||0).toLocaleString()}</td>
-      <td><span class="badge ${m.status==='active'?'badge-green':'badge-red'}">${m.status}</span></td>
-      <td>${UI.formatDate(m.created_at)}</td>
+      <td style="color:var(--muted);font-size:12px">${m.member_code||m.id}</td>
+      <td style="font-weight:600">${m.name}</td>
+      <td style="color:var(--muted)">${m.phone}</td>
+      <td>${m.bank_code||'-'}</td>
+      <td style="color:var(--gold2);font-weight:700">฿${Number(m.balance||0).toLocaleString('th-TH')}</td>
+      <td><span class="badge ${m.status==='active'?'badge-green':m.status==='banned'?'badge-red':'badge-gray'}">${m.status}</span></td>
+      <td style="color:var(--muted);font-size:12px">${UI.formatDate(m.created_at)}</td>
+      <td style="color:var(--muted);font-size:12px">${m.last_login_at?UI.formatDate(m.last_login_at):'-'}</td>
       <td>
-        <button class="act-btn" onclick="viewMember(${m.id})">ดู</button>
-        <button class="act-btn ${m.status==='active'?'act-red':'act-green'}" onclick="toggleBanMember(${m.id},'${m.status}','${m.full_name}')">
-          ${m.status==='active'?'แบน':'ปลดแบน'}
-        </button>
+        <div style="display:flex;gap:4px">
+          <button class="act-btn" onclick="viewMember(${m.id})">ดู</button>
+          <button class="act-btn ${m.status==='active'?'act-red':'act-green'}" onclick="toggleBanMember(${m.id},'${m.status}','${m.name}')">
+            ${m.status==='active'?'แบน':'ปลดแบน'}
+          </button>
+        </div>
       </td>
     </tr>`).join('');
   const info = document.getElementById('members-pager');
-  if(info) info.textContent=`แสดง ${(d.members||[]).length} จาก ${d.total||0} รายการ`;
+  if(info) info.textContent=`แสดง ${rows.length} จาก ${d.total||rows.length} รายการ`;
+}
+
+/* ── Agents ── */
+async function loadAgents(){
+  const d = await API.AdminAPI.listAgents();
+  const rows = d.data || [];
+  const tbody = document.getElementById('agents-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีเอเยนต์</td></tr>'
+    : rows.map(a=>`
+    <tr>
+      <td style="color:var(--muted);font-size:12px">${a.id}</td>
+      <td style="font-weight:600">${a.name}</td>
+      <td style="color:var(--muted)">${a.phone}</td>
+      <td style="color:var(--gold2);font-weight:700">${a.commission_rate}%</td>
+      <td style="color:var(--gold2);font-weight:700">฿${Number(a.balance||0).toLocaleString('th-TH')}</td>
+      <td style="color:var(--gold2)">฿${Number(a.total_commission||0).toLocaleString('th-TH')}</td>
+      <td><span class="badge ${a.status==='active'?'badge-green':'badge-gray'}">${a.status==='active'?'Active':'Inactive'}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="act-btn" onclick="editAgentModal(${a.id},'${a.name}',${a.commission_rate},'${a.status}')">แก้ไข</button>
+        </div>
+      </td>
+    </tr>`).join('');
 }
 
 /* ── Deposits ── */
 async function loadDeposits(status='pending'){
   const d = await API.AdminAPI.listDeposits({ status, limit:50 });
+  const rows = d.data || [];
   const tbody = document.getElementById('deposits-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.deposits||[]).map(dep=>`
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+    : rows.map(dep=>`
     <tr>
-      <td>${dep.id}</td>
-      <td>${dep.full_name||'-'}</td>
-      <td>${dep.phone||'-'}</td>
-      <td style="color:var(--gold2);font-weight:700">฿${Number(dep.amount||0).toLocaleString()}</td>
-      <td>${dep.bank_name||'-'}</td>
-      <td>${UI.formatDate(dep.created_at)}</td>
+      <td style="font-size:12px">${dep.id}</td>
+      <td>${dep.name||'-'}</td>
+      <td style="color:var(--muted)">${dep.phone||'-'}</td>
+      <td style="color:var(--gold2);font-weight:700">฿${Number(dep.amount||0).toLocaleString('th-TH')}</td>
+      <td>${dep.bank_code||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
       <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${dep.status}</span></td>
       <td>
-        ${dep.slip_url?`<a href="${dep.slip_url}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}
+        ${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}
       </td>
       <td>
         ${dep.status==='pending'?`
@@ -504,18 +579,21 @@ async function loadDeposits(status='pending'){
 /* ── Withdrawals ── */
 async function loadWithdrawals(status='pending'){
   const d = await API.AdminAPI.listWithdrawals({ status, limit:50 });
+  const rows = d.data || [];
   const tbody = document.getElementById('withdrawals-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.withdrawals||[]).map(w=>`
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+    : rows.map(w=>`
     <tr>
-      <td>${w.id}</td>
-      <td>${w.full_name||'-'}</td>
-      <td>${w.phone||'-'}</td>
-      <td style="color:var(--gold2);font-weight:700">฿${Number(w.amount||0).toLocaleString()}</td>
-      <td>${w.bank_name||'-'}</td>
-      <td>${w.bank_account||'-'}</td>
-      <td>${UI.formatDate(w.created_at)}</td>
-      <td><span class="badge ${w.status==='processed'?'badge-green':w.status==='rejected'?'badge-red':'badge-yellow'}">${w.status}</span></td>
+      <td style="font-size:12px">${w.id}</td>
+      <td>${w.name||'-'}</td>
+      <td style="color:var(--muted)">${w.phone||'-'}</td>
+      <td style="color:var(--gold2);font-weight:700">฿${Number(w.amount||0).toLocaleString('th-TH')}</td>
+      <td>${w.bank_code||'-'}</td>
+      <td style="font-size:12px">${w.bank_account||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
+      <td><span class="badge ${w.status==='completed'?'badge-green':w.status==='rejected'?'badge-red':'badge-yellow'}">${w.status}</span></td>
       <td>
         ${w.status==='pending'||w.status==='processing'?`
           <button class="act-btn act-green" onclick="processWithdrawal(${w.id})">โอนแล้ว</button>
@@ -530,7 +608,7 @@ async function loadBets(params={}){
   const d = await API.AdminAPI.listBets({ limit:50, ...params });
   const tbody = document.getElementById('bets-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.bets||[]).map(b=>`
+  tbody.innerHTML = (d.data||[]).map(b=>`
     <tr>
       <td style="font-size:11px">${b.uuid||b.id}</td>
       <td>${b.full_name||'-'}</td>
@@ -550,7 +628,7 @@ async function loadLotteryTypes(){
   const d = await API.AdminAPI.getLotteryTypes();
   const tbody = document.getElementById('lottery-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.types||[]).map(l=>`
+  tbody.innerHTML = (d.data||[]).map(l=>`
     <tr>
       <td>${l.id}</td>
       <td>${l.flag||'🎰'} ${l.name}</td>
@@ -568,7 +646,7 @@ async function loadRounds(){
   const d = await API.AdminAPI.listRoundsAdmin({ limit:30 });
   const tbody = document.getElementById('rounds-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.rounds||[]).map(r=>`
+  tbody.innerHTML = (d.data||[]).map(r=>`
     <tr>
       <td>${r.id}</td>
       <td>${r.lottery_name||'-'}</td>
@@ -584,8 +662,8 @@ async function loadRounds(){
     </tr>`).join('');
   // populate result round select
   const sel = document.getElementById('result-round-sel');
-  if(sel&&d.rounds){
-    const closed = d.rounds.filter(r=>r.status==='closed');
+  if(sel&&d.data){
+    const closed = d.data.filter(r=>r.status==='closed');
     sel.innerHTML = '<option value="">เลือกงวด</option>' + closed.map(r=>`<option value="${r.id}">${r.lottery_name} ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
   }
 }
@@ -593,43 +671,59 @@ async function loadRounds(){
 /* ── Admins ── */
 async function loadAdmins(){
   const d = await API.AdminAPI.listAdmins();
+  const rows = d.data || [];
   const tbody = document.getElementById('admins-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.admins||[]).map(a=>`
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">ไม่พบแอดมิน</td></tr>'
+    : rows.map(a=>`
     <tr>
-      <td>${a.id}</td>
-      <td>${a.name}</td>
-      <td>${a.email}</td>
-      <td><span class="badge badge-blue">${a.role}</span></td>
-      <td><span class="badge ${a.is_active?'badge-green':'badge-red'}">${a.is_active?'active':'inactive'}</span></td>
-      <td>${UI.formatDate(a.last_login)}</td>
-      <td><button class="act-btn" onclick="editAdmin(${a.id})">แก้ไข</button></td>
+      <td style="color:var(--muted)">${a.id}</td>
+      <td style="font-weight:600">${a.name}</td>
+      <td style="color:var(--muted);font-size:12px">${a.email}</td>
+      <td><span class="badge ${a.role==='superadmin'?'badge-gold':a.role==='admin'?'badge-blue':'badge-gray'}">${a.role}</span></td>
+      <td><span class="badge ${a.is_active?'badge-green':'badge-red'}">${a.is_active?'Active':'Inactive'}</span></td>
+      <td style="font-size:12px;color:var(--muted)">${a.last_login_at?UI.formatDate(a.last_login_at):'-'}</td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="act-btn" onclick="editAdminModal(${a.id},'${a.name}','${a.role}',${a.is_active})">แก้ไข</button>
+          ${a.role!=='superadmin'?`<button class="act-btn act-red" onclick="resetAdminPw(${a.id},'${a.name}')">รีเซ็ต PW</button>`:''}
+        </div>
+      </td>
     </tr>`).join('');
 }
 
 /* ── Logs ── */
 async function loadLogs(){
   const d = await API.AdminAPI.getLogs({ limit:100 });
+  const rows = d.data || [];
   const cont = document.getElementById('logs-body');
   if(!cont) return;
-  cont.innerHTML = (d.logs||[]).map(l=>`
-    <div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:13px">
-      <span style="color:var(--muted);min-width:130px">${UI.formatDate(l.created_at)}</span>
-      <span style="color:var(--gold);min-width:100px">${l.admin_name||'-'}</span>
-      <span style="flex:1">${l.action}</span>
-    </div>`).join('') || '<div style="color:var(--muted);text-align:center;padding:20px">ไม่มีข้อมูล</div>';
+  cont.innerHTML = rows.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มี Activity Logs</td></tr>'
+    : rows.map(l=>`
+    <tr>
+      <td style="color:var(--muted);font-size:12px">${UI.formatDate(l.created_at)}</td>
+      <td style="font-weight:600">${l.admin_name||'-'}</td>
+      <td><span class="badge ${l.role==='superadmin'?'badge-gold':l.role==='admin'?'badge-blue':'badge-gray'}">${l.role||'-'}</span></td>
+      <td>${l.action}</td>
+      <td style="font-size:12px;color:var(--muted)">${l.detail||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${l.ip||'-'}</td>
+    </tr>`).join('');
 }
 
 /* ── Settings ── */
 async function loadSettings(){
   const d = await API.AdminAPI.getSettings();
-  if(!d.settings) return;
-  const s = d.settings;
-  const setInput = (id, val) => { const el=document.getElementById(id); if(el){ if(el.type==='checkbox') el.checked=!!val; else el.value=val||''; }};
+  if(!d.data) return;
+  // d.data is array of {key,value,type,group} → convert to map
+  const s = {};
+  (d.data||[]).forEach(r => { s[r.key] = r.value; });
+  const setInput = (id, val) => { const el=document.getElementById(id); if(el){ if(el.type==='checkbox') el.checked=(val==='true'||val===true); else el.value=val||''; }};
   setInput('set-site-name', s.site_name);
   setInput('set-site-url',  s.site_url);
   setInput('set-line-id',   s.line_id);
-  setInput('set-tel',       s.support_phone);
+  setInput('set-tel',       s.contact_tel);
   setInput('set-min-dep',   s.min_deposit);
   setInput('set-max-dep',   s.max_deposit);
   setInput('set-min-wd',    s.min_withdraw);
@@ -695,7 +789,7 @@ async function openAnnounce(roundId){
 /* ── Results Page ── */
 async function loadResultsPage(){
   const d = await API.AdminAPI.listRoundsAdmin({ limit:50 });
-  const rounds = d.rounds || [];
+  const rounds = d.data || [];
   const closed = rounds.filter(r=>r.status==='closed');
   // populate select
   const sel = document.getElementById('result-round-sel');
@@ -774,9 +868,9 @@ const PAGES = {
 
 dashboard:()=>`
 <div class="stats-grid">
-  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">สมาชิกทั้งหมด</div><div class="sc-val" id="dash-members">⏳</div><div class="sc-change">▲ อัปเดตแบบ real-time</div></div>
+  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">สมาชิกทั้งหมด</div><div class="sc-val" id="dash-members">⏳</div><div class="sc-change" id="dash-new-today">▲ กำลังโหลด...</div></div>
   <div class="stat-card"><div class="sc-icon">💰</div><div class="sc-label">ฝากวันนี้ (บาท)</div><div class="sc-val" id="dash-deposits">⏳</div><div class="sc-change">▲ จากระบบจริง</div></div>
-  <div class="stat-card"><div class="sc-icon">🎰</div><div class="sc-label">ยอดแทงวันนี้</div><div class="sc-val" id="dash-bets">⏳</div><div class="sc-change">▲ อัปเดตแบบ real-time</div></div>
+  <div class="stat-card"><div class="sc-icon">🎰</div><div class="sc-label">ยอดแทงวันนี้</div><div class="sc-val" id="dash-bets">⏳</div><div class="sc-change" id="dash-bet-cnt">▲ กำลังโหลด...</div></div>
   <div class="stat-card"><div class="sc-icon">🏧</div><div class="sc-label">รอถอน (รายการ)</div><div class="sc-val" id="dash-pending" style="color:var(--red)">⏳</div><div class="sc-change" style="color:var(--red)">รอดำเนินการ</div></div>
 </div>
 <div class="g2" style="margin-bottom:18px">
@@ -793,37 +887,44 @@ dashboard:()=>`
   <div class="card">
     <h3>⏳ รอดำเนินการ</h3>
     <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
+      <div onclick="nav('deposits')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
         <span style="font-size:13px">💰 ฝากเงินรอตรวจ</span>
-        <span class="badge badge-gold">8 รายการ</span>
+        <span class="badge badge-gold" id="dash-pend-dep">⏳</span>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
+      <div onclick="nav('withdrawals')" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
         <span style="font-size:13px">🏧 ถอนเงินรอโอน</span>
-        <span class="badge badge-red">3 รายการ</span>
+        <span class="badge badge-red" id="dash-pend-wd">⏳</span>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
-        <span style="font-size:13px">🆔 ยืนยันตัวตน</span>
-        <span class="badge badge-blue">12 รายการ</span>
+        <span style="font-size:13px">🎲 งวดที่เปิดรับแทง</span>
+        <span class="badge badge-blue" id="dash-open-rounds">⏳</span>
       </div>
     </div>
   </div>
   <div class="card">
     <h3>🏆 ผู้แทงสูงสุดวันนี้</h3>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      ${['นิธิ วงศ์ทอง — ฿45,000','สมชาย ใจดี — ฿12,800','วิไล รักสวย — ฿8,200','กมล สายทอง — ฿6,400','ประสิทธิ์ ดีมาก — ฿3,200'].map((r,i)=>`
-      <div style="display:flex;align-items:center;gap:8px;font-size:13px">
-        <span style="color:var(--gold);font-weight:700;width:16px">${i+1}</span>
-        <span style="flex:1;color:var(--muted)">${r}</span>
-      </div>`).join('')}
+    <div id="dash-top-bettors" style="display:flex;flex-direction:column;gap:8px">
+      <div style="color:var(--muted);text-align:center;padding:20px;font-size:13px">⏳ กำลังโหลด...</div>
     </div>
   </div>
   <div class="card">
     <h3>📊 สถิติวันนี้</h3>
     <div style="display:flex;flex-direction:column;gap:12px">
-      ${[['สมาชิกใหม่','142 คน'],['ยอดเติมเงิน','฿284,300'],['ยอดถอนเงิน','฿186,200'],['กำไรสุทธิ','฿98,100'],['รายการแทง','4,820']].map(([l,v])=>`
       <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:10px;border-bottom:1px solid var(--border)">
-        <span style="color:var(--muted)">${l}</span><span style="font-weight:700;color:var(--gold2)">${v}</span>
-      </div>`).join('')}
+        <span style="color:var(--muted)">สมาชิกใหม่</span><span id="dash-stat-new" style="font-weight:700;color:var(--gold2)">⏳</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">ยอดเติมเงิน</span><span id="dash-stat-dep" style="font-weight:700;color:var(--gold2)">⏳</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">ยอดถอนเงิน</span><span id="dash-stat-wd" style="font-weight:700;color:var(--gold2)">⏳</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">กำไรสุทธิ</span><span id="dash-stat-profit" style="font-weight:700;color:var(--gold2)">⏳</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+        <span style="color:var(--muted)">รายการแทง</span><span id="dash-stat-bets" style="font-weight:700;color:var(--gold2)">⏳</span>
+      </div>
     </div>
   </div>
 </div>`,
@@ -839,29 +940,12 @@ members:()=>`
   <div class="tbl-wrap">
     <table class="tbl" id="members-tbl">
       <thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>ธนาคาร</th><th>เครดิต</th><th>สถานะ</th><th>สมัครเมื่อ</th><th>Login ล่าสุด</th><th>จัดการ</th></tr></thead>
-      <tbody id="members-tbody">${DB.members.map((m,i)=>`
-      <tr>
-        <td style="color:var(--muted)">${m.id}</td>
-        <td style="font-weight:600">${m.name}</td>
-        <td style="color:var(--muted)">${m.phone}</td>
-        <td>${m.bank}</td>
-        <td style="color:var(--gold2);font-weight:700">฿${m.balance.toLocaleString()}</td>
-        <td><span class="badge ${m.status==='active'?'badge-green':'badge-red'}">${m.status==='active'?'Active':'Banned'}</span></td>
-        <td style="color:var(--muted)">${m.reg}</td>
-        <td style="color:var(--muted)">${m.lastLogin}</td>
-        <td>
-          <div style="display:flex;gap:5px">
-            <button class="btn btn-sm btn-blue" onclick="viewMember(${i})">ดู</button>
-            <button class="btn btn-sm btn-outline" onclick="editMember(${i})">แก้ไข</button>
-            <button class="btn btn-sm ${m.status==='active'?'btn-red':'btn-green'}" onclick="toggleBan(${i})">${m.status==='active'?'แบน':'ปลด'}</button>
-          </div>
-        </td>
-      </tr>`).join('')}</tbody>
+      <tbody id="members-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
   <div class="pager">
-    <span class="pager-info">แสดง 1-${DB.members.length} จาก ${DB.members.length} รายการ</span>
-    <div class="pager-btns"><button class="pager-btn on">1</button><button class="pager-btn">2</button><button class="pager-btn">3</button></div>
+    <span class="pager-info" id="members-pager">กำลังโหลด...</span>
+    <div class="pager-btns" id="members-pager-btns"></div>
   </div>
 </div>`,
 
@@ -873,35 +957,9 @@ agents:()=>`
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>#</th><th>ชื่อเอเยนต์</th><th>เบอร์โทร</th><th>สมาชิกในสังกัด</th><th>ค่าคอม %</th><th>ยอดคงเหลือ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody>${DB.agents.map(a=>`
-      <tr>
-        <td style="color:var(--muted)">${a.id}</td>
-        <td style="font-weight:600">${a.name}</td>
-        <td style="color:var(--muted)">${a.phone}</td>
-        <td><span class="badge badge-blue">${a.members} คน</span></td>
-        <td style="color:var(--gold2);font-weight:700">${a.commission}%</td>
-        <td style="color:var(--gold2);font-weight:700">฿${a.balance.toLocaleString()}</td>
-        <td><span class="badge ${a.status==='active'?'badge-green':'badge-gray'}">${a.status==='active'?'Active':'Inactive'}</span></td>
-        <td>
-          <div style="display:flex;gap:5px">
-            <button class="btn btn-sm btn-blue" onclick="toast('เอเยนต์','ดูข้อมูล '+a.name)">ดู</button>
-            <button class="btn btn-sm btn-outline" onclick="toast('แก้ไข','กำลังแก้ไข '+a.name)">แก้ไข</button>
-          </div>
-        </td>
-      </tr>`).join('')}</tbody>
+      <thead><tr><th>#</th><th>ชื่อเอเยนต์</th><th>เบอร์โทร</th><th>ค่าคอม %</th><th>ยอดคงเหลือ</th><th>ค่าคอมรวม</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="agents-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
-  </div>
-</div>
-<div class="g2" style="margin-top:18px">
-  <div class="card"><h3>📊 ค่าคอมมิชชั่นเดือนนี้</h3>
-    ${DB.agents.map(a=>`<div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px"><span>${a.name}</span><span style="color:var(--gold2)">฿${Math.floor(a.balance*a.commission/100).toLocaleString()}</span></div><div class="prog-bar"><div class="prog-fill" style="width:${Math.min(100,a.members/2)}%"></div></div></div>`).join('')}
-  </div>
-  <div class="card"><h3>⚙️ ตั้งค่าค่าคอมมิชชั่น</h3>
-    <div class="alert alert-gold">💡 เอเยนต์จะได้รับค่าคอมจากยอดแทงของสมาชิกในสังกัดอัตโนมัติ</div>
-    <div class="fg"><label>ค่าคอมมิชชั่นเริ่มต้น (%)</label><input class="fi-full" type="number" value="3" min="0" max="10" step="0.5"></div>
-    <div class="fg"><label>ค่าคอมขั้นต่ำถอนได้ (บาท)</label><input class="fi-full" type="number" value="100"></div>
-    <button class="btn btn-gold" onclick="toast('บันทึก','ตั้งค่าค่าคอมมิชชั่นเรียบร้อย')">บันทึกการตั้งค่า</button>
   </div>
 </div>`,
 
@@ -916,19 +974,7 @@ admins:()=>`
     <div class="tbl-wrap">
       <table class="tbl">
         <thead><tr><th>#</th><th>ชื่อ</th><th>Email</th><th>บทบาท</th><th>สถานะ</th><th>Login ล่าสุด</th><th>จัดการ</th></tr></thead>
-        <tbody id="admins-tbody">${DB.admins.map(a=>`
-        <tr>
-          <td style="color:var(--muted)">${a.id}</td>
-          <td style="font-weight:600">${a.name}</td>
-          <td style="color:var(--muted);font-size:12px">${a.email}</td>
-          <td><span class="badge ${a.role==='superadmin'?'badge-gold':a.role==='admin'?'badge-blue':'badge-gray'}">${a.role}</span></td>
-          <td><span class="badge badge-green">Active</span></td>
-          <td style="font-size:12px;color:var(--muted)">${a.lastLogin}</td>
-          <td>
-            <button class="btn btn-sm btn-outline" onclick="toast('แก้ไข','กำลังแก้ไข '+a.name)">แก้ไข</button>
-            ${a.role!=='superadmin'?'<button class="btn btn-sm btn-red" style="margin-left:4px" onclick="toast(\'ลบ\',\'ลบ '+a.name+' แล้ว\')">ลบ</button>':''}
-          </td>
-        </tr>`).join('')}</tbody>
+        <tbody id="admins-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1362,22 +1408,7 @@ logs:()=>`
     <table class="tbl">
       <thead><tr><th>เวลา</th><th>ผู้ดำเนินการ</th><th>บทบาท</th><th>การกระทำ</th><th>รายละเอียด</th><th>IP</th></tr></thead>
       <tbody id="logs-body">
-        ${[['10:32:14','Super Admin','superadmin','อนุมัติถอนเงิน','W001 — ฿500 → สมชาย ใจดี','192.168.1.1'],
-           ['10:28:05','Admin User','admin','เพิ่มสมาชิก','สมัครสมาชิกใหม่ ID: M007','192.168.1.2'],
-           ['10:24:18','Super Admin','superadmin','ตั้งค่าระบบ','เปลี่ยนโบนัสสมัครใหม่: 30→50 บาท','192.168.1.1'],
-           ['10:18:00','Finance','finance','อนุมัติฝากเงิน','D004 — ฿1,000 → วิไล รักสวย','192.168.1.3'],
-           ['10:05:42','Super Admin','superadmin','ออกผลรางวัล','หวยรัฐบาล 01/03/69 — 854612','192.168.1.1'],
-           ['09:55:11','Admin User','admin','แบนสมาชิก','M004 — สุดา มีสุข','192.168.1.2'],
-           ['09:30:00','Super Admin','superadmin','Login','เข้าสู่ระบบสำเร็จ','192.168.1.1'],
-          ].map(([t,n,r,a,d,ip])=>`
-        <tr>
-          <td style="color:var(--muted);font-size:12px">${t}</td>
-          <td style="font-weight:600">${n}</td>
-          <td><span class="badge ${r==='superadmin'?'badge-gold':r==='admin'?'badge-blue':'badge-gray'}">${r}</span></td>
-          <td>${a}</td>
-          <td style="font-size:12px;color:var(--muted)">${d}</td>
-          <td style="font-size:12px;color:var(--muted)">${ip}</td>
-        </tr>`).join('')}
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>
       </tbody>
     </table>
   </div>
@@ -1390,8 +1421,8 @@ function initPageCharts(page){
     if(page==='dashboard'){
       const rCtx=document.getElementById('chart-revenue');
       const lCtx=document.getElementById('chart-lottery');
-      if(rCtx) new Chart(rCtx,{type:'line',data:{labels:['จ10','จ11','จ12','จ13','จ14','จ15','จ16'],datasets:[{label:'รายได้',data:[180000,220000,195000,280000,240000,310000,284000],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.1)',tension:.4,fill:true,pointBackgroundColor:'#ffd700'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'#222'}}}}});
-      if(lCtx) new Chart(lCtx,{type:'bar',data:{labels:['รัฐบาล','จีน','ฮานอย','ลาว','ยี่กี','มาเลย์'],datasets:[{data:[44,22,10,7,12,5],backgroundColor:['rgba(212,160,23,.8)','rgba(255,215,0,.6)','rgba(184,134,11,.7)','rgba(212,160,23,.5)','rgba(255,215,0,.4)','rgba(184,134,11,.4)']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777'},grid:{color:'#222'}}}}});
+      if(rCtx){ if(window._dashChart) window._dashChart.destroy(); window._dashChart = new Chart(rCtx,{type:'line',data:{labels:[],datasets:[{label:'รายได้',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.1)',tension:.4,fill:true,pointBackgroundColor:'#ffd700'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'#222'}}}}});}
+      if(lCtx){ if(window._lotteryChart) window._lotteryChart.destroy(); window._lotteryChart = new Chart(lCtx,{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:['rgba(212,160,23,.8)','rgba(255,215,0,.6)','rgba(184,134,11,.7)','rgba(212,160,23,.5)','rgba(255,215,0,.4)','rgba(184,134,11,.4)']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777'},grid:{color:'#222'}}}}});}
     }
     if(page==='reports'){
       const dCtx=document.getElementById('chart-daily');
@@ -1403,7 +1434,43 @@ function initPageCharts(page){
 }
 
 // ═══ ACTIONS ═══
-function filterMembers(q,status){toast('ค้นหา','ค้นหา: '+q);}
+function filterMembers(q,status){ loadMembers(1, q||''); }
+async function editAgentModal(id, name, commission, status){
+  openModal(`<h3>✏️ แก้ไขเอเยนต์ — ${name}</h3>
+    <div class="fg"><label>ค่าคอมมิชชั่น (%)</label><input id="ag-com" class="fi-full" type="number" step="0.5" min="0" max="20" value="${commission}"></div>
+    <div class="fg"><label>สถานะ</label><select id="ag-st" class="fi-full"><option value="active" ${status==='active'?'selected':''}>Active</option><option value="inactive" ${status==='inactive'?'selected':''}>Inactive</option></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="saveAgent(${id})">บันทึก</button>
+    </div>`);
+}
+async function saveAgent(id){
+  const commission_rate = parseFloat(document.getElementById('ag-com').value);
+  const status = document.getElementById('ag-st').value;
+  try{ await API.AdminAPI.updateAgent(id,{commission_rate,status}); closeModal(); toast('สำเร็จ','อัพเดทเอเยนต์แล้ว'); loadAgents(); }
+  catch(e){ toast('ผิดพลาด',e.message); }
+}
+async function editAdminModal(id, name, role, is_active){
+  openModal(`<h3>✏️ แก้ไข Admin — ${name}</h3>
+    <div class="fg"><label>บทบาท</label><select id="adm-role" class="fi-full"><option value="admin" ${role==='admin'?'selected':''}>Admin</option><option value="finance" ${role==='finance'?'selected':''}>Finance</option><option value="staff" ${role==='staff'?'selected':''}>Staff</option></select></div>
+    <div class="fg"><label>สถานะ</label><select id="adm-st" class="fi-full"><option value="1" ${is_active?'selected':''}>Active</option><option value="0" ${!is_active?'selected':''}>Inactive</option></select></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="saveAdminEdit(${id})">บันทึก</button>
+    </div>`);
+}
+async function saveAdminEdit(id){
+  const role = document.getElementById('adm-role').value;
+  const is_active = parseInt(document.getElementById('adm-st').value);
+  try{ await API.AdminAPI.updateAdmin(id,{role,is_active}); closeModal(); toast('สำเร็จ','อัพเดท Admin แล้ว'); loadAdmins(); }
+  catch(e){ toast('ผิดพลาด',e.message); }
+}
+async function resetAdminPw(id, name){
+  const pw = prompt(`รหัสผ่านใหม่สำหรับ ${name} (อย่างน้อย 8 ตัว):`);
+  if(!pw||pw.length<8){ if(pw!==null) toast('ผิดพลาด','รหัสผ่านต้องมีอย่างน้อย 8 ตัว'); return; }
+  try{ await API.AdminAPI.resetAdminPassword(id,pw); toast('สำเร็จ',`รีเซ็ตรหัสผ่าน ${name} แล้ว`); }
+  catch(e){ toast('ผิดพลาด',e.message); }
+}
 function toggleBan(i){const m=DB.members[i];m.status=m.status==='active'?'banned':'active';nav('members');toast('อัพเดท',(m.status==='active'?'ปลดแบน':'แบน')+' '+m.name+' แล้ว');}
 function toggleLottery(i,v){DB.lotteries[i].status=v?'open':'closed';toast('อัพเดท',DB.lotteries[i].name+': '+(v?'เปิดรับ':'ปิดรับ')+'แล้ว');}
 function approveDeposit(id){toast('อนุมัติ','อนุมัติฝากเงิน '+id+' แล้ว ✓');}

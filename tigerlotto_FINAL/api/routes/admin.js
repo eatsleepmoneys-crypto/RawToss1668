@@ -33,22 +33,30 @@ router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req
     LEFT JOIN bets b ON b.round_id=lr.id AND DATE(b.created_at)=CURDATE()
     GROUP BY lt.id ORDER BY total DESC LIMIT 6`);
 
+  // Top bettors today
+  const topBettors = await query(`
+    SELECT m.name, COALESCE(SUM(b.amount),0) total
+    FROM bets b JOIN members m ON b.member_id=m.id
+    WHERE DATE(b.created_at)=CURDATE()
+    GROUP BY b.member_id ORDER BY total DESC LIMIT 5`);
+
   res.json({
     success: true,
     data: {
-      members:       members.c,
-      new_today:     newToday.c,
-      dep_today:     depToday.total,
-      wd_today:      wdToday.total,
-      bet_today:     betToday.total,
+      members:         members.c,
+      new_today:       newToday.c,
+      dep_today:       depToday.total,
+      wd_today:        wdToday.total,
+      bet_today:       betToday.total,
       bet_count_today: betToday.cnt,
-      profit_today:  parseFloat(depToday.total) - parseFloat(wdToday.total),
-      pending_dep:   pendDep.c,
-      pending_wd:    pendWd.c,
-      pending_wd_amt: pendWd.total,
-      open_rounds:   openRounds.c,
-      revenue_7days: revenue7,
-      bet_by_type:   betByType,
+      profit_today:    parseFloat(depToday.total) - parseFloat(wdToday.total),
+      pending_dep:     pendDep.c,
+      pending_wd:      pendWd.c,
+      pending_wd_amt:  pendWd.total,
+      open_rounds:     openRounds.c,
+      revenue_7days:   revenue7,
+      bet_by_type:     betByType,
+      top_bettors:     topBettors,
     }
   });
 });
