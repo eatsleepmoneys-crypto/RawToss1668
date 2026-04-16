@@ -1,6 +1,6 @@
 require('dotenv').config();
 const express    = require('express');
-const cors       = require('cors');
+// cors package replaced by manual CORS middleware (see below)
 const helmet     = require('helmet');
 const morgan     = require('morgan');
 const compress   = require('compression');
@@ -11,32 +11,34 @@ const cron       = require('node-cron');
 const app = express();
 
 // ─── Security Headers ─────────────────────────────
-app.use(helmet({ contentSecurityPolicy: false }));
+// Disable CORP/COEP to allow cross-origin API access from Cloudflare Pages
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: false,     // Allow cross-origin fetch
+  crossOriginOpenerPolicy: false,       // Don't restrict opener
+  crossOriginEmbedderPolicy: false,     // Don't require COEP on clients
+}));
 
 // ─── CORS ─────────────────────────────────────────
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.ADMIN_URL,
-  'http://localhost:3000',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500',
-].filter(Boolean);
+// Manual middleware: ชัดเจนกว่า cors() package และ handle OPTIONS ก่อน rate limiter
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // ตั้ง ACAO: ถ้ามี origin ใช้ตัวนั้น, ถ้าไม่มีใช้ wildcard
+  res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,Accept');
+  res.setHeader('Access-Control-Max-Age', '86400');
 
-app.use(cors({
-  origin: (origin, cb) => {
-    // ไม่มี origin = same-origin หรือ curl → อนุญาต
-    if (!origin) return cb(null, true);
-    // Railway URLs: *.up.railway.app → อนุญาตทั้งหมด
-    if (origin.endsWith('.railway.app') || origin.endsWith('.up.railway.app')) return cb(null, true);
-    // Cloudflare Pages: *.pages.dev → อนุญาต
-    if (origin.endsWith('.pages.dev')) return cb(null, true);
-    // whitelist จาก .env
-    if (allowedOrigins.includes(origin)) return cb(null, true);
-    cb(null, true); // dev mode: อนุญาตทุก origin (เปลี่ยนเป็น false ใน production จริง)
-  },
-  credentials: true,
-  methods: ['GET','POST','PUT','PATCH','DELETE'],
-}));
+  // OPTIONS preflight → ตอบ 204 ทันที ไม่ผ่าน rate limiter
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+  next();
+});
 
 // ─── Parsers ──────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
