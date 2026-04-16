@@ -41,10 +41,20 @@ async function migrate() {
   const conn = await mysql.createConnection(connConfig);
   const sql  = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 
-  // Execute full schema as batch (multipleStatements:true) — schema uses DROP+CREATE so idempotent
-  await conn.query(sql);
+  // Execute each statement individually so failures don't abort the whole migration
+  const stmts = sql.split(/;\s*\n/).map(s => s.trim()).filter(s => s.length > 2 && !s.startsWith('--'));
+  let ok = 0, fail = 0;
+  for (const stmt of stmts) {
+    try {
+      await conn.query(stmt);
+      ok++;
+    } catch (e) {
+      fail++;
+      console.warn(`⚠️  [${e.code}] ${stmt.substring(0, 80).replace(/\n/g,' ')}`);
+    }
+  }
 
-  console.log('✅ Migration complete!');
+  console.log(`✅ Migration complete! ok=${ok} fail=${fail}`);
   console.log('   Default admin: superadmin@tigerlotto.com / Admin@1234');
   await conn.end();
 }
