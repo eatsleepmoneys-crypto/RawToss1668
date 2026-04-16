@@ -144,6 +144,22 @@ async function startServer() {
     console.warn('⚠️  Migration warning (continuing):', err.message);
   }
 
+  // ─── Always ensure superadmin exists with correct password ───────────────────
+  try {
+    const bcrypt = require('bcryptjs');
+    const { query } = require('./config/db');
+    const hash = await bcrypt.hash('Admin@1234', 12);
+    await query(
+      `INSERT INTO admins (uuid, name, email, password, role, is_active, login_attempts)
+       VALUES ('00000000-0000-0000-0000-000000000001','Super Admin','superadmin@tigerlotto.com',?,\'superadmin\',1,0)
+       ON DUPLICATE KEY UPDATE password=?, login_attempts=0, locked_until=NULL, is_active=1`,
+      [hash, hash]
+    );
+    console.log('✅ Superadmin seed OK');
+  } catch (e) {
+    console.warn('⚠️  Superadmin seed failed (table may not exist yet):', e.message);
+  }
+
   app.listen(PORT, () => {
     console.log(`\n🐯 TigerLotto API started`);
     console.log(`   Port    : ${PORT}`);
