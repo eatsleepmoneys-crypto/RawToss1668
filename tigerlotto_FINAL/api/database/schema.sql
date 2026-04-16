@@ -3,13 +3,13 @@
 -- MySQL 8.0+
 -- ═══════════════════════════════════════════════════════
 
-CREATE DATABASE IF NOT EXISTS `tigerlotto` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-USE `tigerlotto`;
+-- Database is selected via connection string (Railway uses 'railway' db)
+-- Do NOT use CREATE DATABASE / USE here — tables go into the connected database
 
 -- ─────────────────────────────────────────
 -- ADMINS (Multi-level: superadmin/admin/finance/staff)
 -- ─────────────────────────────────────────
-CREATE TABLE `admins` (
+CREATE TABLE IF NOT EXISTS `admins` (
   `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`          VARCHAR(36) NOT NULL UNIQUE,
   `name`          VARCHAR(100) NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE `admins` (
 -- ─────────────────────────────────────────
 -- MEMBERS
 -- ─────────────────────────────────────────
-CREATE TABLE `members` (
+CREATE TABLE IF NOT EXISTS `members` (
   `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`          VARCHAR(36) NOT NULL UNIQUE,
   `member_code`   VARCHAR(20) NOT NULL UNIQUE,
@@ -71,7 +71,7 @@ CREATE TABLE `members` (
 -- ─────────────────────────────────────────
 -- AGENTS
 -- ─────────────────────────────────────────
-CREATE TABLE `agents` (
+CREATE TABLE IF NOT EXISTS `agents` (
   `id`              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`            VARCHAR(36) NOT NULL UNIQUE,
   `name`            VARCHAR(150) NOT NULL,
@@ -90,7 +90,7 @@ CREATE TABLE `agents` (
 -- ─────────────────────────────────────────
 -- OTP (Phone Verification)
 -- ─────────────────────────────────────────
-CREATE TABLE `otps` (
+CREATE TABLE IF NOT EXISTS `otps` (
   `id`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `phone`      VARCHAR(20) NOT NULL,
   `code`       VARCHAR(10) NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE `otps` (
 -- ─────────────────────────────────────────
 -- LOTTERY TYPES
 -- ─────────────────────────────────────────
-CREATE TABLE `lottery_types` (
+CREATE TABLE IF NOT EXISTS `lottery_types` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `code`        VARCHAR(20) NOT NULL UNIQUE,
   `name`        VARCHAR(100) NOT NULL,
@@ -129,7 +129,7 @@ CREATE TABLE `lottery_types` (
 -- ─────────────────────────────────────────
 -- LOTTERY ROUNDS
 -- ─────────────────────────────────────────
-CREATE TABLE `lottery_rounds` (
+CREATE TABLE IF NOT EXISTS `lottery_rounds` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`        VARCHAR(36) NOT NULL UNIQUE,
   `lottery_id`  INT UNSIGNED NOT NULL,
@@ -150,7 +150,7 @@ CREATE TABLE `lottery_rounds` (
 -- ─────────────────────────────────────────
 -- LOTTERY RESULTS
 -- ─────────────────────────────────────────
-CREATE TABLE `lottery_results` (
+CREATE TABLE IF NOT EXISTS `lottery_results` (
   `id`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `round_id`      INT UNSIGNED NOT NULL UNIQUE,
   `prize_1st`     VARCHAR(6) DEFAULT NULL,
@@ -172,7 +172,7 @@ CREATE TABLE `lottery_results` (
 -- ─────────────────────────────────────────
 -- BETS (โพย)
 -- ─────────────────────────────────────────
-CREATE TABLE `bets` (
+CREATE TABLE IF NOT EXISTS `bets` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`        VARCHAR(36) NOT NULL UNIQUE,
   `member_id`   INT UNSIGNED NOT NULL,
@@ -197,7 +197,7 @@ CREATE TABLE `bets` (
 -- ─────────────────────────────────────────
 -- DEPOSITS
 -- ─────────────────────────────────────────
-CREATE TABLE `deposits` (
+CREATE TABLE IF NOT EXISTS `deposits` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`        VARCHAR(36) NOT NULL UNIQUE,
   `member_id`   INT UNSIGNED NOT NULL,
@@ -220,7 +220,7 @@ CREATE TABLE `deposits` (
 -- ─────────────────────────────────────────
 -- WITHDRAWALS
 -- ─────────────────────────────────────────
-CREATE TABLE `withdrawals` (
+CREATE TABLE IF NOT EXISTS `withdrawals` (
   `id`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`         VARCHAR(36) NOT NULL UNIQUE,
   `member_id`    INT UNSIGNED NOT NULL,
@@ -244,7 +244,7 @@ CREATE TABLE `withdrawals` (
 -- ─────────────────────────────────────────
 -- TRANSACTIONS (wallet history)
 -- ─────────────────────────────────────────
-CREATE TABLE `transactions` (
+CREATE TABLE IF NOT EXISTS `transactions` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `uuid`        VARCHAR(36) NOT NULL UNIQUE,
   `member_id`   INT UNSIGNED NOT NULL,
@@ -265,7 +265,7 @@ CREATE TABLE `transactions` (
 -- ─────────────────────────────────────────
 -- PROMOTIONS / BONUSES
 -- ─────────────────────────────────────────
-CREATE TABLE `promotions` (
+CREATE TABLE IF NOT EXISTS `promotions` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `code`        VARCHAR(30) UNIQUE DEFAULT NULL,
   `name`        VARCHAR(100) NOT NULL,
@@ -285,7 +285,7 @@ CREATE TABLE `promotions` (
 -- ─────────────────────────────────────────
 -- ACTIVITY LOGS (Admin)
 -- ─────────────────────────────────────────
-CREATE TABLE `admin_logs` (
+CREATE TABLE IF NOT EXISTS `admin_logs` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `admin_id`    INT UNSIGNED DEFAULT NULL,
   `action`      VARCHAR(100) NOT NULL,
@@ -303,7 +303,7 @@ CREATE TABLE `admin_logs` (
 -- ─────────────────────────────────────────
 -- SYSTEM SETTINGS
 -- ─────────────────────────────────────────
-CREATE TABLE `settings` (
+CREATE TABLE IF NOT EXISTS `settings` (
   `key`        VARCHAR(100) PRIMARY KEY,
   `value`      TEXT DEFAULT NULL,
   `type`       ENUM('string','number','boolean','json') NOT NULL DEFAULT 'string',
@@ -314,7 +314,7 @@ CREATE TABLE `settings` (
 -- ─────────────────────────────────────────
 -- NOTIFICATIONS
 -- ─────────────────────────────────────────
-CREATE TABLE `notifications` (
+CREATE TABLE IF NOT EXISTS `notifications` (
   `id`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   `member_id`   INT UNSIGNED DEFAULT NULL COMMENT 'NULL = broadcast',
   `title`       VARCHAR(200) NOT NULL,
