@@ -92,8 +92,7 @@ const CREATES = [
     INDEX \`idx_phone\`  (\`phone\`),
     INDEX \`idx_status\` (\`status\`),
     INDEX \`idx_agent\`  (\`agent_id\`),
-    INDEX \`idx_ref\`    (\`ref_by\`),
-    FOREIGN KEY (\`ref_by\`) REFERENCES \`members\`(\`id\`) ON DELETE SET NULL
+    INDEX \`idx_ref\`    (\`ref_by\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // agents
@@ -163,8 +162,7 @@ const CREATES = [
     \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_lottery_date\` (\`lottery_id\`, \`draw_date\`),
-    INDEX \`idx_status\`       (\`status\`),
-    FOREIGN KEY (\`lottery_id\`) REFERENCES \`lottery_types\`(\`id\`)
+    INDEX \`idx_status\`       (\`status\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // lottery_results
@@ -182,9 +180,7 @@ const CREATES = [
     \`prize_last_2\`   VARCHAR(2) DEFAULT NULL,
     \`announced_at\`   DATETIME DEFAULT NULL,
     \`announced_by\`   INT UNSIGNED DEFAULT NULL,
-    \`created_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (\`round_id\`)     REFERENCES \`lottery_rounds\`(\`id\`),
-    FOREIGN KEY (\`announced_by\`) REFERENCES \`admins\`(\`id\`) ON DELETE SET NULL
+    \`created_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // bets
@@ -205,9 +201,7 @@ const CREATES = [
     INDEX \`idx_member\` (\`member_id\`),
     INDEX \`idx_round\`  (\`round_id\`),
     INDEX \`idx_status\` (\`status\`),
-    INDEX \`idx_number\` (\`number\`),
-    FOREIGN KEY (\`member_id\`) REFERENCES \`members\`(\`id\`),
-    FOREIGN KEY (\`round_id\`)  REFERENCES \`lottery_rounds\`(\`id\`)
+    INDEX \`idx_number\` (\`number\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // deposits
@@ -226,9 +220,7 @@ const CREATES = [
     \`created_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_member\` (\`member_id\`),
-    INDEX \`idx_status\` (\`status\`),
-    FOREIGN KEY (\`member_id\`)   REFERENCES \`members\`(\`id\`),
-    FOREIGN KEY (\`approved_by\`) REFERENCES \`admins\`(\`id\`) ON DELETE SET NULL
+    INDEX \`idx_status\` (\`status\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // withdrawals
@@ -248,9 +240,7 @@ const CREATES = [
     \`created_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX \`idx_member\` (\`member_id\`),
-    INDEX \`idx_status\` (\`status\`),
-    FOREIGN KEY (\`member_id\`)    REFERENCES \`members\`(\`id\`),
-    FOREIGN KEY (\`processed_by\`) REFERENCES \`admins\`(\`id\`) ON DELETE SET NULL
+    INDEX \`idx_status\` (\`status\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // transactions
@@ -268,8 +258,7 @@ const CREATES = [
     \`created_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX \`idx_member\`  (\`member_id\`),
     INDEX \`idx_type\`    (\`type\`),
-    INDEX \`idx_created\` (\`created_at\`),
-    FOREIGN KEY (\`member_id\`) REFERENCES \`members\`(\`id\`)
+    INDEX \`idx_created\` (\`created_at\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // promotions
@@ -302,8 +291,7 @@ const CREATES = [
     \`created_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX \`idx_admin\`   (\`admin_id\`),
     INDEX \`idx_action\`  (\`action\`),
-    INDEX \`idx_created\` (\`created_at\`),
-    FOREIGN KEY (\`admin_id\`) REFERENCES \`admins\`(\`id\`) ON DELETE SET NULL
+    INDEX \`idx_created\` (\`created_at\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // settings
@@ -325,8 +313,7 @@ const CREATES = [
     \`is_read\`    TINYINT(1) NOT NULL DEFAULT 0,
     \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     INDEX \`idx_member\` (\`member_id\`),
-    INDEX \`idx_read\`   (\`is_read\`),
-    FOREIGN KEY (\`member_id\`) REFERENCES \`members\`(\`id\`) ON DELETE CASCADE
+    INDEX \`idx_read\`   (\`is_read\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
@@ -419,10 +406,12 @@ async function migrate() {
 
   // 2. Create all tables (parent → child order)
   console.log('\n🔨 Creating tables...');
+  await conn.query('SET FOREIGN_KEY_CHECKS = 0');
   for (const sql of CREATES) {
     const table = sql.match(/CREATE TABLE IF NOT EXISTS `(\w+)`/)?.[1] || '?';
     await run(`CREATE ${table}`, sql);
   }
+  await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
   // 3. Seed data
   console.log('\n🌱 Seeding data...');
