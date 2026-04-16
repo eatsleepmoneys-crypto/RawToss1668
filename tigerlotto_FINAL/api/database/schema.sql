@@ -331,8 +331,8 @@ CREATE TABLE `notifications` (
 -- SEED DATA
 -- ═══════════════════════════════════════════════════════
 
--- Super Admin
-INSERT INTO `admins` (`uuid`,`name`,`email`,`password`,`role`) VALUES
+-- Super Admin (INSERT IGNORE = skip if already exists)
+INSERT IGNORE INTO `admins` (`uuid`,`name`,`email`,`password`,`role`) VALUES
 ('00000000-0000-0000-0000-000000000001','Super Admin','superadmin@tigerlotto.com',
  '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TIRTWBIzOjMzZXcPMPBKi9A4I8Tu','superadmin');
 -- Password: Admin@1234
