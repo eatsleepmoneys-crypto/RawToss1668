@@ -6,24 +6,22 @@
 -- Database is selected via connection string (Railway uses 'railway' db)
 -- Do NOT use CREATE DATABASE / USE here — tables go into the connected database
 
--- ─── DROP all tables (fresh recreate — safe on new deployments) ──────────────
-SET FOREIGN_KEY_CHECKS = 0;
+-- ─── DROP all tables in FK-safe order (child tables first) ──────────────────
 DROP TABLE IF EXISTS `notifications`;
-DROP TABLE IF EXISTS `promotions`;
 DROP TABLE IF EXISTS `admin_logs`;
 DROP TABLE IF EXISTS `transactions`;
-DROP TABLE IF EXISTS `withdrawals`;
-DROP TABLE IF EXISTS `deposits`;
 DROP TABLE IF EXISTS `bets`;
+DROP TABLE IF EXISTS `deposits`;
+DROP TABLE IF EXISTS `withdrawals`;
 DROP TABLE IF EXISTS `lottery_results`;
-DROP TABLE IF EXISTS `lottery_rounds`;
-DROP TABLE IF EXISTS `lottery_types`;
+DROP TABLE IF EXISTS `promotions`;
 DROP TABLE IF EXISTS `otps`;
 DROP TABLE IF EXISTS `agents`;
-DROP TABLE IF EXISTS `members`;
+DROP TABLE IF EXISTS `lottery_rounds`;
+DROP TABLE IF EXISTS `lottery_types`;
 DROP TABLE IF EXISTS `settings`;
+DROP TABLE IF EXISTS `members`;
 DROP TABLE IF EXISTS `admins`;
-SET FOREIGN_KEY_CHECKS = 1;
 
 -- ─────────────────────────────────────────
 -- ADMINS (Multi-level: superadmin/admin/finance/staff)
