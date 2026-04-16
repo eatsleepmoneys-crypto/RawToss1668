@@ -41,24 +41,10 @@ async function migrate() {
   const conn = await mysql.createConnection(connConfig);
   const sql  = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 
-  // รัน statement ทีละอัน — ถ้า CREATE TABLE fail (already exists) ให้ skip แทนที่จะหยุดทั้งหมด
-  const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
-  let ok = 0, skipped = 0;
-  for (const stmt of statements) {
-    try {
-      await conn.query(stmt);
-      ok++;
-    } catch (e) {
-      if (e.code === 'ER_TABLE_EXISTS_ERROR' || e.code === 'ER_DUP_ENTRY' || e.errno === 1050 || e.errno === 1062) {
-        skipped++;
-      } else {
-        console.warn(`   ⚠️  stmt skipped (${e.code}): ${stmt.substring(0, 60)}...`);
-        skipped++;
-      }
-    }
-  }
+  // Execute full schema as batch (multipleStatements:true) — schema uses DROP+CREATE so idempotent
+  await conn.query(sql);
 
-  console.log(`✅ Migration complete! (${ok} ok, ${skipped} skipped)`);
+  console.log('✅ Migration complete!');
   console.log('   Default admin: superadmin@tigerlotto.com / Admin@1234');
   await conn.end();
 }
