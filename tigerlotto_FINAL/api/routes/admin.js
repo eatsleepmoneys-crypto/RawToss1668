@@ -10,23 +10,35 @@ const rbac = require('../middleware/rbac');
 //  DASHBOARD STATS
 // ══════════════════════════════════════
 router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
-  const [members]  = await query('SELECT COUNT(*) c FROM members');
-  const [newToday] = await query('SELECT COUNT(*) c FROM members WHERE DATE(created_at)=CURDATE()');
-  const [depToday] = await query('SELECT COALESCE(SUM(amount),0) total FROM deposits WHERE status="approved" AND DATE(approved_at)=CURDATE()');
-  const [wdToday]  = await query('SELECT COALESCE(SUM(amount),0) total FROM withdrawals WHERE status="completed" AND DATE(processed_at)=CURDATE()');
-  const [betToday] = await query('SELECT COALESCE(SUM(amount),0) total, COUNT(*) cnt FROM bets WHERE DATE(created_at)=CURDATE()');
-  const [pendDep]  = await query('SELECT COUNT(*) c FROM deposits WHERE status="pending"');
-  const [pendWd]   = await query('SELECT COUNT(*) c, COALESCE(SUM(amount),0) total FROM withdrawals WHERE status="pending"');
-  const [openRounds] = await query('SELECT COUNT(*) c FROM lottery_rounds WHERE status="open"');
+  // Helper: run query safely — returns fallback if table is missing or query fails
+  const safe = async (sql, fallback, params = []) => {
+    try { const [r] = await query(sql, params); return r ?? fallback; }
+    catch { return fallback; }
+  };
+  const safeAll = async (sql, params = []) => {
+    try { return await query(sql, params); }
+    catch { return []; }
+  };
+
+  const [members, newToday, depToday, wdToday, betToday, pendDep, pendWd, openRounds] = await Promise.all([
+    safe('SELECT COUNT(*) c FROM members',                                                                      { c: 0 }),
+    safe('SELECT COUNT(*) c FROM members WHERE DATE(created_at)=CURDATE()',                                    { c: 0 }),
+    safe('SELECT COALESCE(SUM(amount),0) total FROM deposits WHERE status="approved" AND DATE(approved_at)=CURDATE()',   { total: 0 }),
+    safe('SELECT COALESCE(SUM(amount),0) total FROM withdrawals WHERE status="completed" AND DATE(processed_at)=CURDATE()', { total: 0 }),
+    safe('SELECT COALESCE(SUM(amount),0) total, COUNT(*) cnt FROM bets WHERE DATE(created_at)=CURDATE()',      { total: 0, cnt: 0 }),
+    safe('SELECT COUNT(*) c FROM deposits WHERE status="pending"',                                             { c: 0 }),
+    safe('SELECT COUNT(*) c, COALESCE(SUM(amount),0) total FROM withdrawals WHERE status="pending"',           { c: 0, total: 0 }),
+    safe('SELECT COUNT(*) c FROM lottery_rounds WHERE status="open"',                                          { c: 0 }),
+  ]);
 
   // Revenue 7 days
-  const revenue7 = await query(`
+  const revenue7 = await safeAll(`
     SELECT DATE(approved_at) d, SUM(amount) total
     FROM deposits WHERE status='approved' AND approved_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
     GROUP BY DATE(approved_at) ORDER BY d ASC`);
 
   // Bet by lottery type today
-  const betByType = await query(`
+  const betByType = await safeAll(`
     SELECT lt.name, COALESCE(SUM(b.amount),0) total
     FROM lottery_types lt
     LEFT JOIN lottery_rounds lr ON lr.lottery_id=lt.id
@@ -34,7 +46,7 @@ router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req
     GROUP BY lt.id ORDER BY total DESC LIMIT 6`);
 
   // Top bettors today
-  const topBettors = await query(`
+  const topBettors = await safeAll(`
     SELECT m.name, COALESCE(SUM(b.amount),0) total
     FROM bets b JOIN members m ON b.member_id=m.id
     WHERE DATE(b.created_at)=CURDATE()

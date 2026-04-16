@@ -408,12 +408,14 @@ async function migrate() {
     }
   };
 
-  // 1. Drop all tables (FK-safe order: child → parent)
+  // 1. Drop all tables (FK-safe: disable checks first so old-schema FKs don't block)
   console.log('\n📦 Dropping tables...');
+  await conn.query('SET FOREIGN_KEY_CHECKS = 0');
   for (const sql of DROPS) {
     const table = sql.match(/`(\w+)`$/)?.[1] || '?';
     await run(`DROP ${table}`, sql);
   }
+  await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
   // 2. Create all tables (parent → child order)
   console.log('\n🔨 Creating tables...');

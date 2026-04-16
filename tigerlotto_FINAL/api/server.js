@@ -102,6 +102,25 @@ app.get('/api/debug/tables', async (req, res) => {
   }
 });
 
+// ─── Manual migration trigger (admin use) ─────────
+app.post('/api/debug/migrate', async (req, res) => {
+  try {
+    const { runMigration } = require('./database/migrate');
+    // Capture console output by temporarily overriding
+    const logs = [];
+    const origLog  = console.log;
+    const origWarn = console.warn;
+    console.log  = (...a) => { origLog(...a);  logs.push(a.join(' ')); };
+    console.warn = (...a) => { origWarn(...a); logs.push('⚠️  ' + a.join(' ')); };
+    await runMigration();
+    console.log  = origLog;
+    console.warn = origWarn;
+    res.json({ success: true, logs });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ─── SPA Fallback: admin ──────────────────────────
 app.get('/admin', (req, res) => {
   const adminPath = path.join(FRONTEND_PATH, 'admin/index.html');
