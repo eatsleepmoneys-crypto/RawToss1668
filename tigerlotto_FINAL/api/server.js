@@ -50,9 +50,9 @@ app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 // Uploads (slip images)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Frontend static files (tigerlotto/) — serve เว็บหน้าบ้านจาก backend
-// วางโฟลเดอร์ tigerlotto/ ไว้ข้างๆ tigerlotto-backend/
-const FRONTEND_PATH = process.env.FRONTEND_PATH || path.join(__dirname, '../tigerlotto');
+// Frontend static files — serve เว็บหน้าบ้านจาก backend (same-origin, no CORS needed)
+// Railway clones full repo: api/ is at tigerlotto_FINAL/api/, frontend is at tigerlotto_FINAL/frontend/
+const FRONTEND_PATH = process.env.FRONTEND_PATH || path.join(__dirname, '../frontend');
 if (require('fs').existsSync(FRONTEND_PATH)) {
   app.use(express.static(FRONTEND_PATH));
   console.log('📁 Serving frontend from:', FRONTEND_PATH);
