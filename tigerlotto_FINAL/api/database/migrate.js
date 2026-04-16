@@ -47,7 +47,13 @@ async function migrate() {
   await conn.end();
 }
 
-migrate().catch(err => {
-  console.error('❌ Migration failed:', err.message);
-  process.exit(1);
-});
+// Export สำหรับ server.js เรียกใช้ auto-migrate on startup
+module.exports = { runMigration: migrate };
+
+// รัน standalone: node database/migrate.js
+if (require.main === module) {
+  migrate().catch(err => {
+    console.error('❌ Migration failed:', err.message);
+    process.exit(1);
+  });
+}

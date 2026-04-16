@@ -121,13 +121,28 @@ cron.schedule('*/15 * * * *', async () => {
   // Logic for Yee-kee auto rounds can be added here
 });
 
-// ─── Start Server ─────────────────────────────────
+// ─── Start Server (with auto-migrate) ────────────
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`\n🐯 TigerLotto API started`);
-  console.log(`   Port    : ${PORT}`);
-  console.log(`   Env     : ${process.env.NODE_ENV || 'development'}`);
-  console.log(`   Docs    : http://localhost:${PORT}/api/health\n`);
-});
+
+async function startServer() {
+  try {
+    // Auto-run DB migration on startup (idempotent — safe to run every time)
+    console.log('📦 Running DB migration...');
+    const { runMigration } = require('./database/migrate');
+    await runMigration();
+    console.log('✅ DB migration complete');
+  } catch (err) {
+    console.warn('⚠️  Migration warning (continuing):', err.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`\n🐯 TigerLotto API started`);
+    console.log(`   Port    : ${PORT}`);
+    console.log(`   Env     : ${process.env.NODE_ENV || 'development'}`);
+    console.log(`   Docs    : http://localhost:${PORT}/api/health\n`);
+  });
+}
+
+startServer();
 
 module.exports = app;
