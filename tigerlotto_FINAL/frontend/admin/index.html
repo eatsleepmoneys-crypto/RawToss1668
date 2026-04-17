@@ -660,48 +660,124 @@ async function loadBets(params={}){
 }
 
 /* ── Lottery Types ── */
+let _allLotteryTypes = [];
 async function loadLotteryTypes(){
   const d = await API.AdminAPI.getLotteryTypes();
+  _allLotteryTypes = d.data || [];
+  renderLotteryTypes(_allLotteryTypes);
+}
+function filterLotteryTypes(q){
+  const lc = (q||'').toLowerCase();
+  renderLotteryTypes(lc ? _allLotteryTypes.filter(l=>(l.name||'').toLowerCase().includes(lc)) : _allLotteryTypes);
+}
+function renderLotteryTypes(rows){
   const tbody = document.getElementById('lottery-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.data||[]).map(l=>`
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(l=>`
     <tr>
-      <td>${l.id}</td>
-      <td>${l.flag||'🎰'} ${l.name}</td>
-      <td><span class="badge ${l.status==='open'?'badge-green':'badge-red'}">${l.status}</span></td>
-      <td>฿${l.min_bet||1} - ฿${Number(l.max_bet||5000).toLocaleString()}</td>
-      <td>${l.rate_3top||'-'}</td>
-      <td>${l.rate_2top||'-'}</td>
+      <td style="font-size:20px">${l.flag||'🎰'}</td>
+      <td style="font-weight:600">${l.name}</td>
+      <td style="color:var(--gold2);font-weight:700">${l.rate_3top||'-'}</td>
+      <td>${l.rate_3tod||'-'}</td>
+      <td style="color:var(--gold2);font-weight:700">${l.rate_2top||'-'}</td>
+      <td>${l.rate_2bot||'-'}</td>
       <td>${l.rate_run_top||'-'}</td>
-      <td><button class="act-btn" onclick="editLotteryType(${l.id})">แก้ไข</button></td>
+      <td>${l.rate_run_bot||'-'}</td>
+      <td>฿${Number(l.min_bet||1).toLocaleString()}</td>
+      <td>฿${Number(l.max_bet||5000).toLocaleString()}</td>
+      <td>
+        <label class="sw" title="${l.status==='open'?'กำลังเปิด':'ปิดอยู่'}">
+          <input type="checkbox" ${l.status==='open'?'checked':''} onchange="toggleLotteryStatus(${l.id},this.checked,this)">
+          <span class="sw-track"></span>
+        </label>
+      </td>
+      <td>
+        <button class="act-btn" onclick="editLotteryType(${l.id})">✏️ แก้ไข</button>
+      </td>
     </tr>`).join('');
+}
+async function toggleLotteryStatus(id, open, el){
+  const newStatus = open ? 'open' : 'closed';
+  try{
+    await API.AdminAPI.updateLotteryType(id, { status: newStatus });
+    // update local cache
+    const lt = _allLotteryTypes.find(l=>l.id===id);
+    if(lt) lt.status = newStatus;
+    toast('สำเร็จ', `${newStatus==='open'?'เปิด':'ปิด'}ประเภทหวย #${id} แล้ว`);
+  }catch(e){
+    // revert toggle on fail
+    if(el) el.checked = !open;
+    toast('ผิดพลาด', e.message, 'error');
+  }
 }
 
 /* ── Rounds ── */
+let _allRounds = [];
 async function loadRounds(){
-  const d = await API.AdminAPI.listRoundsAdmin({ limit:30 });
+  const d = await API.AdminAPI.listRoundsAdmin({ limit:100 });
+  _allRounds = d.data || [];
+
+  // Populate lottery type filter dropdown
+  const ltSel = document.getElementById('round-lt-filter');
+  if(ltSel && _allRounds.length){
+    const seen = new Set();
+    const opts = _allRounds
+      .filter(r=>{ if(seen.has(r.lottery_id)) return false; seen.add(r.lottery_id); return true; })
+      .map(r=>`<option value="${r.lottery_id}">${r.lottery_name}</option>`)
+      .join('');
+    ltSel.innerHTML = '<option value="">ทุกประเภท</option>' + opts;
+  }
+
+  renderRounds(_allRounds);
+
+  // Populate result round select (closed rounds only)
+  const sel = document.getElementById('result-round-sel');
+  if(sel){
+    const closed = _allRounds.filter(r=>r.status==='closed');
+    sel.innerHTML = '<option value="">เลือกงวด</option>' + closed.map(r=>`<option value="${r.id}">${r.flag||''} ${r.lottery_name} — ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
+  }
+}
+function filterRounds(q){
+  const search = (q !== undefined ? q : (document.getElementById('round-search')?.value||'')).toLowerCase();
+  const ltId   = document.getElementById('round-lt-filter')?.value || '';
+  const status = document.getElementById('round-status-filter')?.value || '';
+  renderRounds(_allRounds.filter(r=>{
+    if(ltId   && String(r.lottery_id) !== ltId)   return false;
+    if(status && r.status !== status)              return false;
+    if(search && !(r.lottery_name||'').toLowerCase().includes(search)
+              && !(r.round_name||'').toLowerCase().includes(search)) return false;
+    return true;
+  }));
+}
+function renderRounds(rows){
   const tbody = document.getElementById('rounds-tbody');
   if(!tbody) return;
-  tbody.innerHTML = (d.data||[]).map(r=>`
+  if(!rows.length){
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+  const STATUS_TH = { open:'กำลังรับ', closed:'ปิดแล้ว', announced:'ประกาศแล้ว' };
+  tbody.innerHTML = rows.map(r=>`
     <tr>
-      <td>${r.id}</td>
-      <td>${r.lottery_name||'-'}</td>
+      <td style="color:var(--muted)">${r.id}</td>
+      <td style="font-weight:600">${r.flag||''} ${r.lottery_name||'-'}</td>
+      <td>${r.round_name||'-'}</td>
       <td>${UI.formatDateOnly(r.draw_date)}</td>
-      <td>${UI.formatDate(r.close_time)}</td>
-      <td><span class="badge ${r.status==='open'?'badge-green':r.status==='closed'?'badge-yellow':'badge-red'}">${r.status}</span></td>
-      <td>฿${Number(r.total_bets||0).toLocaleString()}</td>
-      <td>${r.bet_count||0}</td>
+      <td style="color:var(--muted);font-size:12px">${UI.formatDate(r.close_at)}</td>
+      <td style="color:var(--gold2);font-weight:700">฿${Number(r.total_bet||0).toLocaleString()}</td>
+      <td>${Number(r.bet_count||0).toLocaleString()}</td>
+      <td><span class="badge ${r.status==='open'?'badge-green':r.status==='announced'?'badge-gold':'badge-gray'}">${STATUS_TH[r.status]||r.status}</span></td>
       <td>
-        ${r.status==='open'?`<button class="act-btn act-red" onclick="closeRound(${r.id})">ปิดรับ</button>`:''}
-        ${r.status==='closed'?`<button class="act-btn act-green" onclick="openAnnounce(${r.id})">ออกผล</button>`:''}
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          ${r.status==='open'?`<button class="act-btn act-red" onclick="closeRound(${r.id})">ปิดรับ</button>`:''}
+          ${r.status==='closed'?`<button class="act-btn act-green" onclick="openAnnounce(${r.id})">ออกผล</button>`:''}
+        </div>
       </td>
     </tr>`).join('');
-  // populate result round select
-  const sel = document.getElementById('result-round-sel');
-  if(sel&&d.data){
-    const closed = d.data.filter(r=>r.status==='closed');
-    sel.innerHTML = '<option value="">เลือกงวด</option>' + closed.map(r=>`<option value="${r.id}">${r.lottery_name} ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
-  }
 }
 
 /* ── Admins ── */
@@ -1787,63 +1863,37 @@ admins:()=>`
 
 lottery:()=>`
 <div class="filter-bar">
-  <input class="fi" placeholder="🔍 ค้นหาประเภทหวย..." style="flex:1">
-  <button class="btn btn-gold" onclick="toast('เพิ่ม','เปิดฟอร์มเพิ่มประเภทหวย')">+ เพิ่มประเภทหวย</button>
+  <input class="fi" id="lt-search" placeholder="🔍 ค้นหาประเภทหวย..." style="flex:1" oninput="filterLotteryTypes(this.value)">
+  <button class="btn btn-gold" onclick="toast('ข้อมูล','ไม่รองรับการเพิ่มประเภทหวยจาก UI (ต้องเพิ่มจาก DB โดยตรง)','info')">+ เพิ่มประเภทหวย</button>
 </div>
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
       <thead><tr><th>ธง</th><th>ชื่อหวย</th><th>3 บนตรง</th><th>3 โต๊ด</th><th>2 บน</th><th>2 ล่าง</th><th>วิ่งบน</th><th>วิ่งล่าง</th><th>แทงต่ำสุด</th><th>แทงสูงสุด</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody id="lottery-tbody">${DB.lotteries.map((l,i)=>`
-      <tr>
-        <td style="font-size:20px">${l.flag}</td>
-        <td style="font-weight:600">${l.name}</td>
-        <td style="color:var(--gold2)">${l.rate3top}</td>
-        <td>${l.rate3tod}</td>
-        <td style="color:var(--gold2)">${l.rate2top}</td>
-        <td>${l.rate2bot}</td>
-        <td>${l.runTop}</td>
-        <td>${l.runBot}</td>
-        <td>฿${l.minBet}</td>
-        <td>฿${l.maxBet.toLocaleString()}</td>
-        <td>
-          <label class="sw"><input type="checkbox" ${l.status==='open'?'checked':''} onchange="toggleLottery(${i},this.checked)"><span class="sw-track"></span></label>
-        </td>
-        <td>
-          <button class="btn btn-sm btn-outline" onclick="editLottery(${i})">แก้ไขอัตรา</button>
-        </td>
-      </tr>`).join('')}</tbody>
+      <tbody id="lottery-tbody"><tr><td colspan="12" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,
 
 rounds:()=>`
 <div class="filter-bar">
-  <input class="fi" placeholder="🔍 ค้นหางวด..." style="flex:1">
-  <select class="fi fi-sm"><option>ทุกประเภท</option>${DB.lotteries.map(l=>`<option>${l.name}</option>`).join('')}</select>
+  <input class="fi" id="round-search" placeholder="🔍 ค้นหางวด..." style="flex:1" oninput="filterRounds(this.value)">
+  <select class="fi fi-sm" id="round-lt-filter" onchange="filterRounds()">
+    <option value="">ทุกประเภท</option>
+  </select>
+  <select class="fi fi-sm" id="round-status-filter" onchange="filterRounds()">
+    <option value="">ทุกสถานะ</option>
+    <option value="open">กำลังรับ</option>
+    <option value="closed">ปิดแล้ว</option>
+    <option value="announced">ประกาศแล้ว</option>
+  </select>
   <button class="btn btn-gold" onclick="openAddRound()">+ เปิดงวดใหม่</button>
 </div>
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>#</th><th>ประเภทหวย</th><th>งวดวันที่</th><th>ปิดรับ</th><th>ยอดแทง (บาท)</th><th>จำนวนบิล</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody id="rounds-tbody">${DB.rounds.map(r=>`
-      <tr>
-        <td style="color:var(--muted)">${r.id}</td>
-        <td style="font-weight:600">${r.lottery}</td>
-        <td>${r.date}</td>
-        <td style="color:var(--muted)">${r.close}</td>
-        <td style="color:var(--gold2);font-weight:700">฿${r.totalBets.toLocaleString()}</td>
-        <td>${r.betCount.toLocaleString()}</td>
-        <td><span class="badge ${r.status==='open'?'badge-green':r.status==='announced'?'badge-gold':'badge-gray'}">${r.status==='open'?'กำลังรับ':r.status==='announced'?'ประกาศแล้ว':'ปิดแล้ว'}</span></td>
-        <td>
-          <div style="display:flex;gap:5px">
-            ${r.status==='open'?`<button class="btn btn-sm btn-red" onclick="toast('ปิดงวด','ปิดรับงวด '+r.date+' แล้ว')">ปิดรับ</button>`:''}
-            ${r.status!=='announced'?`<button class="btn btn-sm btn-gold" onclick="nav('results')">ออกผล</button>`:''}
-            <button class="btn btn-sm btn-outline" onclick="toast('ดู','ดูรายละเอียดงวด')">ดู</button>
-          </div>
-        </td>
-      </tr>`).join('')}</tbody>
+      <thead><tr><th>#</th><th>ประเภทหวย</th><th>ชื่องวด</th><th>วันที่งวด</th><th>ปิดรับ</th><th>ยอดแทง (฿)</th><th>จำนวนบิล</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="rounds-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,
@@ -2408,8 +2458,111 @@ async function submitNewAdmin(){
     loadAdmins();
   } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
-function openAddRound(){openModal(`<h3>📅 เปิดงวดใหม่</h3><div class="fg"><label>ประเภทหวย</label><select class="fi-full">${DB.lotteries.map(l=>`<option>${l.name}</option>`).join('')}</select></div><div class="fg"><label>วันที่งวด</label><input class="fi-full" type="date"></div><div class="fg"><label>เวลาปิดรับ</label><input class="fi-full" type="time" value="13:00"></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('เปิดงวด','เปิดงวดใหม่สำเร็จ')">เปิดงวด</button></div>`);}
-function editLottery(i){const l=DB.lotteries[i];openModal(`<h3>⚙️ แก้ไขอัตราจ่าย — ${l.name}</h3><div class="fi-row"><div class="fg"><label>3 บนตรง</label><input class="fi-full" type="number" value="${l.rate3top}"></div><div class="fg"><label>3 โต๊ด</label><input class="fi-full" type="number" value="${l.rate3tod}"></div></div><div class="fi-row"><div class="fg"><label>2 บน</label><input class="fi-full" type="number" value="${l.rate2top}"></div><div class="fg"><label>2 ล่าง</label><input class="fi-full" type="number" value="${l.rate2bot}"></div></div><div class="fi-row"><div class="fg"><label>วิ่งบน</label><input class="fi-full" type="number" value="${l.runTop}" step="0.1"></div><div class="fg"><label>วิ่งล่าง</label><input class="fi-full" type="number" value="${l.runBot}" step="0.1"></div></div><div class="fi-row"><div class="fg"><label>แทงต่ำสุด</label><input class="fi-full" type="number" value="${l.minBet}"></div><div class="fg"><label>แทงสูงสุด</label><input class="fi-full" type="number" value="${l.maxBet}"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('บันทึก','อัตราจ่าย ${l.name} บันทึกแล้ว')">บันทึก</button></div>`);}
+/* ── Lottery Type Edit Modal ── */
+function editLotteryType(id){
+  const l = _allLotteryTypes.find(x=>x.id===id);
+  if(!l){ toast('ผิดพลาด','ไม่พบข้อมูลประเภทหวย','error'); return; }
+  openModal(`
+    <h3>⚙️ แก้ไขอัตราจ่าย — ${l.flag||'🎰'} ${l.name}</h3>
+    <div class="fg"><label>ชื่อหวย</label><input id="elt-name" class="fi-full" value="${l.name}"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+      <div class="fg"><label>3 บน (ตรง)</label><input id="elt-r3top" class="fi-full" type="number" step="0.5" value="${l.rate_3top||0}"></div>
+      <div class="fg"><label>3 โต๊ด</label><input id="elt-r3tod" class="fi-full" type="number" step="0.5" value="${l.rate_3tod||0}"></div>
+      <div class="fg"><label>2 บน</label><input id="elt-r2top" class="fi-full" type="number" step="0.5" value="${l.rate_2top||0}"></div>
+      <div class="fg"><label>2 ล่าง</label><input id="elt-r2bot" class="fi-full" type="number" step="0.5" value="${l.rate_2bot||0}"></div>
+      <div class="fg"><label>วิ่งบน</label><input id="elt-rrtop" class="fi-full" type="number" step="0.1" value="${l.rate_run_top||0}"></div>
+      <div class="fg"><label>วิ่งล่าง</label><input id="elt-rrbot" class="fi-full" type="number" step="0.1" value="${l.rate_run_bot||0}"></div>
+      <div class="fg"><label>แทงต่ำสุด (฿)</label><input id="elt-minbet" class="fi-full" type="number" value="${l.min_bet||1}"></div>
+      <div class="fg"><label>แทงสูงสุด (฿)</label><input id="elt-maxbet" class="fi-full" type="number" value="${l.max_bet||5000}"></div>
+    </div>
+    <div class="fg" style="display:flex;align-items:center;gap:10px">
+      <label>สถานะ</label>
+      <select id="elt-status" class="fi" style="width:auto">
+        <option value="open" ${l.status==='open'?'selected':''}>เปิด</option>
+        <option value="closed" ${l.status==='closed'?'selected':''}>ปิด</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitEditLotteryType(${id})">💾 บันทึก</button>
+    </div>`);
+}
+async function submitEditLotteryType(id){
+  const payload = {
+    name       : document.getElementById('elt-name')?.value?.trim(),
+    status     : document.getElementById('elt-status')?.value,
+    rate_3top  : parseFloat(document.getElementById('elt-r3top')?.value)||0,
+    rate_3tod  : parseFloat(document.getElementById('elt-r3tod')?.value)||0,
+    rate_2top  : parseFloat(document.getElementById('elt-r2top')?.value)||0,
+    rate_2bot  : parseFloat(document.getElementById('elt-r2bot')?.value)||0,
+    rate_run_top: parseFloat(document.getElementById('elt-rrtop')?.value)||0,
+    rate_run_bot: parseFloat(document.getElementById('elt-rrbot')?.value)||0,
+    min_bet    : parseFloat(document.getElementById('elt-minbet')?.value)||1,
+    max_bet    : parseFloat(document.getElementById('elt-maxbet')?.value)||5000,
+  };
+  if(!payload.name){ toast('ผิดพลาด','กรุณากรอกชื่อหวย','error'); return; }
+  try{
+    await API.AdminAPI.updateLotteryType(id, payload);
+    // update local cache
+    const idx = _allLotteryTypes.findIndex(l=>l.id===id);
+    if(idx>-1) Object.assign(_allLotteryTypes[idx], payload);
+    closeModal();
+    renderLotteryTypes(_allLotteryTypes);
+    toast('สำเร็จ',`บันทึกอัตราจ่าย ${payload.name} แล้ว`);
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+
+/* ── Open Add Round Modal ── */
+async function openAddRound(){
+  // Load latest types for dropdown
+  let types = _allLotteryTypes;
+  if(!types.length){
+    try{ const d = await API.AdminAPI.getLotteryTypes(); types = d.data||[]; }
+    catch(e){ toast('ผิดพลาด','โหลดประเภทหวยไม่ได้: '+e.message,'error'); return; }
+  }
+  const opts = types.map(l=>`<option value="${l.id}">${l.flag||''} ${l.name}</option>`).join('');
+  // Default date = tomorrow
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const defDate = tomorrow.toISOString().slice(0,10);
+  openModal(`
+    <h3>📅 เปิดงวดใหม่</h3>
+    <div class="fg"><label>ประเภทหวย</label>
+      <select id="ar-lottery" class="fi-full">${opts}</select>
+    </div>
+    <div class="fg"><label>วันที่งวด (วันออกผล)</label>
+      <input id="ar-draw-date" class="fi-full" type="date" value="${defDate}">
+    </div>
+    <div class="fg"><label>วันที่ปิดรับ</label>
+      <input id="ar-close-date" class="fi-full" type="date" value="${defDate}">
+    </div>
+    <div class="fg"><label>เวลาปิดรับ</label>
+      <input id="ar-close-time" class="fi-full" type="time" value="13:00">
+    </div>
+    <div class="fg"><label>ชื่องวด (ไม่บังคับ)</label>
+      <input id="ar-name" class="fi-full" placeholder="เช่น งวด 16/04/68">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitAddRound()">📅 เปิดงวด</button>
+    </div>`);
+}
+async function submitAddRound(){
+  const lottery_id  = document.getElementById('ar-lottery')?.value;
+  const draw_date   = document.getElementById('ar-draw-date')?.value;
+  const close_date  = document.getElementById('ar-close-date')?.value;
+  const close_time  = document.getElementById('ar-close-time')?.value || '13:00';
+  const round_name  = document.getElementById('ar-name')?.value?.trim();
+  if(!lottery_id||!draw_date||!close_date){
+    toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบ','error'); return;
+  }
+  const close_at = `${close_date} ${close_time}:00`;
+  try{
+    await API.AdminAPI.createRound({ lottery_id:parseInt(lottery_id), draw_date, close_at, round_name:round_name||draw_date });
+    closeModal();
+    toast('สำเร็จ','เปิดงวดใหม่สำเร็จ');
+    loadRounds();
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
 
 function setTab(el,id){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
