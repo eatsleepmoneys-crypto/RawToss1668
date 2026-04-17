@@ -238,6 +238,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('rounds')"><span class="ic">📅</span>งวดหวย</div>
     <div class="sb-item" onclick="nav('results')"><span class="ic">🏆</span>ออกผลรางวัล</div>
     <div class="sb-item" onclick="nav('yeekee')"><span class="ic">🎲</span>ยี่กีอัตโนมัติ</div>
+    <div class="sb-item" onclick="nav('autoresult')"><span class="ic">🤖</span>ดึงผลหวยออโต้</div>
     <div class="sb-item" onclick="nav('bets')"><span class="ic">📋</span>รายการแทง</div>
 
     <div class="sb-sec">การเงิน</div>
@@ -406,7 +407,7 @@ function startClock(){
 // ═══ ROUTER ═══
 const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
-  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',bets:'📋 รายการแทง',
+  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
@@ -444,6 +445,7 @@ async function afterNav(page){
     else if(page==='kyc') await loadKYC();
     else if(page==='winpay') await loadWinPay();
     else if(page==='yeekee') await loadYeeKee();
+    else if(page==='autoresult') await loadAutoResult();
     else if(page==='api') await loadApiSettings();
     else if(page==='reports') await loadReports();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
@@ -1304,6 +1306,60 @@ async function loadResultsPage(){
 
 /* ── Win Pay Page ── */
 const BET_TYPE_LABEL = { '3top':'3 บน','3tod':'3 โต้ด','2top':'2 บน','2bot':'2 ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง' };
+/* ── Auto-Result Fetcher Monitor ── */
+const AR_META = {
+  TH_GOV: { name:'หวยรัฐบาลไทย', flag:'🇹🇭', schedule:'วันที่ 1 และ 16 @ 15:30' },
+  LA_GOV: { name:'หวยลาว',        flag:'🇱🇦', schedule:'ทุกวัน @ 20:45' },
+  VN_HAN: { name:'หวยฮานอย',      flag:'🇻🇳', schedule:'ทุกวัน @ 18:45' },
+};
+async function loadAutoResult(){
+  const container = document.getElementById('ar-cards');
+  if(!container) return;
+  try{
+    const d = await API.AdminAPI.getAutoResultStatus();
+    const rows = d.data || [];
+    container.innerHTML = rows.map(r=>{
+      const meta = AR_META[r.code] || { name:r.code, flag:'🎰', schedule:'-' };
+      const s    = r.fetcher || {};
+      const ok   = !!s.lastSuccess && !s.lastError;
+      const hasResult = r.latest && r.latest.prize_1st;
+      return `
+      <div class="card" style="border:1.5px solid ${ok?'var(--success)':s.lastError?'var(--error,#e74c3c)':'var(--border)'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <span style="font-size:24px">${meta.flag}</span>
+            <span style="font-size:16px;font-weight:700;margin-left:8px">${meta.name}</span>
+          </div>
+          <span class="badge ${ok?'badge-green':s.lastError?'badge-red':'badge-gray'}">${ok?'✅ OK':s.lastError?'❌ Error':'—'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">⏰ ${meta.schedule}</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;margin-bottom:10px">
+          <div><span style="color:var(--muted)">ดึงล่าสุด</span><br>${s.lastRun?UI.formatDate(s.lastRun):'ยังไม่ได้ดึง'}</div>
+          <div><span style="color:var(--muted)">สำเร็จล่าสุด</span><br>${s.lastSuccess?UI.formatDate(s.lastSuccess):'-'}</div>
+        </div>
+        ${s.lastError?`<div style="font-size:11px;color:var(--error,#e74c3c);background:rgba(231,76,60,.1);padding:6px 8px;border-radius:6px;margin-bottom:8px;word-break:break-word">❌ ${s.lastError}</div>`:''}
+        ${hasResult?`
+        <div style="background:rgba(255,215,0,.12);border-radius:8px;padding:10px;margin-bottom:10px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ผลล่าสุด: ${r.latest.round_name||''}</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold);letter-spacing:4px">${r.latest.prize_1st||'—'}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">ท้าย 2: <b>${r.latest.prize_last_2||'—'}</b></div>
+          <div style="font-size:11px;color:var(--muted)">${r.latest.announced_at?UI.formatDate(r.latest.announced_at):''}</div>
+        </div>`:'<div style="text-align:center;color:var(--muted);padding:12px;font-size:13px">ยังไม่มีผลล่าสุด</div>'}
+        <button class="btn btn-gold" style="width:100%" onclick="triggerAutoFetch('${r.code}',this)">⚡ Fetch ผลทันที</button>
+      </div>`;
+    }).join('');
+  }catch(e){ if(container) container.innerHTML=`<div style="color:var(--muted);padding:20px">❌ ${e.message}</div>`; }
+}
+async function triggerAutoFetch(code, btn){
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง Fetch...'; }
+  try{
+    const d = await API.AdminAPI.triggerAutoFetch(code);
+    toast(d.success?'สำเร็จ':'ผิดพลาด', d.message, d.success?'success':'error');
+    setTimeout(loadAutoResult, 1500);
+  }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='⚡ Fetch ผลทันที'; } }
+}
+
 /* ── Yeekee Auto ── */
 async function loadYeeKee(){
   try{
@@ -2137,6 +2193,18 @@ yeekee:()=>`
       <tbody id="yk-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
+</div>`,
+
+autoresult:()=>`
+<div class="alert alert-gold" style="margin-bottom:12px">
+  🤖 ระบบดึงผลหวยอัตโนมัติ — TH_GOV (1,16 เดือน @ 15:30), LA_GOV (ทุกวัน @ 20:45), VN_HAN (ทุกวัน @ 18:45)
+  | Retry อัตโนมัติ 3 ครั้ง ถ้า source ล้มเหลว
+</div>
+<div id="ar-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">
+  <div style="text-align:center;color:var(--muted);padding:40px">⏳ กำลังโหลด...</div>
+</div>
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
+  <button class="btn btn-outline" onclick="loadAutoResult()">🔄 รีเฟรช</button>
 </div>`,
 
 promotions:()=>`

@@ -237,6 +237,10 @@ const AdminAPI = {
   getYeeKeeToday          : () => apiFetch('/admin/yeekee/today', {}, 'admin'),
   triggerYeeKeeAnnounce   : () => apiFetch('/admin/yeekee/trigger-announce', { method: 'POST' }, 'admin'),
 
+  // Auto-fetch results (TH_GOV, LA_GOV, VN_HAN)
+  getAutoResultStatus     : () => apiFetch('/admin/auto-results/status', {}, 'admin'),
+  triggerAutoFetch        : (code) => apiFetch(`/admin/auto-results/trigger/${code}`, { method: 'POST' }, 'admin'),
+
   // Settings
   getSettings    : () => apiFetch('/settings/admin/all', {}, 'admin'),
   updateSettings : (settings) =>

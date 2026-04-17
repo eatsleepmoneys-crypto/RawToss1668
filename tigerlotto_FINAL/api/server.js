@@ -191,6 +191,15 @@ async function startServer() {
     console.warn('⚠️  Round Manager start failed:', e.message);
   }
 
+  // ─── Start Lottery Fetcher (TH_GOV / LA_GOV / VN_HAN auto-fetch) ─
+  try {
+    const { startLotteryFetcher } = require('./services/lotteryFetcher');
+    startLotteryFetcher();
+    console.log('✅ Lottery Fetcher started (TH_GOV/LA_GOV/VN_HAN auto-fetch ON)');
+  } catch (e) {
+    console.warn('⚠️  Lottery Fetcher start failed:', e.message);
+  }
+
   app.listen(PORT, () => {
     console.log(`\n🐯 TigerLotto API started`);
     console.log(`   Port    : ${PORT}`);

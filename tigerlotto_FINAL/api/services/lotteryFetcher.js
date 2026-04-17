@@ -1,366 +1,481 @@
 /**
  * lotteryFetcher.js
- * Auto-fetch lottery results and enter them into the DB.
- * All times use Asia/Bangkok (UTC+7).
+ * ─────────────────────────────────────────────────────────────────
+ * ดึงผลหวยจากแหล่งภายนอกและบันทึก + จ่ายรางวัลอัตโนมัติ
+ *
+ *  ประเภทที่รองรับ:
+ *   TH_GOV  — หวยรัฐบาลไทย  (วันที่ 1, 16 ของทุกเดือน)
+ *   LA_GOV  — หวยลาว         (ทุกวัน ~20:30)
+ *   VN_HAN  — หวยฮานอย       (ทุกวัน ~18:30)
+ *
+ * DB column mapping (lottery_results):
+ *   prize_1st      — รางวัลที่ 1 (6 หลักไทย / 5 หลักฮานอย / 4 หลักลาว)
+ *   prize_last_2   — เลขท้าย 2 ตัว
+ *   prize_front_3  — เลขหน้า 3 ตัว (JSON array)
+ *   prize_last_3   — เลขท้าย 3 ตัว (JSON array)
+ *   announced_at   — เวลาออกผล
+ *
+ * All times: Asia/Bangkok (UTC+7)
  */
 
-const cron    = require('node-cron');
-const axios   = require('axios');
-const cheerio = require('cheerio');
-const crypto  = require('crypto');
+'use strict';
 
-const { query, queryOne, transaction } = require('../config/db');
-const { processPayouts } = require('../controllers/resultController');
+const cron      = require('node-cron');
+const axios     = require('axios');
+const cheerio   = require('cheerio');
+const { v4: uuidv4 } = require('uuid');
+
+const { query, transaction } = require('../config/db');
 
 const TIMEZONE    = 'Asia/Bangkok';
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 5 * 60 * 1000; // 5 minutes
+const RETRY_DELAY = 5 * 60 * 1000; // 5 นาที
 
-// ── Status tracking ────────────────────────────────────────────
-const fetcherStatus = {
-  gov:           { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
-  laos:          { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
-  hanoi:         { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
-  hanoi_vip:     { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
-  hanoi_special: { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
-  yeekee:        { lastRun: null, lastSuccess: null, lastError: null, retries: 0 },
-};
+// ── Status tracking (สำหรับ admin monitor) ───────────────────────
+const fetcherStatus = {};
 
-// ── Generate: ผลหวยยี่กีอัตโนมัติ ─────────────────────────────
-function generateYeekeeResult() {
-  const rand3 = () => String(crypto.randomInt(0, 1000)).padStart(3, '0');
-
-  const first5 = String(crypto.randomInt(0, 100000)).padStart(5, '0');
-
-  return {
-    result_first:    first5,
-    result_2_back:   first5.slice(-2),
-    result_3_back1:  first5.slice(-3),
-    result_3_back2:  rand3(),
-    result_3_front1: rand3(),
-    result_3_front2: rand3(),
+function initStatus(code) {
+  fetcherStatus[code] = fetcherStatus[code] || {
+    lastRun: null, lastSuccess: null, lastError: null, retries: 0,
   };
 }
+['TH_GOV','LA_GOV','VN_HAN'].forEach(initStatus);
 
-// ── Internal: บันทึกผลลง DB ────────────────────────────────────
-async function enterResultInternal(lotteryCode, resultData) {
-  // หา round ล่าสุดที่ status='closed'
-  const round = await queryOne(
-    `SELECT r.* FROM lottery_rounds r
-     JOIN lottery_types lt ON r.lottery_type_id = lt.id
-     WHERE lt.code = ? AND r.status = 'closed'
-     ORDER BY r.close_at DESC LIMIT 1`,
+// ── HTTP helper ────────────────────────────────────────────────────
+const httpGet = (url, ms = 15000) => axios.get(url, {
+  timeout: ms,
+  headers: {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+    'Accept-Language': 'th,en;q=0.9',
+    'Accept': 'text/html,application/xhtml+xml,application/json,*/*',
+  },
+});
+
+// ── ─────────────────────────────────────────────────────────────
+//    FETCH FUNCTIONS — คืน { prize_1st, prize_last_2, front3:[], last3:[] }
+// ──────────────────────────────────────────────────────────────────
+
+/**
+ * หวยรัฐบาลไทย — ออกผลวันที่ 1 และ 16 เวลา ~15:00 น.
+ * ลอง 3 source ตามลำดับ
+ */
+async function fetchTHGov() {
+  // Source 1: Longdo Money (JSON API — เชื่อถือได้)
+  try {
+    const res = await httpGet('https://money.longdo.com/lotto/api');
+    const d   = res.data;
+    if (d && (d.first || d.prize1)) {
+      const p1 = (d.first || d.prize1 || '').replace(/\D/g,'');
+      if (/^\d{6}$/.test(p1)) {
+        const last2  = (d.last2  || p1.slice(-2)).replace(/\D/g,'');
+        const front3 = [(d.front3_1||''), (d.front3_2||'')].map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x));
+        const last3  = [(d.last3_1||''), (d.last3_2||'')].map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x));
+        console.log('[FETCHER:TH_GOV] Source: longdo');
+        return { prize_1st: p1, prize_last_2: last2 || p1.slice(-2), prize_front_3: front3, prize_last_3: last3 };
+      }
+    }
+  } catch(e) { console.warn('[FETCHER:TH_GOV] longdo error:', e.message); }
+
+  // Source 2: Sanook lotto (JSON endpoint)
+  try {
+    const res = await httpGet('https://api.sanook.com/lottoapi/latest');
+    const d   = res.data?.result || res.data;
+    if (d && d.prize1) {
+      const p1 = d.prize1.replace(/\D/g,'');
+      if (/^\d{6}$/.test(p1)) {
+        console.log('[FETCHER:TH_GOV] Source: sanook API');
+        return {
+          prize_1st:     p1,
+          prize_last_2:  (d.last2||p1.slice(-2)).replace(/\D/g,''),
+          prize_front_3: [d.front3_1, d.front3_2].filter(Boolean).map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x)),
+          prize_last_3:  [d.last3_1,  d.last3_2].filter(Boolean).map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x)),
+        };
+      }
+    }
+  } catch(e) { console.warn('[FETCHER:TH_GOV] sanook API error:', e.message); }
+
+  // Source 3: Manager Online (HTML scrape)
+  try {
+    const res = await httpGet('https://www.manager.co.th/Lotto/');
+    const $   = cheerio.load(res.data);
+    // หา 6-digit text ที่น่าจะเป็นรางวัลที่ 1
+    let p1 = '';
+    $('span,td,div,p').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (/^\d{6}$/.test(t) && !p1) p1 = t;
+    });
+    if (p1) {
+      console.log('[FETCHER:TH_GOV] Source: manager.co.th scrape');
+      return { prize_1st: p1, prize_last_2: p1.slice(-2), prize_front_3: [], prize_last_3: [] };
+    }
+  } catch(e) { console.warn('[FETCHER:TH_GOV] manager scrape error:', e.message); }
+
+  throw new Error('TH_GOV: แหล่งข้อมูลทุกแหล่งล้มเหลว');
+}
+
+/**
+ * หวยลาว — ออกผลทุกวัน ~20:30 น.
+ * ผลเป็น 5-6 หลัก (เลขหลัก = ท้าย 5 หลักของรางวัลที่ 1)
+ */
+async function fetchLAGov() {
+  // Source 1: huaylao.net (JSON)
+  try {
+    const res = await httpGet('https://huaylao.net/api/latest');
+    const d   = res.data;
+    if (d && (d.prize1 || d.first)) {
+      const p = (d.prize1 || d.first || '').replace(/\D/g,'');
+      if (p.length >= 4) {
+        console.log('[FETCHER:LA_GOV] Source: huaylao.net API');
+        return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [] };
+      }
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] huaylao.net error:', e.message); }
+
+  // Source 2: laosassociationlottery.com (HTML)
+  try {
+    const res = await httpGet('https://laosassociationlottery.com/en/home/', 20000);
+    const $   = cheerio.load(res.data);
+    const nums = [];
+    $('[class*="prize"],[class*="result"],[class*="number"]').each((_, el) => {
+      const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
+      if (t.length >= 4 && t.length <= 6) nums.push(t);
+    });
+    // fallback: หาตัวเลข 4-6 หลักทั่วๆ ไป
+    if (!nums.length) {
+      $('td,span,div').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g,'');
+        if (t.length >= 4 && t.length <= 6) nums.push(t);
+      });
+    }
+    if (nums.length) {
+      const p = nums[0];
+      console.log('[FETCHER:LA_GOV] Source: laosassociationlottery.com');
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [] };
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] laosassociation error:', e.message); }
+
+  // Source 3: lottovip.com
+  try {
+    const res = await httpGet('https://www.lottovip.com/lao-lottery-result/');
+    const $   = cheerio.load(res.data);
+    let p = '';
+    $('[class*="result"],[class*="number"],[class*="prize"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (t.length >= 4 && !p) p = t;
+    });
+    if (p) {
+      console.log('[FETCHER:LA_GOV] Source: lottovip.com');
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [] };
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] lottovip error:', e.message); }
+
+  throw new Error('LA_GOV: แหล่งข้อมูลทุกแหล่งล้มเหลว');
+}
+
+/**
+ * หวยฮานอย (Xổ số Miền Bắc) — ออกผลทุกวัน ~18:30 น.
+ * รางวัลที่ 1 (Giải nhất) = 5 หลัก
+ */
+async function fetchVNHanoi() {
+  // Source 1: xoso.com.vn (JSON)
+  try {
+    const today = new Date(Date.now() + 7*3600000).toISOString().slice(0,10).replace(/-/g,'/');
+    const res   = await httpGet(`https://xoso.com.vn/api/xs-mb-${today}.js`);
+    const html  = res.data;
+    // ดึง giainhat: ["12345"] จาก JSON
+    const m = JSON.stringify(html).match(/"giainhat"\s*:\s*\["(\d+)"\]/);
+    if (m) {
+      const p = m[1];
+      console.log('[FETCHER:VN_HAN] Source: xoso.com.vn');
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] xoso.com.vn error:', e.message); }
+
+  // Source 2: xosomiennam.net (HTML scrape)
+  try {
+    const res = await httpGet('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 20000);
+    const $   = cheerio.load(res.data);
+    let p = '';
+    // Giải nhất มักอยู่ใน <td> หรือ <div> ที่มี 5 หลัก
+    $('td,span,div').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (/^\d{5}$/.test(t) && !p) p = t;
+    });
+    if (p) {
+      console.log('[FETCHER:VN_HAN] Source: xosomiennam.net');
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] xosomiennam error:', e.message); }
+
+  // Source 3: ketqua.tv (HTML scrape)
+  try {
+    const res = await httpGet('https://ketqua.tv/xo-so-mien-bac.html');
+    const $   = cheerio.load(res.data);
+    let p = '';
+    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (t.length >= 4 && !p) p = t;
+    });
+    if (!p) {
+      $('td,span').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g,'');
+        if (/^\d{5}$/.test(t) && !p) p = t;
+      });
+    }
+    if (p) {
+      console.log('[FETCHER:VN_HAN] Source: ketqua.tv');
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] ketqua.tv error:', e.message); }
+
+  throw new Error('VN_HAN: แหล่งข้อมูลทุกแหล่งล้มเหลว');
+}
+
+// ── บันทึกผลลง DB ───────────────────────────────────────────────
+
+/**
+ * หาตารางงวดที่ปิดรับแล้วของ lottery type ที่ระบุ
+ * ไม่มีผลอยู่แล้ว (ยังไม่ได้ประกาศ)
+ */
+async function findClosedRound(lotteryCode) {
+  const rows = await query(
+    `SELECT lr.id, lr.round_name
+     FROM lottery_rounds lr
+     JOIN lottery_types lt ON lr.lottery_id = lt.id
+     WHERE lt.code = ?
+       AND lr.status = 'closed'
+       AND NOT EXISTS (SELECT 1 FROM lottery_results res WHERE res.round_id = lr.id)
+     ORDER BY lr.close_at DESC
+     LIMIT 1`,
     [lotteryCode]
   );
+  return rows.length ? rows[0] : null;
+}
 
+/**
+ * บันทึกผล + ออกผล + จ่ายรางวัล (atomic)
+ * result = { prize_1st, prize_last_2, prize_front_3:[], prize_last_3:[] }
+ */
+async function announceResult(lotteryCode, result) {
+  const round = await findClosedRound(lotteryCode);
   if (!round) {
-    throw new Error(`No closed round found for lottery: ${lotteryCode}`);
+    throw new Error(`${lotteryCode}: ไม่พบงวดที่ปิดรับและยังไม่มีผล`);
   }
 
-  // ตรวจว่าบันทึกไปแล้วหรือยัง
-  const existing = await queryOne(
-    'SELECT id FROM lottery_results WHERE round_id=?',
-    [round.id]
+  // ดึง lottery_type id
+  const ltRows = await query(
+    "SELECT id FROM lottery_types WHERE code=? LIMIT 1", [lotteryCode]
   );
-  if (existing) {
-    throw new Error(`Result already entered for round ${round.id} (${lotteryCode})`);
-  }
+  if (!ltRows.length) throw new Error(`lottery_type ${lotteryCode} not found`);
+  const typeId = ltRows[0].id;
 
   const {
-    result_first,
-    result_2_back    = null,
-    result_3_back1   = null,
-    result_3_back2   = null,
-    result_3_front1  = null,
-    result_3_front2  = null,
-  } = resultData;
+    prize_1st,
+    prize_last_2,
+    prize_front_3 = [],
+    prize_last_3  = [],
+  } = result;
 
-  // บันทึกผลและอัปเดต round status
   await transaction(async (conn) => {
+    // 1. Insert ผลรางวัล
     await conn.execute(
       `INSERT INTO lottery_results
-       (round_id, result_first, result_2_back, result_3_back1, result_3_back2,
-        result_3_front1, result_3_front2, source, entered_by, entered_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'auto_fetch', NULL, NOW())`,
-      [round.id, result_first, result_2_back, result_3_back1, result_3_back2,
-       result_3_front1, result_3_front2]
+         (round_id, prize_1st, prize_last_2, prize_front_3, prize_last_3, announced_at)
+       VALUES (?, ?, ?, ?, ?, NOW())`,
+      [round.id, prize_1st, prize_last_2,
+       JSON.stringify(prize_front_3), JSON.stringify(prize_last_3)]
+    );
+
+    // 2. อัปเดตงวด → announced
+    await conn.execute(
+      "UPDATE lottery_rounds SET status='announced' WHERE id=?", [round.id]
+    );
+
+    // 3. ดึง rates ของ lottery type นี้
+    const [[lt]] = await conn.execute(
+      `SELECT rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot
+       FROM lottery_types WHERE id=?`, [typeId]
+    );
+    if (!lt) return;
+
+    // 4. ดึง bets ทั้งหมดที่รอผล
+    const [bets] = await conn.execute(
+      "SELECT * FROM bets WHERE round_id=? AND status='waiting'", [round.id]
+    );
+
+    console.log(`[FETCHER:${lotteryCode}] ตรวจ ${bets.length} bets, งวด #${round.id} (${prize_1st})`);
+
+    // 5. ตรวจผลและจ่ายรางวัล
+    for (const bet of bets) {
+      let won = false, winAmt = 0;
+      const n = bet.number;
+
+      if      (bet.bet_type === '3top'    && prize_1st.slice(-3) === n)
+        { won = true; winAmt = bet.amount * lt.rate_3top; }
+      else if (bet.bet_type === '3tod') {
+        const s = n.split('').sort().join('');
+        if (prize_1st.slice(-3).split('').sort().join('') === s)
+          { won = true; winAmt = bet.amount * lt.rate_3tod; }
+      }
+      else if (bet.bet_type === '2top'    && prize_last_2 === n)
+        { won = true; winAmt = bet.amount * lt.rate_2top; }
+      else if (bet.bet_type === '2bot'    && prize_last_2 === n)
+        { won = true; winAmt = bet.amount * lt.rate_2bot; }
+      else if (bet.bet_type === 'run_top' && prize_1st.includes(n))
+        { won = true; winAmt = bet.amount * lt.rate_run_top; }
+      else if (bet.bet_type === 'run_bot' && prize_last_2.includes(n))
+        { won = true; winAmt = bet.amount * lt.rate_run_bot; }
+
+      await conn.execute(
+        'UPDATE bets SET status=?, win_amount=? WHERE id=?',
+        [won ? 'win' : 'lose', winAmt, bet.id]
+      );
+
+      if (won && winAmt > 0) {
+        const [[m]] = await conn.execute(
+          'SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]
+        );
+        const newBal = parseFloat(m.balance) + parseFloat(winAmt);
+        await conn.execute(
+          'UPDATE members SET balance=?, total_win=total_win+? WHERE id=?',
+          [newBal, winAmt, bet.member_id]
+        );
+        await conn.execute(
+          `INSERT INTO transactions
+             (uuid, member_id, type, amount, balance_before, balance_after, description)
+           VALUES (?, ?, 'win', ?, ?, ?, ?)`,
+          [uuidv4(), bet.member_id, winAmt, m.balance, newBal,
+           `ถูกรางวัล ${lotteryCode}: ${bet.number} (${bet.bet_type}) งวด ${round.round_name}`]
+        );
+        await conn.execute(
+          'INSERT INTO notifications (member_id, title, body, type) VALUES (?, ?, ?, ?)',
+          [bet.member_id,
+           `🎉 ถูกรางวัล!`,
+           `เลข ${bet.number} ถูกรางวัล ${lotteryCode}! ได้รับเงิน ฿${Number(winAmt).toLocaleString()}`,
+           'win']
+        );
+      }
+    }
+
+    // 6. อัปเดต total_win ของงวด
+    const [[ws]] = await conn.execute(
+      'SELECT COALESCE(SUM(win_amount),0) s FROM bets WHERE round_id=? AND status="win"',
+      [round.id]
     );
     await conn.execute(
-      "UPDATE lottery_rounds SET status='resulted', result_at=NOW() WHERE id=?",
-      [round.id]
+      'UPDATE lottery_rounds SET total_win=? WHERE id=?', [ws.s, round.id]
     );
   });
 
-  console.log(`[FETCHER] Result entered for ${lotteryCode} round ${round.id} (${result_first})`);
-
-  // ประมวลผลรางวัล (async — ไม่ block)
-  processPayouts(round.id, resultData).catch(err =>
-    console.error(`[FETCHER] Payout error for ${lotteryCode} round ${round.id}:`, err.message)
-  );
-
+  console.log(`[FETCHER:${lotteryCode}] ✅ ออกผลสำเร็จ: งวด #${round.id} (${prize_1st})`);
   return round.id;
 }
 
 // ── Retry wrapper ──────────────────────────────────────────────
-async function fetchWithRetry(lotteryCode, fetchFn) {
+
+async function runFetcher(lotteryCode, fetchFn) {
+  initStatus(lotteryCode);
   const status = fetcherStatus[lotteryCode];
-  status.lastRun = new Date();
+  status.lastRun = new Date().toISOString();
+  console.log(`[FETCHER:${lotteryCode}] เริ่ม fetch...`);
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
-      status.retries = attempt - 1;
-      const resultData = await fetchFn();
-      if (!resultData || !resultData.result_first) {
-        throw new Error('fetchFn returned empty result');
-      }
-      await enterResultInternal(lotteryCode, resultData);
-      status.lastSuccess = new Date();
+      const result = await fetchFn();
+      await announceResult(lotteryCode, result);
+      status.lastSuccess = new Date().toISOString();
       status.lastError   = null;
       status.retries     = 0;
-      return;
-    } catch (err) {
-      console.error(`[FETCHER] ${lotteryCode} attempt ${attempt}/${MAX_RETRIES} failed: ${err.message}`);
-      status.lastError = err.message;
+      return true;
+    } catch(e) {
+      console.error(`[FETCHER:${lotteryCode}] attempt ${attempt}/${MAX_RETRIES}: ${e.message}`);
+      status.lastError = e.message;
       status.retries   = attempt;
-
-      if (attempt < MAX_RETRIES) {
-        console.log(`[FETCHER] ${lotteryCode} retrying in ${RETRY_DELAY / 60000} min...`);
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY));
-      }
+      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, RETRY_DELAY));
     }
   }
-
-  console.error(`[FETCHER] ${lotteryCode} gave up after ${MAX_RETRIES} attempts`);
+  console.error(`[FETCHER:${lotteryCode}] หยุดหลัง ${MAX_RETRIES} ครั้ง`);
+  return false;
 }
 
-// ── HTTP helper ────────────────────────────────────────────────
-function httpGet(url, timeoutMs = 12000) {
-  return axios.get(url, {
-    timeout: timeoutMs,
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36',
-      'Accept-Language': 'th,en;q=0.9',
-    },
-  });
+// ── Export สำหรับ manual trigger ──────────────────────────────
+
+const FETCH_FUNCS = {
+  TH_GOV: fetchTHGov,
+  LA_GOV: fetchLAGov,
+  VN_HAN: fetchVNHanoi,
+};
+
+async function triggerFetch(lotteryCode) {
+  const fn = FETCH_FUNCS[lotteryCode];
+  if (!fn) throw new Error(`Unknown lottery code: ${lotteryCode}`);
+  return runFetcher(lotteryCode, fn);
 }
 
-// ── Fetch: หวยรัฐบาลไทย ────────────────────────────────────────
-async function fetchGov() {
-  // Primary: GLO announce API
-  try {
-    const res = await httpGet('https://www.glo.or.th/api/lottery/announce/latest');
-    const d   = res.data?.data || res.data;
-    if (d && (d.prizeFirst || d.first)) {
-      return {
-        result_first:   (d.prizeFirst  || d.first  || '').replace(/\D/g, ''),
-        result_2_back:  (d.prizeLastTwo|| d.last2   || '').replace(/\D/g, '') || null,
-        result_3_back1: (d.prizeLastThree1 || '').replace(/\D/g, '') || null,
-        result_3_back2: (d.prizeLastThree2 || '').replace(/\D/g, '') || null,
-        result_3_front1:(d.prizeFrontThree1 || '').replace(/\D/g, '') || null,
-        result_3_front2:(d.prizeFrontThree2 || '').replace(/\D/g, '') || null,
-      };
-    }
-  } catch (e) {
-    console.warn('[FETCHER] gov GLO API error:', e.message);
-  }
+// ── Start cron jobs ────────────────────────────────────────────
 
-  // Fallback: scrape ch7.com
-  try {
-    const res = await httpGet('https://news.ch7.com/lottery');
-    const $   = cheerio.load(res.data);
-    const first = $('[class*="prize-first"],[class*="lottery-first"],[class*="lotto-first"]')
-      .first().text().replace(/\D/g, '').trim();
-    if (first && /^\d{6}$/.test(first)) {
-      const back2 = $('[class*="prize-last2"],[class*="lottery-2"]')
-        .first().text().replace(/\D/g, '').trim();
-      return {
-        result_first:   first,
-        result_2_back:  back2 || first.slice(-2),
-        result_3_back1: null,
-        result_3_back2: null,
-        result_3_front1: null,
-        result_3_front2: null,
-      };
-    }
-  } catch (e) {
-    console.warn('[FETCHER] gov CH7 fallback error:', e.message);
-  }
-
-  throw new Error('gov: all sources failed');
-}
-
-// ── Fetch: หวยลาว ─────────────────────────────────────────────
-async function fetchLaos() {
-  // Primary: huaylaos.com
-  try {
-    const res = await httpGet('https://www.huaylaos.com');
-    const $   = cheerio.load(res.data);
-    const nums = [];
-    $('[class*="result"],[class*="number"],[class*="prize"]').each((_, el) => {
-      const t = $(el).text().replace(/\D/g, '').trim();
-      if (t && t.length >= 2) nums.push(t);
-    });
-    const first = nums.find(n => n.length >= 4);
-    if (first) {
-      return {
-        result_first:    first,
-        result_2_back:   first.slice(-2),
-        result_3_back1:  first.length >= 3 ? first.slice(-3) : null,
-        result_3_back2:  null,
-        result_3_front1: null,
-        result_3_front2: null,
-      };
-    }
-  } catch (e) {
-    console.warn('[FETCHER] laos huaylaos.com error:', e.message);
-  }
-
-  // Fallback: lottovip.com
-  try {
-    const res = await httpGet('https://www.lottovip.com/lao-lottery-result');
-    const $   = cheerio.load(res.data);
-    const first = $('[class*="result"],[class*="prize"],[class*="number"]')
-      .filter((_, el) => /^\d+$/.test($(el).text().trim()))
-      .first().text().trim();
-    if (first && first.length >= 4) {
-      return {
-        result_first:    first,
-        result_2_back:   first.slice(-2),
-        result_3_back1:  first.length >= 3 ? first.slice(-3) : null,
-        result_3_back2:  null,
-        result_3_front1: null,
-        result_3_front2: null,
-      };
-    }
-  } catch (e) {
-    console.warn('[FETCHER] laos lottovip fallback error:', e.message);
-  }
-
-  throw new Error('laos: all sources failed');
-}
-
-// ── Fetch: หวยฮานอย variants ───────────────────────────────────
-async function fetchHanoiVariant(variant) {
-  const paths = {
-    hanoi:         '/ket-qua-xo-so-mien-bac',
-    hanoi_vip:     '/ket-qua-xo-so-mien-bac-vip',
-    hanoi_special: '/ket-qua-xo-so-mien-bac-dac-biet',
-  };
-
-  // Primary: xosokienthiet.net
-  try {
-    const res = await httpGet(`https://xosokienthiet.net${paths[variant] || paths.hanoi}`);
-    const $   = cheerio.load(res.data);
-
-    // Prize 1 (giải nhất) is the main jackpot
-    const first = $('[class*="giai-nhat"],[class*="prize-1"],[class*="jackpot"],[data-prize="1"]')
-      .first().text().replace(/\D/g, '').trim();
-
-    if (first && /^\d{5}$/.test(first)) {
-      return {
-        result_first:    first,
-        result_2_back:   first.slice(-2),
-        result_3_back1:  first.slice(-3),
-        result_3_back2:  null,
-        result_3_front1: null,
-        result_3_front2: null,
-      };
-    }
-
-    // Also try generic number selectors
-    const anyNum = $('td,span,div')
-      .filter((_, el) => /^\d{5}$/.test($(el).text().trim()))
-      .first().text().trim();
-    if (anyNum) {
-      return {
-        result_first:    anyNum,
-        result_2_back:   anyNum.slice(-2),
-        result_3_back1:  anyNum.slice(-3),
-        result_3_back2:  null,
-        result_3_front1: null,
-        result_3_front2: null,
-      };
-    }
-  } catch (e) {
-    console.warn(`[FETCHER] ${variant} xosokienthiet error:`, e.message);
-  }
-
-  // Fallback: xosomiennam.net
-  try {
-    const res = await httpGet('https://xosomiennam.net/ket-qua-xo-so-mien-bac');
-    const $   = cheerio.load(res.data);
-    const first = $('td,span')
-      .filter((_, el) => /^\d{5}$/.test($(el).text().trim()))
-      .first().text().trim();
-    if (first) {
-      return {
-        result_first:    first,
-        result_2_back:   first.slice(-2),
-        result_3_back1:  first.slice(-3),
-        result_3_back2:  null,
-        result_3_front1: null,
-        result_3_front2: null,
-      };
-    }
-  } catch (e) {
-    console.warn(`[FETCHER] ${variant} fallback error:`, e.message);
-  }
-
-  throw new Error(`${variant}: all sources failed`);
-}
-
-const fetchHanoi        = () => fetchHanoiVariant('hanoi');
-const fetchHanoiVip     = () => fetchHanoiVariant('hanoi_vip');
-const fetchHanoiSpecial = () => fetchHanoiVariant('hanoi_special');
-
-// ── Start all fetchers ─────────────────────────────────────────
 function startLotteryFetcher() {
-  console.log('[FETCHER] Initialising lottery auto-fetcher (tz: Asia/Bangkok)...');
+  console.log('[FETCHER] เริ่ม Lottery Auto-Fetcher (tz: Asia/Bangkok)...');
 
-  // หวยรัฐบาลไทย — 1 และ 16 ของทุกเดือน เวลา 15:05 น.
-  // (ออกผล 15:00, รอ 5 นาทีก่อน fetch)
-  cron.schedule('5 15 1,16 * *', () => {
-    console.log('[FETCHER] Triggering: gov');
-    fetchWithRetry('gov', fetchGov);
+  // ── หวยรัฐบาลไทย ─────────────────────────────────────────────
+  // ออกผล 15:00 → fetch 15:30 (รอผล stabilize)
+  // retry: 16:00, 16:30
+  cron.schedule('30 15 1,16 * *', () => {
+    console.log('[FETCHER] Trigger: TH_GOV');
+    runFetcher('TH_GOV', fetchTHGov).catch(e =>
+      console.error('[FETCHER] TH_GOV error:', e.message)
+    );
   }, { timezone: TIMEZONE });
 
-  // หวยลาว — ทุกวัน 20:35 น. (ออกผล 20:30)
-  cron.schedule('35 20 * * *', () => {
-    console.log('[FETCHER] Triggering: laos');
-    fetchWithRetry('laos', fetchLaos);
+  // Retry ถ้ายังไม่ออก
+  cron.schedule('0 16 1,16 * *', async () => {
+    const status = fetcherStatus['TH_GOV'];
+    if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
+      console.log('[FETCHER] TH_GOV retry @ 16:00');
+      runFetcher('TH_GOV', fetchTHGov).catch(e => console.error('[FETCHER] TH_GOV retry:', e.message));
+    }
   }, { timezone: TIMEZONE });
 
-  // หวยฮานอย — ทุกวัน 18:35 น. (ออกผล 18:30)
-  cron.schedule('35 18 * * *', () => {
-    console.log('[FETCHER] Triggering: hanoi');
-    fetchWithRetry('hanoi', fetchHanoi);
+  // ── หวยลาว ────────────────────────────────────────────────────
+  // ออกผล ~20:30 → fetch 20:45
+  cron.schedule('45 20 * * *', () => {
+    console.log('[FETCHER] Trigger: LA_GOV');
+    runFetcher('LA_GOV', fetchLAGov).catch(e =>
+      console.error('[FETCHER] LA_GOV error:', e.message)
+    );
   }, { timezone: TIMEZONE });
 
-  // หวยฮานอย VIP — ทุกวัน 18:05 น. (ออกผล 18:00)
-  cron.schedule('5 18 * * *', () => {
-    console.log('[FETCHER] Triggering: hanoi_vip');
-    fetchWithRetry('hanoi_vip', fetchHanoiVip);
+  // Retry 21:15
+  cron.schedule('15 21 * * *', async () => {
+    const status = fetcherStatus['LA_GOV'];
+    if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
+      console.log('[FETCHER] LA_GOV retry @ 21:15');
+      runFetcher('LA_GOV', fetchLAGov).catch(e => console.error('[FETCHER] LA_GOV retry:', e.message));
+    }
   }, { timezone: TIMEZONE });
 
-  // หวยฮานอยพิเศษ — ทุกวัน 17:35 น. (ออกผล 17:30)
-  cron.schedule('35 17 * * *', () => {
-    console.log('[FETCHER] Triggering: hanoi_special');
-    fetchWithRetry('hanoi_special', fetchHanoiSpecial);
+  // ── หวยฮานอย ─────────────────────────────────────────────────
+  // ออกผล ~18:30 → fetch 18:45
+  cron.schedule('45 18 * * *', () => {
+    console.log('[FETCHER] Trigger: VN_HAN');
+    runFetcher('VN_HAN', fetchVNHanoi).catch(e =>
+      console.error('[FETCHER] VN_HAN error:', e.message)
+    );
   }, { timezone: TIMEZONE });
 
-  // หวยยี่กี — ทุก 16 นาที ตลอด 24 ชม.
-  cron.schedule('*/16 * * * *', () => {
-    console.log('[FETCHER] Triggering: yeekee (auto-generate)');
-    fetchWithRetry('yeekee', async () => generateYeekeeResult());
+  // Retry 19:15
+  cron.schedule('15 19 * * *', async () => {
+    const status = fetcherStatus['VN_HAN'];
+    if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
+      console.log('[FETCHER] VN_HAN retry @ 19:15');
+      runFetcher('VN_HAN', fetchVNHanoi).catch(e => console.error('[FETCHER] VN_HAN retry:', e.message));
+    }
   }, { timezone: TIMEZONE });
 
-  console.log('[FETCHER] Schedules registered:');
-  console.log('  gov           → 1st & 16th @ 15:05 Asia/Bangkok');
-  console.log('  laos          → daily @ 20:35 Asia/Bangkok');
-  console.log('  hanoi         → daily @ 18:35 Asia/Bangkok');
-  console.log('  hanoi_vip     → daily @ 18:05 Asia/Bangkok');
-  console.log('  hanoi_special → daily @ 17:35 Asia/Bangkok');
-  console.log('  yeekee        → every 16 min (auto-generated)');
+  console.log('[FETCHER] Crons ลงทะเบียนแล้ว:');
+  console.log('  TH_GOV → วันที่ 1, 16 @ 15:30 (retry 16:00)');
+  console.log('  LA_GOV → ทุกวัน @ 20:45 (retry 21:15)');
+  console.log('  VN_HAN → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch };

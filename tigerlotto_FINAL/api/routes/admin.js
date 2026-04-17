@@ -347,4 +347,48 @@ router.post('/yeekee/trigger-announce', authAdmin, rbac.requirePerm('results.ann
   }
 });
 
+// ─── GET /api/admin/auto-results/status — สถานะ fetcher ─────────
+router.get('/auto-results/status', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  try {
+    const { fetcherStatus } = require('../services/lotteryFetcher');
+    // ดึงงวดล่าสุดของแต่ละ type
+    const rounds = await query(`
+      SELECT lt.code, lr.id, lr.round_name, lr.status, lr.close_at,
+             res.prize_1st, res.prize_last_2, res.announced_at
+      FROM lottery_rounds lr
+      JOIN lottery_types lt ON lr.lottery_id = lt.id
+      LEFT JOIN lottery_results res ON lr.id = res.round_id
+      WHERE lt.code IN ('TH_GOV','LA_GOV','VN_HAN')
+        AND lr.status IN ('closed','announced')
+      ORDER BY lr.close_at DESC
+    `);
+    // group by code (เอาล่าสุดของแต่ละ type)
+    const latest = {};
+    rounds.forEach(r => { if (!latest[r.code]) latest[r.code] = r; });
+
+    const data = ['TH_GOV', 'LA_GOV', 'VN_HAN'].map(code => ({
+      code,
+      fetcher: fetcherStatus[code] || {},
+      latest: latest[code] || null,
+    }));
+    res.json({ success: true, data });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ─── POST /api/admin/auto-results/trigger/:code — manual trigger ─
+router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  const code = req.params.code.toUpperCase();
+  if (!['TH_GOV','LA_GOV','VN_HAN'].includes(code))
+    return res.status(400).json({ success: false, message: `Invalid code: ${code}` });
+  try {
+    const { triggerFetch } = require('../services/lotteryFetcher');
+    const ok = await triggerFetch(code);
+    res.json({ success: ok, message: ok ? `Fetch สำเร็จ: ${code}` : `Fetch ล้มเหลว: ${code} (ดู server log)` });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 module.exports = router;
