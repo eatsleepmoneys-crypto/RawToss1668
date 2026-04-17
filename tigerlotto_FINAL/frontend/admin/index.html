@@ -1032,10 +1032,19 @@ async function rejectWithdrawal(id){
   try{ await API.AdminAPI.rejectWithdrawal(id, note||'ปฏิเสธ'); toast('สำเร็จ','ปฏิเสธรายการถอนแล้ว'); loadWithdrawals(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function toggleBanMember(id, currentStatus, name){
+function toggleBanMember(id, currentStatus, name){
   const newStatus = currentStatus==='active'?'banned':'active';
-  if(!confirm(`${newStatus==='banned'?'แบน':'ปลดแบน'} ${name}?`)) return;
-  try{ await API.AdminAPI.setMemberStatus(id, newStatus); toast('สำเร็จ',`${newStatus==='banned'?'แบน':'ปลดแบน'} ${name} แล้ว`); loadMembers(); }
+  const label = newStatus==='banned'?'🚫 แบน':'✅ ปลดแบน';
+  openModal(`<h3>${label} สมาชิก</h3>
+    <p style="color:var(--muted);margin-bottom:16px">ต้องการ${newStatus==='banned'?'แบน':'ปลดแบน'} <b style="color:#fff">${name}</b> ใช่หรือไม่?</p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn ${newStatus==='banned'?'btn-red':'btn-gold'}" onclick="confirmBanMember(${id},'${newStatus}','${(name||'').replace(/'/g,"\\'")}')">ยืนยัน ${label}</button>
+    </div>`);
+}
+async function confirmBanMember(id, newStatus, name){
+  closeModal();
+  try{ await API.AdminAPI.setMemberStatus(id, newStatus, ''); toast('สำเร็จ',`${newStatus==='banned'?'แบน':'ปลดแบน'} ${name} แล้ว`); loadMembers(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
 async function cancelBet(id){
