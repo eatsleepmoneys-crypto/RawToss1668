@@ -213,6 +213,12 @@ const AdminAPI = {
   announce     : (message, type) =>
     apiFetch('/admin/announce', { method: 'POST', body: JSON.stringify({ message, type }) }, 'admin'),
 
+  // Promotions
+  listPromotions   : () => apiFetch('/admin/promotions', {}, 'admin'),
+  createPromotion  : (data) => apiFetch('/admin/promotions', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
+  updatePromotion  : (id, data) => apiFetch(`/admin/promotions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  deletePromotion  : (id) => apiFetch(`/admin/promotions/${id}`, { method: 'DELETE' }, 'admin'),
+
   // Settings
   getSettings    : () => apiFetch('/settings/admin/all', {}, 'admin'),
   updateSettings : (settings) =>

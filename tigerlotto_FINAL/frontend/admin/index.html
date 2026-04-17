@@ -243,6 +243,8 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('withdrawals')"><span class="ic">🏧</span>ถอนเงิน<span class="badge" id="badge-wd">3</span></div>
     <div class="sb-item" onclick="nav('winpay')"><span class="ic">🎁</span>จ่ายรางวัล</div>
 
+    <div class="sb-item" onclick="nav('promotions')"><span class="ic">🎁</span>โปรโมชั่น</div>
+
     <div class="sb-sec">ระบบ</div>
     <div class="sb-item" onclick="nav('api')"><span class="ic">🔌</span>API Settings</div>
     <div class="sb-item" onclick="nav('reports')"><span class="ic">📈</span>รายงาน</div>
@@ -403,6 +405,7 @@ const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
   lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',bets:'📋 รายการแทง',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',
+  promotions:'🎁 โปรโมชั่น',
   api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs'
 };
 function nav(page){
@@ -431,6 +434,7 @@ async function afterNav(page){
     else if(page==='logs') await loadLogs();
     else if(page==='settings') await loadSettings();
     else if(page==='results') await loadResultsPage();
+    else if(page==='promotions') await loadPromotions();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -691,6 +695,110 @@ async function loadAdmins(){
         </div>
       </td>
     </tr>`).join('');
+}
+
+/* ── Promotions ── */
+let _allPromos = [];
+async function loadPromotions(){
+  const d = await API.AdminAPI.listPromotions();
+  _allPromos = d.data || [];
+  renderPromos(_allPromos);
+}
+function filterPromos(q){
+  const filtered = _allPromos.filter(p =>
+    p.name.toLowerCase().includes(q.toLowerCase()) ||
+    (p.code||'').toLowerCase().includes(q.toLowerCase())
+  );
+  renderPromos(filtered);
+}
+const PROMO_TYPE_TH = { welcome:'ต้อนรับ', deposit:'เติมเงิน', cashback:'คืนยอด', referral:'แนะนำเพื่อน', manual:'กำหนดเอง' };
+function renderPromos(rows){
+  const tbody = document.getElementById('promos-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่พบโปรโมชั่น</td></tr>'
+    : rows.map(p => `<tr>
+      <td style="color:var(--muted)">${p.id}</td>
+      <td style="font-weight:600">${p.name}</td>
+      <td style="font-family:monospace;color:var(--gold)">${p.code||'-'}</td>
+      <td><span class="badge badge-blue">${PROMO_TYPE_TH[p.type]||p.type}</span></td>
+      <td style="font-weight:700;color:var(--green)">${p.is_percent?p.value+'%':'฿'+Number(p.value).toLocaleString()}</td>
+      <td style="color:var(--muted)">${p.usage_count||0}${p.usage_limit?'/'+p.usage_limit:''}</td>
+      <td><span class="badge ${p.is_active?'badge-green':'badge-red'}">${p.is_active?'เปิด':'ปิด'}</span></td>
+      <td>
+        <div style="display:flex;gap:4px">
+          <button class="act-btn" onclick="editPromoModal(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.value},${p.is_percent},${p.min_deposit||0})">แก้ไข</button>
+          <button class="act-btn ${p.is_active?'act-red':'act-green'}" onclick="togglePromo(${p.id},${p.is_active?0:1})">${p.is_active?'ปิด':'เปิด'}</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+function openAddPromotion(){
+  openModal(`<h3>➕ เพิ่มโปรโมชั่นใหม่</h3>
+    <div class="fg"><label>ชื่อโปรโมชั่น</label><input id="np-name" class="fi-full" placeholder="เช่น โบนัสต้อนรับ 50 บาท"></div>
+    <div class="fg"><label>โค้ด (ไม่บังคับ)</label><input id="np-code" class="fi-full" placeholder="เช่น WELCOME50" style="text-transform:uppercase"></div>
+    <div class="fg"><label>ประเภท</label><select id="np-type" class="fi-full">
+      <option value="welcome">ต้อนรับสมาชิกใหม่</option>
+      <option value="deposit">โบนัสเติมเงิน</option>
+      <option value="cashback">Cash Back</option>
+      <option value="referral">แนะนำเพื่อน</option>
+      <option value="manual">กำหนดเอง</option>
+    </select></div>
+    <div class="fi-row">
+      <div class="fg"><label>มูลค่า</label><input id="np-value" class="fi-full" type="number" step="0.01" min="0" value="50"></div>
+      <div class="fg"><label>หน่วย</label><select id="np-percent" class="fi-full"><option value="0">บาท (฿)</option><option value="1">เปอร์เซ็นต์ (%)</option></select></div>
+    </div>
+    <div class="fi-row">
+      <div class="fg"><label>ฝากขั้นต่ำ (฿)</label><input id="np-min" class="fi-full" type="number" min="0" value="0"></div>
+      <div class="fg"><label>จำกัดการใช้ (รวม)</label><input id="np-limit" class="fi-full" type="number" min="0" placeholder="ว่าง = ไม่จำกัด"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitNewPromo()">เพิ่มโปรโมชั่น</button>
+    </div>`);
+}
+async function submitNewPromo(){
+  const name         = document.getElementById('np-name')?.value?.trim();
+  const code         = document.getElementById('np-code')?.value?.trim().toUpperCase() || null;
+  const type         = document.getElementById('np-type')?.value;
+  const value        = parseFloat(document.getElementById('np-value')?.value) || 0;
+  const is_percent   = parseInt(document.getElementById('np-percent')?.value) || 0;
+  const min_deposit  = parseFloat(document.getElementById('np-min')?.value) || 0;
+  const usage_limit  = parseInt(document.getElementById('np-limit')?.value) || null;
+  if(!name){ toast('ผิดพลาด','กรุณากรอกชื่อโปรโมชั่น','error'); return; }
+  try{
+    await API.AdminAPI.createPromotion({ name, code, type, value, is_percent, min_deposit, usage_limit });
+    closeModal(); toast('สำเร็จ','เพิ่มโปรโมชั่นสำเร็จ'); loadPromotions();
+  } catch(e){ toast('ผิดพลาด',e.message,'error'); }
+}
+async function editPromoModal(id, name, value, is_percent, min_deposit){
+  openModal(`<h3>✏️ แก้ไขโปรโมชั่น</h3>
+    <div class="fg"><label>ชื่อ</label><input id="ep-name" class="fi-full" value="${name}"></div>
+    <div class="fi-row">
+      <div class="fg"><label>มูลค่า</label><input id="ep-value" class="fi-full" type="number" step="0.01" value="${value}"></div>
+      <div class="fg"><label>หน่วย</label><select id="ep-percent" class="fi-full"><option value="0" ${!is_percent?'selected':''}>บาท</option><option value="1" ${is_percent?'selected':''}>%</option></select></div>
+    </div>
+    <div class="fg"><label>ฝากขั้นต่ำ (฿)</label><input id="ep-min" class="fi-full" type="number" value="${min_deposit}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="savePromoEdit(${id})">บันทึก</button>
+    </div>`);
+}
+async function savePromoEdit(id){
+  const name       = document.getElementById('ep-name')?.value?.trim();
+  const value      = parseFloat(document.getElementById('ep-value')?.value);
+  const is_percent = parseInt(document.getElementById('ep-percent')?.value);
+  const min_deposit= parseFloat(document.getElementById('ep-min')?.value)||0;
+  try{
+    await API.AdminAPI.updatePromotion(id,{name,value,is_percent,min_deposit});
+    closeModal(); toast('สำเร็จ','อัพเดทโปรโมชั่นแล้ว'); loadPromotions();
+  } catch(e){ toast('ผิดพลาด',e.message,'error'); }
+}
+async function togglePromo(id, is_active){
+  try{
+    await API.AdminAPI.updatePromotion(id,{is_active});
+    toast('สำเร็จ', is_active?'เปิดโปรโมชั่นแล้ว':'ปิดโปรโมชั่นแล้ว'); loadPromotions();
+  } catch(e){ toast('ผิดพลาด',e.message,'error'); }
 }
 
 /* ── Logs ── */
@@ -1210,6 +1318,21 @@ winpay:()=>`
         <span style="font-size:13px">${l}</span><span class="badge ${b}">${v}</span>
       </div>`).join('')}
     </div>
+  </div>
+</div>`,
+
+promotions:()=>`
+<div class="filter-bar">
+  <input class="fi" id="promo-search" placeholder="🔍 ค้นหาโปรโมชั่น..." style="flex:1" oninput="filterPromos(this.value)">
+  <button class="btn btn-gold" onclick="openAddPromotion()">+ เพิ่มโปรโมชั่น</button>
+</div>
+<div class="card">
+  <h3>🎁 รายการโปรโมชั่น</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>ชื่อ</th><th>โค้ด</th><th>ประเภท</th><th>มูลค่า</th><th>ใช้แล้ว</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="promos-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
   </div>
 </div>`,
 

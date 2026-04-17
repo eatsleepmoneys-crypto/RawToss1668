@@ -209,6 +209,52 @@ router.get('/logs', authAdmin, rbac.requirePerm('logs.view'), async (req, res) =
   res.json({ success: true, data: rows });
 });
 
+// ══════════════════════════════════════
+//  PROMOTIONS CRUD
+// ══════════════════════════════════════
+router.get('/promotions', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  const rows = await query('SELECT * FROM promotions ORDER BY id DESC');
+  res.json({ success: true, data: rows });
+});
+
+router.post('/promotions', authAdmin, rbac.requirePerm('settings.view'),
+  body('name').notEmpty(),
+  body('type').isIn(['welcome','deposit','cashback','referral','manual']),
+  body('value').isFloat({ min: 0 }),
+  async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
+    const { name, type, value, code, is_percent=0, min_deposit=0, max_bonus=null, usage_limit=null, start_at=null, end_at=null } = req.body;
+    await query(
+      `INSERT INTO promotions (code,name,type,value,is_percent,min_deposit,max_bonus,usage_limit,start_at,end_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [code||null, name, type, value, is_percent?1:0, min_deposit, max_bonus||null, usage_limit||null, start_at||null, end_at||null]
+    );
+    await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+      [req.admin.id, 'promotion.create', `สร้างโปรโมชั่น: ${name}`, req.ip]);
+    res.status(201).json({ success: true, message: 'สร้างโปรโมชั่นสำเร็จ' });
+  }
+);
+
+router.patch('/promotions/:id', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const { name, value, is_percent, min_deposit, max_bonus, usage_limit, is_active, start_at, end_at } = req.body;
+  await query(
+    `UPDATE promotions SET
+      name=COALESCE(?,name), value=COALESCE(?,value), is_percent=COALESCE(?,is_percent),
+      min_deposit=COALESCE(?,min_deposit), max_bonus=COALESCE(?,max_bonus),
+      usage_limit=COALESCE(?,usage_limit), is_active=COALESCE(?,is_active),
+      start_at=COALESCE(?,start_at), end_at=COALESCE(?,end_at)
+     WHERE id=?`,
+    [name, value, is_percent!=null?is_percent:null, min_deposit, max_bonus, usage_limit, is_active!=null?is_active:null, start_at, end_at, req.params.id]
+  );
+  res.json({ success: true, message: 'อัพเดทโปรโมชั่นแล้ว' });
+});
+
+router.delete('/promotions/:id', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  await query('UPDATE promotions SET is_active=0 WHERE id=?', [req.params.id]);
+  res.json({ success: true, message: 'ปิดโปรโมชั่นแล้ว' });
+});
+
 // POST /api/admin/announce — broadcast notification
 router.post('/announce', authAdmin, rbac.requirePerm('settings.view'),
   body('title').notEmpty(), body('body').notEmpty(),
