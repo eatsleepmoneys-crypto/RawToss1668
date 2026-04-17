@@ -219,6 +219,18 @@ const AdminAPI = {
   updatePromotion  : (id, data) => apiFetch(`/admin/promotions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
   deletePromotion  : (id) => apiFetch(`/admin/promotions/${id}`, { method: 'DELETE' }, 'admin'),
 
+  // Hot Numbers
+  listHotNumbers   : (params = {}) => {
+    const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([,v])=>v!==''&&v!=null))).toString();
+    return apiFetch(`/admin/hot-numbers${qs?'?'+qs:''}`, {}, 'admin');
+  },
+  listHotRounds    : () => apiFetch('/admin/hot-numbers/rounds', {}, 'admin'),
+
+  // KYC
+  listKYC          : (status = 'pending', page = 1) => apiFetch(`/admin/kyc?status=${status}&page=${page}&limit=20`, {}, 'admin'),
+  approveKYC       : (id) => apiFetch(`/admin/kyc/${id}/approve`, { method: 'PUT' }, 'admin'),
+  rejectKYC        : (id, reason) => apiFetch(`/admin/kyc/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }, 'admin'),
+
   // Settings
   getSettings    : () => apiFetch('/settings/admin/all', {}, 'admin'),
   updateSettings : (settings) =>

@@ -231,6 +231,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('members')"><span class="ic">👥</span>สมาชิก<span class="badge" id="badge-members">1.2K</span></div>
     <div class="sb-item" onclick="nav('agents')"><span class="ic">🤝</span>เอเยนต์</div>
     <div class="sb-item" onclick="nav('admins')"><span class="ic">🛡️</span>แอดมิน</div>
+    <div class="sb-item" onclick="nav('kyc')"><span class="ic">🪪</span>ยืนยันตัวตน KYC<span class="badge" id="badge-kyc" style="display:none">0</span></div>
 
     <div class="sb-sec">หวย</div>
     <div class="sb-item" onclick="nav('lottery')"><span class="ic">🎰</span>ประเภทหวย</div>
@@ -244,6 +245,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('winpay')"><span class="ic">🎁</span>จ่ายรางวัล</div>
 
     <div class="sb-item" onclick="nav('promotions')"><span class="ic">🎁</span>โปรโมชั่น</div>
+    <div class="sb-item" onclick="nav('hotnumbers')"><span class="ic">🔥</span>ตัวเลขฮอต</div>
 
     <div class="sb-sec">ระบบ</div>
     <div class="sb-item" onclick="nav('api')"><span class="ic">🔌</span>API Settings</div>
@@ -406,6 +408,8 @@ const PAGE_TITLES={
   lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',bets:'📋 รายการแทง',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',
   promotions:'🎁 โปรโมชั่น',
+  hotnumbers:'🔥 ตัวเลขฮอต',
+  kyc:'🪪 ยืนยันตัวตน KYC',
   api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs'
 };
 function nav(page){
@@ -435,6 +439,8 @@ async function afterNav(page){
     else if(page==='settings') await loadSettings();
     else if(page==='results') await loadResultsPage();
     else if(page==='promotions') await loadPromotions();
+    else if(page==='hotnumbers') await loadHotNumbers();
+    else if(page==='kyc') await loadKYC();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -799,6 +805,144 @@ async function togglePromo(id, is_active){
     await API.AdminAPI.updatePromotion(id,{is_active});
     toast('สำเร็จ', is_active?'เปิดโปรโมชั่นแล้ว':'ปิดโปรโมชั่นแล้ว'); loadPromotions();
   } catch(e){ toast('ผิดพลาด',e.message,'error'); }
+}
+
+/* ── Hot Numbers ── */
+const ROUND_STATUS_TH = { open:'🟢 เปิด', closed:'🔴 ปิด', announced:'🏆 ออกผลแล้ว', cancelled:'🚫 ยกเลิก' };
+async function loadHotNumbers(){
+  const tbody = document.getElementById('hn-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  // โหลดรายการรอบมาใส่ dropdown ก่อน (ถ้ายังไม่มี)
+  const roundSel = document.getElementById('hn-round');
+  if(roundSel && roundSel.options.length <= 1){
+    try{
+      const rd = await API.AdminAPI.listHotRounds();
+      (rd.data||[]).forEach(r=>{
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = `${r.lottery_type} — ${r.draw_date?.slice(0,10)||'-'} (${ROUND_STATUS_TH[r.status]||r.status})`;
+        roundSel.appendChild(opt);
+      });
+    }catch(e){ console.warn('listHotRounds error',e.message); }
+  }
+  const round_id = roundSel?.value || '';
+  const limit = document.getElementById('hn-limit')?.value || 50;
+  try{
+    const d = await API.AdminAPI.listHotNumbers({ round_id, limit });
+    const rows = d.data || [];
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูลตัวเลขฮอต</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((h,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td><span style="font-size:22px;font-weight:700;color:var(--gold2);letter-spacing:2px">${h.number}</span></td>
+        <td>${h.lottery_type||'-'}</td>
+        <td>${h.bet_type||'-'}</td>
+        <td>${h.draw_date?.slice(0,10)||'-'}</td>
+        <td><span style="font-weight:600">${Number(h.bet_count).toLocaleString()}</span></td>
+        <td style="color:var(--red);font-weight:700">฿${Number(h.total_amount).toLocaleString('th',{minimumFractionDigits:2})}</td>
+        <td>${ROUND_STATUS_TH[h.round_status]||h.round_status||'-'}</td>
+      </tr>`).join('');
+  }catch(e){
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:20px">❌ ${e.message}</td></tr>`;
+  }
+}
+
+/* ── KYC ── */
+let _kycPage = 1;
+const KYC_STATUS_TH = { pending:'⏳ รอตรวจสอบ', approved:'✅ อนุมัติ', rejected:'❌ ปฏิเสธ' };
+const KYC_STATUS_COLOR = { pending:'var(--gold)', approved:'var(--green)', rejected:'var(--red)' };
+
+async function loadKYC(page=1){
+  _kycPage = page;
+  const tbody = document.getElementById('kyc-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  const status = document.getElementById('kyc-status')?.value || 'pending';
+  // Update KYC badge count for pending
+  try{
+    const d = await API.AdminAPI.listKYC(status, page);
+    const rows = d.data || [];
+    const total = d.total || 0;
+    // update badge
+    const badge = document.getElementById('badge-kyc');
+    if(badge && status==='pending'){
+      badge.textContent = total;
+      badge.style.display = total > 0 ? '' : 'none';
+    }
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ KYC ใน status นี้</td></tr>';
+      document.getElementById('kyc-pagination').innerHTML = '';
+      return;
+    }
+    tbody.innerHTML = rows.map(k=>`
+      <tr>
+        <td>${k.id}</td>
+        <td>${k.first_name||''} ${k.last_name||''}<br><small style="color:var(--muted)">UID: ${k.user_id}</small></td>
+        <td>${k.phone||'-'}</td>
+        <td><code style="font-size:11px">${k.id_card_number||'-'}</code></td>
+        <td style="font-size:11px;color:var(--muted)">${k.created_at?.slice(0,16)||'-'}</td>
+        <td><span style="color:${KYC_STATUS_COLOR[k.status]};font-weight:600">${KYC_STATUS_TH[k.status]||k.status}</span>
+          ${k.reject_reason?`<br><small style="color:var(--red);font-size:10px">${k.reject_reason}</small>`:''}
+        </td>
+        <td>
+          ${k.status==='pending'?`
+            <button class="act-btn act-green" onclick="approveKYC(${k.id})">✅ อนุมัติ</button>
+            <button class="act-btn act-red" onclick="rejectKYCModal(${k.id})">❌ ปฏิเสธ</button>
+          `:'<span style="color:var(--muted);font-size:11px">—</span>'}
+        </td>
+      </tr>`).join('');
+    // Pagination
+    const pages = Math.ceil(total / 20);
+    const pag = document.getElementById('kyc-pagination');
+    if(pag){
+      pag.innerHTML = pages > 1
+        ? `<span>หน้า ${page} / ${pages} &nbsp;|&nbsp; ทั้งหมด ${total} รายการ</span>`
+        + (page > 1 ? `<button class="btn btn-sm btn-outline" onclick="loadKYC(${page-1})" style="margin-left:8px">◀ ก่อน</button>` : '')
+        + (page < pages ? `<button class="btn btn-sm btn-outline" onclick="loadKYC(${page+1})" style="margin-left:4px">ถัดไป ▶</button>` : '')
+        : `<span style="color:var(--muted)">ทั้งหมด ${total} รายการ</span>`;
+    }
+  }catch(e){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red);padding:20px">❌ ${e.message}</td></tr>`;
+  }
+}
+
+async function approveKYC(id){
+  if(!confirm('อนุมัติเอกสาร KYC นี้?')) return;
+  try{
+    await API.AdminAPI.approveKYC(id);
+    toast('สำเร็จ','อนุมัติ KYC แล้ว'); loadKYC(_kycPage);
+  }catch(e){ toast('ผิดพลาด',e.message,'error'); }
+}
+
+function rejectKYCModal(id){
+  openModal(`<h3>❌ ปฏิเสธเอกสาร KYC</h3>
+    <div class="fg"><label>เหตุผล</label>
+      <select id="kyc-reject-reason" class="fi-full">
+        <option value="เอกสารไม่ชัดเจน">เอกสารไม่ชัดเจน</option>
+        <option value="ข้อมูลไม่ตรงกัน">ข้อมูลไม่ตรงกัน</option>
+        <option value="เอกสารหมดอายุ">เอกสารหมดอายุ</option>
+        <option value="อื่นๆ">อื่นๆ (ระบุด้านล่าง)</option>
+      </select>
+    </div>
+    <div class="fg"><label>เพิ่มเติม (ถ้ามี)</label><input id="kyc-reject-custom" class="fi-full" placeholder="ระบุเหตุผลเพิ่มเติม..."></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-danger" onclick="submitRejectKYC(${id})">ยืนยันปฏิเสธ</button>
+    </div>`);
+}
+
+async function submitRejectKYC(id){
+  const preset = document.getElementById('kyc-reject-reason')?.value || '';
+  const custom = document.getElementById('kyc-reject-custom')?.value?.trim() || '';
+  const reason = custom || preset;
+  try{
+    await API.AdminAPI.rejectKYC(id, reason);
+    closeModal(); toast('ดำเนินการแล้ว','ปฏิเสธ KYC แล้ว'); loadKYC(_kycPage);
+  }catch(e){ toast('ผิดพลาด',e.message,'error'); }
 }
 
 /* ── Logs ── */
@@ -1334,6 +1478,48 @@ promotions:()=>`
       <tbody id="promos-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
+</div>`,
+
+hotnumbers:()=>`
+<div class="filter-bar">
+  <select id="hn-round" class="fi" style="min-width:200px" onchange="loadHotNumbers()">
+    <option value="">— ทุกรอบ —</option>
+  </select>
+  <select id="hn-limit" class="fi" onchange="loadHotNumbers()">
+    <option value="20">Top 20</option>
+    <option value="50" selected>Top 50</option>
+    <option value="100">Top 100</option>
+  </select>
+  <button class="btn btn-outline" onclick="loadHotNumbers()">🔄 รีเฟรช</button>
+</div>
+<div class="card">
+  <h3>🔥 ตัวเลขที่ถูกแทงมากที่สุด</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>เลข</th><th>ประเภทหวย</th><th>ประเภทแทง</th><th>วันออกรางวัล</th><th>จำนวนครั้ง</th><th>ยอดรวม (฿)</th><th>สถานะรอบ</th></tr></thead>
+      <tbody id="hn-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div>
+</div>`,
+
+kyc:()=>`
+<div class="filter-bar">
+  <select id="kyc-status" class="fi" onchange="loadKYC()">
+    <option value="pending">⏳ รอตรวจสอบ</option>
+    <option value="approved">✅ อนุมัติแล้ว</option>
+    <option value="rejected">❌ ปฏิเสธแล้ว</option>
+  </select>
+  <button class="btn btn-outline" onclick="loadKYC()">🔄 รีเฟรช</button>
+</div>
+<div class="card">
+  <h3>🪪 รายการยืนยันตัวตน KYC</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>สมาชิก</th><th>เบอร์โทร</th><th>เลขบัตร</th><th>ส่งเมื่อ</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="kyc-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div>
+  <div id="kyc-pagination" style="margin-top:12px;text-align:center;color:var(--muted);font-size:12px"></div>
 </div>`,
 
 api:()=>`

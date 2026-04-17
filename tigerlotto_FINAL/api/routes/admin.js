@@ -257,6 +257,51 @@ router.delete('/promotions/:id', authAdmin, rbac.requirePerm('settings.view'), a
   res.json({ success: true, message: 'ปิดโปรโมชั่นแล้ว' });
 });
 
+// ─── Hot Numbers ──────────────────────────────────────────────────────────────
+// GET /api/admin/hot-numbers — ตัวเลขที่ถูกแทงมากที่สุด
+router.get('/hot-numbers', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  const { round_id, limit = 50 } = req.query;
+  let sql = `
+    SELECT h.id, h.number, h.bet_count, h.total_amount, h.max_payout,
+           lt.name AS lottery_type, bt.name AS bet_type,
+           lr.draw_date, lr.status AS round_status,
+           h.updated_at
+    FROM hot_numbers h
+    JOIN lottery_types lt ON h.lottery_type_id = lt.id
+    JOIN bet_types bt ON h.bet_type_id = bt.id
+    JOIN lottery_rounds lr ON h.round_id = lr.id
+  `;
+  const params = [];
+  if (round_id) { sql += ' WHERE h.round_id=?'; params.push(parseInt(round_id)); }
+  sql += ` ORDER BY h.total_amount DESC LIMIT ${Math.min(parseInt(limit)||50, 200)}`;
+  const data = await query(sql, params);
+  res.json({ success: true, data });
+});
+
+// GET /api/admin/hot-numbers/rounds — รายการรอบที่มีข้อมูล
+router.get('/hot-numbers/rounds', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  const data = await query(
+    `SELECT DISTINCT lr.id, lr.draw_date, lr.status, lt.name AS lottery_type
+     FROM hot_numbers h
+     JOIN lottery_rounds lr ON h.round_id = lr.id
+     JOIN lottery_types lt ON h.lottery_type_id = lt.id
+     ORDER BY lr.draw_date DESC LIMIT 50`
+  );
+  res.json({ success: true, data });
+});
+
+// ─── KYC ──────────────────────────────────────────────────────────────────────
+const kycCtrl = require('../controllers/kycController');
+
+// GET /api/admin/kyc
+router.get('/kyc', authAdmin, rbac.requirePerm('members.view'), kycCtrl.adminListKYC);
+
+// PUT /api/admin/kyc/:id/approve
+router.put('/kyc/:id/approve', authAdmin, rbac.requirePerm('members.edit'), kycCtrl.approveKYC);
+
+// PUT /api/admin/kyc/:id/reject
+router.put('/kyc/:id/reject', authAdmin, rbac.requirePerm('members.edit'), kycCtrl.rejectKYC);
+
 // POST /api/admin/announce — broadcast notification
 router.post('/announce', authAdmin, rbac.requirePerm('settings.view'),
   body('title').notEmpty(), body('body').notEmpty(),
