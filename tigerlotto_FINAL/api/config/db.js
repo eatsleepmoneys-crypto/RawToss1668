@@ -73,4 +73,10 @@ const transaction = async (callback) => {
   }
 };
 
-module.exports = { pool, query, transaction };
+// ─── queryOne — returns first row or null ───
+const queryOne = async (sql, params = []) => {
+  const [rows] = await pool.execute(sql, params);
+  return rows[0] || null;
+};
+
+module.exports = { pool, query, queryOne, transaction };

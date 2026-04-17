@@ -89,15 +89,16 @@ exports.getKYCStatus = async (req, res) => {
 exports.adminListKYC = async (req, res) => {
   try {
     const { status = 'pending', page = 1, limit = 20 } = req.query;
-    const offset = (parseInt(page) - 1) * parseInt(limit);
+    const lim = Math.min(parseInt(limit) || 20, 100);
+    const off = (Math.max(parseInt(page), 1) - 1) * lim;
     const data = await query(
       `SELECT k.*, u.first_name, u.last_name, u.phone
        FROM user_kyc k JOIN users u ON k.user_id = u.id
-       WHERE k.status=? ORDER BY k.created_at ASC LIMIT ? OFFSET ?`,
-      [status, parseInt(limit), offset]
+       WHERE k.status=? ORDER BY k.created_at ASC LIMIT ${lim} OFFSET ${off}`,
+      [status]
     );
-    const total = await queryOne('SELECT COUNT(*) AS c FROM user_kyc WHERE status=?', [status]);
-    res.json({ data, total: total.c });
+    const totalRow = await queryOne('SELECT COUNT(*) AS c FROM user_kyc WHERE status=?', [status]);
+    res.json({ data, total: totalRow ? totalRow.c : 0 });
   } catch (err) {
     res.status(500).json({ error: 'SERVER_ERROR', message: err.message });
   }
