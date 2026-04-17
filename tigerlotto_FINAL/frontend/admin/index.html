@@ -1232,6 +1232,7 @@ async function loadSettings(){
   setInput('set-ref-comm2',      s.referral_commission);
   setInput('set-auto-dep-max',   s.auto_approve_max);
   setInput('set-seo-title',      s.seo_title);
+  setInput('set-primary-color',  s.primary_color || '#d4a017');
   setInput('set-session-expire', s.session_expire);
   setInput('set-pw-min-len',     s.pw_min_length);
   setInput('set-maintenance',    s.maintenance_mode);
@@ -1298,6 +1299,18 @@ async function savePromoSettings(){
   try{
     await API.AdminAPI.updateSettings(payload);
     toast('สำเร็จ','บันทึกการตั้งค่าโปรโมชั่นแล้ว');
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+function previewColor(val){
+  // Live preview in admin panel CSS variable (optional UX touch)
+  document.documentElement.style.setProperty('--gold', val);
+}
+async function saveThemeSettings(){
+  const color    = document.getElementById('set-primary-color')?.value || '#d4a017';
+  const seoTitle = document.getElementById('set-seo-title')?.value || '';
+  try{
+    await API.AdminAPI.updateSettings({ primary_color: color, seo_title: seoTitle });
+    toast('สำเร็จ','บันทึก Theme & SEO แล้ว');
   }catch(e){ toast('ผิดพลาด', e.message,'error'); }
 }
 async function saveMaintenance(){
@@ -2556,9 +2569,9 @@ settings:()=>`
       <button class="btn btn-gold" onclick="saveSettings('general')">บันทึกการตั้งค่า</button>
     </div>
     <div class="card"><h3>🖼️ Logo & Theme</h3>
-      <div class="fg"><label>สีหลัก (Gold)</label><input type="color" value="#d4a017" class="fi-full" style="height:44px;cursor:pointer"></div>
+      <div class="fg"><label>สีหลัก (Gold)</label><input type="color" id="set-primary-color" value="#d4a017" class="fi-full" style="height:44px;cursor:pointer" oninput="previewColor(this.value)"></div>
       <div class="fg"><label>SEO Title</label><input id="set-seo-title" class="fi-full" placeholder="TigerLotto — หวยออนไลน์อันดับ 1"></div>
-      <button class="btn btn-gold" onclick="saveSettings('seo')">อัพเดท</button>
+      <button class="btn btn-gold" onclick="saveThemeSettings()">อัพเดท</button>
     </div>
   </div>
 </div>

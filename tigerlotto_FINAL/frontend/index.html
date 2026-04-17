@@ -223,6 +223,48 @@ select.fi option{background:var(--card2)}
 /* ─── MOBILE ─── */
 @media(max-width:768px){nav{display:none}.hdr-right .btn-ghost{display:none}.stat{padding:8px 16px}.how-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:480px){.how-grid{grid-template-columns:1fr}.chk-row{flex-direction:column}}
+
+/* ─── MEMBER PANEL ─── */
+.mpanel-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;display:none;backdrop-filter:blur(4px);justify-content:flex-end}
+.mpanel-ov.on{display:flex}
+.mpanel{width:100%;max-width:500px;height:100vh;background:var(--dark);border-left:1px solid rgba(212,160,23,.25);display:flex;flex-direction:column;animation:mpSlide .28s cubic-bezier(.25,.8,.25,1)}
+@keyframes mpSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.mpanel-hdr{padding:18px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--card);flex-shrink:0}
+.mpanel-hdr-info{flex:1}
+.mpanel-hdr-name{font-size:16px;font-weight:800;color:var(--gold2)}
+.mpanel-hdr-bal{font-size:22px;font-weight:900;color:var(--text);margin-top:2px}
+.mpanel-hdr-bal span{color:var(--gold2)}
+.mpanel-close{background:var(--card2);border:none;color:var(--muted);font-size:18px;width:36px;height:36px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
+.mpanel-close:hover{color:var(--text);background:var(--card3)}
+.mpanel-tabs{display:flex;gap:4px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
+.mpanel-tab{flex:1;padding:9px 4px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted);border:none;background:none;cursor:pointer;font-family:'Sarabun',sans-serif;transition:.2s;text-align:center;white-space:nowrap}
+.mpanel-tab.on{background:var(--grad);color:#000}
+.mpanel-body{flex:1;overflow-y:auto;padding:14px}
+.mpanel-sec{display:none}.mpanel-sec.on{display:block}
+/* bet rows */
+.bet-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;transition:.2s}
+.bet-row:hover{border-color:rgba(212,160,23,.3)}
+.bet-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:4px;letter-spacing:.4px}
+.bb-wait{background:rgba(255,215,0,.12);color:#ffd700;border:1px solid rgba(255,215,0,.3)}
+.bb-win{background:rgba(46,213,115,.12);color:#2ed573;border:1px solid rgba(46,213,115,.3)}
+.bb-lose{background:rgba(255,71,87,.12);color:#ff6b81;border:1px solid rgba(255,71,87,.3)}
+.bb-cancel{background:rgba(136,136,136,.12);color:#888;border:1px solid rgba(136,136,136,.3)}
+/* tx rows */
+.tx-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:12px;transition:.2s}
+.tx-row:hover{border-color:rgba(212,160,23,.2)}
+.tx-icon{font-size:22px;flex-shrink:0}
+.tx-pos{color:var(--green);font-size:17px;font-weight:800}
+.tx-neg{color:var(--red);font-size:17px;font-weight:800}
+/* notif rows */
+.notif-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;transition:.2s}
+.notif-row.unread{border-color:rgba(212,160,23,.45);background:rgba(212,160,23,.04)}
+/* empty */
+.mp-empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.mp-empty-icon{font-size:46px;margin-bottom:10px}
+/* pager */
+.mp-load-more{width:100%;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:6px;transition:.2s}
+.mp-load-more:hover{color:var(--gold);border-color:var(--gold)}
+@media(max-width:520px){.mpanel{max-width:100%}}
 </style>
 </head>
 <body>
@@ -300,10 +342,10 @@ select.fi option{background:var(--card2)}
     <div class="hdr-right" id="hdr-right">
       <button class="btn btn-ghost" id="btn-login" onclick="openAuth('login')">เข้าสู่ระบบ</button>
       <button class="btn btn-gold" id="btn-reg" onclick="openAuth('register')">สมัครสมาชิก</button>
-      <div id="user-menu" style="display:none;align-items:center;gap:10px">
+      <div id="user-menu" style="display:none;align-items:center;gap:8px">
         <span style="color:var(--gold);font-weight:700;font-size:14px">💰 ฿<span id="nav-balance">0.00</span></span>
-        <span style="color:var(--muted);font-size:13px" id="nav-name"></span>
-        <button class="btn btn-ghost" style="padding:6px 14px;font-size:13px" onclick="doLogout()">ออกจากระบบ</button>
+        <button class="btn btn-ghost" style="padding:6px 13px;font-size:13px" onclick="openMemberPanel()">📋 บัญชีของฉัน</button>
+        <button class="btn btn-ghost" style="padding:6px 13px;font-size:13px" onclick="doLogout()">ออก</button>
       </div>
     </div>
   </div>
@@ -810,6 +852,38 @@ select.fi option{background:var(--card2)}
   </div>
 </div>
 
+<!-- ══════════ MEMBER PANEL ══════════ -->
+<div class="mpanel-ov" id="mpanel-ov">
+  <div class="mpanel">
+    <!-- Header -->
+    <div class="mpanel-hdr">
+      <div class="mpanel-hdr-info">
+        <div class="mpanel-hdr-name" id="mpanel-name">สมาชิก</div>
+        <div class="mpanel-hdr-bal">฿<span id="mpanel-balance">0.00</span></div>
+      </div>
+      <button class="mpanel-close" onclick="closeMPanel()">✕</button>
+    </div>
+    <!-- Tabs -->
+    <div class="mpanel-tabs">
+      <button class="mpanel-tab on" id="mpt-bets"  onclick="mpTab('bets')">🎫 ประวัติแทง</button>
+      <button class="mpanel-tab"    id="mpt-tx"    onclick="mpTab('tx')">💳 ฝาก-ถอน</button>
+      <button class="mpanel-tab"    id="mpt-notif" onclick="mpTab('notif')">🔔 แจ้งเตือน<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
+    </div>
+    <!-- Body -->
+    <div class="mpanel-body">
+      <div class="mpanel-sec on" id="mps-bets">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-tx">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-notif">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="assets/js/api.js"></script>
 <script>
 // ══════════════════════════════════════════
@@ -870,8 +944,17 @@ function updateNavbar(user){
   document.getElementById('btn-reg').style.display   = loggedIn?'none':'';
   document.getElementById('user-menu').style.display = loggedIn?'flex':'none';
   if(user){
-    document.getElementById('nav-name').textContent = user.full_name || user.phone;
     document.getElementById('nav-balance').textContent = UI.formatMoney(user.balance);
+    // sync panel balance if open
+    const panelBal = document.getElementById('mpanel-balance');
+    if(panelBal) panelBal.textContent = UI.formatMoney(user.balance);
+    const panelName = document.getElementById('mpanel-name');
+    if(panelName) panelName.textContent = user.full_name || user.phone || 'สมาชิก';
+    // show notification dot if any unread
+    API.MemberAPI.getNotifications({limit:1}).then(d=>{
+      const dot = document.getElementById('notif-dot');
+      if(dot) dot.style.display = (d.data||[]).some(n=>!n.is_read) ? 'inline-block' : 'none';
+    }).catch(()=>{});
   }
 }
 
@@ -1090,6 +1173,159 @@ async function loadResults(){
     });
   }catch(e){}
 }
+
+/* ─── Member Panel ─── */
+const BET_TYPE_TH   = {'3top':'3 ตัวบน','3tod':'3 ตัวโต้ด','2top':'2 ตัวบน','2bot':'2 ตัวล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+const BET_STATUS_TH = {waiting:'⏳ รอผล',win:'✅ ถูก!',lose:'❌ ไม่ถูก',cancelled:'🚫 ยกเลิก'};
+const BET_STATUS_CLS= {waiting:'bb-wait',win:'bb-win',lose:'bb-lose',cancelled:'bb-cancel'};
+const TX_ICON_MAP   = {deposit:'⬇️',withdraw:'⬆️',bet:'🎫',win:'🏆',refund:'↩️',bonus:'🎁',commission:'💼'};
+const TX_TH_MAP     = {deposit:'ฝากเงิน',withdraw:'ถอนเงิน',bet:'แทงหวย',win:'ถูกรางวัล',refund:'คืนเงิน',bonus:'โบนัส',commission:'ค่าคอม'};
+let _mpActive = 'bets';
+let _mpLoaded = {bets:false, tx:false, notif:false};
+let _mpBetsPage = 1, _mpTxPage = 1;
+const MP_PAGE_SIZE = 30;
+
+function openMemberPanel(){
+  if(!window.currentUser){ openAuth('login'); return; }
+  const u = window.currentUser;
+  document.getElementById('mpanel-name').textContent    = u.full_name || u.phone || 'สมาชิก';
+  document.getElementById('mpanel-balance').textContent = UI.formatMoney(u.balance || 0);
+  document.getElementById('mpanel-ov').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  // Reset load state so fresh data on each open
+  _mpLoaded = {bets:false, tx:false, notif:false};
+  _mpBetsPage = 1; _mpTxPage = 1;
+  mpTab(_mpActive);
+}
+function closeMPanel(){
+  document.getElementById('mpanel-ov').classList.remove('on');
+  document.body.style.overflow = '';
+}
+
+function mpTab(tab){
+  _mpActive = tab;
+  ['bets','tx','notif'].forEach(t=>{
+    document.getElementById('mpt-'+t).classList.toggle('on', t===tab);
+    document.getElementById('mps-'+t).classList.toggle('on', t===tab);
+  });
+  if(tab==='bets'  && !_mpLoaded.bets)  loadBetHistory();
+  if(tab==='tx'    && !_mpLoaded.tx)    loadTxHistory();
+  if(tab==='notif' && !_mpLoaded.notif) loadNotifications();
+}
+
+/* ── Bet History ── */
+async function loadBetHistory(append=false){
+  const el = document.getElementById('mps-bets');
+  if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.BetsAPI.history({ limit: MP_PAGE_SIZE, page: _mpBetsPage });
+    const rows = d.data || [];
+    _mpLoaded.bets = true;
+    if(!append && rows.length===0){
+      el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">🎫</div>ยังไม่มีประวัติการแทง</div>';
+      return;
+    }
+    const html = rows.map(b=>`
+      <div class="bet-row">
+        <div style="flex:1;min-width:0">
+          <span class="bet-badge ${BET_STATUS_CLS[b.status]||'bb-wait'}">${BET_STATUS_TH[b.status]||b.status}</span>
+          <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.flag||''}${b.lottery_name||''}</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:2px">${BET_TYPE_TH[b.bet_type]||b.bet_type} · เลข <b style="color:var(--gold2);font-size:15px">${b.number}</b></div>
+          <div style="font-size:11px;color:var(--dim);margin-top:1px">${b.round_name||''} · ${UI.formatDateOnly(b.draw_date||b.created_at)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;padding-left:8px">
+          <div style="font-size:12px;color:var(--muted)">แทง</div>
+          <div style="font-size:15px;font-weight:700">฿${UI.formatMoney(b.amount)}</div>
+          ${b.status==='win'
+            ? `<div class="tx-pos">+฿${UI.formatMoney(b.win_amount)}</div>`
+            : b.status==='waiting'
+              ? `<div style="font-size:12px;color:var(--gold)">อาจได้ ฿${UI.formatMoney(b.payout)}</div>`
+              : ''}
+        </div>
+      </div>`).join('');
+    if(!append) el.innerHTML = html;
+    else el.querySelector('.mp-load-more')?.remove(), el.insertAdjacentHTML('beforeend', html);
+    if(rows.length === MP_PAGE_SIZE){
+      const btn = document.createElement('button');
+      btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+      btn.onclick=()=>{ _mpBetsPage++; loadBetHistory(true); };
+      el.appendChild(btn);
+    }
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Transaction History ── */
+async function loadTxHistory(append=false){
+  const el = document.getElementById('mps-tx');
+  if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.TransactionsAPI.history({ limit: MP_PAGE_SIZE, page: _mpTxPage });
+    const rows = d.data || [];
+    _mpLoaded.tx = true;
+    if(!append && rows.length===0){
+      el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">💳</div>ยังไม่มีประวัติธุรกรรม</div>';
+      return;
+    }
+    const html = rows.map(t=>{
+      const pos = parseFloat(t.amount) > 0;
+      return `<div class="tx-row">
+        <div class="tx-icon">${TX_ICON_MAP[t.type]||'💰'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600">${TX_TH_MAP[t.type]||t.type}</div>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.description||''}</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">${UI.formatDate(t.created_at)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="${pos?'tx-pos':'tx-neg'}">${pos?'+':'-'}฿${UI.formatMoney(Math.abs(t.amount))}</div>
+          <div style="font-size:11px;color:var(--dim)">คงเหลือ ฿${UI.formatMoney(t.balance_after)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    if(!append) el.innerHTML = html;
+    else el.querySelector('.mp-load-more')?.remove(), el.insertAdjacentHTML('beforeend', html);
+    if(rows.length === MP_PAGE_SIZE){
+      const btn = document.createElement('button');
+      btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+      btn.onclick=()=>{ _mpTxPage++; loadTxHistory(true); };
+      el.appendChild(btn);
+    }
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Notifications ── */
+async function loadNotifications(){
+  const el = document.getElementById('mps-notif');
+  el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.MemberAPI.getNotifications({ limit:50 });
+    const rows = d.data || [];
+    _mpLoaded.notif = true;
+    // mark as read in background
+    if(rows.some(n=>!n.is_read)) API.MemberAPI.getNotifications && fetch('/api/members/notifications/read',{method:'PATCH',headers:{'Authorization':'Bearer '+Token.getMember()}}).catch(()=>{});
+    // hide dot
+    const dot = document.getElementById('notif-dot');
+    if(dot) dot.style.display='none';
+    if(rows.length===0){
+      el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">🔔</div>ยังไม่มีการแจ้งเตือน</div>';
+      return;
+    }
+    el.innerHTML = rows.map(n=>`
+      <div class="notif-row${!n.is_read?' unread':''}">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">${n.title||'แจ้งเตือน'}</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5">${n.body||n.message||''}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px">${UI.formatDate(n.created_at)}</div>
+      </div>`).join('');
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Close panel on backdrop click ── */
+document.getElementById('mpanel-ov')?.addEventListener('click', function(e){ if(e.target===this) closeMPanel(); });
 
 /* ─── Init ─── */
 async function init(){
