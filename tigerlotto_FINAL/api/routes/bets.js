@@ -102,20 +102,39 @@ router.get('/:uuid', authMember, async (req, res) => {
 
 // ─── ADMIN: GET /api/bets/admin/list ─────────────
 router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, res) => {
-  const { page=1, limit=30, round_id, member_id, status, bet_type } = req.query;
+  const { page=1, limit=30, round_id, member_id, status, bet_type, search, lottery_code } = req.query;
   const offset = (page-1)*limit;
   const where = []; const params = [];
-  if (round_id)  { where.push('b.round_id=?');  params.push(round_id); }
-  if (member_id) { where.push('b.member_id=?'); params.push(member_id); }
-  if (status)    { where.push('b.status=?');    params.push(status); }
-  if (bet_type)  { where.push('b.bet_type=?');  params.push(bet_type); }
+  if (round_id)     { where.push('b.round_id=?');  params.push(round_id); }
+  if (member_id)    { where.push('b.member_id=?'); params.push(member_id); }
+  if (status)       { where.push('b.status=?');    params.push(status); }
+  if (bet_type)     { where.push('b.bet_type=?');  params.push(bet_type); }
+  if (lottery_code) { where.push('lt.code=?');     params.push(lottery_code); }
+  if (search) {
+    where.push('(m.name LIKE ? OR m.phone LIKE ? OR b.number LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+  }
+  const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
   const rows = await query(
-    `SELECT b.*,m.name as member_name,m.phone,lr.round_name,lt.name as lottery_name
-     FROM bets b JOIN members m ON b.member_id=m.id JOIN lottery_rounds lr ON b.round_id=lr.id JOIN lottery_types lt ON lr.lottery_id=lt.id
-     ${where.length?'WHERE '+where.join(' AND '):''}
+    `SELECT b.id, b.uuid, b.bet_type, b.number, b.amount, b.rate, b.payout, b.win_amount, b.status, b.created_at,
+            m.name AS member_name, m.phone,
+            lr.round_name, lr.draw_date,
+            lt.name AS lottery_name, lt.code AS lottery_code, lt.flag AS lottery_flag
+     FROM bets b
+     JOIN members m        ON b.member_id = m.id
+     JOIN lottery_rounds lr ON b.round_id  = lr.id
+     JOIN lottery_types lt  ON lr.lottery_id = lt.id
+     ${whereClause}
      ORDER BY b.id DESC LIMIT ? OFFSET ?`, [...params, parseInt(limit), parseInt(offset)]);
-  const [cnt] = await query(`SELECT COUNT(*) c, SUM(amount) total FROM bets b ${where.length?'WHERE '+where.join(' AND '):''}`, params);
-  res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total });
+  const cntRows = await query(
+    `SELECT COUNT(*) c, COALESCE(SUM(b.amount),0) total_amount
+     FROM bets b
+     JOIN members m        ON b.member_id = m.id
+     JOIN lottery_rounds lr ON b.round_id  = lr.id
+     JOIN lottery_types lt  ON lr.lottery_id = lt.id
+     ${whereClause}`, params);
+  const cnt = cntRows[0];
+  res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total_amount, page: parseInt(page), limit: parseInt(limit) });
 });
 
 // ─── ADMIN: PATCH /api/bets/admin/:id/cancel ─────

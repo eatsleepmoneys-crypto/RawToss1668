@@ -644,23 +644,104 @@ async function loadWithdrawals(status='pending'){
 }
 
 /* ── Bets ── */
-async function loadBets(params={}){
-  const d = await API.AdminAPI.listBets({ limit:50, ...params });
-  const tbody = document.getElementById('bets-tbody');
+let _betsPage = 1;
+let _betsTimer = null;
+
+function debounceBetsSearch(){
+  clearTimeout(_betsTimer);
+  _betsTimer = setTimeout(() => loadBets(1), 400);
+}
+
+function betTypeLabel(t){
+  return {'3top':'3 บน','3tod':'3 โต้ด','2top':'2 บน','2bot':'2 ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'}[t] || t;
+}
+function betStatusLabel(s){
+  return {waiting:'⏳ รอผล', win:'✅ ถูก 🎉', lose:'❌ ไม่ถูก', cancelled:'🚫 ยกเลิก'}[s] || s;
+}
+
+async function loadBets(page){
+  if(page !== undefined) _betsPage = page;
+  const tbody  = document.getElementById('bets-tbody');
+  const sumEl  = document.getElementById('bets-summary');
+  const pager  = document.getElementById('bets-pager');
   if(!tbody) return;
-  tbody.innerHTML = (d.data||[]).map(b=>`
-    <tr>
-      <td style="font-size:11px">${b.uuid||b.id}</td>
-      <td>${b.full_name||'-'}</td>
-      <td>${b.lottery_name||'-'}</td>
-      <td>${b.bet_type}</td>
-      <td style="font-size:18px;font-weight:800;color:var(--gold)">${b.number}</td>
-      <td>฿${Number(b.amount||0).toLocaleString()}</td>
-      <td>฿${Number(b.potential_win||0).toLocaleString()}</td>
-      <td>${UI.formatDate(b.created_at)}</td>
-      <td><span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${b.status}</span></td>
-      <td>${b.status==='waiting'?`<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`:'-'}</td>
-    </tr>`).join('');
+
+  // Build params
+  const search    = document.getElementById('bets-search')?.value?.trim() || '';
+  const bet_type  = document.getElementById('bets-type-sel')?.value || '';
+  const status    = document.getElementById('bets-status-sel')?.value || '';
+  const lottery_code = document.getElementById('bets-lottery-sel')?.value || '';
+
+  const params = { page: _betsPage, limit: 30 };
+  if(search)       params.search       = search;
+  if(bet_type)     params.bet_type     = bet_type;
+  if(status)       params.status       = status;
+  if(lottery_code) params.lottery_code = lottery_code;
+
+  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</td></tr>';
+  if(sumEl) sumEl.textContent = '⏳ กำลังโหลด...';
+  if(pager) pager.innerHTML = '';
+
+  try {
+    const d    = await API.AdminAPI.listBets(params);
+    const rows = d.data || [];
+    const total = parseInt(d.total || 0);
+    const pages = Math.max(1, Math.ceil(total / 30));
+
+    // Summary
+    if(sumEl) sumEl.innerHTML =
+      `พบ <b style="color:var(--gold2)">${total.toLocaleString()}</b> รายการ` +
+      ` &nbsp;|&nbsp; ยอดรวม <b style="color:var(--gold2)">฿${Number(d.total_amount||0).toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+
+    // Rows
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">ไม่พบรายการแทง</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(b => `
+        <tr>
+          <td style="font-size:11px;color:var(--muted)">${b.id}</td>
+          <td>
+            <div style="font-weight:600">${b.member_name||'-'}</div>
+            <div style="font-size:11px;color:var(--muted)">${b.phone||''}</div>
+          </td>
+          <td><span>${b.lottery_flag||''}</span> <span style="font-size:12px">${b.lottery_name||'-'}</span></td>
+          <td style="font-size:11px;color:var(--muted);max-width:130px;word-break:break-word">${b.round_name||'-'}</td>
+          <td><span class="badge badge-blue">${betTypeLabel(b.bet_type)}</span></td>
+          <td style="font-size:20px;font-weight:800;color:var(--gold);letter-spacing:3px">${b.number}</td>
+          <td style="font-weight:700">฿${Number(b.amount||0).toLocaleString()}</td>
+          <td style="color:var(--muted)">฿${Number(b.payout||0).toLocaleString()}</td>
+          <td style="font-size:11px;color:var(--muted)">${UI.formatDate(b.created_at)}</td>
+          <td><span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${betStatusLabel(b.status)}</span>${b.status==='win'?`<div style="font-size:11px;color:var(--green);margin-top:2px">+฿${Number(b.win_amount||0).toLocaleString()}</div>`:''}</td>
+          <td>${b.status==='waiting'
+            ? `<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`
+            : '-'}</td>
+        </tr>`).join('');
+    }
+
+    // Pagination
+    if(pager && pages > 1){
+      let html = '';
+      if(_betsPage > 1) html += `<button class="pager-btn" onclick="loadBets(${_betsPage-1})">◀</button>`;
+      const start = Math.max(1, _betsPage-2), end = Math.min(pages, _betsPage+2);
+      for(let i=start;i<=end;i++) html += `<button class="pager-btn${i===_betsPage?' on':''}" onclick="loadBets(${i})">${i}</button>`;
+      if(_betsPage < pages) html += `<button class="pager-btn" onclick="loadBets(${_betsPage+1})">▶</button>`;
+      pager.innerHTML = html;
+    }
+
+    // Populate lottery dropdown (only once if empty)
+    const sel = document.getElementById('bets-lottery-sel');
+    if(sel && sel.options.length <= 1 && _allLotteryTypes.length){
+      _allLotteryTypes.forEach(lt => {
+        const o = document.createElement('option');
+        o.value = lt.code; o.textContent = (lt.flag||'') + ' ' + lt.name;
+        sel.appendChild(o);
+      });
+    }
+
+  } catch(e){
+    tbody.innerHTML = `<tr><td colspan="11" style="text-align:center;color:var(--red);padding:30px">❌ ${e.message}</td></tr>`;
+    if(sumEl) sumEl.textContent = '';
+  }
 }
 
 /* ── Lottery Types ── */
@@ -2094,28 +2175,55 @@ withdrawals:()=>`
 </div>`,
 
 bets:()=>`
-<div class="filter-bar">
-  <input class="fi" placeholder="🔍 ค้นหาสมาชิก เลข..." style="flex:1">
-  <select class="fi fi-sm"><option>ทุกประเภท</option>${DB.lotteries.map(l=>`<option>${l.name}</option>`).join('')}</select>
-  <select class="fi fi-sm"><option>ทุกสถานะ</option><option>waiting</option><option>win</option><option>lose</option></select>
-  <button class="btn btn-outline">📥 Export</button>
+<div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+  <input class="fi" id="bets-search" placeholder="🔍 ค้นหาชื่อสมาชิก เบอร์โทร เลขที่แทง..." style="flex:1;min-width:180px"
+    oninput="debounceBetsSearch()" onkeydown="if(event.key==='Enter')loadBets(1)">
+  <select class="fi fi-sm" id="bets-lottery-sel" onchange="loadBets(1)">
+    <option value="">🎰 ทุกประเภทหวย</option>
+  </select>
+  <select class="fi fi-sm" id="bets-type-sel" onchange="loadBets(1)">
+    <option value="">📌 ทุกประเภทแทง</option>
+    <option value="3top">3 ตัวบน</option>
+    <option value="3tod">3 ตัวโต้ด</option>
+    <option value="2top">2 ตัวบน</option>
+    <option value="2bot">2 ตัวล่าง</option>
+    <option value="run_top">วิ่งบน</option>
+    <option value="run_bot">วิ่งล่าง</option>
+  </select>
+  <select class="fi fi-sm" id="bets-status-sel" onchange="loadBets(1)">
+    <option value="">📊 ทุกสถานะ</option>
+    <option value="waiting">⏳ รอผล</option>
+    <option value="win">✅ ถูกรางวัล</option>
+    <option value="lose">❌ ไม่ถูก</option>
+    <option value="cancelled">🚫 ยกเลิก</option>
+  </select>
+  <button class="btn btn-outline" onclick="loadBets(1)">🔄 รีเฟรช</button>
 </div>
 <div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div id="bets-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</div>
+    <div id="bets-pager" style="display:flex;gap:6px"></div>
+  </div>
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>#</th><th>สมาชิก</th><th>หวย</th><th>ประเภท</th><th>เลข</th><th>ยอดแทง</th><th>ถ้าถูก</th><th>งวด</th><th>สถานะ</th></tr></thead>
-      <tbody id="bets-tbody">${DB.bets.map(b=>`
-      <tr>
-        <td style="color:var(--muted)">${b.id}</td>
-        <td style="font-weight:600">${b.member}</td>
-        <td style="color:var(--muted)">${b.lottery}</td>
-        <td><span class="badge badge-blue">${b.type}</span></td>
-        <td style="font-size:18px;font-weight:800;color:var(--gold2);letter-spacing:3px">${b.num}</td>
-        <td style="font-weight:700">฿${b.amount.toLocaleString()}</td>
-        <td style="color:var(--muted)">฿${b.payout.toLocaleString()}</td>
-        <td style="color:var(--muted)">${b.round}</td>
-        <td><span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':'badge-gray'}">${b.status==='win'?'ถูก 🎉':b.status==='lose'?'ไม่ถูก':'รอผล'}</span></td>
-      </tr>`).join('')}</tbody>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>สมาชิก</th>
+          <th>หวย</th>
+          <th>งวด</th>
+          <th>ประเภท</th>
+          <th>เลข</th>
+          <th>ยอดแทง</th>
+          <th>ถ้าถูก</th>
+          <th>เวลาแทง</th>
+          <th>สถานะ</th>
+          <th>จัดการ</th>
+        </tr>
+      </thead>
+      <tbody id="bets-tbody">
+        <tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</td></tr>
+      </tbody>
     </table>
   </div>
 </div>`,
