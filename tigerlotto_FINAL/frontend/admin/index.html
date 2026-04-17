@@ -1451,8 +1451,17 @@ async function saveAgent(id){
   catch(e){ toast('ผิดพลาด',e.message); }
 }
 async function editAdminModal(id, name, role, is_active){
+  const isSuperadmin = role === 'superadmin';
+  const roleSelect = isSuperadmin
+    ? `<select id="adm-role" class="fi-full" disabled><option value="superadmin" selected>Super Admin</option></select>
+       <input type="hidden" id="adm-role-hidden" value="superadmin">`
+    : `<select id="adm-role" class="fi-full">
+         <option value="admin" ${role==='admin'?'selected':''}>Admin</option>
+         <option value="finance" ${role==='finance'?'selected':''}>Finance</option>
+         <option value="staff" ${role==='staff'?'selected':''}>Staff</option>
+       </select>`;
   openModal(`<h3>✏️ แก้ไข Admin — ${name}</h3>
-    <div class="fg"><label>บทบาท</label><select id="adm-role" class="fi-full"><option value="admin" ${role==='admin'?'selected':''}>Admin</option><option value="finance" ${role==='finance'?'selected':''}>Finance</option><option value="staff" ${role==='staff'?'selected':''}>Staff</option></select></div>
+    <div class="fg"><label>บทบาท</label>${roleSelect}</div>
     <div class="fg"><label>สถานะ</label><select id="adm-st" class="fi-full"><option value="1" ${is_active?'selected':''}>Active</option><option value="0" ${!is_active?'selected':''}>Inactive</option></select></div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
@@ -1460,7 +1469,9 @@ async function editAdminModal(id, name, role, is_active){
     </div>`);
 }
 async function saveAdminEdit(id){
-  const role = document.getElementById('adm-role').value;
+  const roleEl = document.getElementById('adm-role');
+  const hiddenRoleEl = document.getElementById('adm-role-hidden');
+  const role = (roleEl && !roleEl.disabled) ? roleEl.value : (hiddenRoleEl ? hiddenRoleEl.value : null);
   const is_active = parseInt(document.getElementById('adm-st').value);
   try{ await API.AdminAPI.updateAdmin(id,{role,is_active}); closeModal(); toast('สำเร็จ','อัพเดท Admin แล้ว'); loadAdmins(); }
   catch(e){ toast('ผิดพลาด',e.message); }
@@ -1480,7 +1491,29 @@ function viewMember(i){const m=DB.members[i];openModal(`<h3>👤 ข้อมู
 function editMember(i){const m=DB.members[i];openModal(`<h3>✏️ แก้ไขสมาชิก — ${m.name}</h3><div class="fg"><label>ชื่อ-นามสกุล</label><input class="fi-full" value="${m.name}"></div><div class="fg"><label>เครดิต (บาท)</label><input class="fi-full" type="number" value="${m.balance}"></div><div class="fg"><label>สถานะ</label><select class="fi-full"><option ${m.status==='active'?'selected':''}>active</option><option ${m.status==='banned'?'selected':''}>banned</option></select></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('บันทึก','แก้ไขข้อมูล ${m.name} แล้ว')">บันทึก</button></div>`);}
 function openAddMember(){openModal(`<h3>➕ เพิ่มสมาชิกใหม่</h3><div class="fg"><label>ชื่อ-นามสกุล</label><input class="fi-full" placeholder="ชื่อ นามสกุล"></div><div class="fg"><label>เบอร์โทร</label><input class="fi-full" placeholder="08X-XXX-XXXX"></div><div class="fg"><label>ธนาคาร</label><select class="fi-full"><option>KBANK</option><option>SCB</option><option>KTB</option></select></div><div class="fg"><label>เลขบัญชี</label><input class="fi-full" placeholder="XXX-X-XXXXX-X"></div><div class="fg"><label>รหัสผ่านเริ่มต้น</label><input class="fi-full" type="password" placeholder="••••••••"></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('เพิ่มสมาชิก','เพิ่มสมาชิกใหม่สำเร็จ')">เพิ่มสมาชิก</button></div>`);}
 function openAddAgent(){openModal(`<h3>➕ เพิ่มเอเยนต์ใหม่</h3><div class="fg"><label>ชื่อเอเยนต์</label><input class="fi-full" placeholder="ชื่อ-นามสกุล"></div><div class="fg"><label>เบอร์โทร</label><input class="fi-full" placeholder="08X-XXX-XXXX"></div><div class="fg"><label>ค่าคอมมิชชั่น (%)</label><input class="fi-full" type="number" value="3" step="0.5"></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('เพิ่มเอเยนต์','เพิ่มเอเยนต์สำเร็จ')">เพิ่มเอเยนต์</button></div>`);}
-function openAddAdmin(){openModal(`<h3>➕ เพิ่ม Admin ใหม่</h3><div class="fg"><label>ชื่อ</label><input class="fi-full" placeholder="ชื่อ Admin"></div><div class="fg"><label>Email</label><input class="fi-full" type="email" placeholder="admin@tigerlotto.com"></div><div class="fg"><label>บทบาท</label><select class="fi-full"><option value="admin">Admin</option><option value="finance">Finance</option><option value="staff">Staff</option></select></div><div class="fg"><label>รหัสผ่าน</label><input class="fi-full" type="password" placeholder="••••••••"></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('เพิ่ม Admin','เพิ่ม Admin สำเร็จ')">เพิ่ม Admin</button></div>`);}
+function openAddAdmin(){openModal(`<h3>➕ เพิ่ม Admin ใหม่</h3>
+  <div class="fg"><label>ชื่อ</label><input id="new-adm-name" class="fi-full" placeholder="ชื่อ Admin"></div>
+  <div class="fg"><label>Email</label><input id="new-adm-email" class="fi-full" type="email" placeholder="admin@tigerlotto.com"></div>
+  <div class="fg"><label>บทบาท</label><select id="new-adm-role" class="fi-full"><option value="admin">Admin</option><option value="finance">Finance</option><option value="staff">Staff</option></select></div>
+  <div class="fg"><label>รหัสผ่าน</label><input id="new-adm-pass" class="fi-full" type="password" placeholder="••••••••"></div>
+  <div class="modal-footer">
+    <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+    <button class="btn btn-gold" onclick="submitNewAdmin()">เพิ่ม Admin</button>
+  </div>`);}
+async function submitNewAdmin(){
+  const name     = document.getElementById('new-adm-name')?.value?.trim();
+  const email    = document.getElementById('new-adm-email')?.value?.trim();
+  const role     = document.getElementById('new-adm-role')?.value;
+  const password = document.getElementById('new-adm-pass')?.value;
+  if(!name||!email||!password){ toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบ','error'); return; }
+  if(password.length < 8){ toast('ผิดพลาด','รหัสผ่านต้องมีอย่างน้อย 8 ตัว','error'); return; }
+  try{
+    await API.AdminAPI.createAdmin({ name, email, role, password });
+    closeModal();
+    toast('สำเร็จ','เพิ่ม Admin สำเร็จ');
+    loadAdmins();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
 function openAddRound(){openModal(`<h3>📅 เปิดงวดใหม่</h3><div class="fg"><label>ประเภทหวย</label><select class="fi-full">${DB.lotteries.map(l=>`<option>${l.name}</option>`).join('')}</select></div><div class="fg"><label>วันที่งวด</label><input class="fi-full" type="date"></div><div class="fg"><label>เวลาปิดรับ</label><input class="fi-full" type="time" value="13:00"></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('เปิดงวด','เปิดงวดใหม่สำเร็จ')">เปิดงวด</button></div>`);}
 function editLottery(i){const l=DB.lotteries[i];openModal(`<h3>⚙️ แก้ไขอัตราจ่าย — ${l.name}</h3><div class="fi-row"><div class="fg"><label>3 บนตรง</label><input class="fi-full" type="number" value="${l.rate3top}"></div><div class="fg"><label>3 โต๊ด</label><input class="fi-full" type="number" value="${l.rate3tod}"></div></div><div class="fi-row"><div class="fg"><label>2 บน</label><input class="fi-full" type="number" value="${l.rate2top}"></div><div class="fg"><label>2 ล่าง</label><input class="fi-full" type="number" value="${l.rate2bot}"></div></div><div class="fi-row"><div class="fg"><label>วิ่งบน</label><input class="fi-full" type="number" value="${l.runTop}" step="0.1"></div><div class="fg"><label>วิ่งล่าง</label><input class="fi-full" type="number" value="${l.runBot}" step="0.1"></div></div><div class="fi-row"><div class="fg"><label>แทงต่ำสุด</label><input class="fi-full" type="number" value="${l.minBet}"></div><div class="fg"><label>แทงสูงสุด</label><input class="fi-full" type="number" value="${l.maxBet}"></div></div><div class="modal-footer"><button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button><button class="btn btn-gold" onclick="closeModal();toast('บันทึก','อัตราจ่าย ${l.name} บันทึกแล้ว')">บันทึก</button></div>`);}
 
