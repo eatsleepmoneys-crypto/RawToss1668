@@ -32,9 +32,15 @@ router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req,
     return res.status(400).json({ success: false, message: 'Invalid body' });
 
   const PROTECTED = ['site_name']; // keys that need superadmin
+  const ALLOWED_GROUPS = ['general','seo','finance','promo','security'];
   for (const [key, value] of Object.entries(updates)) {
     if (PROTECTED.includes(key) && req.admin.role !== 'superadmin') continue;
-    await query('UPDATE settings SET value=? WHERE `key`=?', [String(value), key]);
+    // Upsert: create if missing, update if exists
+    await query(
+      `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES (?,?,?,?)
+       ON DUPLICATE KEY UPDATE value=?`,
+      [key, String(value), 'string', 'general', String(value)]
+    );
   }
   await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
     [req.admin.id, 'settings.update', JSON.stringify(Object.keys(updates)), req.ip]);
