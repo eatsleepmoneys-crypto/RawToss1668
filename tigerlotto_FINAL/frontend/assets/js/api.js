@@ -285,8 +285,8 @@ const UI = {
   },
 
   formatMoney: (n) => Number(n || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-  formatDate : (d) => d ? new Date(d).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' }) : '-',
-  formatDateOnly: (d) => d ? new Date(d).toLocaleDateString('th-TH') : '-',
+  formatDate : (d) => d ? new Date(d).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short', timeZone: 'Asia/Bangkok' }) : '-',
+  formatDateOnly: (d) => d ? new Date(d).toLocaleDateString('th-TH', { timeZone: 'Asia/Bangkok' }) : '-',
 
   confirm(msg) { return window.confirm(msg); },
 };

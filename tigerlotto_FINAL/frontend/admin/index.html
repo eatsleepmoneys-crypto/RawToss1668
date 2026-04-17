@@ -401,7 +401,11 @@ function doLogout(){
   document.getElementById('login-wrap').style.display='flex';
 }
 function startClock(){
-  setInterval(()=>{const n=new Date();document.getElementById('tb-time').textContent=n.toLocaleTimeString('th-TH');},1000);
+  setInterval(()=>{
+    const n = new Date();
+    document.getElementById('tb-time').textContent =
+      n.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  }, 1000);
 }
 
 // ═══ ROUTER ═══

@@ -1,3 +1,6 @@
+// ⚠️ ต้อง set TZ ก่อน require ทุกอย่าง — มิฉะนั้น new Date() จะใช้ UTC
+process.env.TZ = 'Asia/Bangkok';
+
 require('dotenv').config();
 require('express-async-errors'); // auto-catch async route errors → prevents 502 hangs
 const express    = require('express');
