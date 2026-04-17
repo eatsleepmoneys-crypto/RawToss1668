@@ -354,16 +354,16 @@ select.fi option{background:var(--card2)}
 <!-- ══════════ TICKER ══════════ -->
 <div class="ticker">
   <div class="tick-inner" id="ticker">
-    <span class="tick-item">🏆 คุณสมบัติ ก. ถูกรางวัลที่ 1 จำนวน 6,000,000 บาท</span>
-    <span class="tick-item">🎯 ผลรางวัล งวด 1/03/69 ประกาศแล้ว!</span>
-    <span class="tick-item">💰 คุณวิไล ว. ถูก 2 ตัวบน รับ 19,000 บาท</span>
+    <span class="tick-item">🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด</span>
     <span class="tick-item">🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!</span>
     <span class="tick-item">⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร</span>
-    <span class="tick-item">🏆 คุณสมบัติ ก. ถูกรางวัลที่ 1 จำนวน 6,000,000 บาท</span>
-    <span class="tick-item">🎯 ผลรางวัล งวด 1/03/69 ประกาศแล้ว!</span>
-    <span class="tick-item">💰 คุณวิไล ว. ถูก 2 ตัวบน รับ 19,000 บาท</span>
+    <span class="tick-item">🎯 เล่นหวยออนไลน์ปลอดภัย 100% มีใบอนุญาต</span>
+    <span class="tick-item">💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน</span>
+    <span class="tick-item">🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด</span>
     <span class="tick-item">🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!</span>
     <span class="tick-item">⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร</span>
+    <span class="tick-item">🎯 เล่นหวยออนไลน์ปลอดภัย 100% มีใบอนุญาต</span>
+    <span class="tick-item">💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน</span>
   </div>
 </div>
 
@@ -593,7 +593,9 @@ select.fi option{background:var(--card2)}
       <h5>บัญชีสมาชิก</h5>
       <a href="#" onclick="openAuth('register')">สมัครสมาชิก</a>
       <a href="#" onclick="openAuth('login')">เข้าสู่ระบบ</a>
-      <a href="#">เติมเงิน</a><a href="#">ถอนเงิน</a><a href="#">แนะนำเพื่อน</a>
+      <a href="#" onclick="openDeposit();return false">เติมเงิน</a>
+      <a href="#" onclick="openWithdraw();return false">ถอนเงิน</a>
+      <a href="#" onclick="openMemberPanel();return false">แนะนำเพื่อน</a>
     </div>
     <div class="foot-col">
       <h5>ช่วยเหลือ</h5>
@@ -705,6 +707,50 @@ select.fi option{background:var(--card2)}
   </div>
 </div>
 
+<!-- ══════════ MODAL: DEPOSIT ══════════ -->
+<div class="overlay" id="dep-ov">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('dep-ov')">✕</button>
+    <div class="modal-logo"><span style="font-size:20px">💳</span>
+      <span style="font-size:16px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">เติมเงิน</span>
+    </div>
+    <h2>เติม<span>เงิน</span>เข้าระบบ</h2>
+    <p class="modal-sub">โอนเงินมายังบัญชีด้านล่าง แล้วแนบสลิปยืนยัน</p>
+    <!-- Bank info box -->
+    <div style="background:var(--card2);border:1px solid rgba(212,160,23,.3);border-radius:14px;padding:18px;margin-bottom:18px">
+      <div id="dep-bank-info" style="color:var(--muted);font-size:13px">⏳ กำลังโหลดบัญชี...</div>
+    </div>
+    <div class="fg"><label>จำนวนเงิน (บาท)</label><input type="number" id="dep-amount" class="fi" placeholder="ขั้นต่ำ 100 บาท" min="100"></div>
+    <div class="fg">
+      <label>แนบสลิปโอนเงิน</label>
+      <input type="file" id="dep-slip" class="fi" accept="image/*" style="padding:10px">
+    </div>
+    <button class="btn btn-gold" id="btn-dep-submit" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doDeposit()">📤 ส่งสลิปเติมเงิน</button>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: WITHDRAW ══════════ -->
+<div class="overlay" id="wd-ov">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('wd-ov')">✕</button>
+    <div class="modal-logo"><span style="font-size:20px">⬆️</span>
+      <span style="font-size:16px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ถอนเงิน</span>
+    </div>
+    <h2>ถอน<span>เงิน</span>ออก</h2>
+    <p class="modal-sub">เงินจะโอนเข้าบัญชีที่ผูกไว้ภายใน 3 นาที</p>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px">
+      <div style="color:var(--muted);margin-bottom:4px">ยอดเงินคงเหลือ</div>
+      <div style="font-size:22px;font-weight:900;color:var(--gold2)">฿<span id="wd-balance">0.00</span></div>
+    </div>
+    <div class="fg"><label>จำนวนที่ต้องการถอน (บาท)</label><input type="number" id="wd-amount" class="fi" placeholder="ขั้นต่ำ 100 บาท" min="100" oninput="calcWd()"></div>
+    <div class="fg"><label>บัญชีปลายทาง</label><input type="text" id="wd-bank-disp" class="fi" readonly style="color:var(--muted)"></div>
+    <div id="wd-fee-row" style="display:flex;justify-content:space-between;margin-bottom:14px;font-size:13px;color:var(--muted)">
+      <span>ได้รับจริง</span><span id="wd-net" style="color:var(--gold2);font-weight:700">฿0</span>
+    </div>
+    <button class="btn btn-gold" id="btn-wd-submit" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doWithdraw()">✅ ยืนยันถอนเงิน</button>
+  </div>
+</div>
+
 <!-- ══════════ MEMBER PANEL ══════════ -->
 <div class="mpanel-ov" id="mpanel-ov">
   <div class="mpanel">
@@ -734,6 +780,18 @@ select.fi option{background:var(--card2)}
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══════════ WALLET BAR (สมาชิก) ══════════ -->
+<div class="wallet-bar" id="wallet-bar">
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:13px;color:var(--muted)">กระเป๋าเงิน</span>
+    <span style="font-size:18px;font-weight:800;color:var(--gold2)">฿<span id="wb-balance">0.00</span></span>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-ghost" style="padding:8px 16px;font-size:13px" onclick="openDeposit()">⬇️ เติมเงิน</button>
+    <button class="btn btn-gold"  style="padding:8px 16px;font-size:13px" onclick="openWithdraw()">⬆️ ถอนเงิน</button>
   </div>
 </div>
 
@@ -798,11 +856,18 @@ function updateNavbar(user){
   document.getElementById('btn-login').style.display = loggedIn?'none':'';
   document.getElementById('btn-reg').style.display   = loggedIn?'none':'';
   document.getElementById('user-menu').style.display = loggedIn?'flex':'none';
+  // Wallet bar (bottom sticky)
+  const wb = document.getElementById('wallet-bar');
+  if(wb) wb.classList.toggle('on', loggedIn);
   if(user){
-    document.getElementById('nav-balance').textContent = UI.formatMoney(user.balance);
+    const bal = UI.formatMoney(user.balance);
+    document.getElementById('nav-balance').textContent = bal;
+    // wallet bar balance
+    const wbBal = document.getElementById('wb-balance');
+    if(wbBal) wbBal.textContent = bal;
     // sync panel balance if open
     const panelBal = document.getElementById('mpanel-balance');
-    if(panelBal) panelBal.textContent = UI.formatMoney(user.balance);
+    if(panelBal) panelBal.textContent = bal;
     const panelName = document.getElementById('mpanel-name');
     if(panelName) panelName.textContent = user.full_name || user.phone || 'สมาชิก';
     // show notification dot if any unread
@@ -816,9 +881,16 @@ function updateNavbar(user){
 async function refreshBalance(){
   if(!window.currentUser) return;
   try{
-    const d = await API.MemberAPI.getWallet();
-    document.getElementById('nav-balance').textContent = UI.formatMoney(d.wallet?.balance);
-    window.currentUser.balance = d.wallet?.balance;
+    const d   = await API.MemberAPI.getWallet();
+    const bal = d.wallet?.balance;
+    window.currentUser.balance = bal;
+    const fmt = UI.formatMoney(bal);
+    document.getElementById('nav-balance').textContent = fmt;
+    const wbBal = document.getElementById('wb-balance');
+    if(wbBal) wbBal.textContent = fmt;
+    // also update withdraw modal balance if open
+    const wdBal = document.getElementById('wd-balance');
+    if(wdBal) wdBal.textContent = fmt;
   }catch(e){}
 }
 
@@ -909,6 +981,84 @@ function doLogout(){
 }
 
 function openForgot(){ toast('แจ้งเตือน','กรุณาติดต่อ admin เพื่อรีเซ็ตรหัสผ่าน'); }
+
+/* ─── Deposit Modal ─── */
+// Load promptpay/bank account info from settings
+async function loadDepBankInfo(){
+  const el = document.getElementById('dep-bank-info');
+  if(!el) return;
+  try{
+    // Use public settings endpoint if available, else show static prompt
+    el.innerHTML = `
+      <div style="font-weight:700;color:var(--gold2);font-size:15px;margin-bottom:8px">📌 PromptPay / บัญชีธนาคาร</div>
+      <div style="color:var(--text);margin-bottom:4px">PromptPay: <b>097-xxx-xxxx</b></div>
+      <div style="color:var(--muted);font-size:12px;margin-top:6px">* กรุณาโอนมาพร้อมแนบสลิป ระบบจะเติมเงินอัตโนมัติภายใน 5 นาที</div>`;
+  }catch(e){}
+}
+
+function openDeposit(){
+  if(!window.currentUser){ openAuth('login'); return; }
+  document.getElementById('dep-amount').value='';
+  document.getElementById('dep-slip').value='';
+  loadDepBankInfo();
+  document.getElementById('dep-ov').classList.add('on');
+}
+
+async function doDeposit(){
+  const amount = parseFloat(document.getElementById('dep-amount').value);
+  const slip   = document.getElementById('dep-slip').files[0];
+  if(!amount||amount<100){ toast('ข้อผิดพลาด','จำนวนเงินขั้นต่ำ 100 บาท'); return; }
+  if(!slip){ toast('ข้อผิดพลาด','กรุณาแนบสลิปการโอนเงิน'); return; }
+  const btn = document.getElementById('btn-dep-submit');
+  UI.loading(btn, true);
+  try{
+    const fd = new FormData();
+    fd.append('amount', amount);
+    fd.append('slip', slip);
+    await API.TransactionsAPI.deposit(fd);
+    closeM('dep-ov');
+    toast('ส่งสลิปสำเร็จ','ระบบจะตรวจสอบและเติมเงินให้อัตโนมัติ 🎉');
+    refreshBalance();
+  }catch(e){
+    toast('เติมเงินไม่สำเร็จ', e.message);
+  }finally{ UI.loading(btn, false); }
+}
+
+/* ─── Withdraw Modal ─── */
+function calcWd(){
+  const amt = parseFloat(document.getElementById('wd-amount').value)||0;
+  document.getElementById('wd-net').textContent = '฿'+UI.formatMoney(amt);
+}
+
+function openWithdraw(){
+  if(!window.currentUser){ openAuth('login'); return; }
+  const u = window.currentUser;
+  document.getElementById('wd-balance').textContent = UI.formatMoney(u.balance||0);
+  document.getElementById('wd-amount').value = '';
+  document.getElementById('wd-net').textContent = '฿0';
+  // Show member's registered bank
+  const bankDisp = document.getElementById('wd-bank-disp');
+  if(bankDisp) bankDisp.value = u.bank_name ? `${u.bank_name} · ${u.bank_account||''}` : 'ไม่มีบัญชีผูกไว้';
+  document.getElementById('wd-ov').classList.add('on');
+}
+
+async function doWithdraw(){
+  const amount = parseFloat(document.getElementById('wd-amount').value);
+  if(!amount||amount<100){ toast('ข้อผิดพลาด','จำนวนเงินขั้นต่ำ 100 บาท'); return; }
+  const u = window.currentUser;
+  if(!u.bank_account||!u.bank_name){ toast('ข้อผิดพลาด','ไม่พบบัญชีธนาคารที่ผูกไว้'); return; }
+  if(amount > parseFloat(u.balance||0)){ toast('ข้อผิดพลาด','ยอดเงินไม่เพียงพอ'); return; }
+  const btn = document.getElementById('btn-wd-submit');
+  UI.loading(btn, true);
+  try{
+    await API.TransactionsAPI.withdraw(amount, u.bank_account, u.bank_name);
+    closeM('wd-ov');
+    toast('ส่งคำขอถอนเงินแล้ว','ระบบจะโอนเงินให้ภายใน 3 นาที 💰');
+    refreshBalance();
+  }catch(e){
+    toast('ถอนเงินไม่สำเร็จ', e.message);
+  }finally{ UI.loading(btn, false); }
+}
 
 /* ─── Buy Modal ─── */
 let curBetTypeMap = { '3บนตรง':'3top','3โต๊ด':'3tod','2บน':'2top','2ล่าง':'2bot','วิ่งบน':'run_top','วิ่งล่าง':'run_bot' };

@@ -295,79 +295,6 @@ select.fi option{background:var(--card2)}
 <div class="toast" id="toast"><div class="toast-t" id="t-title"></div><div class="toast-m" id="t-msg"></div></div>
 
 <script>
-// ═══ MOCK DATA ═══
-const DB = {
-  currentUser: null,
-  members: [
-    {id:'M001',name:'สมชาย ใจดี',phone:'0812345678',bank:'KBANK',acc:'xxx-1234',balance:1500,status:'active',reg:'2025-01-15',lastLogin:'2026-04-16'},
-    {id:'M002',name:'วิไล รักสวย',phone:'0898765432',bank:'SCB',acc:'xxx-5678',balance:8200,status:'active',reg:'2025-02-10',lastLogin:'2026-04-15'},
-    {id:'M003',name:'ประสิทธิ์ ดีมาก',phone:'0654321098',bank:'KTB',acc:'xxx-9012',balance:320,status:'active',reg:'2025-03-05',lastLogin:'2026-04-14'},
-    {id:'M004',name:'สุดา มีสุข',phone:'0934567890',bank:'BBL',acc:'xxx-3456',balance:0,status:'banned',reg:'2025-04-20',lastLogin:'2026-03-10'},
-    {id:'M005',name:'นิธิ วงศ์ทอง',phone:'0723456789',bank:'KBANK',acc:'xxx-7890',balance:45000,status:'active',reg:'2025-05-01',lastLogin:'2026-04-16'},
-    {id:'M006',name:'กมล สายทอง',phone:'0611223344',bank:'SCB',acc:'xxx-2233',balance:2100,status:'active',reg:'2025-06-18',lastLogin:'2026-04-13'},
-  ],
-  agents: [
-    {id:'A001',name:'เอเยนต์ กรุงเทพ',phone:'0812000001',members:142,commission:3,balance:28000,status:'active'},
-    {id:'A002',name:'เอเยนต์ เชียงใหม่',phone:'0823000002',members:87,commission:3,balance:15400,status:'active'},
-    {id:'A003',name:'เอเยนต์ ขอนแก่น',phone:'0834000003',members:203,commission:2.5,balance:41200,status:'active'},
-    {id:'A004',name:'เอเยนต์ ภูเก็ต',phone:'0845000004',members:65,commission:3,balance:9800,status:'inactive'},
-  ],
-  admins: [
-    {id:'AD001',name:'Super Admin',email:'superadmin@tiger.com',role:'superadmin',status:'active',lastLogin:'2026-04-16 10:30'},
-    {id:'AD002',name:'ผู้จัดการ A',email:'manager@tiger.com',role:'admin',status:'active',lastLogin:'2026-04-15 14:22'},
-    {id:'AD003',name:'คนดูแล B',email:'staff@tiger.com',role:'staff',status:'active',lastLogin:'2026-04-14 09:15'},
-    {id:'AD004',name:'บัญชี C',email:'finance@tiger.com',role:'finance',status:'active',lastLogin:'2026-04-16 08:00'},
-  ],
-  lotteries: [
-    {id:'L01',name:'หวยรัฐบาลไทย',flag:'🇹🇭',status:'open',minBet:1,maxBet:5000,rate3top:750,rate3tod:120,rate2top:95,rate2bot:90,runTop:3.2,runBot:4.2},
-    {id:'L02',name:'หวยหุ้นจีน',flag:'🇨🇳',status:'open',minBet:1,maxBet:5000,rate3top:720,rate3tod:115,rate2top:90,rate2bot:85,runTop:3,runBot:4},
-    {id:'L03',name:'หวยฮานอย',flag:'🇻🇳',status:'open',minBet:1,maxBet:3000,rate3top:720,rate3tod:115,rate2top:90,rate2bot:85,runTop:3,runBot:4},
-    {id:'L04',name:'หวยลาว',flag:'🇱🇦',status:'open',minBet:1,maxBet:3000,rate3top:700,rate3tod:110,rate2top:88,rate2bot:83,runTop:3,runBot:4},
-    {id:'L05',name:'หวยยี่กี',flag:'🎲',status:'open',minBet:1,maxBet:2000,rate3top:700,rate3tod:110,rate2top:85,rate2bot:80,runTop:3,runBot:3.8},
-    {id:'L06',name:'หวยมาเลย์',flag:'🇲🇾',status:'closed',minBet:1,maxBet:3000,rate3top:720,rate3tod:115,rate2top:90,rate2bot:85,runTop:3,runBot:4},
-  ],
-  rounds: [
-    {id:'R001',lottery:'หวยรัฐบาลไทย',date:'16/03/2569',close:'16/03/2569 13:00',status:'open',totalBets:48200,betCount:1240},
-    {id:'R002',lottery:'หวยหุ้นจีน',date:'16/03/2569',close:'16/03/2569 15:30',status:'open',totalBets:12400,betCount:380},
-    {id:'R003',lottery:'หวยฮานอย',date:'16/03/2569',close:'16/03/2569 18:30',status:'open',totalBets:8600,betCount:220},
-    {id:'R004',lottery:'หวยรัฐบาลไทย',date:'01/03/2569',close:'01/03/2569 13:00',status:'announced',totalBets:152000,betCount:4820},
-    {id:'R005',lottery:'หวยหุ้นจีน',date:'15/03/2569',close:'15/03/2569 15:30',status:'announced',totalBets:38200,betCount:1140},
-  ],
-  deposits: [
-    {id:'D001',member:'สมชาย ใจดี',phone:'0812345678',amount:500,bank:'KBANK',time:'10:24',status:'pending',slip:'✓'},
-    {id:'D002',member:'นิธิ วงศ์ทอง',phone:'0723456789',amount:2000,bank:'SCB',time:'10:18',status:'pending',slip:'✓'},
-    {id:'D003',member:'กมล สายทอง',phone:'0611223344',amount:300,bank:'KTB',time:'09:55',status:'pending',slip:'✓'},
-    {id:'D004',member:'วิไล รักสวย',phone:'0898765432',amount:1000,bank:'KBANK',time:'09:30',status:'approved',slip:'✓'},
-    {id:'D005',member:'ประสิทธิ์ ดีมาก',phone:'0654321098',amount:200,bank:'BBL',time:'09:12',status:'rejected',slip:'✓'},
-  ],
-  withdrawals: [
-    {id:'W001',member:'สมชาย ใจดี',phone:'0812345678',amount:500,bank:'KBANK',acc:'xxx-1234',time:'10:30',status:'pending'},
-    {id:'W002',member:'วิไล รักสวย',phone:'0898765432',amount:8000,bank:'SCB',acc:'xxx-5678',time:'09:45',status:'pending'},
-    {id:'W003',member:'กมล สายทอง',phone:'0611223344',amount:2100,bank:'SCB',acc:'xxx-2233',time:'09:20',status:'processing'},
-  ],
-  bets: [
-    {id:'B001',member:'สมชาย ใจดี',lottery:'หวยรัฐบาล',type:'3บนตรง',num:'456',amount:100,payout:75000,round:'16/03/69',status:'waiting'},
-    {id:'B002',member:'วิไล รักสวย',lottery:'หวยฮานอย',type:'2บน',num:'89',amount:500,payout:47500,round:'16/03/69',status:'waiting'},
-    {id:'B003',member:'นิธิ วงศ์ทอง',lottery:'หวยหุ้นจีน',type:'2บน',num:'23',amount:1000,payout:90000,round:'16/03/69',status:'waiting'},
-    {id:'B004',member:'กมล สายทอง',lottery:'หวยรัฐบาล',type:'3โต๊ด',num:'712',amount:200,payout:24000,round:'01/03/69',status:'lose'},
-    {id:'B005',member:'สมชาย ใจดี',lottery:'หวยลาว',type:'2ล่าง',num:'57',amount:300,payout:27000,round:'01/03/69',status:'win'},
-  ],
-  api: {
-    line:{token:'',channelId:'',channelSecret:'',enabled:false},
-    sms:{apiKey:'',sender:'TigerLotto',enabled:false},
-    promptpay:{number:'',name:'บริษัท ไทเกอร์ ลอตโต้',enabled:true},
-    truemoney:{phone:'',enabled:false},
-    scb:{apiKey:'',apiSecret:'',biller:'',enabled:false},
-    kbank:{merchantId:'',key:'',enabled:false},
-  },
-  settings: {
-    siteName:'TigerLotto',siteUrl:'https://tigerlotto.com',maintenance:false,
-    lineId:'@tigerlotto',tel:'02-xxx-xxxx',
-    minDeposit:100,maxDeposit:100000,minWithdraw:100,maxWithdraw:50000,
-    autoApprove:false,autoApproveMax:1000,
-    bonusNew:50,cashback:5,refCommission:3,
-  }
-};
 
 // ═══ AUTH (Real API) ═══
 async function doLogin(){
@@ -380,7 +307,6 @@ async function doLogin(){
   try{
     const data = await API.AdminAuthAPI.login(u, p, r);
     window.currentAdmin = data.admin;
-    DB.currentUser = { name: data.admin.name, role: data.admin.role, email: data.admin.email };
     document.getElementById('login-wrap').style.display='none';
     document.getElementById('app').style.display='block';
     document.getElementById('sb-name').textContent = data.admin.name;
