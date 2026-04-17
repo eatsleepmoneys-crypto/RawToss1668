@@ -441,6 +441,7 @@ async function afterNav(page){
     else if(page==='promotions') await loadPromotions();
     else if(page==='hotnumbers') await loadHotNumbers();
     else if(page==='kyc') await loadKYC();
+    else if(page==='winpay') await loadWinPay();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -1137,7 +1138,7 @@ async function confirmAnnounce(roundId){
   if(!p1||p1.length!==6){ toast('ผิดพลาด','รางวัลที่ 1 ต้องครบ 6 หลัก','error'); return; }
   closeModal();
   try{
-    await API.AdminAPI.announceResult({ round_id:roundId, prize_1st:p1, prize_2bot:p2bot, prize_3front1:p3f, prize_3back1:p3b });
+    await API.AdminAPI.announceResult({ round_id:roundId, prize_1st:p1, prize_last_2:p2bot, prize_front_3:[p3f].filter(Boolean), prize_last_3:[p3b].filter(Boolean) });
     toast('สำเร็จ','ออกผลรางวัลและจ่ายเงินอัตโนมัติเรียบร้อย 🎉');
     loadRounds();
   }catch(e){ toast('ผิดพลาด', e.message); }
@@ -1163,6 +1164,83 @@ async function loadResultsPage(){
           <span>฿<b style="color:var(--gold2)">${Number(r.total_bets||0).toLocaleString()}</b></span>
         </div>
       </div>`).join('');
+  }
+}
+
+/* ── Win Pay Page ── */
+const BET_TYPE_LABEL = { '3top':'3 บน','3tod':'3 โต้ด','2top':'2 บน','2bot':'2 ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง' };
+async function loadWinPay(){
+  const roundId = document.getElementById('wp-round-sel')?.value || '';
+  const betType = document.getElementById('wp-type-sel')?.value || '';
+  const tbody   = document.getElementById('wp-tbody');
+  const summary = document.getElementById('wp-summary');
+  if(tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+
+  try{
+    // load announced rounds into selector (first call only when empty)
+    const sel = document.getElementById('wp-round-sel');
+    if(sel && sel.options.length <= 1){
+      const rd = await API.AdminAPI.listRoundsAdmin({ limit:100 });
+      const announced = (rd.data||[]).filter(r=>r.status==='announced');
+      sel.innerHTML = '<option value="">ทุกงวด</option>' + announced.map(r=>`<option value="${r.id}">${r.lottery_name} ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
+    }
+
+    // fetch win bets
+    const params = { status:'win', limit:200 };
+    if(roundId)  params.round_id   = roundId;
+    if(betType)  params.bet_type   = betType;
+    const d = await API.AdminAPI.listBets(params);
+    const rows = d.data || [];
+    const total = rows.reduce((s,b)=>s + parseFloat(b.win_amount||0), 0);
+
+    // KPI
+    const cnt = document.getElementById('wp-cnt');
+    const tot = document.getElementById('wp-total');
+    if(cnt) cnt.textContent = rows.length.toLocaleString('th-TH');
+    if(tot) tot.textContent = '฿' + total.toLocaleString('th-TH', {minimumFractionDigits:2});
+
+    // Table
+    if(tbody){
+      tbody.innerHTML = rows.length === 0
+        ? '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:24px">ยังไม่มีรายการถูกรางวัล</td></tr>'
+        : rows.map(b=>`
+          <tr>
+            <td>
+              <div style="font-weight:600;font-size:13px">${b.member_name||'—'}</div>
+              <div style="font-size:11px;color:var(--muted)">${b.phone||''}</div>
+            </td>
+            <td><span class="badge badge-blue">${BET_TYPE_LABEL[b.bet_type]||b.bet_type}</span></td>
+            <td style="font-weight:700;font-size:16px;color:var(--gold)">${b.number}</td>
+            <td style="color:var(--muted)">฿${Number(b.amount||0).toLocaleString('th-TH')}</td>
+            <td style="font-weight:800;color:var(--green)">+฿${Number(b.win_amount||0).toLocaleString('th-TH')}</td>
+            <td style="font-size:12px;color:var(--muted)">${b.round_name||'—'}</td>
+            <td style="font-size:11px;color:var(--muted)">${UI.formatDate(b.created_at)}</td>
+          </tr>`).join('');
+    }
+
+    // Summary by round
+    if(summary){
+      const byRound = {};
+      rows.forEach(b=>{
+        const k = b.round_name || 'ไม่ทราบงวด';
+        if(!byRound[k]) byRound[k] = { count:0, total:0, lottery:b.lottery_name||'' };
+        byRound[k].count++;
+        byRound[k].total += parseFloat(b.win_amount||0);
+      });
+      const entries = Object.entries(byRound).sort((a,b)=>b[1].total-a[1].total);
+      summary.innerHTML = entries.length === 0
+        ? '<div style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูล</div>'
+        : entries.map(([round,s])=>`
+          <div style="padding:12px;background:var(--card2);border-radius:9px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <span style="font-size:13px;font-weight:600">${round}</span>
+              <span class="badge badge-green">฿${s.total.toLocaleString('th-TH',{minimumFractionDigits:2})}</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted)">${s.lottery} · ${s.count} รายการ</div>
+          </div>`).join('');
+    }
+  }catch(e){
+    if(tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--red);padding:20px">❌ ${e.message}</td></tr>`;
   }
 }
 
@@ -1196,7 +1274,7 @@ async function confirmSubmitResult(roundId,p1,p2bot,p3f1,p3f2,p3b1,p3b2){
   const btn = document.querySelector('#page-content .btn-gold');
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังประกาศ...'; }
   try{
-    await API.AdminAPI.announceResult({ round_id:parseInt(roundId), prize_1st:p1, prize_2bot:p2bot, prize_3front1:p3f1, prize_3front2:p3f2, prize_3back1:p3b1, prize_3back2:p3b2 });
+    await API.AdminAPI.announceResult({ round_id:parseInt(roundId), prize_1st:p1, prize_last_2:p2bot, prize_front_3:[p3f1,p3f2].filter(Boolean), prize_last_3:[p3b1,p3b2].filter(Boolean) });
     toast('สำเร็จ','ออกผลรางวัลและจ่ายเงินอัตโนมัติเรียบร้อย 🎉');
     nav('results');
   }catch(e){
@@ -1656,35 +1734,44 @@ bets:()=>`
 </div>`,
 
 winpay:()=>`
+<div class="filter-bar">
+  <select class="fi fi-sm" id="wp-round-sel" onchange="loadWinPay()">
+    <option value="">ทุกงวด</option>
+  </select>
+  <select class="fi fi-sm" id="wp-type-sel" onchange="loadWinPay()">
+    <option value="">ทุกประเภท</option>
+    <option value="3top">3 บน</option>
+    <option value="3tod">3 โต้ด</option>
+    <option value="2top">2 บน</option>
+    <option value="2bot">2 ล่าง</option>
+    <option value="run_top">วิ่งบน</option>
+    <option value="run_bot">วิ่งล่าง</option>
+  </select>
+</div>
 <div class="g2">
   <div class="card card-gold">
-    <h3>🎁 รายการถูกรางวัลรอจ่าย</h3>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      <div style="padding:14px;background:var(--card2);border-radius:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-weight:600">นิธิ วงศ์ทอง</div><div style="font-size:12px;color:var(--muted)">2 บน: 57 — งวด 01/03/69</div></div>
-          <div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--green)">+฿27,000</div><button class="btn btn-sm btn-green" onclick="toast('จ่ายรางวัล','จ่ายรางวัล ฿27,000 ให้นิธิ วงศ์ทองแล้ว')">จ่าย</button></div>
-        </div>
+    <h3>🏆 รายการถูกรางวัล <span style="font-size:13px;font-weight:400;color:var(--muted)">(ระบบจ่ายอัตโนมัติทันที)</span></h3>
+    <div id="wp-kpi" style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+      <div style="flex:1;min-width:120px;background:var(--card2);border-radius:9px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted)">จำนวนผู้ถูก</div>
+        <div id="wp-cnt" style="font-size:22px;font-weight:800;color:var(--gold)">—</div>
       </div>
-      <div style="padding:14px;background:var(--card2);border-radius:10px">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div style="font-weight:600">กมล สายทอง</div><div style="font-size:12px;color:var(--muted)">วิ่งล่าง: 7 — งวด 01/03/69</div></div>
-          <div style="text-align:right"><div style="font-size:18px;font-weight:800;color:var(--green)">+฿1,260</div><button class="btn btn-sm btn-green" onclick="toast('จ่ายรางวัล','จ่ายรางวัลแล้ว')">จ่าย</button></div>
-        </div>
+      <div style="flex:1;min-width:120px;background:var(--card2);border-radius:9px;padding:12px;text-align:center">
+        <div style="font-size:11px;color:var(--muted)">ยอดจ่ายรวม</div>
+        <div id="wp-total" style="font-size:22px;font-weight:800;color:var(--green)">—</div>
       </div>
     </div>
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:14px;font-weight:700">
-      <span>ยอดรวมรอจ่าย</span><span style="color:var(--green)">฿28,260</span>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>สมาชิก</th><th>ประเภท</th><th>เลข</th><th>แทง</th><th>ได้รับ</th><th>งวด</th><th>เวลา</th></tr></thead>
+        <tbody id="wp-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+      </table>
     </div>
-    <button class="btn btn-gold" style="width:100%;padding:12px;margin-top:12px" onclick="toast('จ่ายทั้งหมด','จ่ายรางวัลทั้งหมด ฿28,260 แล้ว')">💸 จ่ายรางวัลทั้งหมด</button>
   </div>
   <div class="card">
-    <h3>📊 สรุปการจ่ายรางวัล</h3>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      ${[['งวด 01/03/69 จ่ายแล้ว','฿1,284,200','badge-green'],['งวด 15/02/69 จ่ายแล้ว','฿986,400','badge-green'],['งวด 01/02/69 จ่ายแล้ว','฿1,124,800','badge-green']].map(([l,v,b])=>`
-      <div style="display:flex;justify-content:space-between;padding:12px;background:var(--card2);border-radius:9px">
-        <span style="font-size:13px">${l}</span><span class="badge ${b}">${v}</span>
-      </div>`).join('')}
+    <h3>📊 สรุปรางวัลแยกงวด</h3>
+    <div id="wp-summary" style="display:flex;flex-direction:column;gap:10px">
+      <div style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</div>
     </div>
   </div>
 </div>`,
