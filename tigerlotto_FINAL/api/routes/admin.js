@@ -422,7 +422,7 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
       const lotteryId = typeMap[h.code];
       if (!lotteryId) { results.push({ code: h.code, status: 'skip', reason: 'lottery_type not found' }); continue; }
       try {
-        const [rRes] = await query(
+        const rRes = await query(
           `INSERT IGNORE INTO lottery_rounds (uuid, lottery_id, round_code, round_name, draw_date, close_at, status, total_bet, total_win, bet_count)
            VALUES (UUID(), ?, ?, ?, ?, ?, 'announced', ?, ?, ?)`,
           [lotteryId, h.round_code, h.round_name, h.draw_date, h.close_at, h.total_bet, h.total_win, h.bet_count]
