@@ -61,26 +61,28 @@ const HISTORY = [
     },
   },
   {
+    // ลาวพัฒนา: prize_1st = 6 หลัก
+    // 2bot = slice(2,4) = '98', 2top(prize_last_2) = slice(4,6) = '13', 3top = slice(3,6) = '913'
     code       : 'LA_GOV',
-    round_code : 'LA_GOV-20260416',
-    round_name : 'งวดวันที่ 16 เมษายน 2569',
-    draw_date  : '2026-04-16',
-    close_at   : '2026-04-16 20:00:00',
-    announced_at: '2026-04-16 20:45:00',
+    round_code : 'LA_GOV-20260413',
+    round_name : 'ลาวพัฒนา งวดวันที่ 13 เมษายน 2569',
+    draw_date  : '2026-04-13',
+    close_at   : '2026-04-13 20:00:00',
+    announced_at: '2026-04-13 20:45:00',
     total_bet  : 42500,
     total_win  : 18200,
     bet_count  : 98,
     result: {
-      prize_1st    : '85241',
-      prize_last_2 : '41',
+      prize_1st    : '129813',   // 6 หลัก: 2bot=98, 2top=13, 3top=913
+      prize_last_2 : '13',       // 2top = ตำแหน่ง 5-6
       prize_front_3: [],
-      prize_last_3 : ['241'],
+      prize_last_3 : ['813'],    // 3top = ตำแหน่ง 4-5-6
     },
   },
   {
     code       : 'VN_HAN',
     round_code : 'VN_HAN-20260416',
-    round_name : 'งวดวันที่ 16 เมษายน 2569',
+    round_name : 'ฮานอยปกติ งวดวันที่ 16 เมษายน 2569',
     draw_date  : '2026-04-16',
     close_at   : '2026-04-16 18:15:00',
     announced_at: '2026-04-16 18:45:00',
@@ -92,6 +94,40 @@ const HISTORY = [
       prize_last_2 : '38',
       prize_front_3: [],
       prize_last_3 : ['638'],
+    },
+  },
+  {
+    code       : 'VN_HAN_SP',
+    round_code : 'VN_HAN_SP-20260416',
+    round_name : 'ฮานอยพิเศษ งวดวันที่ 16 เมษายน 2569',
+    draw_date  : '2026-04-16',
+    close_at   : '2026-04-16 17:00:00',
+    announced_at: '2026-04-16 17:35:00',
+    total_bet  : 21000,
+    total_win  : 8900,
+    bet_count  : 48,
+    result: {
+      prize_1st    : '54219',
+      prize_last_2 : '19',
+      prize_front_3: [],
+      prize_last_3 : ['219'],
+    },
+  },
+  {
+    code       : 'VN_HAN_VIP',
+    round_code : 'VN_HAN_VIP-20260416',
+    round_name : 'ฮานอย VIP งวดวันที่ 16 เมษายน 2569',
+    draw_date  : '2026-04-16',
+    close_at   : '2026-04-16 16:30:00',
+    announced_at: '2026-04-16 17:05:00',
+    total_bet  : 18500,
+    total_win  : 7600,
+    bet_count  : 41,
+    result: {
+      prize_1st    : '83475',
+      prize_last_2 : '75',
+      prize_front_3: [],
+      prize_last_3 : ['475'],
     },
   },
   {

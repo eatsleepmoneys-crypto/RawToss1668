@@ -172,8 +172,19 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
     const { round_id, prize_1st, prize_2nd, prize_3rd, prize_4th, prize_5th,
             prize_near_1st, prize_front_3, prize_last_3, prize_last_2 } = req.body;
 
-    const [round] = await query('SELECT * FROM lottery_rounds WHERE id=? AND status!="announced"', [round_id]);
-    if (!round) return res.status(400).json({ success: false, message: 'ไม่พบงวด หรือประกาศผลแล้ว' });
+    const roundRows = await query(
+      `SELECT lr.*, lt.code AS lottery_code
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lr.lottery_id = lt.id
+       WHERE lr.id=? AND lr.status!='announced'`, [round_id]);
+    if (!roundRows.length) return res.status(400).json({ success: false, message: 'ไม่พบงวด หรือประกาศผลแล้ว' });
+    const round = roundRows[0];
+    const lotteryCode = round.lottery_code;
+
+    // ลาวพัฒนา: 2bot = ตำแหน่ง 3-4, 2top = ตำแหน่ง 5-6, 3top = ตำแหน่ง 4-5-6
+    const isLaGov = lotteryCode === 'LA_GOV';
+    const effective_2bot = isLaGov ? prize_1st.slice(2, 4) : prize_last_2;
+    const effective_3top = isLaGov ? prize_1st.slice(3, 6) : prize_1st?.slice(-3);
 
     await transaction(async (conn) => {
       // Insert result
@@ -193,7 +204,8 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
       await conn.execute('UPDATE lottery_rounds SET status="announced" WHERE id=?', [round_id]);
 
       // Auto-calculate winners and pay
-      const [lt] = await query('SELECT rate_3top,rate_3tod,rate_2top,rate_2bot,rate_run_top,rate_run_bot FROM lottery_types lt JOIN lottery_rounds lr ON lr.lottery_id=lt.id WHERE lr.id=?', [round_id]);
+      const ltRows = await query('SELECT rate_3top,rate_3tod,rate_2top,rate_2bot,rate_run_top,rate_run_bot FROM lottery_types lt JOIN lottery_rounds lr ON lr.lottery_id=lt.id WHERE lr.id=?', [round_id]);
+      const lt = ltRows[0];
       const bets = await query('SELECT * FROM bets WHERE round_id=? AND status="waiting"', [round_id]);
 
       for (const bet of bets) {
@@ -201,16 +213,16 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
         let winAmt = 0;
         const n = bet.number;
 
-        if (bet.bet_type === '3top' && prize_1st?.slice(-3) === n) { won = true; winAmt = bet.amount * lt.rate_3top; }
+        if (bet.bet_type === '3top' && effective_3top === n) { won = true; winAmt = bet.amount * lt.rate_3top; }
         else if (bet.bet_type === '3tod') {
           const sorted = n.split('').sort().join('');
-          const p1sorted = prize_1st?.slice(-3).split('').sort().join('');
+          const p1sorted = effective_3top?.split('').sort().join('');
           if (sorted === p1sorted) { won = true; winAmt = bet.amount * lt.rate_3tod; }
         }
         else if (bet.bet_type === '2top' && prize_last_2 === n) { won = true; winAmt = bet.amount * lt.rate_2top; }
-        else if (bet.bet_type === '2bot' && prize_last_2 === n) { won = true; winAmt = bet.amount * lt.rate_2bot; }
+        else if (bet.bet_type === '2bot' && effective_2bot === n) { won = true; winAmt = bet.amount * lt.rate_2bot; }
         else if (bet.bet_type === 'run_top' && prize_1st?.includes(n)) { won = true; winAmt = bet.amount * lt.rate_run_top; }
-        else if (bet.bet_type === 'run_bot' && prize_last_2?.includes(n)) { won = true; winAmt = bet.amount * lt.rate_run_bot; }
+        else if (bet.bet_type === 'run_bot' && effective_2bot?.includes(n)) { won = true; winAmt = bet.amount * lt.rate_run_bot; }
 
         const status = won ? 'win' : 'lose';
         await conn.execute('UPDATE bets SET status=?, win_amount=? WHERE id=?', [status, winAmt, bet.id]);

@@ -82,22 +82,40 @@ function buildRoundsForToday() {
     });
   }
 
-  // ── หวยลาว (ทุกวัน) ───────────────────────────────────────────
+  // ── ลาวพัฒนา (ทุกวัน) ────────────────────────────────────────
   rounds.push({
     code: 'LA_GOV',
     round_code: `LAOS-${compact}`,
-    round_name: `หวยลาว ${dateThai}`,
+    round_name: `ลาวพัฒนา ${dateThai}`,
     draw_date:  dateStr,
     close_at:   `${dateStr} 20:00:00`,
   });
 
-  // ── หวยฮานอย (ทุกวัน) ────────────────────────────────────────
+  // ── ฮานอยปกติ (ทุกวัน ~18:30) ────────────────────────────────
   rounds.push({
     code: 'VN_HAN',
     round_code: `HANOI-${compact}`,
-    round_name: `หวยฮานอย ${dateThai}`,
+    round_name: `ฮานอยปกติ ${dateThai}`,
     draw_date:  dateStr,
     close_at:   `${dateStr} 18:00:00`,
+  });
+
+  // ── ฮานอยพิเศษ (ทุกวัน ~17:30) ──────────────────────────────
+  rounds.push({
+    code: 'VN_HAN_SP',
+    round_code: `HANOISP-${compact}`,
+    round_name: `ฮานอยพิเศษ ${dateThai}`,
+    draw_date:  dateStr,
+    close_at:   `${dateStr} 17:00:00`,
+  });
+
+  // ── ฮานอย VIP (ทุกวัน ~17:00) ───────────────────────────────
+  rounds.push({
+    code: 'VN_HAN_VIP',
+    round_code: `HANOIVIP-${compact}`,
+    round_name: `ฮานอย VIP ${dateThai}`,
+    draw_date:  dateStr,
+    close_at:   `${dateStr} 16:30:00`,
   });
 
   // ── หวยหุ้นไทย SET (วันจันทร์–ศุกร์) ─────────────────────────

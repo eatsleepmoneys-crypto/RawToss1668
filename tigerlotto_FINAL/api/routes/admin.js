@@ -358,7 +358,7 @@ router.get('/auto-results/status', authAdmin, rbac.requirePerm('reports.view'), 
       FROM lottery_rounds lr
       JOIN lottery_types lt ON lr.lottery_id = lt.id
       LEFT JOIN lottery_results res ON lr.id = res.round_id
-      WHERE lt.code IN ('TH_GOV','LA_GOV','VN_HAN')
+      WHERE lt.code IN ('TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP')
         AND lr.status IN ('closed','announced')
       ORDER BY lr.close_at DESC
     `);
@@ -366,7 +366,7 @@ router.get('/auto-results/status', authAdmin, rbac.requirePerm('reports.view'), 
     const latest = {};
     rounds.forEach(r => { if (!latest[r.code]) latest[r.code] = r; });
 
-    const data = ['TH_GOV', 'LA_GOV', 'VN_HAN'].map(code => ({
+    const data = ['TH_GOV', 'LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'].map(code => ({
       code,
       fetcher: fetcherStatus[code] || {},
       latest: latest[code] || null,
@@ -380,7 +380,7 @@ router.get('/auto-results/status', authAdmin, rbac.requirePerm('reports.view'), 
 // ─── POST /api/admin/auto-results/trigger/:code — manual trigger ─
 router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
   const code = req.params.code.toUpperCase();
-  if (!['TH_GOV','LA_GOV','VN_HAN'].includes(code))
+  if (!['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(code))
     return res.status(400).json({ success: false, message: `Invalid code: ${code}` });
   try {
     const { triggerFetch } = require('../services/lotteryFetcher');
@@ -399,18 +399,21 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
     const mysql  = require('mysql2/promise');
 
     const HISTORY = [
-      { code:'TH_GOV', round_code:'TH_GOV-20260401', round_name:'งวดวันที่ 1 เมษายน 2569',   draw_date:'2026-04-01', close_at:'2026-04-01 14:30:00', announced_at:'2026-04-01 15:30:00', total_bet:158000, total_win:73500,  bet_count:312, prize_1st:'916894', prize_last_2:'17', prize_front_3:['293','635'], prize_last_3:['149','274'] },
-      { code:'TH_GOV', round_code:'TH_GOV-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 14:30:00', announced_at:'2026-04-16 15:30:00', total_bet:214000, total_win:98500, bet_count:427, prize_1st:'309612', prize_last_2:'77', prize_front_3:['355','108'], prize_last_3:['868','424'] },
-      { code:'LA_GOV', round_code:'LA_GOV-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 20:00:00', announced_at:'2026-04-16 20:45:00', total_bet:42500,  total_win:18200,  bet_count:98,  prize_1st:'85241', prize_last_2:'41', prize_front_3:[], prize_last_3:['241'] },
-      { code:'VN_HAN', round_code:'VN_HAN-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 18:15:00', announced_at:'2026-04-16 18:45:00', total_bet:35000,  total_win:14700,  bet_count:76,  prize_1st:'72638', prize_last_2:'38', prize_front_3:[], prize_last_3:['638'] },
-      { code:'TH_STK', round_code:'TH_STK-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 17:00:00', announced_at:'2026-04-16 17:30:00', total_bet:29500,  total_win:11200,  bet_count:65,  prize_1st:'438712', prize_last_2:'12', prize_front_3:[], prize_last_3:['712'] },
+      { code:'TH_GOV',     round_code:'TH_GOV-20260401',     round_name:'งวดวันที่ 1 เมษายน 2569',                     draw_date:'2026-04-01', close_at:'2026-04-01 14:30:00', announced_at:'2026-04-01 15:30:00', total_bet:158000, total_win:73500,  bet_count:312, prize_1st:'916894', prize_last_2:'17', prize_front_3:['293','635'], prize_last_3:['149','274'] },
+      { code:'TH_GOV',     round_code:'TH_GOV-20260416',     round_name:'งวดวันที่ 16 เมษายน 2569',                    draw_date:'2026-04-16', close_at:'2026-04-16 14:30:00', announced_at:'2026-04-16 15:30:00', total_bet:214000, total_win:98500, bet_count:427, prize_1st:'309612', prize_last_2:'77', prize_front_3:['355','108'], prize_last_3:['868','424'] },
+      // ลาวพัฒนา 6 หลัก: 2bot=slice(2,4)='98', 2top=prize_last_2=slice(4,6)='13', 3top=slice(3,6)='813'
+      { code:'LA_GOV',     round_code:'LA_GOV-20260413',     round_name:'ลาวพัฒนา งวดวันที่ 13 เมษายน 2569',           draw_date:'2026-04-13', close_at:'2026-04-13 20:00:00', announced_at:'2026-04-13 20:45:00', total_bet:42500,  total_win:18200,  bet_count:98,  prize_1st:'129813', prize_last_2:'13', prize_front_3:[], prize_last_3:['813'] },
+      { code:'VN_HAN',     round_code:'VN_HAN-20260416',     round_name:'ฮานอยปกติ งวดวันที่ 16 เมษายน 2569',            draw_date:'2026-04-16', close_at:'2026-04-16 18:15:00', announced_at:'2026-04-16 18:45:00', total_bet:35000,  total_win:14700,  bet_count:76,  prize_1st:'72638', prize_last_2:'38', prize_front_3:[], prize_last_3:['638'] },
+      { code:'VN_HAN_SP',  round_code:'VN_HAN_SP-20260416',  round_name:'ฮานอยพิเศษ งวดวันที่ 16 เมษายน 2569',          draw_date:'2026-04-16', close_at:'2026-04-16 17:00:00', announced_at:'2026-04-16 17:35:00', total_bet:21000,  total_win:8900,   bet_count:48,  prize_1st:'54219', prize_last_2:'19', prize_front_3:[], prize_last_3:['219'] },
+      { code:'VN_HAN_VIP', round_code:'VN_HAN_VIP-20260416', round_name:'ฮานอย VIP งวดวันที่ 16 เมษายน 2569',           draw_date:'2026-04-16', close_at:'2026-04-16 16:30:00', announced_at:'2026-04-16 17:05:00', total_bet:18500,  total_win:7600,   bet_count:41,  prize_1st:'83475', prize_last_2:'75', prize_front_3:[], prize_last_3:['475'] },
+      { code:'TH_STK',     round_code:'TH_STK-20260416',     round_name:'งวดวันที่ 16 เมษายน 2569',                    draw_date:'2026-04-16', close_at:'2026-04-16 17:00:00', announced_at:'2026-04-16 17:30:00', total_bet:29500,  total_win:11200,  bet_count:65,  prize_1st:'438712', prize_last_2:'12', prize_front_3:[], prize_last_3:['712'] },
       { code:'CN_STK', round_code:'CN_STK-20260415', round_name:'งวดวันที่ 15 เมษายน 2569', draw_date:'2026-04-15', close_at:'2026-04-15 15:30:00', announced_at:'2026-04-15 16:00:00', total_bet:22000,  total_win:8900,   bet_count:51,  prize_1st:'307524', prize_last_2:'24', prize_front_3:[], prize_last_3:['524'] },
       { code:'MY_STK', round_code:'MY_STK-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 17:30:00', announced_at:'2026-04-16 18:00:00', total_bet:18500,  total_win:7200,   bet_count:43,  prize_1st:'619083', prize_last_2:'83', prize_front_3:[], prize_last_3:['083'] },
       { code:'SG_STK', round_code:'SG_STK-20260415', round_name:'งวดวันที่ 15 เมษายน 2569', draw_date:'2026-04-15', close_at:'2026-04-15 18:00:00', announced_at:'2026-04-15 18:30:00', total_bet:16000,  total_win:6100,   bet_count:38,  prize_1st:'524167', prize_last_2:'67', prize_front_3:[], prize_last_3:['167'] },
     ];
 
-    // Get lottery_type map
-    const codes = HISTORY.map(h => h.code);
+    // Get lottery_type map (unique codes)
+    const codes = [...new Set(HISTORY.map(h => h.code))];
     const typeRows = await query(
       `SELECT id, code FROM lottery_types WHERE code IN (${codes.map(()=>'?').join(',')})`,
       codes
