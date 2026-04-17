@@ -115,6 +115,7 @@ const LotteryAPI = {
   getResult   : (roundId) => apiFetch(`/lottery/results/${roundId}`),
   checkNumber : (round_id, number) =>
     apiFetch('/lottery/check', { method: 'POST', body: JSON.stringify({ round_id, number }) }),
+  getStats    : () => apiFetch('/lottery/stats'),
 };
 
 /* ─── Bets API ─── */

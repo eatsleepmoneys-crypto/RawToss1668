@@ -71,6 +71,19 @@ router.get('/results/:roundId', async (req, res) => {
   res.json({ success: true, data: res_ });
 });
 
+// GET /api/lottery/stats — public site stats
+router.get('/stats', async (req, res) => {
+  const [members]  = await query('SELECT COUNT(*) c FROM members WHERE status="active"');
+  const [payout]   = await query('SELECT COALESCE(SUM(win_amount),0) total FROM bets WHERE status="win"');
+  const [rounds]   = await query('SELECT COUNT(*) c FROM lottery_rounds WHERE status="open"');
+  res.json({
+    success      : true,
+    member_count : members.c,
+    total_payout : payout.total,
+    active_rounds: rounds.c,
+  });
+});
+
 // POST /api/lottery/check — ตรวจหวย
 router.post('/check', async (req, res) => {
   const { round_id, number } = req.body;
