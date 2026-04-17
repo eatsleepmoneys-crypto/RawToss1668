@@ -933,12 +933,18 @@ async function loadKYC(page=1){
   }
 }
 
-async function approveKYC(id){
-  if(!confirm('อนุมัติเอกสาร KYC นี้?')) return;
-  try{
-    await API.AdminAPI.approveKYC(id);
-    toast('สำเร็จ','อนุมัติ KYC แล้ว'); loadKYC(_kycPage);
-  }catch(e){ toast('ผิดพลาด',e.message,'error'); }
+function approveKYC(id){
+  openModal(`<h3>✅ อนุมัติ KYC</h3>
+    <p style="color:var(--muted);margin-bottom:16px">อนุมัติเอกสาร KYC #${id} และยืนยันตัวตนสมาชิกนี้ใช่หรือไม่?</p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="confirmApproveKYC(${id})">✅ ยืนยันอนุมัติ</button>
+    </div>`);
+}
+async function confirmApproveKYC(id){
+  closeModal();
+  try{ await API.AdminAPI.approveKYC(id); toast('สำเร็จ','อนุมัติ KYC แล้ว'); loadKYC(_kycPage); }
+  catch(e){ toast('ผิดพลาด',e.message,'error'); }
 }
 
 function rejectKYCModal(id){
@@ -1010,26 +1016,60 @@ async function loadSettings(){
 }
 
 // ═══ ACTION HANDLERS ═══
-async function approveDeposit(id){
-  if(!confirm('อนุมัติรายการฝากนี้?')) return;
+function approveDeposit(id){
+  openModal(`<h3>✅ อนุมัติฝากเงิน</h3>
+    <p style="color:var(--muted);margin-bottom:16px">อนุมัติรายการฝาก #${id} ใช่หรือไม่?</p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="confirmApproveDeposit(${id})">✅ ยืนยันอนุมัติ</button>
+    </div>`);
+}
+async function confirmApproveDeposit(id){
+  closeModal();
   try{ await API.AdminAPI.approveDeposit(id,'อนุมัติโดย admin'); toast('สำเร็จ','อนุมัติฝากเงินแล้ว'); loadDeposits(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function rejectDeposit(id){
-  const note = prompt('เหตุผลที่ปฏิเสธ:');
-  if(note===null) return;
-  try{ await API.AdminAPI.rejectDeposit(id, note||'ปฏิเสธโดย admin'); toast('สำเร็จ','ปฏิเสธรายการแล้ว'); loadDeposits(); }
+function rejectDeposit(id){
+  openModal(`<h3>❌ ปฏิเสธรายการฝาก</h3>
+    <div class="fg"><label>เหตุผล</label><input id="dep-reject-note" class="fi-full" placeholder="เหตุผลที่ปฏิเสธ" value="เอกสารไม่ชัดเจน"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-red" onclick="confirmRejectDeposit(${id})">❌ ยืนยันปฏิเสธ</button>
+    </div>`);
+}
+async function confirmRejectDeposit(id){
+  const note = document.getElementById('dep-reject-note')?.value || 'ปฏิเสธโดย admin';
+  closeModal();
+  try{ await API.AdminAPI.rejectDeposit(id, note); toast('สำเร็จ','ปฏิเสธรายการแล้ว'); loadDeposits(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function processWithdrawal(id){
-  if(!confirm('ยืนยันว่าโอนเงินเรียบร้อยแล้ว?')) return;
-  try{ await API.AdminAPI.processWithdrawal(id,'โอนแล้ว'); toast('สำเร็จ','บันทึกการถอนเงินแล้ว'); loadWithdrawals(); }
+function processWithdrawal(id){
+  openModal(`<h3>💸 ยืนยันโอนเงินถอน</h3>
+    <p style="color:var(--muted);margin-bottom:8px">ยืนยันว่าโอนเงินให้รายการถอน #${id} เรียบร้อยแล้ว?</p>
+    <div class="fg"><label>เลขอ้างอิง (ถ้ามี)</label><input id="wd-ref-no" class="fi-full" placeholder="เช่น QR12345"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="confirmProcessWithdrawal(${id})">✅ ยืนยันโอนแล้ว</button>
+    </div>`);
+}
+async function confirmProcessWithdrawal(id){
+  const ref = document.getElementById('wd-ref-no')?.value || 'โอนแล้ว';
+  closeModal();
+  try{ await API.AdminAPI.processWithdrawal(id, ref); toast('สำเร็จ','บันทึกการถอนเงินแล้ว'); loadWithdrawals(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function rejectWithdrawal(id){
-  const note = prompt('เหตุผลที่ปฏิเสธ:');
-  if(note===null) return;
-  try{ await API.AdminAPI.rejectWithdrawal(id, note||'ปฏิเสธ'); toast('สำเร็จ','ปฏิเสธรายการถอนแล้ว'); loadWithdrawals(); }
+function rejectWithdrawal(id){
+  openModal(`<h3>❌ ปฏิเสธรายการถอน</h3>
+    <div class="fg"><label>เหตุผล</label><input id="wd-reject-note" class="fi-full" placeholder="เหตุผลที่ปฏิเสธ" value="ข้อมูลบัญชีไม่ถูกต้อง"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-red" onclick="confirmRejectWithdrawal(${id})">❌ ยืนยันปฏิเสธ</button>
+    </div>`);
+}
+async function confirmRejectWithdrawal(id){
+  const note = document.getElementById('wd-reject-note')?.value || 'ปฏิเสธ';
+  closeModal();
+  try{ await API.AdminAPI.rejectWithdrawal(id, note); toast('สำเร็จ','ปฏิเสธรายการถอนแล้ว'); loadWithdrawals(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
 function toggleBanMember(id, currentStatus, name){
@@ -1044,26 +1084,58 @@ function toggleBanMember(id, currentStatus, name){
 }
 async function confirmBanMember(id, newStatus, name){
   closeModal();
-  try{ await API.AdminAPI.setMemberStatus(id, newStatus, ''); toast('สำเร็จ',`${newStatus==='banned'?'แบน':'ปลดแบน'} ${name} แล้ว`); loadMembers(); }
-  catch(e){ toast('ผิดพลาด', e.message); }
+  try{
+    await API.AdminAPI.setMemberStatus(id, newStatus, '');
+    toast('สำเร็จ',`${newStatus==='banned'?'แบน':'ปลดแบน'} ${name} แล้ว`);
+    loadMembers(1, _membersSearch, ''); // reset status filter → show all
+  }catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function cancelBet(id){
-  if(!confirm('ยกเลิกและคืนเงินเดิมพันนี้?')) return;
+function cancelBet(id){
+  openModal(`<h3>🚫 ยกเลิกเดิมพัน</h3>
+    <p style="color:var(--muted);margin-bottom:16px">ยกเลิกและคืนเงินเดิมพัน #${id} ใช่หรือไม่?</p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-red" onclick="confirmCancelBet(${id})">✅ ยืนยันยกเลิก</button>
+    </div>`);
+}
+async function confirmCancelBet(id){
+  closeModal();
   try{ await API.AdminAPI.cancelBet(id); toast('สำเร็จ','ยกเลิกและคืนเงินแล้ว'); loadBets(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function closeRound(id){
-  if(!confirm('ปิดรับแทงงวดนี้?')) return;
+function closeRound(id){
+  openModal(`<h3>🔒 ปิดรับแทงงวด</h3>
+    <p style="color:var(--muted);margin-bottom:16px">ปิดรับแทงงวด #${id} หลังจากนี้จะไม่สามารถแทงได้อีก ยืนยันใช่หรือไม่?</p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-red" onclick="confirmCloseRound(${id})">🔒 ยืนยันปิดรับแทง</button>
+    </div>`);
+}
+async function confirmCloseRound(id){
+  closeModal();
   try{ await API.AdminAPI.closeRound(id); toast('สำเร็จ','ปิดรับแทงแล้ว'); loadRounds(); }
   catch(e){ toast('ผิดพลาด', e.message); }
 }
-async function openAnnounce(roundId){
-  const p1 = prompt('เลขรางวัลที่ 1 (6 หลัก):');
-  if(!p1||p1.length!==6){ toast('ผิดพลาด','กรุณากรอกให้ครบ 6 หลัก'); return; }
-  const p2bot = prompt('เลขท้าย 2 ตัว (รางวัลล่าง):');
-  const p3f   = prompt('เลขหน้า 3 ตัว (รางวัล 1):');
-  const p3b   = prompt('เลขท้าย 3 ตัว (รางวัล 1):');
-  if(!confirm(`ยืนยันออกผล?\nรางวัลที่1: ${p1}\nเลขท้าย2ตัว: ${p2bot}`)) return;
+function openAnnounce(roundId){
+  openModal(`<h3>🎯 ออกผลรางวัล</h3>
+    <div class="fg"><label>รางวัลที่ 1 (6 หลัก) *</label><input id="ann-p1" class="fi-full" maxlength="6" placeholder="เช่น 123456"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div class="fg"><label>เลขท้าย 2 ตัว</label><input id="ann-p2bot" class="fi-full" maxlength="2" placeholder="เช่น 56"></div>
+      <div class="fg"><label>เลขหน้า 3 ตัว</label><input id="ann-p3f" class="fi-full" maxlength="3" placeholder="เช่น 123"></div>
+    </div>
+    <div class="fg"><label>เลขท้าย 3 ตัว</label><input id="ann-p3b" class="fi-full" maxlength="3" placeholder="เช่น 456"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="confirmAnnounce(${roundId})">🎉 ออกผลและจ่ายรางวัล</button>
+    </div>`);
+}
+async function confirmAnnounce(roundId){
+  const p1    = document.getElementById('ann-p1')?.value?.trim();
+  const p2bot = document.getElementById('ann-p2bot')?.value?.trim();
+  const p3f   = document.getElementById('ann-p3f')?.value?.trim();
+  const p3b   = document.getElementById('ann-p3b')?.value?.trim();
+  if(!p1||p1.length!==6){ toast('ผิดพลาด','รางวัลที่ 1 ต้องครบ 6 หลัก','error'); return; }
+  closeModal();
   try{
     await API.AdminAPI.announceResult({ round_id:roundId, prize_1st:p1, prize_2bot:p2bot, prize_3front1:p3f, prize_3back1:p3b });
     toast('สำเร็จ','ออกผลรางวัลและจ่ายเงินอัตโนมัติเรียบร้อย 🎉');
@@ -1094,23 +1166,39 @@ async function loadResultsPage(){
   }
 }
 
-async function submitResult(){
-  const roundId  = document.getElementById('result-round-sel')?.value;
-  const prize_1st  = document.getElementById('res-p1')?.value;
-  const prize_2bot = document.getElementById('res-p2bot')?.value;
-  const prize_3front1 = document.getElementById('res-p3f1')?.value;
-  const prize_3front2 = document.getElementById('res-p3f2')?.value;
-  const prize_3back1  = document.getElementById('res-p3b1')?.value;
-  const prize_3back2  = document.getElementById('res-p3b2')?.value;
-  if(!roundId){ toast('ผิดพลาด','กรุณาเลือกงวด'); return; }
-  if(!prize_1st||prize_1st.length!==6){ toast('ผิดพลาด','รางวัลที่ 1 ต้อง 6 หลัก'); return; }
-  if(!confirm(`ยืนยันประกาศผล?\nรางวัลที่ 1: ${prize_1st}\nเลขท้าย 2 ตัว: ${prize_2bot}\n\nไม่สามารถแก้ไขได้หลังจากนี้!`)) return;
+function submitResult(){
+  const roundId    = document.getElementById('result-round-sel')?.value;
+  const prize_1st  = document.getElementById('res-p1')?.value?.trim();
+  const prize_2bot = document.getElementById('res-p2bot')?.value?.trim();
+  const prize_3front1 = document.getElementById('res-p3f1')?.value?.trim();
+  const prize_3front2 = document.getElementById('res-p3f2')?.value?.trim();
+  const prize_3back1  = document.getElementById('res-p3b1')?.value?.trim();
+  const prize_3back2  = document.getElementById('res-p3b2')?.value?.trim();
+  if(!roundId){ toast('ผิดพลาด','กรุณาเลือกงวด','error'); return; }
+  if(!prize_1st||prize_1st.length!==6){ toast('ผิดพลาด','รางวัลที่ 1 ต้อง 6 หลัก','error'); return; }
+  openModal(`<h3>📢 ยืนยันประกาศผล</h3>
+    <div style="background:rgba(255,215,0,.1);border:1px solid var(--gold);border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px;line-height:1.8">
+      <div>🥇 รางวัลที่ 1: <b style="color:var(--gold)">${prize_1st}</b></div>
+      ${prize_2bot?`<div>🔢 เลขท้าย 2 ตัว: <b>${prize_2bot}</b></div>`:''}
+      ${prize_3front1?`<div>🔼 เลขหน้า 3 ตัว (1): <b>${prize_3front1}</b></div>`:''}
+      ${prize_3front2?`<div>🔼 เลขหน้า 3 ตัว (2): <b>${prize_3front2}</b></div>`:''}
+      ${prize_3back1?`<div>🔽 เลขท้าย 3 ตัว (1): <b>${prize_3back1}</b></div>`:''}
+      ${prize_3back2?`<div>🔽 เลขท้าย 3 ตัว (2): <b>${prize_3back2}</b></div>`:''}
+    </div>
+    <p style="color:var(--red);font-size:13px;margin-bottom:12px">⚠️ ไม่สามารถแก้ไขได้หลังจากประกาศแล้ว</p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="confirmSubmitResult(${roundId},'${prize_1st}','${prize_2bot||''}','${prize_3front1||''}','${prize_3front2||''}','${prize_3back1||''}','${prize_3back2||''}')">🎉 ยืนยันประกาศผล</button>
+    </div>`);
+}
+async function confirmSubmitResult(roundId,p1,p2bot,p3f1,p3f2,p3b1,p3b2){
+  closeModal();
   const btn = document.querySelector('#page-content .btn-gold');
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังประกาศ...'; }
   try{
-    await API.AdminAPI.announceResult({ round_id:parseInt(roundId), prize_1st, prize_2bot, prize_3front1, prize_3front2, prize_3back1, prize_3back2 });
+    await API.AdminAPI.announceResult({ round_id:parseInt(roundId), prize_1st:p1, prize_2bot:p2bot, prize_3front1:p3f1, prize_3front2:p3f2, prize_3back1:p3b1, prize_3back2:p3b2 });
     toast('สำเร็จ','ออกผลรางวัลและจ่ายเงินอัตโนมัติเรียบร้อย 🎉');
-    nav('results'); // reload
+    nav('results');
   }catch(e){
     toast('ผิดพลาด', e.message);
     if(btn){ btn.disabled=false; btn.textContent='📢 ประกาศผลและจ่ายรางวัล'; }
@@ -1924,18 +2012,25 @@ async function saveAdminEdit(id){
   try{ await API.AdminAPI.updateAdmin(id,{role,is_active}); closeModal(); toast('สำเร็จ','อัพเดท Admin แล้ว'); loadAdmins(); }
   catch(e){ toast('ผิดพลาด',e.message); }
 }
-async function resetAdminPw(id, name){
-  const pw = prompt(`รหัสผ่านใหม่สำหรับ ${name} (อย่างน้อย 8 ตัว):`);
-  if(!pw||pw.length<8){ if(pw!==null) toast('ผิดพลาด','รหัสผ่านต้องมีอย่างน้อย 8 ตัว'); return; }
+function resetAdminPw(id, name){
+  openModal(`<h3>🔑 รีเซ็ตรหัสผ่าน</h3>
+    <p style="color:var(--muted);margin-bottom:8px">Admin: <b style="color:#fff">${name}</b></p>
+    <div class="fg"><label>รหัสผ่านใหม่ (อย่างน้อย 8 ตัว)</label><input id="reset-pw" class="fi-full" type="password" placeholder="••••••••"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="confirmResetAdminPw(${id},'${(name||'').replace(/'/g,"\\'")}')">🔑 ยืนยันรีเซ็ต</button>
+    </div>`);
+}
+async function confirmResetAdminPw(id, name){
+  const pw = document.getElementById('reset-pw')?.value;
+  if(!pw||pw.length<8){ toast('ผิดพลาด','รหัสผ่านต้องมีอย่างน้อย 8 ตัว','error'); return; }
+  closeModal();
   try{ await API.AdminAPI.resetAdminPassword(id,pw); toast('สำเร็จ',`รีเซ็ตรหัสผ่าน ${name} แล้ว`); }
   catch(e){ toast('ผิดพลาด',e.message); }
 }
-function toggleBan(i){const m=DB.members[i];m.status=m.status==='active'?'banned':'active';nav('members');toast('อัพเดท',(m.status==='active'?'ปลดแบน':'แบน')+' '+m.name+' แล้ว');}
-function toggleLottery(i,v){DB.lotteries[i].status=v?'open':'closed';toast('อัพเดท',DB.lotteries[i].name+': '+(v?'เปิดรับ':'ปิดรับ')+'แล้ว');}
-function approveDeposit(id){toast('อนุมัติ','อนุมัติฝากเงิน '+id+' แล้ว ✓');}
-function rejectDeposit(id){toast('ปฏิเสธ','ปฏิเสธรายการ '+id);}
-function confirmResult(){if(confirm('ยืนยันการประกาศผลรางวัล? ไม่สามารถแก้ไขได้ภายหลัง'))toast('ประกาศผล','ประกาศผลรางวัลและจ่ายรางวัลเรียบร้อย 🎉');}
-// viewMember, openCreditModal, submitCredit, openAddMember, submitNewMember — defined above (real API)
+// ── legacy mock stubs removed — real functions defined above ──
+// viewMember, openCreditModal, submitCredit, openAddMember, submitNewMember,
+// approveDeposit, rejectDeposit, confirmResult — all defined above (real API)
 function openAddAgent(){openModal(`<h3>➕ เพิ่มเอเยนต์ใหม่</h3>
   <div class="fg"><label>ชื่อเอเยนต์</label><input id="new-ag-name" class="fi-full" placeholder="ชื่อ-นามสกุล"></div>
   <div class="fg"><label>เบอร์โทร</label><input id="new-ag-phone" class="fi-full" placeholder="08X-XXX-XXXX"></div>
