@@ -237,16 +237,18 @@ router.post('/promotions', authAdmin, rbac.requirePerm('settings.view'),
 );
 
 router.patch('/promotions/:id', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
-  const { name, value, is_percent, min_deposit, max_bonus, usage_limit, is_active, start_at, end_at } = req.body;
-  await query(
-    `UPDATE promotions SET
-      name=COALESCE(?,name), value=COALESCE(?,value), is_percent=COALESCE(?,is_percent),
-      min_deposit=COALESCE(?,min_deposit), max_bonus=COALESCE(?,max_bonus),
-      usage_limit=COALESCE(?,usage_limit), is_active=COALESCE(?,is_active),
-      start_at=COALESCE(?,start_at), end_at=COALESCE(?,end_at)
-     WHERE id=?`,
-    [name, value, is_percent!=null?is_percent:null, min_deposit, max_bonus, usage_limit, is_active!=null?is_active:null, start_at, end_at, req.params.id]
-  );
+  // Build dynamic SET clause — only update fields that were actually sent
+  const allowed = ['name','value','is_percent','min_deposit','max_bonus','usage_limit','is_active','start_at','end_at'];
+  const sets = []; const params = [];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      sets.push(`\`${key}\`=?`);
+      params.push(req.body[key] === '' ? null : req.body[key]);
+    }
+  }
+  if (sets.length === 0) return res.status(400).json({ success: false, message: 'ไม่มีข้อมูลให้อัพเดท' });
+  params.push(req.params.id);
+  await query(`UPDATE promotions SET ${sets.join(',')} WHERE id=?`, params);
   res.json({ success: true, message: 'อัพเดทโปรโมชั่นแล้ว' });
 });
 
