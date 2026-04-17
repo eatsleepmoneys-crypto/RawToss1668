@@ -443,6 +443,7 @@ async function afterNav(page){
     else if(page==='kyc') await loadKYC();
     else if(page==='winpay') await loadWinPay();
     else if(page==='api') await loadApiSettings();
+    else if(page==='reports') await loadReports();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -1245,6 +1246,116 @@ async function loadWinPay(){
   }
 }
 
+/* ── Reports Page ── */
+let _reportData = null;
+async function loadReports(){
+  const rangeEl = document.getElementById('rpt-range');
+  const fromEl  = document.getElementById('rpt-from');
+  const toEl    = document.getElementById('rpt-to');
+  let from = fromEl?.value;
+  let to   = toEl?.value;
+  if(!from || !to){
+    const days = parseInt(rangeEl?.value || 30);
+    const now  = new Date();
+    to   = now.toISOString().slice(0,10);
+    from = new Date(now - days*86400000).toISOString().slice(0,10);
+    if(fromEl) fromEl.value = from;
+    if(toEl)   toEl.value   = to;
+  }
+  const fmt = n => '฿' + Number(n||0).toLocaleString('th-TH', {minimumFractionDigits:2});
+  try{
+    const d = await API.AdminAPI.reportSummary({ from, to });
+    const s = d.data || {};
+    _reportData = s;
+
+    // KPI
+    const set = (id,v)=>{ const e=document.getElementById(id); if(e)e.textContent=v; };
+    set('rpt-dep',    fmt(s.total_deposit));
+    set('rpt-wd',     fmt(s.total_withdraw));
+    set('rpt-profit', fmt(s.profit));
+    set('rpt-bet',    fmt(s.total_bet));
+    set('rpt-win',    fmt(s.total_win));
+    set('rpt-newmem', Number(s.new_members||0).toLocaleString('th-TH') + ' คน');
+
+    // Lottery table
+    const tbody = document.getElementById('rpt-lottery-tbody');
+    const lotteries = s.by_lottery || [];
+    const grandTotal = lotteries.reduce((sum,l)=>sum+parseFloat(l.total||0),0);
+    if(tbody){
+      tbody.innerHTML = lotteries.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีข้อมูล</td></tr>'
+        : lotteries.map((l,i)=>{
+            const pct = grandTotal>0 ? Math.round(parseFloat(l.total||0)/grandTotal*100) : 0;
+            return `<tr>
+              <td style="color:var(--gold)">${i+1}</td>
+              <td>${l.flag||''} ${l.name}</td>
+              <td style="color:var(--gold2);font-weight:700">${fmt(l.total)}</td>
+              <td style="color:var(--muted)">${Number(l.cnt||0).toLocaleString('th-TH')}</td>
+              <td><div style="display:flex;align-items:center;gap:6px">
+                <div class="prog-bar" style="width:70px"><div class="prog-fill" style="width:${pct}%"></div></div>
+                <span style="font-size:12px">${pct}%</span>
+              </div></td></tr>`;
+          }).join('');
+    }
+
+    // Finance summary
+    const fin = document.getElementById('rpt-finance');
+    if(fin){
+      const rows = [
+        ['ฝากเงินรวม', fmt(s.total_deposit), 'badge-green'],
+        ['ถอนเงินรวม', fmt(s.total_withdraw), 'badge-red'],
+        ['กำไรสุทธิ (ฝาก−ถอน)', fmt(s.profit), s.profit>=0?'badge-gold':'badge-red'],
+        ['ยอดแทงรวม', fmt(s.total_bet), 'badge-blue'],
+        ['จ่ายรางวัลรวม', fmt(s.total_win), 'badge-gray'],
+        ['สมาชิกใหม่', Number(s.new_members||0).toLocaleString('th-TH') + ' คน', 'badge-blue'],
+      ];
+      fin.innerHTML = rows.map(([l,v,b])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
+          <span style="font-size:13px">${l}</span><span class="badge ${b}">${v}</span>
+        </div>`).join('');
+    }
+
+    // Charts
+    const daily = s.daily || [];
+    const dailyChart = window._charts?.['chart-daily'];
+    if(dailyChart){
+      dailyChart.data.labels = daily.map(r=>r.d);
+      dailyChart.data.datasets[0].data = daily.map(r=>parseFloat(r.dep||0));
+      dailyChart.update();
+    }
+    const pieChart = window._charts?.['chart-pie'];
+    if(pieChart && lotteries.length){
+      pieChart.data.labels = lotteries.map(l=>l.name);
+      pieChart.data.datasets[0].data = lotteries.map(l=>parseFloat(l.total||0));
+      pieChart.update();
+    }
+  }catch(e){ toast('ผิดพลาด','โหลดรายงานไม่ได้: '+e.message,'error'); }
+}
+
+function exportReportCSV(){
+  if(!_reportData){ toast('ผิดพลาด','โหลดรายงานก่อน','error'); return; }
+  const s = _reportData;
+  const rows = [
+    ['รายการ','ยอด'],
+    ['ฝากเงินรวม', s.total_deposit],
+    ['ถอนเงินรวม', s.total_withdraw],
+    ['กำไรสุทธิ', s.profit],
+    ['ยอดแทงรวม', s.total_bet],
+    ['จ่ายรางวัลรวม', s.total_win],
+    ['สมาชิกใหม่', s.new_members],
+    [],
+    ['ประเภทหวย','ยอดแทง','จำนวนบิล'],
+    ...(s.by_lottery||[]).map(l=>[l.name, l.total, l.cnt]),
+  ];
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=`report_${_reportData.from}_${_reportData.to}.csv`; a.click();
+  URL.revokeObjectURL(url);
+  toast('สำเร็จ','ดาวน์โหลด CSV แล้ว');
+}
+
 /* ── API Settings Page ── */
 // map: DB key → element ID
 const API_FIELD_MAP = {
@@ -1982,34 +2093,37 @@ api:()=>`
 
 reports:()=>`
 <div class="filter-bar">
-  <select class="fi fi-sm"><option>เดือนนี้</option><option>7 วันย้อนหลัง</option><option>30 วันย้อนหลัง</option><option>3 เดือน</option></select>
-  <select class="fi fi-sm"><option>ทุกประเภท</option>${DB.lotteries.map(l=>`<option>${l.name}</option>`).join('')}</select>
-  <button class="btn btn-outline">📥 Export PDF</button>
-  <button class="btn btn-outline">📥 Export Excel</button>
+  <select class="fi fi-sm" id="rpt-range" onchange="loadReports()">
+    <option value="30">30 วันย้อนหลัง</option>
+    <option value="7">7 วันย้อนหลัง</option>
+    <option value="90">3 เดือน</option>
+    <option value="180">6 เดือน</option>
+  </select>
+  <input type="date" id="rpt-from" class="fi fi-sm" onchange="loadReports()">
+  <input type="date" id="rpt-to"   class="fi fi-sm" onchange="loadReports()">
+  <button class="btn btn-outline" onclick="exportReportCSV()">📥 Export CSV</button>
 </div>
 <div class="stats-grid">
-  <div class="stat-card"><div class="sc-icon">💰</div><div class="sc-label">รายได้เดือนนี้</div><div class="sc-val">฿4,820,000</div><div class="sc-change">▲ 18.4%</div></div>
-  <div class="stat-card"><div class="sc-icon">🎰</div><div class="sc-label">ยอดแทงรวม</div><div class="sc-val">฿28,400,000</div><div class="sc-change">▲ 12.1%</div></div>
-  <div class="stat-card"><div class="sc-icon">🏆</div><div class="sc-label">จ่ายรางวัลรวม</div><div class="sc-val">฿23,580,000</div><div class="sc-change">▲ 9.8%</div></div>
-  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">สมาชิกใหม่เดือนนี้</div><div class="sc-val">4,284</div><div class="sc-change">▲ 22.6%</div></div>
+  <div class="stat-card"><div class="sc-icon">💰</div><div class="sc-label">ฝากรวม</div><div class="sc-val" id="rpt-dep">—</div></div>
+  <div class="stat-card"><div class="sc-icon">🏧</div><div class="sc-label">ถอนรวม</div><div class="sc-val" id="rpt-wd">—</div></div>
+  <div class="stat-card"><div class="sc-icon">📈</div><div class="sc-label">กำไรสุทธิ</div><div class="sc-val" id="rpt-profit">—</div></div>
+  <div class="stat-card"><div class="sc-icon">🎰</div><div class="sc-label">ยอดแทงรวม</div><div class="sc-val" id="rpt-bet">—</div></div>
+  <div class="stat-card"><div class="sc-icon">🏆</div><div class="sc-label">จ่ายรางวัลรวม</div><div class="sc-val" id="rpt-win">—</div></div>
+  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">สมาชิกใหม่</div><div class="sc-val" id="rpt-newmem">—</div></div>
 </div>
 <div class="g2" style="margin-bottom:18px">
-  <div class="card card-gold"><h3>📈 รายได้รายวัน</h3><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
+  <div class="card card-gold"><h3>📈 ฝากเงินรายวัน</h3><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
   <div class="card card-gold"><h3>🥧 สัดส่วนยอดแทงแยกหวย</h3><div class="chart-wrap"><canvas id="chart-pie"></canvas></div></div>
 </div>
 <div class="g2">
-  <div class="card"><h3>📊 Top 10 หวยยอดนิยม</h3>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>อันดับ</th><th>ประเภทหวย</th><th>ยอดแทง</th><th>%</th></tr></thead>
-    <tbody>${[['🇹🇭 หวยรัฐบาล','฿12,400,000',44],['🇨🇳 หวยหุ้นจีน','฿6,200,000',22],['🎲 ยี่กี','฿4,800,000',17],['🇻🇳 ฮานอย','฿2,900,000',10],['🇱🇦 ลาว','฿2,100,000',7]].map(([n,v,p],i)=>`
-    <tr><td style="color:var(--gold)">${i+1}</td><td>${n}</td><td style="color:var(--gold2);font-weight:700">${v}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="prog-bar" style="width:80px"><div class="prog-fill" style="width:${p}%"></div></div><span style="font-size:12px">${p}%</span></div></td></tr>`).join('')}
-    </tbody></table></div>
+  <div class="card"><h3>📊 ยอดแทงแยกประเภทหวย</h3>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>อันดับ</th><th>ประเภทหวย</th><th>ยอดแทง</th><th>จำนวนบิล</th><th>%</th></tr></thead>
+    <tbody id="rpt-lottery-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">⏳</td></tr></tbody>
+    </table></div>
   </div>
-  <div class="card"><h3>💳 สรุปการฝาก-ถอน</h3>
-    <div style="display:flex;flex-direction:column;gap:10px">
-      ${[['ฝากเงินรวม','฿28,480,000','badge-green'],['ถอนเงินรวม','฿24,160,000','badge-red'],['กำไรสุทธิ','฿4,320,000','badge-gold'],['ค่าคอมมิชชั่น','฿284,000','badge-blue'],['โบนัสจ่าย','฿142,000','badge-gray']].map(([l,v,b])=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--card2);border-radius:9px">
-        <span style="font-size:13px">${l}</span><span class="badge ${b}">${v}</span>
-      </div>`).join('')}
+  <div class="card"><h3>💳 สรุปรายได้-รายจ่าย</h3>
+    <div id="rpt-finance" style="display:flex;flex-direction:column;gap:10px">
+      <div style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</div>
     </div>
   </div>
 </div>`,
