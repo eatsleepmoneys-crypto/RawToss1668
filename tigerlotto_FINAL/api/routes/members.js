@@ -75,11 +75,10 @@ router.patch('/notifications/read', authMember, async (req, res) => {
 // GET /api/members/bet-history
 router.get('/bet-history', authMember, async (req, res) => {
   const { page = 1, limit = 20, status } = req.query;
-  const offset = (page - 1) * limit;
+  const lim = parseInt(limit) || 20;
+  const off = (parseInt(page) - 1) * lim;
   const where = status ? 'AND b.status=?' : '';
-  const params = status
-    ? [req.member.id, status, parseInt(limit), parseInt(offset)]
-    : [req.member.id, parseInt(limit), parseInt(offset)];
+  const params = status ? [req.member.id, status] : [req.member.id];
 
   const bets = await query(
     `SELECT b.id,b.uuid,b.bet_type,b.number,b.amount,b.rate,b.payout,b.win_amount,b.status,b.created_at,
@@ -88,7 +87,7 @@ router.get('/bet-history', authMember, async (req, res) => {
      JOIN lottery_rounds lr ON b.round_id=lr.id
      JOIN lottery_types lt ON lr.lottery_id=lt.id
      WHERE b.member_id=? ${where}
-     ORDER BY b.id DESC LIMIT ? OFFSET ?`, params);
+     ORDER BY b.id DESC LIMIT ${lim} OFFSET ${off}`, params);
   res.json({ success: true, data: bets });
 });
 

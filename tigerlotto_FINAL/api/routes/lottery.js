@@ -43,17 +43,18 @@ router.get('/rounds', async (req, res) => {
 // GET /api/lottery/results — recent results
 router.get('/results', async (req, res) => {
   const { lottery_id, limit = 10 } = req.query;
-  const where = lottery_id ? 'WHERE lr.lottery_id=?' : '';
-  const params = lottery_id ? [lottery_id, parseInt(limit)] : [parseInt(limit)];
+  const lim = Math.min(parseInt(limit) || 10, 50);
+  const where = []; const params = [];
+  where.push("lr.status='announced'");
+  if (lottery_id) { where.push('lr.lottery_id=?'); params.push(lottery_id); }
   const rows = await query(
     `SELECT lr.id,lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag,lt.code,
             res.prize_1st,res.prize_last_2,res.prize_last_3,res.prize_front_3,res.announced_at
      FROM lottery_rounds lr
      JOIN lottery_types lt ON lr.lottery_id=lt.id
      LEFT JOIN lottery_results res ON lr.id=res.round_id
-     ${where}
-     AND lr.status='announced'
-     ORDER BY lr.draw_date DESC, lr.id DESC LIMIT ?`, params);
+     WHERE ${where.join(' AND ')}
+     ORDER BY lr.draw_date DESC, lr.id DESC LIMIT ${lim}`, params);
   res.json({ success: true, data: rows });
 });
 

@@ -118,13 +118,13 @@ router.post('/withdraw', authMember,
 // GET /api/transactions/history — member wallet history
 router.get('/history', authMember, async (req, res) => {
   const { page=1, limit=20, type } = req.query;
-  const offset = (page-1)*limit;
+  const lim = parseInt(limit) || 20;
+  const off = (parseInt(page) - 1) * lim;
   const where = type ? 'AND type=?' : '';
-  const params = type ? [req.member.id, type, parseInt(limit), parseInt(offset)]
-                      : [req.member.id, parseInt(limit), parseInt(offset)];
+  const params = type ? [req.member.id, type] : [req.member.id];
   const rows = await query(
     `SELECT id,type,amount,balance_after,description,created_at FROM transactions
-     WHERE member_id=? ${where} ORDER BY id DESC LIMIT ? OFFSET ?`, params);
+     WHERE member_id=? ${where} ORDER BY id DESC LIMIT ${lim} OFFSET ${off}`, params);
   const [cnt] = await query(`SELECT COUNT(*) c FROM transactions WHERE member_id=? ${where}`,
     type ? [req.member.id, type] : [req.member.id]);
   res.json({ success: true, data: rows, total: cnt.c });

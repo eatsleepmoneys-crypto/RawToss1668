@@ -202,10 +202,12 @@ router.get('/logs', authAdmin, rbac.requirePerm('logs.view'), async (req, res) =
   const where=[]; const params=[];
   if (admin_id) { where.push('l.admin_id=?'); params.push(admin_id); }
   if (action)   { where.push('l.action LIKE ?'); params.push(`%${action}%`); }
+  const lim2 = parseInt(limit) || 30;
+  const off2 = parseInt(offset) || 0;
   const rows = await query(
     `SELECT l.*,a.name as admin_name,a.role FROM admin_logs l LEFT JOIN admins a ON l.admin_id=a.id
      ${where.length?'WHERE '+where.join(' AND '):''}
-     ORDER BY l.id DESC LIMIT ? OFFSET ?`, [...params, parseInt(limit), parseInt(offset)]);
+     ORDER BY l.id DESC LIMIT ${lim2} OFFSET ${off2}`, params);
   res.json({ success: true, data: rows });
 });
 
