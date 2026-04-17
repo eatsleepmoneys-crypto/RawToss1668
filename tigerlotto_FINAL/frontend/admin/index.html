@@ -1004,18 +1004,73 @@ async function loadSettings(){
   const s = {};
   (d.data||[]).forEach(r => { s[r.key] = r.value; });
   const setInput = (id, val) => { const el=document.getElementById(id); if(el){ if(el.type==='checkbox') el.checked=(val==='true'||val===true); else el.value=val||''; }};
-  setInput('set-site-name', s.site_name);
-  setInput('set-site-url',  s.site_url);
-  setInput('set-line-id',   s.line_id);
-  setInput('set-tel',       s.contact_tel);
-  setInput('set-min-dep',   s.min_deposit);
-  setInput('set-max-dep',   s.max_deposit);
-  setInput('set-min-wd',    s.min_withdraw);
-  setInput('set-max-wd',    s.max_withdraw);
-  setInput('set-bonus-new', s.bonus_new_member);
-  setInput('set-cashback',  s.cashback_percent);
-  setInput('set-ref-comm',  s.referral_commission);
-  setInput('set-maintenance', s.maintenance_mode);
+  setInput('set-site-name',      s.site_name);
+  setInput('set-site-url',       s.site_url);
+  setInput('set-line-id',        s.line_id);
+  setInput('set-tel',            s.contact_tel);
+  setInput('set-min-dep',        s.min_deposit);
+  setInput('set-max-dep',        s.max_deposit);
+  setInput('set-min-wd',         s.min_withdraw);
+  setInput('set-max-wd',         s.max_withdraw);
+  setInput('set-bonus-new',      s.bonus_new_member);
+  setInput('set-cashback',       s.cashback_percent);
+  setInput('set-ref-comm',       s.referral_commission);
+  setInput('set-bonus-new2',     s.bonus_new_member);
+  setInput('set-cashback2',      s.cashback_percent);
+  setInput('set-ref-comm2',      s.referral_commission);
+  setInput('set-auto-dep-max',   s.auto_deposit_max);
+  setInput('set-seo-title',      s.seo_title);
+  setInput('set-session-expire', s.session_expire);
+  setInput('set-pw-min-len',     s.pw_min_length);
+  setInput('set-maintenance',    s.maintenance_mode);
+  setInput('set-maint-msg',      s.maintenance_message);
+}
+
+// Settings save — group → key mapping
+const SETTINGS_GROUPS = {
+  general  : ['site_name','site_url','line_id','contact_tel'],
+  seo      : ['seo_title'],
+  finance  : ['min_deposit','max_deposit','min_withdraw','max_withdraw','auto_deposit_max'],
+  promo    : ['bonus_new_member','cashback_percent','referral_commission'],
+  security : ['session_expire','pw_min_length'],
+};
+const SETTINGS_ID_MAP = {
+  site_name         : 'set-site-name',
+  site_url          : 'set-site-url',
+  line_id           : 'set-line-id',
+  contact_tel       : 'set-tel',
+  min_deposit       : 'set-min-dep',
+  max_deposit       : 'set-max-dep',
+  min_withdraw      : 'set-min-wd',
+  max_withdraw      : 'set-max-wd',
+  auto_deposit_max  : 'set-auto-dep-max',
+  bonus_new_member  : 'set-bonus-new',
+  cashback_percent  : 'set-cashback',
+  referral_commission:'set-ref-comm',
+  seo_title         : 'set-seo-title',
+  session_expire    : 'set-session-expire',
+  pw_min_length     : 'set-pw-min-len',
+};
+async function saveSettings(group){
+  const keys = SETTINGS_GROUPS[group] || [];
+  const payload = {};
+  keys.forEach(k=>{
+    const el = document.getElementById(SETTINGS_ID_MAP[k]);
+    if(!el) return;
+    payload[k] = el.type==='checkbox' ? String(el.checked) : el.value;
+  });
+  try{
+    await API.AdminAPI.updateSettings(payload);
+    toast('สำเร็จ','บันทึกการตั้งค่าแล้ว');
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+async function saveMaintenance(){
+  const enabled = document.getElementById('set-maintenance')?.checked || false;
+  const message = document.getElementById('set-maint-msg')?.value || '';
+  try{
+    await API.AdminAPI.setMaintenance(enabled, message);
+    toast('สำเร็จ', enabled ? '⚠️ เปิด Maintenance Mode แล้ว' : '✅ ปิด Maintenance Mode แล้ว');
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
 }
 
 // ═══ ACTION HANDLERS ═══
@@ -2139,63 +2194,65 @@ settings:()=>`
 <div id="s-general">
   <div class="g2">
     <div class="card"><h3>⚙️ ข้อมูลเว็บไซต์</h3>
-      <div class="fg"><label>ชื่อเว็บไซต์</label><input class="fi-full" value="${DB.settings.siteName}"></div>
-      <div class="fg"><label>URL เว็บไซต์</label><input class="fi-full" value="${DB.settings.siteUrl}"></div>
-      <div class="fg"><label>LINE ID</label><input class="fi-full" value="${DB.settings.lineId}"></div>
-      <div class="fg"><label>เบอร์โทรศัพท์ติดต่อ</label><input class="fi-full" value="${DB.settings.tel}"></div>
-      <button class="btn btn-gold" onclick="toast('บันทึก','ตั้งค่าทั่วไปบันทึกแล้ว')">บันทึกการตั้งค่า</button>
+      <div class="fg"><label>ชื่อเว็บไซต์</label><input id="set-site-name" class="fi-full" placeholder="TigerLotto"></div>
+      <div class="fg"><label>URL เว็บไซต์</label><input id="set-site-url" class="fi-full" placeholder="https://tigerlotto.com"></div>
+      <div class="fg"><label>LINE ID</label><input id="set-line-id" class="fi-full" placeholder="@tigerlotto"></div>
+      <div class="fg"><label>เบอร์โทรศัพท์ติดต่อ</label><input id="set-tel" class="fi-full" placeholder="02-XXX-XXXX"></div>
+      <button class="btn btn-gold" onclick="saveSettings('general')">บันทึกการตั้งค่า</button>
     </div>
     <div class="card"><h3>🖼️ Logo & Theme</h3>
-      <div class="fg"><label>อัพโหลด Logo</label><input type="file" class="fi-full" accept="image/*"></div>
-      <div class="fg"><label>Favicon</label><input type="file" class="fi-full" accept="image/*"></div>
       <div class="fg"><label>สีหลัก (Gold)</label><input type="color" value="#d4a017" class="fi-full" style="height:44px;cursor:pointer"></div>
-      <div class="fg"><label>SEO Title</label><input class="fi-full" value="TigerLotto — หวยออนไลน์อันดับ 1"></div>
-      <button class="btn btn-gold" onclick="toast('บันทึก','อัพเดท Theme แล้ว')">อัพเดท</button>
+      <div class="fg"><label>SEO Title</label><input id="set-seo-title" class="fi-full" placeholder="TigerLotto — หวยออนไลน์อันดับ 1"></div>
+      <button class="btn btn-gold" onclick="saveSettings('seo')">อัพเดท</button>
     </div>
   </div>
 </div>
 <div id="s-finance" style="display:none">
   <div class="g2">
     <div class="card"><h3>💰 ฝาก-ถอน</h3>
-      <div class="fi-row"><div class="fg"><label>ฝากขั้นต่ำ (บาท)</label><input class="fi-full" type="number" value="${DB.settings.minDeposit}"></div><div class="fg"><label>ฝากสูงสุด (บาท)</label><input class="fi-full" type="number" value="${DB.settings.maxDeposit}"></div></div>
-      <div class="fi-row"><div class="fg"><label>ถอนขั้นต่ำ (บาท)</label><input class="fi-full" type="number" value="${DB.settings.minWithdraw}"></div><div class="fg"><label>ถอนสูงสุด (บาท)</label><input class="fi-full" type="number" value="${DB.settings.maxWithdraw}"></div></div>
-      <div class="fg" style="display:flex;align-items:center;gap:12px;margin-bottom:0"><label style="margin:0">อนุมัติฝากอัตโนมัติ</label><label class="sw"><input type="checkbox" ${DB.settings.autoApprove?'checked':''}><span class="sw-track"></span></label></div>
-      <div class="fg"><label>วงเงินอนุมัติอัตโนมัติ (บาท)</label><input class="fi-full" type="number" value="${DB.settings.autoApproveMax}"></div>
-      <button class="btn btn-gold" onclick="toast('บันทึก','ตั้งค่าการเงินบันทึกแล้ว')">บันทึก</button>
+      <div class="fi-row">
+        <div class="fg"><label>ฝากขั้นต่ำ (บาท)</label><input id="set-min-dep" class="fi-full" type="number" placeholder="100"></div>
+        <div class="fg"><label>ฝากสูงสุด (บาท)</label><input id="set-max-dep" class="fi-full" type="number" placeholder="100000"></div>
+      </div>
+      <div class="fi-row">
+        <div class="fg"><label>ถอนขั้นต่ำ (บาท)</label><input id="set-min-wd" class="fi-full" type="number" placeholder="100"></div>
+        <div class="fg"><label>ถอนสูงสุด (บาท)</label><input id="set-max-wd" class="fi-full" type="number" placeholder="50000"></div>
+      </div>
+      <div class="fg"><label>วงเงินอนุมัติอัตโนมัติ (บาท)</label><input id="set-auto-dep-max" class="fi-full" type="number" placeholder="5000"></div>
+      <button class="btn btn-gold" onclick="saveSettings('finance')">บันทึก</button>
     </div>
-    <div class="card"><h3>🏦 บัญชีรับเงิน</h3>
-      <div class="fg"><label>ธนาคาร</label><select class="fi-full"><option>กสิกรไทย (KBANK)</option><option>ไทยพาณิชย์ (SCB)</option><option>กรุงไทย (KTB)</option></select></div>
-      <div class="fg"><label>เลขบัญชี</label><input class="fi-full" placeholder="XXX-X-XXXXX-X"></div>
-      <div class="fg"><label>ชื่อบัญชี</label><input class="fi-full" placeholder="ชื่อเจ้าของบัญชี"></div>
-      <div class="fg"><label>QR PromptPay</label><input type="file" class="fi-full" accept="image/*"></div>
-      <button class="btn btn-gold" onclick="toast('บันทึก','บัญชีรับเงินบันทึกแล้ว')">บันทึก</button>
+    <div class="card"><h3>🎁 โบนัส & คอมมิชชั่น</h3>
+      <div class="fg"><label>โบนัสสมาชิกใหม่ (บาท)</label><input id="set-bonus-new" class="fi-full" type="number" placeholder="50"></div>
+      <div class="fg"><label>Cash back % (ต่องวด)</label><input id="set-cashback" class="fi-full" type="number" step="0.5" placeholder="0.5"></div>
+      <div class="fg"><label>ค่าคอมแนะนำเพื่อน %</label><input id="set-ref-comm" class="fi-full" type="number" step="0.5" placeholder="1"></div>
+      <button class="btn btn-gold" onclick="saveSettings('promo')">บันทึก</button>
     </div>
   </div>
 </div>
 <div id="s-promo" style="display:none">
   <div class="card" style="max-width:600px"><h3>🎁 โปรโมชั่น</h3>
-    <div class="fg"><label>โบนัสสมาชิกใหม่ (บาท)</label><input class="fi-full" type="number" value="${DB.settings.bonusNew}"></div>
-    <div class="fg"><label>Cash back % (ต่องวด)</label><input class="fi-full" type="number" value="${DB.settings.cashback}" step="0.5"></div>
-    <div class="fg"><label>ค่าคอมแนะนำเพื่อน %</label><input class="fi-full" type="number" value="${DB.settings.refCommission}" step="0.5"></div>
-    <div class="fg" style="display:flex;align-items:center;gap:12px;margin-bottom:0"><label style="margin:0">เปิดโปรโมชั่นทั้งหมด</label><label class="sw"><input type="checkbox" checked><span class="sw-track"></span></label></div>
-    <button class="btn btn-gold" style="margin-top:14px" onclick="toast('บันทึก','ตั้งค่าโปรโมชั่นบันทึกแล้ว')">บันทึก</button>
+    <div class="fg"><label>โบนัสสมาชิกใหม่ (บาท)</label><input id="set-bonus-new2" class="fi-full" type="number" placeholder="50"></div>
+    <div class="fg"><label>Cash back %</label><input id="set-cashback2" class="fi-full" type="number" step="0.5" placeholder="0.5"></div>
+    <div class="fg"><label>ค่าคอมแนะนำเพื่อน %</label><input id="set-ref-comm2" class="fi-full" type="number" step="0.5" placeholder="1"></div>
+    <button class="btn btn-gold" style="margin-top:14px" onclick="saveSettings('promo')">บันทึก</button>
   </div>
 </div>
 <div id="s-security" style="display:none">
   <div class="card" style="max-width:600px"><h3>🔐 ความปลอดภัย</h3>
-    <div class="fg" style="display:flex;align-items:center;gap:12px"><label style="margin:0;flex:1">บังคับ 2FA สำหรับ Admin</label><label class="sw"><input type="checkbox" checked><span class="sw-track"></span></label></div>
-    <div class="fg" style="display:flex;align-items:center;gap:12px"><label style="margin:0;flex:1">ล็อก IP หลัง Login ผิด 5 ครั้ง</label><label class="sw"><input type="checkbox" checked><span class="sw-track"></span></label></div>
-    <div class="fg"><label>Session หมดอายุ (นาที)</label><input class="fi-full" type="number" value="60"></div>
-    <div class="fg"><label>รหัสผ่าน Admin ขั้นต่ำ (ตัวอักษร)</label><input class="fi-full" type="number" value="8"></div>
-    <button class="btn btn-gold" onclick="toast('บันทึก','ตั้งค่า Security บันทึกแล้ว')">บันทึก</button>
+    <div class="fg"><label>Session หมดอายุ (นาที)</label><input id="set-session-expire" class="fi-full" type="number" value="60"></div>
+    <div class="fg"><label>รหัสผ่าน Admin ขั้นต่ำ (ตัวอักษร)</label><input id="set-pw-min-len" class="fi-full" type="number" value="8"></div>
+    <button class="btn btn-gold" onclick="saveSettings('security')">บันทึก</button>
   </div>
 </div>
 <div id="s-maint" style="display:none">
   <div class="card" style="max-width:600px"><h3>🔧 Maintenance Mode</h3>
     <div class="alert alert-red">⚠️ เมื่อเปิด Maintenance Mode เว็บจะไม่สามารถเข้าใช้งานได้ยกเว้น Admin</div>
-    <div class="fg" style="display:flex;align-items:center;gap:12px"><label style="margin:0;flex:1;font-size:15px;font-weight:700">เปิด Maintenance Mode</label><label class="sw"><input type="checkbox" ${DB.settings.maintenance?'checked':''} onchange="DB.settings.maintenance=this.checked;toast('Maintenance',this.checked?'⚠️ เปิด Maintenance Mode แล้ว':'✅ ปิด Maintenance Mode แล้ว')"><span class="sw-track"></span></label></div>
-    <div class="fg"><label>ข้อความแสดงผู้ใช้</label><textarea class="fi-full" rows="3">เว็บไซต์กำลังปรับปรุงระบบ กรุณากลับมาใหม่ในอีกไม่นาน ขออภัยในความไม่สะดวก</textarea></div>
-    <button class="btn btn-gold" onclick="toast('บันทึก','บันทึกแล้ว')">บันทึก</button>
+    <div class="fg" style="display:flex;align-items:center;gap:12px">
+      <label style="margin:0;flex:1;font-size:15px;font-weight:700">เปิด Maintenance Mode</label>
+      <label class="sw"><input type="checkbox" id="set-maintenance"><span class="sw-track"></span></label>
+    </div>
+    <div class="fg"><label>ข้อความแสดงผู้ใช้</label><textarea id="set-maint-msg" class="fi-full" rows="3" placeholder="เว็บไซต์กำลังปรับปรุงระบบ กรุณากลับมาใหม่ในอีกไม่นาน"></textarea></div>
+    <button class="btn btn-gold" onclick="saveMaintenance()">บันทึก Maintenance</button>
   </div>
 </div>`,
 
@@ -2227,10 +2284,13 @@ function initPageCharts(page){
       if(lCtx){ if(window._lotteryChart) window._lotteryChart.destroy(); window._lotteryChart = new Chart(lCtx,{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:['rgba(212,160,23,.8)','rgba(255,215,0,.6)','rgba(184,134,11,.7)','rgba(212,160,23,.5)','rgba(255,215,0,.4)','rgba(184,134,11,.4)']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777'},grid:{color:'#222'}}}}});}
     }
     if(page==='reports'){
+      if(!window._charts) window._charts = {};
       const dCtx=document.getElementById('chart-daily');
       const pCtx=document.getElementById('chart-pie');
-      if(dCtx) new Chart(dCtx,{type:'line',data:{labels:['1','5','10','15','20','25','30'],datasets:[{label:'รายได้',data:[140000,180000,220000,195000,280000,310000,284000],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.08)',tension:.4,fill:true}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'#222'}}}}});
-      if(pCtx) new Chart(pCtx,{type:'doughnut',data:{labels:['รัฐบาล','จีน','ยี่กี','ฮานอย','อื่นๆ'],datasets:[{data:[44,22,17,10,7],backgroundColor:['#d4a017','#ffd700','#b8860b','#c89020','#8b6914'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#777',font:{size:11}}}}}});
+      if(dCtx){ if(window._charts['chart-daily']) window._charts['chart-daily'].destroy();
+        window._charts['chart-daily'] = new Chart(dCtx,{type:'line',data:{labels:[],datasets:[{label:'ฝากเงิน',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.08)',tension:.4,fill:true,pointBackgroundColor:'#ffd700'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'#222'}}}}}); }
+      if(pCtx){ if(window._charts['chart-pie']) window._charts['chart-pie'].destroy();
+        window._charts['chart-pie'] = new Chart(pCtx,{type:'doughnut',data:{labels:[],datasets:[{data:[],backgroundColor:['#d4a017','#ffd700','#b8860b','#c89020','#8b6914','#d4801a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#777',font:{size:11}}}}}}); }
     }
   },100);
 }
