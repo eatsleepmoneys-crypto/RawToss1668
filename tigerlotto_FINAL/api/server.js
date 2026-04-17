@@ -149,21 +149,8 @@ app.use((err, req, res, next) => {
 });
 
 // ─── Cron Jobs ────────────────────────────────────
-// Auto-close rounds past close_at time (every minute)
-cron.schedule('* * * * *', async () => {
-  try {
-    const { query } = require('./config/db');
-    await query(`
-      UPDATE lottery_rounds SET status = 'closed'
-      WHERE status = 'open' AND close_at <= NOW()
-    `);
-  } catch (e) { /* silent */ }
-});
-
-// Yee-kee: auto-open rounds every 15 minutes
-cron.schedule('*/15 * * * *', async () => {
-  // Logic for Yee-kee auto rounds can be added here
-});
+// Cron ทั้งหมดถูกจัดการโดย roundManager.js (startRoundManager)
+// ซึ่งจะถูกเรียกใน startServer() หลัง migration+seed เสร็จ
 
 // ─── Start Server (with auto-migrate) ────────────
 const PORT = process.env.PORT || 3000;
@@ -193,6 +180,15 @@ async function startServer() {
     console.log('✅ Superadmin seed OK');
   } catch (e) {
     console.warn('⚠️  Superadmin seed failed (table may not exist yet):', e.message);
+  }
+
+  // ─── Start Round Manager (auto-open/close/announce) ─────────────
+  try {
+    const { startRoundManager } = require('./services/roundManager');
+    startRoundManager();
+    console.log('✅ Round Manager started (yeekee auto-rounds + auto-announce ON)');
+  } catch (e) {
+    console.warn('⚠️  Round Manager start failed:', e.message);
   }
 
   app.listen(PORT, () => {

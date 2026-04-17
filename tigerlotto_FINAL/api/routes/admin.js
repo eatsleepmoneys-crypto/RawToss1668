@@ -314,4 +314,37 @@ router.post('/announce', authAdmin, rbac.requirePerm('settings.view'),
   }
 );
 
+// ─── GET /api/admin/yeekee/today — สถานะงวดยี่กีวันนี้ ───────────
+router.get('/yeekee/today', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  const rows = await query(`
+    SELECT
+      lr.id, lr.round_code, lr.round_name, lr.close_at, lr.status,
+      lr.total_bet, lr.bet_count,
+      res.prize_1st, res.prize_last_2, res.announced_at
+    FROM lottery_rounds lr
+    JOIN lottery_types lt ON lr.lottery_id = lt.id AND lt.code = 'YEEKEE'
+    LEFT JOIN lottery_results res ON lr.id = res.round_id
+    WHERE DATE(lr.draw_date) = CURDATE()
+    ORDER BY lr.close_at ASC
+  `);
+  const summary = {
+    total : rows.length,
+    open  : rows.filter(r => r.status === 'open').length,
+    closed: rows.filter(r => r.status === 'closed').length,
+    announced: rows.filter(r => r.status === 'announced').length,
+  };
+  res.json({ success: true, data: rows, summary });
+});
+
+// ─── POST /api/admin/yeekee/trigger-announce — trigger ออกผลทันที ─
+router.post('/yeekee/trigger-announce', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  try {
+    const { yeekeeAutoAnnounce } = require('../services/roundManager');
+    await yeekeeAutoAnnounce();
+    res.json({ success: true, message: 'Trigger ออกผลยี่กีสำเร็จ' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 module.exports = router;

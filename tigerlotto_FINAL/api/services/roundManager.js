@@ -1,148 +1,136 @@
 /**
  * roundManager.js
- * Automatic management of lottery_rounds:
- *   - Creates all rounds for the current day at server start and midnight
- *   - Auto-opens rounds (upcoming → open) and auto-closes (open → closed)
+ * ─────────────────────────────────────────────────────────────────
+ * ระบบจัดการงวดอัตโนมัติสำหรับทุกประเภทหวย
+ *
+ *  • createTodayRounds()      — สร้างงวดของวันนี้ (ยี่กี 90 งวด + หวยอื่น)
+ *  • autoManageRounds()       — open → closed เมื่อ close_at ผ่านไป
+ *  • yeekeeAutoAnnounce()     — ออกผลยี่กีอัตโนมัติ (สุ่ม 6 หลัก) + จ่ายรางวัล
+ *  • startRoundManager()      — เรียกครั้งเดียวใน server.js หลัง DB พร้อม
+ *
  * All times: Asia/Bangkok (UTC+7)
  */
 
 'use strict';
 
-const cron = require('node-cron');
-const { query, queryOne } = require('../config/db');
+const cron        = require('node-cron');
+const { v4: uuidv4 } = require('uuid');
+const { query, transaction } = require('../config/db');
 
 const TIMEZONE = 'Asia/Bangkok';
 
+// ── Thai month names ──────────────────────────────────────────────
 const THAI_MONTHS = [
   '', 'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
   'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม',
 ];
 
-// ── Helpers ────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 
-/** 'DD เดือน พ.ศ.' Thai date string */
+/** วันที่ปัจจุบันตามโซนกรุงเทพ */
+function getTodayInfo() {
+  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: TIMEZONE });
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const d   = new Date(Date.UTC(year, month - 1, day));
+  const dow = d.getUTCDay(); // 0=Sun…6=Sat
+  return { dateStr, year, month, day, dow, compact: `${year}${pad2(month)}${pad2(day)}` };
+}
+
+/** วันถัดไปจาก 'YYYY-MM-DD' */
+function nextDateStr(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+}
+
+/** 'DD เดือน พ.ศ.' */
 function formatDateThai(day, month, year) {
   return `${day} ${THAI_MONTHS[month]} ${year + 543}`;
 }
 
-/** Returns today's date in Bangkok as { dateStr:'YYYY-MM-DD', year, month, day, dow, compact:'YYYYMMDD' } */
-function getTodayInfo() {
-  const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: TIMEZONE });
-  const [year, month, day] = dateStr.split('-').map(Number);
-  // Use UTC Date at noon to derive day-of-week (avoids DST ambiguity)
-  const d = new Date(Date.UTC(year, month - 1, day));
-  const dow = d.getUTCDay(); // 0=Sun … 6=Sat
-  return { dateStr, year, month, day, dow, compact: `${year}${pad2(month)}${pad2(day)}` };
+/**
+ * กำหนด status เริ่มต้นของงวดจาก close_at
+ * ถ้า close_at ผ่านแล้ว → 'closed'  มิฉะนั้น → 'open'
+ */
+function determineStatus(closeAtStr) {
+  const nowMs   = Date.now();
+  const closeMs = new Date(closeAtStr.replace(' ', 'T') + '+07:00').getTime();
+  return nowMs >= closeMs ? 'closed' : 'open';
 }
 
-/** Next calendar day from a 'YYYY-MM-DD' string */
-function nextDateStr(dateStr) {
-  const [y, m, d] = dateStr.split('-').map(Number);
-  const next = new Date(Date.UTC(y, m - 1, d + 1));
-  return next.toISOString().slice(0, 10);
-}
-
-/** Convert total minutes (may exceed 1440) → { date, timeStr } */
-function resolveTime(baseDateStr, totalMins, overflowDateStr) {
-  const date    = totalMins >= 1440 ? overflowDateStr : baseDateStr;
-  const mins    = totalMins % 1440;
-  const timeStr = `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}:00`;
-  return { date, timeStr };
-}
+// ── กำหนดตารางงวดของวันนี้ ─────────────────────────────────────────
 
 /**
- * Determine initial status for a new round by comparing open_at / close_at
- * against the current UTC timestamp (DB pool is +07:00 so DATETIME strings
- * represent Bangkok time; we parse them with explicit +07:00 offset).
+ * คืน array ของ { code, round_code, round_name, draw_date, close_at }
+ * code = lottery_types.code ใน DB
  */
-function determineStatus(openAtStr, closeAtStr) {
-  const nowMs   = Date.now();
-  const openMs  = new Date(openAtStr.replace(' ', 'T') + '+07:00').getTime();
-  const closeMs = new Date(closeAtStr.replace(' ', 'T') + '+07:00').getTime();
-  if (nowMs >= closeMs) return 'closed';
-  if (nowMs >= openMs)  return 'open';
-  return 'upcoming';
-}
-
-// ── Round definitions ──────────────────────────────────────────
-
 function buildRoundsForToday() {
   const { dateStr, year, month, day, dow, compact } = getTodayInfo();
   const tomorrow = nextDateStr(dateStr);
   const dateThai = formatDateThai(day, month, year);
   const rounds   = [];
 
-  // ── GOV (1st & 16th of month) ─────────────────────────────
+  // ── หวยรัฐบาลไทย (วันที่ 1 และ 16 ของเดือน) ───────────────────
   if (day === 1 || day === 16) {
     rounds.push({
-      code:       'gov',
+      code: 'TH_GOV',
       round_code: `GOV-${compact}`,
       round_name: `หวยรัฐบาลไทย ${dateThai}`,
-      open_at:    `${dateStr} 00:00:00`,
+      draw_date:  dateStr,
       close_at:   `${dateStr} 14:30:00`,
     });
   }
 
-  // ── LAOS (daily) ──────────────────────────────────────────
+  // ── หวยลาว (ทุกวัน) ───────────────────────────────────────────
   rounds.push({
-    code:       'laos',
+    code: 'LA_GOV',
     round_code: `LAOS-${compact}`,
     round_name: `หวยลาว ${dateThai}`,
-    open_at:    `${dateStr} 00:00:00`,
+    draw_date:  dateStr,
     close_at:   `${dateStr} 20:00:00`,
   });
 
-  // ── HANOI variants (daily) ────────────────────────────────
-  for (const [code, prefix, name, close] of [
-    ['hanoi',         'HANOI',    'หวยฮานอย',      '18:00:00'],
-    ['hanoi_vip',     'HANOIVIP', 'หวยฮานอย VIP',  '17:30:00'],
-    ['hanoi_special', 'HANOISP',  'หวยฮานอยพิเศษ', '17:00:00'],
-  ]) {
-    rounds.push({
-      code,
-      round_code: `${prefix}-${compact}`,
-      round_name: `${name} ${dateThai}`,
-      open_at:    `${dateStr} 00:00:00`,
-      close_at:   `${dateStr} ${close}`,
-    });
-  }
+  // ── หวยฮานอย (ทุกวัน) ────────────────────────────────────────
+  rounds.push({
+    code: 'VN_HAN',
+    round_code: `HANOI-${compact}`,
+    round_name: `หวยฮานอย ${dateThai}`,
+    draw_date:  dateStr,
+    close_at:   `${dateStr} 18:00:00`,
+  });
 
-  // ── SET (weekdays Mon–Fri only, 2 rounds) ─────────────────
+  // ── หวยหุ้นไทย SET (วันจันทร์–ศุกร์) ─────────────────────────
   if (dow >= 1 && dow <= 5) {
     rounds.push({
-      code:       'set',
-      round_code: `SET-${compact}-1`,
-      round_name: `หวย SET ${dateThai} (รอบเช้า)`,
-      open_at:    `${dateStr} 00:00:00`,
+      code: 'TH_STK',
+      round_code: `THSTK-${compact}-1`,
+      round_name: `หวยหุ้นไทย ${dateThai} (รอบเช้า)`,
+      draw_date:  dateStr,
       close_at:   `${dateStr} 12:00:00`,
     });
     rounds.push({
-      code:       'set',
-      round_code: `SET-${compact}-2`,
-      round_name: `หวย SET ${dateThai} (รอบบ่าย)`,
-      open_at:    `${dateStr} 12:30:00`,
+      code: 'TH_STK',
+      round_code: `THSTK-${compact}-2`,
+      round_name: `หวยหุ้นไทย ${dateThai} (รอบบ่าย)`,
+      draw_date:  dateStr,
       close_at:   `${dateStr} 16:00:00`,
     });
   }
 
-  // ── YEEKEE (90 rounds, every 16 min, starting 00:16) ──────
-  // Round n: result_at = n×16 min from midnight, close_at = result_at − 5 min
-  // open_at = previous result_at (or 00:00 for round 1)
+  // ── หวยยี่กี 90 งวด (ทุก 16 นาที ตลอด 24 ชม.) ────────────────
+  // งวด n: close_at = n×16 − 5 นาที จากเที่ยงคืน
   for (let n = 1; n <= 90; n++) {
-    const resultMins = n * 16;   // minutes from midnight (round 90 = 1440 = next 00:00)
-    const closeMins  = resultMins - 5;
-    const openMins   = (n - 1) * 16; // previous result_at; 0 for round 1
-
-    const { date: openDate, timeStr: openTime }   = resolveTime(dateStr, openMins,  tomorrow);
-    const { date: closeDate, timeStr: closeTime } = resolveTime(dateStr, closeMins, tomorrow);
-
+    const closeMins = n * 16 - 5;
+    const daysAhead = closeMins >= 1440 ? 1 : 0;
+    const mins      = closeMins % 1440;
+    const closeDate = daysAhead ? tomorrow : dateStr;
+    const closeTime = `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}:00`;
     rounds.push({
-      code:       'yeekee',
+      code:       'YEEKEE',
       round_code: `YEEKEE-${compact}-${pad2(n)}`,
       round_name: `หวยยี่กี ${dateThai} งวดที่ ${pad2(n)}`,
-      open_at:    `${openDate} ${openTime}`,
+      draw_date:  dateStr,
       close_at:   `${closeDate} ${closeTime}`,
     });
   }
@@ -150,103 +138,232 @@ function buildRoundsForToday() {
   return { dateStr, rounds };
 }
 
-// ── Main functions ─────────────────────────────────────────────
+// ── สร้างงวดของวันนี้ ─────────────────────────────────────────────
 
-/**
- * createTodayRounds()
- * Called at server start and every midnight.
- * Inserts rounds that don't yet exist in lottery_rounds.
- */
 async function createTodayRounds() {
   const { dateStr, rounds } = buildRoundsForToday();
   console.log(`[ROUND_MGR] createTodayRounds: ${dateStr} (${rounds.length} schedules)`);
 
-  // Fetch active lottery types
-  const types = await query('SELECT id, code FROM lottery_types WHERE is_active=1');
+  // สร้าง map: lottery_types.code → id (เฉพาะที่ status='open')
+  const types  = await query("SELECT id, code FROM lottery_types WHERE status='open'");
   const typeMap = Object.fromEntries(types.map(t => [t.code, t.id]));
 
   let created = 0;
   for (const r of rounds) {
-    const typeId = typeMap[r.code];
-    if (typeId === undefined) continue; // lottery type not active / not in DB
+    const lottery_id = typeMap[r.code];
+    if (lottery_id === undefined) continue; // ประเภทหวยนี้ปิดหรือไม่มีใน DB
 
-    const exists = await queryOne(
-      'SELECT id FROM lottery_rounds WHERE round_code=?',
-      [r.round_code]
+    // ตรวจว่า round_code นี้มีอยู่แล้วหรือไม่
+    const existing = await query(
+      'SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [r.round_code]
     );
-    if (exists) continue;
+    if (existing.length > 0) continue;
 
-    const status = determineStatus(r.open_at, r.close_at);
+    const status = determineStatus(r.close_at);
 
     await query(
       `INSERT INTO lottery_rounds
-         (lottery_type_id, round_code, round_name, open_at, close_at, status)
-       VALUES (?, ?, ?, ?, ?, ?)`,
-      [typeId, r.round_code, r.round_name, r.open_at, r.close_at, status]
+         (uuid, lottery_id, round_code, round_name, draw_date, close_at, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [uuidv4(), lottery_id, r.round_code, r.round_name, r.draw_date, r.close_at, status]
     );
     created++;
-    console.log(`[ROUND_MGR] Created: ${r.round_code} (${status})`);
   }
 
-  if (created === 0) {
-    console.log(`[ROUND_MGR] All rounds for ${dateStr} already exist.`);
-  } else {
-    console.log(`[ROUND_MGR] Created ${created} new round(s) for ${dateStr}.`);
-  }
+  if (created > 0)
+    console.log(`[ROUND_MGR] สร้าง ${created} งวดใหม่สำหรับวันที่ ${dateStr}`);
+  else
+    console.log(`[ROUND_MGR] งวดทั้งหมดของวันที่ ${dateStr} มีอยู่แล้ว`);
 }
 
-/**
- * autoCloseRounds()
- * Runs every minute via cron.
- *   upcoming → open  when open_at  <= NOW()
- *   open     → closed when close_at <= NOW()
- */
-async function autoCloseRounds() {
-  const opened = await query(
-    `UPDATE lottery_rounds SET status='open'
-     WHERE status='upcoming' AND open_at <= NOW()`
-  );
-  if (opened.affectedRows > 0)
-    console.log(`[ROUND_MGR] Auto-opened ${opened.affectedRows} round(s)`);
+// ── Auto-open / Auto-close ────────────────────────────────────────
 
+async function autoManageRounds() {
+  // upcoming → open เมื่อถึงเวลาเปิด (ใช้ close_at - 11 min เป็น open proxy)
+  // ในกรณีนี้เราไม่มี open_at จึงสร้างงวดเป็น 'open' ตั้งแต่ต้น
+  // เพียงแต่ปิดอัตโนมัติเมื่อ close_at ผ่าน
   const closed = await query(
-    `UPDATE lottery_rounds SET status='closed'
-     WHERE status='open' AND close_at <= NOW()`
+    "UPDATE lottery_rounds SET status='closed' WHERE status='open' AND close_at <= NOW()"
   );
   if (closed.affectedRows > 0)
-    console.log(`[ROUND_MGR] Auto-closed ${closed.affectedRows} round(s)`);
+    console.log(`[ROUND_MGR] Auto-closed ${closed.affectedRows} งวด`);
+}
+
+// ── ออกผลยี่กีอัตโนมัติ ──────────────────────────────────────────
+
+/** สุ่มผลยี่กี: รางวัลที่ 1 (6 หลัก) */
+function generateYeeKeeResult() {
+  const prize_1st   = String(Math.floor(Math.random() * 1000000)).padStart(6, '0');
+  const prize_last_2 = prize_1st.slice(-2);
+  return { prize_1st, prize_last_2 };
 }
 
 /**
- * startRoundManager()
- * Call once in server.js after DB is ready.
+ * ออกผลและจ่ายรางวัลสำหรับงวดยี่กีที่ปิดรับแล้ว
+ * ทำงานทุก 1 นาที — ประมวลผลได้สูงสุด 5 งวดต่อรอบ
  */
-function startRoundManager() {
-  console.log('[ROUND_MGR] Starting round manager (tz: Asia/Bangkok)...');
+async function yeekeeAutoAnnounce() {
+  // หา YEEKEE lottery_id
+  const ltRows = await query("SELECT id FROM lottery_types WHERE code='YEEKEE' LIMIT 1");
+  if (!ltRows.length) return;
+  const typeId = ltRows[0].id;
 
-  // Create today's rounds immediately on start
-  createTodayRounds().catch(err =>
-    console.error('[ROUND_MGR] createTodayRounds error:', err.message)
-  );
+  // หางวดที่ปิดรับแต่ยังไม่ออกผล (เรียงตาม close_at เก่าก่อน)
+  const rounds = await query(`
+    SELECT lr.id
+    FROM lottery_rounds lr
+    LEFT JOIN lottery_results res ON lr.id = res.round_id
+    WHERE lr.lottery_id = ?
+      AND lr.status = 'closed'
+      AND res.id IS NULL
+    ORDER BY lr.close_at ASC
+    LIMIT 5
+  `, [typeId]);
 
-  // Re-run at midnight Bangkok time to create next day's rounds
-  cron.schedule('0 0 * * *', () => {
-    console.log('[ROUND_MGR] Midnight cron: creating new-day rounds');
-    createTodayRounds().catch(err =>
-      console.error('[ROUND_MGR] createTodayRounds error:', err.message)
-    );
-  }, { timezone: TIMEZONE });
-
-  // Auto-open and auto-close rounds every minute
-  cron.schedule('* * * * *', () => {
-    autoCloseRounds().catch(err =>
-      console.error('[ROUND_MGR] autoCloseRounds error:', err.message)
-    );
-  }, { timezone: TIMEZONE });
-
-  console.log('[ROUND_MGR] Schedules registered:');
-  console.log('  createTodayRounds → daily @ 00:00 Asia/Bangkok');
-  console.log('  autoCloseRounds   → every minute');
+  for (const round of rounds) {
+    await announceYeeKeeRound(round.id, typeId);
+  }
 }
 
-module.exports = { startRoundManager };
+/** ออกผล 1 งวด + จ่ายเงินผู้ถูก (Atomic transaction) */
+async function announceYeeKeeRound(round_id, typeId) {
+  const { prize_1st, prize_last_2 } = generateYeeKeeResult();
+
+  try {
+    await transaction(async (conn) => {
+      // 1. Insert ผลรางวัล
+      await conn.execute(
+        `INSERT INTO lottery_results
+           (round_id, prize_1st, prize_last_2, announced_at)
+         VALUES (?, ?, ?, NOW())`,
+        [round_id, prize_1st, prize_last_2]
+      );
+
+      // 2. อัพเดท status งวด → announced
+      await conn.execute(
+        "UPDATE lottery_rounds SET status='announced' WHERE id=?",
+        [round_id]
+      );
+
+      // 3. ดึง rates ของยี่กี
+      const [[lt]] = await conn.execute(
+        `SELECT rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot
+         FROM lottery_types WHERE id=?`,
+        [typeId]
+      );
+      if (!lt) return;
+
+      // 4. ดึงทุก bet ของงวดนี้ที่ยังรอผล
+      const [bets] = await conn.execute(
+        "SELECT * FROM bets WHERE round_id=? AND status='waiting'",
+        [round_id]
+      );
+
+      // 5. ตรวจผลและจ่ายรางวัล
+      for (const bet of bets) {
+        let won = false;
+        let winAmt = 0;
+        const n = bet.number;
+
+        if (bet.bet_type === '3top' && prize_1st.slice(-3) === n) {
+          won = true; winAmt = bet.amount * lt.rate_3top;
+        } else if (bet.bet_type === '3tod') {
+          const sorted   = n.split('').sort().join('');
+          const p1sorted = prize_1st.slice(-3).split('').sort().join('');
+          if (sorted === p1sorted) { won = true; winAmt = bet.amount * lt.rate_3tod; }
+        } else if (bet.bet_type === '2top' && prize_last_2 === n) {
+          won = true; winAmt = bet.amount * lt.rate_2top;
+        } else if (bet.bet_type === '2bot' && prize_last_2 === n) {
+          won = true; winAmt = bet.amount * lt.rate_2bot;
+        } else if (bet.bet_type === 'run_top' && prize_1st.includes(n)) {
+          won = true; winAmt = bet.amount * lt.rate_run_top;
+        } else if (bet.bet_type === 'run_bot' && prize_last_2.includes(n)) {
+          won = true; winAmt = bet.amount * lt.rate_run_bot;
+        }
+
+        const status = won ? 'win' : 'lose';
+        await conn.execute(
+          'UPDATE bets SET status=?, win_amount=? WHERE id=?',
+          [status, winAmt, bet.id]
+        );
+
+        if (won && winAmt > 0) {
+          const [[m]] = await conn.execute(
+            'SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]
+          );
+          const newBal = parseFloat(m.balance) + parseFloat(winAmt);
+          await conn.execute(
+            'UPDATE members SET balance=?, total_win=total_win+? WHERE id=?',
+            [newBal, winAmt, bet.member_id]
+          );
+          await conn.execute(
+            `INSERT INTO transactions
+               (uuid, member_id, type, amount, balance_before, balance_after, description)
+             VALUES (?, ?, 'win', ?, ?, ?, ?)`,
+            [uuidv4(), bet.member_id, winAmt, m.balance, newBal,
+             `ถูกรางวัลยี่กี: ${bet.number} (${bet.bet_type}) งวด #${round_id}`]
+          );
+          await conn.execute(
+            'INSERT INTO notifications (member_id, title, body, type) VALUES (?, ?, ?, ?)',
+            [bet.member_id,
+             '🎉 ถูกรางวัลยี่กี!',
+             `เลข ${bet.number} ถูก! ได้รับเงิน ฿${Number(winAmt).toLocaleString()}`,
+             'win']
+          );
+        }
+      }
+
+      // 6. อัพเดท total_win ของงวด
+      const [[winSum]] = await conn.execute(
+        'SELECT COALESCE(SUM(win_amount),0) s FROM bets WHERE round_id=? AND status="win"',
+        [round_id]
+      );
+      await conn.execute(
+        'UPDATE lottery_rounds SET total_win=? WHERE id=?',
+        [winSum.s, round_id]
+      );
+    });
+
+    console.log(`[ROUND_MGR] ✅ ยี่กีงวด #${round_id} ผล: ${prize_1st} (ท้าย2: ${prize_last_2})`);
+  } catch (e) {
+    console.error(`[ROUND_MGR] ❌ announceYeeKeeRound #${round_id} error:`, e.message);
+  }
+}
+
+// ── เพิ่ม API route สำหรับดูสถานะงวดยี่กีวันนี้ (optional) ────────
+
+// ── Start ─────────────────────────────────────────────────────────
+
+function startRoundManager() {
+  console.log('[ROUND_MGR] เริ่ม Round Manager (tz: Asia/Bangkok)...');
+
+  // สร้างงวดทันทีเมื่อ server เริ่ม
+  createTodayRounds().catch(e =>
+    console.error('[ROUND_MGR] createTodayRounds error:', e.message)
+  );
+
+  // เที่ยงคืน: สร้างงวดของวันถัดไป
+  cron.schedule('0 0 * * *', () => {
+    console.log('[ROUND_MGR] เที่ยงคืน: สร้างงวดวันใหม่');
+    createTodayRounds().catch(e =>
+      console.error('[ROUND_MGR] createTodayRounds error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  // ทุก 1 นาที: ปิดงวดที่หมดเวลา + ออกผลยี่กีที่ยังค้าง
+  cron.schedule('* * * * *', () => {
+    autoManageRounds().catch(e =>
+      console.error('[ROUND_MGR] autoManageRounds error:', e.message)
+    );
+    yeekeeAutoAnnounce().catch(e =>
+      console.error('[ROUND_MGR] yeekeeAutoAnnounce error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  console.log('[ROUND_MGR] Crons ลงทะเบียนแล้ว:');
+  console.log('  createTodayRounds  → ทุกวันเที่ยงคืน (Asia/Bangkok)');
+  console.log('  autoManageRounds   → ทุก 1 นาที');
+  console.log('  yeekeeAutoAnnounce → ทุก 1 นาที');
+}
+
+module.exports = { startRoundManager, createTodayRounds, yeekeeAutoAnnounce };

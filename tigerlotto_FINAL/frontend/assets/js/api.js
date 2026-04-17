@@ -233,6 +233,10 @@ const AdminAPI = {
   approveKYC       : (id) => apiFetch(`/admin/kyc/${id}/approve`, { method: 'PUT' }, 'admin'),
   rejectKYC        : (id, reason) => apiFetch(`/admin/kyc/${id}/reject`, { method: 'PUT', body: JSON.stringify({ reason }) }, 'admin'),
 
+  // Yeekee auto-system
+  getYeeKeeToday          : () => apiFetch('/admin/yeekee/today', {}, 'admin'),
+  triggerYeeKeeAnnounce   : () => apiFetch('/admin/yeekee/trigger-announce', { method: 'POST' }, 'admin'),
+
   // Settings
   getSettings    : () => apiFetch('/settings/admin/all', {}, 'admin'),
   updateSettings : (settings) =>

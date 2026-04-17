@@ -237,6 +237,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('lottery')"><span class="ic">🎰</span>ประเภทหวย</div>
     <div class="sb-item" onclick="nav('rounds')"><span class="ic">📅</span>งวดหวย</div>
     <div class="sb-item" onclick="nav('results')"><span class="ic">🏆</span>ออกผลรางวัล</div>
+    <div class="sb-item" onclick="nav('yeekee')"><span class="ic">🎲</span>ยี่กีอัตโนมัติ</div>
     <div class="sb-item" onclick="nav('bets')"><span class="ic">📋</span>รายการแทง</div>
 
     <div class="sb-sec">การเงิน</div>
@@ -405,7 +406,7 @@ function startClock(){
 // ═══ ROUTER ═══
 const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
-  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',bets:'📋 รายการแทง',
+  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',bets:'📋 รายการแทง',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
@@ -442,6 +443,7 @@ async function afterNav(page){
     else if(page==='hotnumbers') await loadHotNumbers();
     else if(page==='kyc') await loadKYC();
     else if(page==='winpay') await loadWinPay();
+    else if(page==='yeekee') await loadYeeKee();
     else if(page==='api') await loadApiSettings();
     else if(page==='reports') await loadReports();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
@@ -1302,6 +1304,50 @@ async function loadResultsPage(){
 
 /* ── Win Pay Page ── */
 const BET_TYPE_LABEL = { '3top':'3 บน','3tod':'3 โต้ด','2top':'2 บน','2bot':'2 ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง' };
+/* ── Yeekee Auto ── */
+async function loadYeeKee(){
+  try{
+    const d = await API.AdminAPI.getYeeKeeToday();
+    const rows = d.data || [];
+    const s    = d.summary || {};
+    document.getElementById('yk-total')?.textContent !== undefined &&
+      (document.getElementById('yk-total').textContent     = s.total||0);
+    document.getElementById('yk-open') &&
+      (document.getElementById('yk-open').textContent      = s.open||0);
+    document.getElementById('yk-closed') &&
+      (document.getElementById('yk-closed').textContent    = s.closed||0);
+    document.getElementById('yk-announced') &&
+      (document.getElementById('yk-announced').textContent = s.announced||0);
+
+    const tbody = document.getElementById('yk-tbody');
+    if(!tbody) return;
+    if(!rows.length){
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีงวดยี่กีวันนี้ (ระบบจะสร้างอัตโนมัติเมื่อ server เริ่ม)</td></tr>';
+      return;
+    }
+    const STATUS_COLOR = { open:'badge-green', closed:'badge-yellow', announced:'badge-gold', upcoming:'badge-gray' };
+    const STATUS_TH    = { open:'รับแทง', closed:'รอผล', announced:'ออกผลแล้ว', upcoming:'ยังไม่เปิด' };
+    tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td style="font-weight:700">${(r.round_code||'').split('-').pop()||'-'}</td>
+        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(r.close_at)}</td>
+        <td><span class="badge ${STATUS_COLOR[r.status]||'badge-gray'}">${STATUS_TH[r.status]||r.status}</span></td>
+        <td>฿${Number(r.total_bet||0).toLocaleString()}</td>
+        <td>${r.bet_count||0}</td>
+        <td style="font-weight:800;font-size:16px;color:var(--gold);letter-spacing:3px">${r.prize_1st||'—'}</td>
+        <td style="font-weight:700;color:var(--gold2)">${r.prize_last_2||'—'}</td>
+        <td style="font-size:12px;color:var(--muted)">${r.announced_at?UI.formatDate(r.announced_at):'—'}</td>
+      </tr>`).join('');
+  }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+async function triggerYeeKeeAnnounce(){
+  try{
+    await API.AdminAPI.triggerYeeKeeAnnounce();
+    toast('สำเร็จ','Force ออกผลยี่กีสำเร็จ');
+    setTimeout(loadYeeKee, 800);
+  }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
 async function loadWinPay(){
   const roundId = document.getElementById('wp-round-sel')?.value || '';
   const betType = document.getElementById('wp-type-sel')?.value || '';
@@ -2057,6 +2103,39 @@ winpay:()=>`
     <div id="wp-summary" style="display:flex;flex-direction:column;gap:10px">
       <div style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</div>
     </div>
+  </div>
+</div>`,
+
+yeekee:()=>`
+<div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+  <span style="font-size:13px;color:var(--muted)">🤖 ระบบออกผลอัตโนมัติทุก 1 นาที หลัง close_at ผ่าน</span>
+  <button class="btn btn-outline" onclick="loadYeeKee()">🔄 รีเฟรช</button>
+  <button class="btn btn-gold" onclick="triggerYeeKeeAnnounce()">⚡ Force ออกผลทันที</button>
+</div>
+<div class="g2" style="margin-bottom:16px">
+  <div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:800;color:var(--gold)" id="yk-open">—</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px">🟢 กำลังรับแทง</div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:800;color:var(--orange)" id="yk-closed">—</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px">🔴 รอออกผล</div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:800;color:var(--success)" id="yk-announced">—</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px">✅ ออกผลแล้ว</div>
+  </div>
+  <div class="card" style="text-align:center">
+    <div style="font-size:28px;font-weight:800" id="yk-total">—</div>
+    <div style="color:var(--muted);font-size:13px;margin-top:4px">📅 งวดทั้งหมดวันนี้</div>
+  </div>
+</div>
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>งวดที่</th><th>ปิดรับ</th><th>สถานะ</th><th>ยอดแทง</th><th>จำนวนบิล</th><th>รางวัลที่ 1</th><th>ท้าย 2</th><th>ออกผลเมื่อ</th></tr></thead>
+      <tbody id="yk-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
   </div>
 </div>`,
 

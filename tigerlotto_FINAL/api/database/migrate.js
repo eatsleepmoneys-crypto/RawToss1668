@@ -149,20 +149,23 @@ const CREATES = [
 
   // lottery_rounds
   `CREATE TABLE IF NOT EXISTS \`lottery_rounds\` (
-    \`id\`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    \`uuid\`       VARCHAR(36) NOT NULL UNIQUE,
-    \`lottery_id\` INT UNSIGNED NOT NULL,
-    \`round_name\` VARCHAR(50) NOT NULL,
-    \`draw_date\`  DATE NOT NULL,
-    \`close_at\`   DATETIME NOT NULL,
-    \`status\`     ENUM('upcoming','open','closed','announcing','announced','cancelled') NOT NULL DEFAULT 'upcoming',
-    \`total_bet\`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    \`total_win\`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
-    \`bet_count\`  INT UNSIGNED NOT NULL DEFAULT 0,
-    \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    \`id\`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`uuid\`        VARCHAR(36) NOT NULL UNIQUE,
+    \`lottery_id\`  INT UNSIGNED NOT NULL,
+    \`round_code\`  VARCHAR(50) DEFAULT NULL,
+    \`round_name\`  VARCHAR(100) NOT NULL,
+    \`draw_date\`   DATE NOT NULL,
+    \`close_at\`    DATETIME NOT NULL,
+    \`status\`      ENUM('upcoming','open','closed','announcing','announced','cancelled') NOT NULL DEFAULT 'upcoming',
+    \`total_bet\`   DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    \`total_win\`   DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    \`bet_count\`   INT UNSIGNED NOT NULL DEFAULT 0,
+    \`created_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY \`uk_round_code\` (\`round_code\`),
     INDEX \`idx_lottery_date\` (\`lottery_id\`, \`draw_date\`),
-    INDEX \`idx_status\`       (\`status\`)
+    INDEX \`idx_status\`       (\`status\`),
+    INDEX \`idx_close_at\`     (\`close_at\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
   // lottery_results
