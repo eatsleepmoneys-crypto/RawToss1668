@@ -144,16 +144,23 @@ router.get('/deposit-status', authMember, async (req, res) => {
 
 // GET /api/transactions/admin/deposits
 router.get('/admin/deposits', authAdmin, rbac.requirePerm('deposits.view'), async (req, res) => {
-  const { status='pending', page=1, limit=20 } = req.query;
-  const offset = (page-1)*limit;
-  const where = status !== 'all' ? 'WHERE d.status=?' : '';
-  const params = status !== 'all' ? [status, parseInt(limit), parseInt(offset)] : [parseInt(limit), parseInt(offset)];
+  const lim    = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+  const pg     = Math.max(parseInt(req.query.page) || 1, 1);
+  const offset = (pg - 1) * lim;
+  const { status, search } = req.query;
+
+  const where = []; const params = [];
+  if (status && status !== 'all') { where.push('d.status=?'); params.push(status); }
+  if (search)                     { where.push('(m.name LIKE ? OR m.phone LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
+  const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
   const rows = await query(
-    `SELECT d.*,m.name,m.phone FROM deposits d JOIN members m ON d.member_id=m.id
-     ${where} ORDER BY d.id DESC LIMIT ? OFFSET ?`, params);
-  const [cnt] = await query(`SELECT COUNT(*) c, SUM(amount) total FROM deposits d ${where}`,
-    status !== 'all' ? [status] : []);
-  res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total });
+    `SELECT d.*,m.name,m.phone,m.bank_name AS member_bank FROM deposits d JOIN members m ON d.member_id=m.id
+     ${whereClause} ORDER BY d.id DESC LIMIT ${lim} OFFSET ${offset}`, params);
+  const cntRows = await query(
+    `SELECT COUNT(*) c, COALESCE(SUM(d.amount),0) total FROM deposits d JOIN members m ON d.member_id=m.id ${whereClause}`, params);
+  const cnt = cntRows[0];
+  res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total, page: pg, limit: lim });
 });
 
 // PATCH /api/transactions/admin/deposits/:id/approve
@@ -184,16 +191,23 @@ router.patch('/admin/deposits/:id/reject', authAdmin, rbac.requirePerm('deposits
 
 // GET /api/transactions/admin/withdrawals
 router.get('/admin/withdrawals', authAdmin, rbac.requirePerm('withdrawals.view'), async (req, res) => {
-  const { status='pending', page=1, limit=20 } = req.query;
-  const offset = (page-1)*limit;
-  const where = status !== 'all' ? 'WHERE w.status=?' : '';
-  const params = status !== 'all' ? [status, parseInt(limit), parseInt(offset)] : [parseInt(limit), parseInt(offset)];
+  const lim    = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+  const pg     = Math.max(parseInt(req.query.page) || 1, 1);
+  const offset = (pg - 1) * lim;
+  const { status, search } = req.query;
+
+  const where = []; const params = [];
+  if (status && status !== 'all') { where.push('w.status=?'); params.push(status); }
+  if (search)                     { where.push('(m.name LIKE ? OR m.phone LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
+  const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
+
   const rows = await query(
     `SELECT w.*,m.name,m.phone FROM withdrawals w JOIN members m ON w.member_id=m.id
-     ${where} ORDER BY w.id DESC LIMIT ? OFFSET ?`, params);
-  const [cnt] = await query(`SELECT COUNT(*) c, SUM(amount) total FROM withdrawals w ${where}`,
-    status !== 'all' ? [status] : []);
-  res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total });
+     ${whereClause} ORDER BY w.id DESC LIMIT ${lim} OFFSET ${offset}`, params);
+  const cntRows = await query(
+    `SELECT COUNT(*) c, COALESCE(SUM(w.amount),0) total FROM withdrawals w JOIN members m ON w.member_id=m.id ${whereClause}`, params);
+  const cnt = cntRows[0];
+  res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total, page: pg, limit: lim });
 });
 
 // PATCH /api/transactions/admin/withdrawals/:id/process

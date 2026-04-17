@@ -592,59 +592,106 @@ async function loadAgents(){
 }
 
 /* ── Deposits ── */
-async function loadDeposits(status='pending'){
-  const d = await API.AdminAPI.listDeposits({ status, limit:50 });
-  const rows = d.data || [];
-  const tbody = document.getElementById('deposits-tbody');
+let _depTimer = null;
+function debounceDeposits(){ clearTimeout(_depTimer); _depTimer = setTimeout(()=>loadDeposits(), 400); }
+
+async function loadDeposits(){
+  const status = document.getElementById('dep-status-sel')?.value ?? 'pending';
+  const search = document.getElementById('dep-search')?.value?.trim() || '';
+  const tbody  = document.getElementById('deposits-tbody');
+  const sumEl  = document.getElementById('dep-summary');
   if(!tbody) return;
-  tbody.innerHTML = rows.length === 0
-    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
-    : rows.map(dep=>`
-    <tr>
-      <td style="font-size:12px">${dep.id}</td>
-      <td>${dep.name||'-'}</td>
-      <td style="color:var(--muted)">${dep.phone||'-'}</td>
-      <td style="color:var(--gold2);font-weight:700">฿${Number(dep.amount||0).toLocaleString('th-TH')}</td>
-      <td>${dep.bank_code||'-'}</td>
-      <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
-      <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${dep.status}</span></td>
-      <td>
-        ${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}
-      </td>
-      <td>
-        ${dep.status==='pending'?`
-          <button class="act-btn act-green" onclick="approveDeposit(${dep.id})">อนุมัติ</button>
-          <button class="act-btn act-red"   onclick="rejectDeposit(${dep.id})">ปฏิเสธ</button>
-        `:'<span style="color:var(--muted)">-</span>'}
-      </td>
-    </tr>`).join('');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+
+  try {
+    const params = { limit: 50 };
+    if(status) params.status = status;
+    if(search) params.search = search;
+    const d    = await API.AdminAPI.listDeposits(params);
+    const rows = d.data || [];
+    const total = rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+
+    if(sumEl){
+      const pendingCnt = rows.filter(r=>r.status==='pending').length;
+      sumEl.innerHTML = `รอตรวจ: <b style="color:var(--orange)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--gold2)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+    }
+
+    const DEP_STATUS = { pending:'รอตรวจ', approved:'อนุมัติ', rejected:'ปฏิเสธ' };
+    tbody.innerHTML = rows.length === 0
+      ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+      : rows.map(dep=>`
+      <tr>
+        <td style="font-size:12px;color:var(--muted)">${dep.id}</td>
+        <td style="font-weight:600">${dep.name||'-'}</td>
+        <td style="color:var(--muted)">${dep.phone||'-'}</td>
+        <td style="color:var(--gold2);font-weight:700">฿${Number(dep.amount||0).toLocaleString('th-TH')}</td>
+        <td>${dep.bank_code||'-'}</td>
+        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
+        <td>${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}</td>
+        <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${DEP_STATUS[dep.status]||dep.status}</span></td>
+        <td>
+          ${dep.status==='pending'?`
+            <button class="act-btn act-green" onclick="approveDeposit(${dep.id})">อนุมัติ</button>
+            <button class="act-btn act-red"   onclick="rejectDeposit(${dep.id})">ปฏิเสธ</button>
+          `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
+    if(sumEl) sumEl.textContent = '';
+  }
 }
 
 /* ── Withdrawals ── */
-async function loadWithdrawals(status='pending'){
-  const d = await API.AdminAPI.listWithdrawals({ status, limit:50 });
-  const rows = d.data || [];
-  const tbody = document.getElementById('withdrawals-tbody');
+let _wdTimer = null;
+function debounceWithdrawals(){ clearTimeout(_wdTimer); _wdTimer = setTimeout(()=>loadWithdrawals(), 400); }
+
+async function loadWithdrawals(){
+  const status = document.getElementById('wd-status-sel')?.value ?? 'pending';
+  const search = document.getElementById('wd-search')?.value?.trim() || '';
+  const tbody  = document.getElementById('withdrawals-tbody');
+  const sumEl  = document.getElementById('wd-summary');
   if(!tbody) return;
-  tbody.innerHTML = rows.length === 0
-    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
-    : rows.map(w=>`
-    <tr>
-      <td style="font-size:12px">${w.id}</td>
-      <td>${w.name||'-'}</td>
-      <td style="color:var(--muted)">${w.phone||'-'}</td>
-      <td style="color:var(--gold2);font-weight:700">฿${Number(w.amount||0).toLocaleString('th-TH')}</td>
-      <td>${w.bank_code||'-'}</td>
-      <td style="font-size:12px">${w.bank_account||'-'}</td>
-      <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
-      <td><span class="badge ${w.status==='completed'?'badge-green':w.status==='rejected'?'badge-red':'badge-yellow'}">${w.status}</span></td>
-      <td>
-        ${w.status==='pending'||w.status==='processing'?`
-          <button class="act-btn act-green" onclick="processWithdrawal(${w.id})">โอนแล้ว</button>
-          <button class="act-btn act-red"   onclick="rejectWithdrawal(${w.id})">ปฏิเสธ</button>
-        `:'<span style="color:var(--muted)">-</span>'}
-      </td>
-    </tr>`).join('');
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+
+  try {
+    const params = { limit: 50 };
+    if(status) params.status = status;
+    if(search) params.search = search;
+    const d    = await API.AdminAPI.listWithdrawals(params);
+    const rows = d.data || [];
+    const total = rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
+
+    if(sumEl){
+      const pendingCnt = rows.filter(r=>r.status==='pending'||r.status==='processing').length;
+      sumEl.innerHTML = `รอโอน: <b style="color:var(--red)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--red)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+    }
+
+    const WD_STATUS = { pending:'รอโอน', processing:'กำลังโอน', completed:'โอนแล้ว', rejected:'ปฏิเสธ' };
+    const WD_BADGE  = { pending:'badge-yellow', processing:'badge-blue', completed:'badge-green', rejected:'badge-red' };
+    tbody.innerHTML = rows.length === 0
+      ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+      : rows.map(w=>`
+      <tr>
+        <td style="font-size:12px;color:var(--muted)">${w.id}</td>
+        <td style="font-weight:600">${w.name||'-'}</td>
+        <td style="color:var(--muted)">${w.phone||'-'}</td>
+        <td style="color:var(--red);font-weight:700">฿${Number(w.amount||0).toLocaleString('th-TH')}</td>
+        <td>${w.bank_code||'-'}</td>
+        <td style="font-size:12px">${w.bank_account||'-'}</td>
+        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
+        <td><span class="badge ${WD_BADGE[w.status]||'badge-yellow'}">${WD_STATUS[w.status]||w.status}</span></td>
+        <td>
+          ${w.status==='pending'||w.status==='processing'?`
+            <button class="act-btn act-green" onclick="processWithdrawal(${w.id})">โอนแล้ว</button>
+            <button class="act-btn act-red"   onclick="rejectWithdrawal(${w.id})">ปฏิเสธ</button>
+          `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
+    if(sumEl) sumEl.textContent = '';
+  }
 }
 
 /* ── Bets ── */
@@ -2142,62 +2189,36 @@ results:()=>`
 
 deposits:()=>`
 <div class="filter-bar">
-  <input class="fi" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1">
-  <select class="fi fi-sm"><option value="">ทุกสถานะ</option><option value="pending">รอตรวจ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option></select>
-  <span style="font-size:13px;color:var(--muted)">รอตรวจ: <b style="color:var(--orange)">8 รายการ</b></span>
+  <input class="fi" id="dep-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1"
+    oninput="debounceDeposits()" onkeydown="if(event.key==='Enter')loadDeposits()">
+  <select class="fi fi-sm" id="dep-status-sel" onchange="loadDeposits()">
+    <option value="pending">รอตรวจ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
+  </select>
+  <span id="dep-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
 </div>
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
       <thead><tr><th>#</th><th>สมาชิก</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร</th><th>เวลา</th><th>สลิป</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody id="deposits-tbody">${DB.deposits.map(d=>`
-      <tr>
-        <td style="color:var(--muted)">${d.id}</td>
-        <td style="font-weight:600">${d.member}</td>
-        <td style="color:var(--muted)">${d.phone}</td>
-        <td style="color:var(--gold2);font-weight:700">฿${d.amount.toLocaleString()}</td>
-        <td>${d.bank}</td>
-        <td style="color:var(--muted)">${d.time}</td>
-        <td><button class="btn btn-sm btn-blue" onclick="toast('สลิป','เปิดดูสลิปการโอน')">ดูสลิป</button></td>
-        <td><span class="badge ${d.status==='pending'?'badge-gold':d.status==='approved'?'badge-green':'badge-red'}">${d.status==='pending'?'รอตรวจ':d.status==='approved'?'อนุมัติ':'ปฏิเสธ'}</span></td>
-        <td>
-          ${d.status==='pending'?`<div style="display:flex;gap:5px">
-            <button class="btn btn-sm btn-green" onclick="approveDeposit('${d.id}')">✓ อนุมัติ</button>
-            <button class="btn btn-sm btn-red" onclick="rejectDeposit('${d.id}')">✗ ปฏิเสธ</button>
-          </div>`:`<span style="font-size:12px;color:var(--muted)">ดำเนินการแล้ว</span>`}
-        </td>
-      </tr>`).join('')}</tbody>
+      <tbody id="deposits-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,
 
 withdrawals:()=>`
 <div class="filter-bar">
-  <input class="fi" placeholder="🔍 ค้นหา..." style="flex:1">
-  <select class="fi fi-sm"><option>ทุกสถานะ</option><option>รอโอน</option><option>กำลังโอน</option><option>โอนแล้ว</option></select>
-  <span style="font-size:13px;color:var(--muted)">ยอดรวม: <b style="color:var(--red)">฿10,600</b></span>
+  <input class="fi" id="wd-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1"
+    oninput="debounceWithdrawals()" onkeydown="if(event.key==='Enter')loadWithdrawals()">
+  <select class="fi fi-sm" id="wd-status-sel" onchange="loadWithdrawals()">
+    <option value="pending">รอโอน</option><option value="processing">กำลังโอน</option><option value="completed">โอนแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
+  </select>
+  <span id="wd-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
 </div>
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
       <thead><tr><th>#</th><th>สมาชิก</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody id="withdrawals-tbody">${DB.withdrawals.map(w=>`
-      <tr>
-        <td style="color:var(--muted)">${w.id}</td>
-        <td style="font-weight:600">${w.member}</td>
-        <td style="color:var(--muted)">${w.phone}</td>
-        <td style="color:var(--red);font-weight:700">฿${w.amount.toLocaleString()}</td>
-        <td>${w.bank}</td>
-        <td style="color:var(--muted)">${w.acc}</td>
-        <td style="color:var(--muted)">${w.time}</td>
-        <td><span class="badge ${w.status==='pending'?'badge-gold':w.status==='processing'?'badge-blue':'badge-green'}">${w.status==='pending'?'รอโอน':w.status==='processing'?'กำลังโอน':'โอนแล้ว'}</span></td>
-        <td>
-          ${w.status!=='approved'?`<div style="display:flex;gap:5px">
-            <button class="btn btn-sm btn-green" onclick="toast('โอนเงิน','อนุมัติถอน ฿${w.amount.toLocaleString()} ให้ ${w.member}')">✓ โอน</button>
-            <button class="btn btn-sm btn-red" onclick="toast('ปฏิเสธ','ปฏิเสธรายการถอน')">✗</button>
-          </div>`:'<span style="font-size:12px;color:var(--green)">โอนแล้ว ✓</span>'}
-        </td>
-      </tr>`).join('')}</tbody>
+      <tbody id="withdrawals-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,
