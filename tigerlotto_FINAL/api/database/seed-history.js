@@ -44,6 +44,23 @@ const HISTORY = [
     },
   },
   {
+    code       : 'TH_GOV',
+    round_code : 'TH_GOV-20260416',
+    round_name : 'งวดวันที่ 16 เมษายน 2569',
+    draw_date  : '2026-04-16',
+    close_at   : '2026-04-16 14:30:00',
+    announced_at: '2026-04-16 15:30:00',
+    total_bet  : 214000,
+    total_win  : 98500,
+    bet_count  : 427,
+    result: {
+      prize_1st    : '483621',
+      prize_last_2 : '54',
+      prize_front_3: ['512', '867'],
+      prize_last_3 : ['321', '048'],
+    },
+  },
+  {
     code       : 'LA_GOV',
     round_code : 'LA_GOV-20260416',
     round_name : 'งวดวันที่ 16 เมษายน 2569',
