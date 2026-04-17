@@ -182,6 +182,20 @@ async function startServer() {
     console.warn('⚠️  Superadmin seed failed (table may not exist yet):', e.message);
   }
 
+  // ─── อัปเดตชื่อ lottery_types ที่เปลี่ยนแปลง (ทำทุกครั้ง — idempotent) ────
+  try {
+    const { query } = require('./config/db');
+    await Promise.all([
+      query(`UPDATE lottery_types SET name='ลาวพัฒนา'     WHERE code='LA_GOV'     AND name != 'ลาวพัฒนา'`),
+      query(`UPDATE lottery_types SET name='ฮานอยปกติ'    WHERE code='VN_HAN'     AND name != 'ฮานอยปกติ'`),
+      query(`UPDATE lottery_types SET name='ฮานอยพิเศษ'   WHERE code='VN_HAN_SP'  AND name != 'ฮานอยพิเศษ'`),
+      query(`UPDATE lottery_types SET name='ฮานอย VIP'    WHERE code='VN_HAN_VIP' AND name != 'ฮานอย VIP'`),
+    ]);
+    console.log('✅ Lottery type names updated (ลาวพัฒนา / ฮานอยปกติ / ฮานอยพิเศษ / ฮานอย VIP)');
+  } catch (e) {
+    console.warn('⚠️  Lottery type name update failed:', e.message);
+  }
+
   // ─── Start Round Manager (auto-open/close/announce) ─────────────
   try {
     const { startRoundManager } = require('./services/roundManager');
