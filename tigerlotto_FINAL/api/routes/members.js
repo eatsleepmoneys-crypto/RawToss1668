@@ -110,18 +110,39 @@ router.get('/referrals', authMember, async (req, res) => {
 // GET /api/members/admin/list
 router.get('/admin/list', authAdmin, rbac.requirePerm('members.view'), async (req, res) => {
   const { page=1, limit=20, search='', status='' } = req.query;
-  const offset = (page-1)*limit;
+  const lim = Math.min(parseInt(limit)||20, 100);
+  const off = (Math.max(parseInt(page),1) - 1) * lim;
   const where = [];
   const params = [];
   if (search) { where.push('(name LIKE ? OR phone LIKE ? OR member_code LIKE ?)'); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
   if (status) { where.push('status=?'); params.push(status); }
+  const whereStr = where.length ? 'WHERE ' + where.join(' AND ') : '';
   const sql = `SELECT id,uuid,name,phone,bank_code,balance,status,level,member_code,created_at,last_login_at
-               FROM members ${where.length?'WHERE '+where.join(' AND '):''}
-               ORDER BY id DESC LIMIT ? OFFSET ?`;
-  const rows = await query(sql, [...params, parseInt(limit), parseInt(offset)]);
-  const [count] = await query(`SELECT COUNT(*) as total FROM members ${where.length?'WHERE '+where.join(' AND '):''}`, params);
-  res.json({ success: true, data: rows, total: count.total, page: parseInt(page), limit: parseInt(limit) });
+               FROM members ${whereStr}
+               ORDER BY id DESC LIMIT ${lim} OFFSET ${off}`;
+  const rows = await query(sql, params);
+  const [count] = await query(`SELECT COUNT(*) as total FROM members ${whereStr}`, params);
+  res.json({ success: true, data: rows, total: count.total, page: parseInt(page), limit: lim });
 });
+
+// POST /api/members/admin/create — Admin สร้างสมาชิกใหม่
+router.post('/admin/create', authAdmin, rbac.requirePerm('members.view'),
+  body('phone').notEmpty(), body('password').isLength({ min: 6 }), body('name').notEmpty(),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(422).json({ success: false, message: errors.array()[0].msg });
+    const { phone, password, name, bank_code = null, bank_account = null, bank_name = null } = req.body;
+    const existing = await query('SELECT id FROM members WHERE phone=?', [phone]);
+    if (existing.length) return res.status(409).json({ success: false, message: 'เบอร์โทรนี้มีในระบบแล้ว' });
+    const hash = await bcrypt.hash(password, 10);
+    const code = 'M' + Date.now().toString(36).toUpperCase();
+    await query(
+      'INSERT INTO members (name,phone,password_hash,bank_code,bank_account,bank_name,member_code,status) VALUES (?,?,?,?,?,?,?,?)',
+      [name, phone, hash, bank_code, bank_account, bank_name, code, 'active']
+    );
+    res.status(201).json({ success: true, message: 'เพิ่มสมาชิกสำเร็จ' });
+  }
+);
 
 // GET /api/members/admin/:id
 router.get('/admin/:id', authAdmin, rbac.requirePerm('members.view'), async (req, res) => {

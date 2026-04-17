@@ -167,6 +167,8 @@ const AdminAPI = {
     apiFetch(`/members/admin/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, reason }) }, 'admin'),
   adjustCredit: (id, amount, type, note) =>
     apiFetch(`/members/admin/${id}/credit`, { method: 'PATCH', body: JSON.stringify({ amount, type, note }) }, 'admin'),
+  createMember: (data) =>
+    apiFetch('/members/admin/create', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
 
   // Agents
   listAgents  : (params = {}) => apiFetch('/admin/agents?' + new URLSearchParams(params), {}, 'admin'),
