@@ -236,10 +236,10 @@ const AdminAPI = {
   // Settings
   getSettings    : () => apiFetch('/settings/admin/all', {}, 'admin'),
   updateSettings : (settings) =>
-    apiFetch('/settings/admin/all', { method: 'PUT', body: JSON.stringify({ settings }) }, 'admin'),
+    apiFetch('/settings/admin', { method: 'PUT', body: JSON.stringify(settings) }, 'admin'),
   getApiKeys     : () => apiFetch('/settings/admin/api-keys', {}, 'admin'),
   updateApiKeys  : (keys) =>
-    apiFetch('/settings/admin/api-keys', { method: 'PUT', body: JSON.stringify({ keys }) }, 'admin'),
+    apiFetch('/settings/admin/api-keys', { method: 'PUT', body: JSON.stringify(keys) }, 'admin'),
   setMaintenance : (enabled, message) =>
     apiFetch('/settings/admin/maintenance', { method: 'POST', body: JSON.stringify({ enabled, message }) }, 'admin'),
 };

@@ -442,6 +442,7 @@ async function afterNav(page){
     else if(page==='hotnumbers') await loadHotNumbers();
     else if(page==='kyc') await loadKYC();
     else if(page==='winpay') await loadWinPay();
+    else if(page==='api') await loadApiSettings();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -1244,6 +1245,73 @@ async function loadWinPay(){
   }
 }
 
+/* ── API Settings Page ── */
+// map: DB key → element ID
+const API_FIELD_MAP = {
+  line_token        : 'api-line-token',
+  line_secret       : 'api-line-secret',
+  line_channel_id   : 'api-line-channel-id',
+  line_webhook_url  : 'api-line-webhook',
+  line_enabled      : 'api-line-enabled',
+  sms_api_key       : 'api-sms-key',
+  sms_sender        : 'api-sms-sender',
+  sms_enabled       : 'api-sms-enabled',
+  promptpay_number  : 'api-pp-number',
+  promptpay_name    : 'api-pp-name',
+  promptpay_enabled : 'api-pp-enabled',
+  scb_api_key       : 'api-scb-key',
+  scb_api_secret    : 'api-scb-secret',
+  scb_biller_id     : 'api-scb-biller',
+  scb_enabled       : 'api-scb-enabled',
+  truemoney_phone   : 'api-tmn-phone',
+  truemoney_app_id  : 'api-tmn-appid',
+  truemoney_secret  : 'api-tmn-secret',
+  truemoney_enabled : 'api-tmn-enabled',
+  webhook_secret    : 'api-webhook-secret',
+  ip_whitelist      : 'api-ip-whitelist',
+};
+
+async function loadApiSettings(){
+  try{
+    const d = await API.AdminAPI.getApiKeys();
+    (d.data||[]).forEach(row=>{
+      const elId = API_FIELD_MAP[row.key];
+      if(!elId) return;
+      const el = document.getElementById(elId);
+      if(!el) return;
+      if(el.type==='checkbox') el.checked = (row.value==='true'||row.value==='1');
+      else el.value = row.value || '';
+    });
+    // Set default webhook url if empty
+    const wh = document.getElementById('api-line-webhook');
+    if(wh && !wh.value) wh.value = `${window.location.origin.replace(/\/admin.*$/,'')}/api/line/webhook`;
+  }catch(e){ console.warn('loadApiSettings:', e.message); }
+}
+
+// GROUP → keys mapping
+const API_GROUP_KEYS = {
+  line       : ['line_token','line_secret','line_channel_id','line_enabled'],
+  sms        : ['sms_api_key','sms_sender','sms_enabled'],
+  promptpay  : ['promptpay_number','promptpay_name','promptpay_enabled'],
+  scb        : ['scb_api_key','scb_api_secret','scb_biller_id','scb_enabled'],
+  truemoney  : ['truemoney_phone','truemoney_app_id','truemoney_secret','truemoney_enabled'],
+  security   : ['webhook_secret','ip_whitelist'],
+};
+
+async function saveApiGroup(group){
+  const keys = API_GROUP_KEYS[group] || [];
+  const payload = {};
+  keys.forEach(k=>{
+    const el = document.getElementById(API_FIELD_MAP[k]);
+    if(!el) return;
+    payload[k] = el.type==='checkbox' ? String(el.checked) : el.value;
+  });
+  try{
+    await API.AdminAPI.updateApiKeys(payload);
+    toast('สำเร็จ',`บันทึก ${group.toUpperCase()} API แล้ว`);
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+
 function submitResult(){
   const roundId    = document.getElementById('result-round-sel')?.value;
   const prize_1st  = document.getElementById('res-p1')?.value?.trim();
@@ -1839,77 +1907,77 @@ api:()=>`
 <div class="api-card">
   <div class="api-card-hdr">
     <div class="api-card-title"><span class="ico">💬</span>LINE Messaging API</div>
-    <label class="sw"><input type="checkbox" ${DB.api.line.enabled?'checked':''} onchange="DB.api.line.enabled=this.checked;toast('LINE API',this.checked?'เปิดใช้งานแล้ว':'ปิดใช้งานแล้ว')"><span class="sw-track"></span></label>
+    <label class="sw"><input type="checkbox" id="api-line-enabled"><span class="sw-track"></span></label>
   </div>
   <div class="fi-row">
-    <div class="fg"><label>Channel Access Token</label><input class="fi-full" placeholder="LINE Channel Token" value="${DB.api.line.token}"></div>
-    <div class="fg"><label>Channel Secret</label><input class="fi-full" type="password" placeholder="Channel Secret"></div>
+    <div class="fg"><label>Channel Access Token</label><input id="api-line-token" class="fi-full" placeholder="LINE Channel Token"></div>
+    <div class="fg"><label>Channel Secret</label><input id="api-line-secret" class="fi-full" type="password" placeholder="Channel Secret"></div>
   </div>
   <div class="fi-row">
-    <div class="fg"><label>Channel ID</label><input class="fi-full" placeholder="Channel ID"></div>
-    <div class="fg"><label>Webhook URL (ระบบสร้างให้)</label><input class="fi-full" value="https://tigerlotto.com/api/line/webhook" readonly style="color:var(--muted)"></div>
+    <div class="fg"><label>Channel ID</label><input id="api-line-channel-id" class="fi-full" placeholder="Channel ID"></div>
+    <div class="fg"><label>Webhook URL (ระบบสร้างให้)</label><input class="fi-full" id="api-line-webhook" readonly style="color:var(--muted)"></div>
   </div>
   <div style="display:flex;gap:8px">
-    <button class="btn btn-gold" onclick="toast('LINE API','บันทึกการตั้งค่า LINE API แล้ว')">บันทึก</button>
-    <button class="btn btn-outline" onclick="toast('ทดสอบ','ส่ง Test Message สำเร็จ')">ทดสอบการเชื่อมต่อ</button>
+    <button class="btn btn-gold" onclick="saveApiGroup('line')">บันทึก</button>
+    <button class="btn btn-outline" onclick="toast('ทดสอบ','ส่ง Test Message สำเร็จ','info')">ทดสอบการเชื่อมต่อ</button>
   </div>
 </div>
 
 <div class="api-card">
   <div class="api-card-hdr">
     <div class="api-card-title"><span class="ico">📱</span>SMS Gateway (THSMS/Twilio)</div>
-    <label class="sw"><input type="checkbox" ${DB.api.sms.enabled?'checked':''} onchange="DB.api.sms.enabled=this.checked;toast('SMS',this.checked?'เปิด':'ปิด')"><span class="sw-track"></span></label>
+    <label class="sw"><input type="checkbox" id="api-sms-enabled"><span class="sw-track"></span></label>
   </div>
   <div class="fi-row">
-    <div class="fg"><label>API Key</label><input class="fi-full" placeholder="SMS API Key"></div>
-    <div class="fg"><label>Sender Name</label><input class="fi-full" value="TigerLotto"></div>
+    <div class="fg"><label>API Key</label><input id="api-sms-key" class="fi-full" placeholder="SMS API Key"></div>
+    <div class="fg"><label>Sender Name</label><input id="api-sms-sender" class="fi-full" placeholder="TigerLotto"></div>
   </div>
-  <button class="btn btn-gold" onclick="toast('SMS','บันทึก SMS Gateway แล้ว')">บันทึก</button>
+  <button class="btn btn-gold" onclick="saveApiGroup('sms')">บันทึก</button>
 </div>
 
 <div class="api-card">
   <div class="api-card-hdr">
     <div class="api-card-title"><span class="ico">💳</span>PromptPay (QR)</div>
-    <label class="sw"><input type="checkbox" checked onchange="toast('PromptPay',this.checked?'เปิด':'ปิด')"><span class="sw-track"></span></label>
+    <label class="sw"><input type="checkbox" id="api-pp-enabled"><span class="sw-track"></span></label>
   </div>
   <div class="fi-row">
-    <div class="fg"><label>เบอร์ / เลขบัตรประชาชน</label><input class="fi-full" placeholder="0812345678 หรือ 1234567890123"></div>
-    <div class="fg"><label>ชื่อบัญชี</label><input class="fi-full" value="บริษัท ไทเกอร์ ลอตโต้"></div>
+    <div class="fg"><label>เบอร์ / เลขบัตรประชาชน</label><input id="api-pp-number" class="fi-full" placeholder="0812345678 หรือ 1234567890123"></div>
+    <div class="fg"><label>ชื่อบัญชี</label><input id="api-pp-name" class="fi-full" placeholder="บริษัท ไทเกอร์ ลอตโต้"></div>
   </div>
-  <button class="btn btn-gold" onclick="toast('PromptPay','บันทึกแล้ว')">บันทึก</button>
+  <button class="btn btn-gold" onclick="saveApiGroup('promptpay')">บันทึก</button>
 </div>
 
 <div class="g2">
   <div class="api-card" style="margin-bottom:0">
     <div class="api-card-hdr">
       <div class="api-card-title"><span class="ico">🏦</span>SCB Easy API</div>
-      <label class="sw"><input type="checkbox" onchange="toast('SCB API',this.checked?'เปิด':'ปิด')"><span class="sw-track"></span></label>
+      <label class="sw"><input type="checkbox" id="api-scb-enabled"><span class="sw-track"></span></label>
     </div>
-    <div class="fg"><label>API Key</label><input class="fi-full" placeholder="SCB API Key"></div>
-    <div class="fg"><label>API Secret</label><input class="fi-full" type="password" placeholder="SCB API Secret"></div>
-    <div class="fg"><label>Biller ID</label><input class="fi-full" placeholder="Biller ID"></div>
-    <button class="btn btn-gold btn-sm" onclick="toast('SCB','บันทึกแล้ว')">บันทึก</button>
+    <div class="fg"><label>API Key</label><input id="api-scb-key" class="fi-full" placeholder="SCB API Key"></div>
+    <div class="fg"><label>API Secret</label><input id="api-scb-secret" class="fi-full" type="password" placeholder="SCB API Secret"></div>
+    <div class="fg"><label>Biller ID</label><input id="api-scb-biller" class="fi-full" placeholder="Biller ID"></div>
+    <button class="btn btn-gold btn-sm" onclick="saveApiGroup('scb')">บันทึก</button>
   </div>
   <div class="api-card" style="margin-bottom:0">
     <div class="api-card-hdr">
       <div class="api-card-title"><span class="ico">💚</span>TrueMoney Wallet</div>
-      <label class="sw"><input type="checkbox" onchange="toast('TrueMoney',this.checked?'เปิด':'ปิด')"><span class="sw-track"></span></label>
+      <label class="sw"><input type="checkbox" id="api-tmn-enabled"><span class="sw-track"></span></label>
     </div>
-    <div class="fg"><label>เบอร์โทร TrueMoney</label><input class="fi-full" placeholder="08XXXXXXXX"></div>
-    <div class="fg"><label>App ID</label><input class="fi-full" placeholder="TrueMoney App ID"></div>
-    <div class="fg"><label>API Secret</label><input class="fi-full" type="password" placeholder="Secret"></div>
-    <button class="btn btn-gold btn-sm" onclick="toast('TrueMoney','บันทึกแล้ว')">บันทึก</button>
+    <div class="fg"><label>เบอร์โทร TrueMoney</label><input id="api-tmn-phone" class="fi-full" placeholder="08XXXXXXXX"></div>
+    <div class="fg"><label>App ID</label><input id="api-tmn-appid" class="fi-full" placeholder="TrueMoney App ID"></div>
+    <div class="fg"><label>API Secret</label><input id="api-tmn-secret" class="fi-full" type="password" placeholder="Secret"></div>
+    <button class="btn btn-gold btn-sm" onclick="saveApiGroup('truemoney')">บันทึก</button>
   </div>
 </div>
 <div class="api-card" style="margin-top:14px">
   <div class="api-card-hdr">
     <div class="api-card-title"><span class="ico">🔑</span>Webhook & Security</div>
   </div>
-  <div class="fg"><label>API Secret Key (สำหรับ Webhook)</label>
-    <div style="display:flex;gap:8px"><input class="fi-full" value="tl_sk_live_xxxxxxxxxxxxxxxxxxx" readonly style="color:var(--muted)"><button class="btn btn-outline" onclick="toast('สร้างใหม่','สร้าง API Key ใหม่แล้ว')">Regenerate</button></div>
+  <div class="fg"><label>Webhook Secret Key</label>
+    <div style="display:flex;gap:8px"><input id="api-webhook-secret" class="fi-full" readonly style="color:var(--muted)" placeholder="—"></div>
   </div>
-  <div class="fg"><label>IP Whitelist (ระบุ IP ที่อนุญาต, คั่นด้วย ,)</label><textarea class="fi-full" rows="2" placeholder="103.x.x.x, 203.x.x.x"></textarea></div>
-  <button class="btn btn-gold" onclick="toast('Security','บันทึกการตั้งค่า Security แล้ว')">บันทึก</button>
+  <div class="fg"><label>IP Whitelist (คั่นด้วย ,)</label><textarea id="api-ip-whitelist" class="fi-full" rows="2" placeholder="103.x.x.x, 203.x.x.x"></textarea></div>
+  <button class="btn btn-gold" onclick="saveApiGroup('security')">บันทึก</button>
 </div>`,
 
 reports:()=>`
