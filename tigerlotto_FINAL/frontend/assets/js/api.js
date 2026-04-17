@@ -42,8 +42,8 @@ async function apiFetch(path, options = {}, tokenType = 'member') {
 
 /* ─── Member Auth API ─── */
 const AuthAPI = {
-  sendOtp: (phone) =>
-    apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone }) }),
+  sendOtp: (phone, type = 'register') =>
+    apiFetch('/auth/send-otp', { method: 'POST', body: JSON.stringify({ phone, type }) }),
 
   verifyOtp: async (phone, code) => {
     const data = await apiFetch('/auth/verify-otp', {

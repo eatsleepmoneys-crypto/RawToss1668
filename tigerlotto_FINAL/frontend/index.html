@@ -668,6 +668,7 @@ select.fi option{background:var(--card2)}
           </div>
           <div><label>เลขบัญชี</label><input type="text" id="r-acct" class="fi" placeholder="XXX-X-XXXXX-X"></div>
         </div>
+        <div class="fg"><label>ชื่อบัญชีธนาคาร</label><input type="text" id="r-bank-name" class="fi" placeholder="ชื่อ-นามสกุลในบัญชี"></div>
         <div class="fg"><label>รหัสผ่าน (อย่างน้อย 8 ตัว)</label><input type="password" id="r-pass" class="fi" placeholder="••••••••"></div>
         <div class="fg"><label>รหัสผู้แนะนำ (ถ้ามี)</label><input type="text" id="r-ref" class="fi" placeholder="TIGER-XXXX"></div>
         <button class="btn btn-gold" id="btn-do-reg" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doRegister()">สมัครสมาชิกฟรี</button>
@@ -900,7 +901,7 @@ async function sendOtp(){
   const btn = document.getElementById('btn-otp');
   UI.loading(btn, true);
   try{
-    await API.AuthAPI.sendOtp(phone);
+    await API.AuthAPI.sendOtp(phone, 'register');
     document.getElementById('otp-row').style.display = 'block';
     toast('ส่ง OTP แล้ว','กรุณาตรวจสอบ SMS ที่เบอร์ '+phone);
     // countdown 60 วินาที
@@ -930,7 +931,7 @@ async function doLogin(){
     window.currentUser = data.member;
     closeM('auth-ov');
     updateNavbar(data.member);
-    toast('เข้าสู่ระบบสำเร็จ','ยินดีต้อนรับ '+data.member.full_name+' 🐯');
+    toast('เข้าสู่ระบบสำเร็จ','ยินดีต้อนรับ '+data.member.name+' 🐯');
   }catch(e){
     toast('เข้าสู่ระบบไม่สำเร็จ', e.message);
   }finally{ UI.loading(btn, false); }
@@ -948,15 +949,15 @@ async function doRegister(){
     toast('OTP ไม่ถูกต้อง', e.message); return;
   }
   const payload = {
-    full_name   : document.getElementById('r-name').value.trim(),
+    name        : document.getElementById('r-name').value.trim(),
     phone,
-    bank_name   : document.getElementById('r-bank').value,
+    bank_code   : document.getElementById('r-bank').value,
     bank_account: document.getElementById('r-acct').value.trim(),
+    bank_name   : document.getElementById('r-bank-name').value.trim(),
     password    : document.getElementById('r-pass').value,
-    referral_code: document.getElementById('r-ref').value.trim() || undefined,
-    verified_token: Token.getVerified(),
+    ref_code    : document.getElementById('r-ref').value.trim() || undefined,
   };
-  if(!payload.full_name||!payload.bank_name||!payload.bank_account||!payload.password){
+  if(!payload.name||!payload.bank_code||!payload.bank_account||!payload.bank_name||!payload.password){
     toast('ข้อผิดพลาด','กรุณากรอกข้อมูลให้ครบ'); return;
   }
   const btn = document.getElementById('btn-do-reg');
