@@ -392,7 +392,7 @@ router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.
 });
 
 // ─── POST /api/admin/seed-history — เพิ่มงวดย้อนหลัง (Superadmin) ─
-router.post('/seed-history', authAdmin, rbac.requirePerm('settings.edit'), async (req, res) => {
+router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   try {
     // Run inline (ไม่ spawn process — ใช้ module เดียวกัน)
     const path   = require('path');
