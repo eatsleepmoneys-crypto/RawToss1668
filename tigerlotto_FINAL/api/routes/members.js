@@ -136,9 +136,10 @@ router.post('/admin/create', authAdmin, rbac.requirePerm('members.view'),
     if (existing.length) return res.status(409).json({ success: false, message: 'เบอร์โทรนี้มีในระบบแล้ว' });
     const hash = await bcrypt.hash(password, 10);
     const code = 'M' + Date.now().toString(36).toUpperCase();
+    const memberUuid = uuidv4();
     await query(
-      'INSERT INTO members (name,phone,password_hash,bank_code,bank_account,bank_name,member_code,status) VALUES (?,?,?,?,?,?,?,?)',
-      [name, phone, hash, bank_code, bank_account, bank_name, code, 'active']
+      'INSERT INTO members (uuid,name,phone,password,bank_code,bank_account,bank_name,member_code,status) VALUES (?,?,?,?,?,?,?,?,?)',
+      [memberUuid, name, phone, hash, bank_code, bank_account, bank_name, code, 'active']
     );
     res.status(201).json({ success: true, message: 'เพิ่มสมาชิกสำเร็จ' });
   }
