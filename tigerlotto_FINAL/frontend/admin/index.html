@@ -1990,6 +1990,7 @@ rounds:()=>`
     <option value="announced">ประกาศแล้ว</option>
   </select>
   <button class="btn btn-gold" onclick="openAddRound()">+ เปิดงวดใหม่</button>
+  <button class="btn" style="background:#6c5ce7;color:#fff" onclick="seedHistoryRounds(this)">📥 เพิ่มงวดย้อนหลัง</button>
 </div>
 <div class="card">
   <div class="tbl-wrap">
@@ -2657,6 +2658,26 @@ async function submitEditLotteryType(id){
     renderLotteryTypes(_allLotteryTypes);
     toast('สำเร็จ',`บันทึกอัตราจ่าย ${payload.name} แล้ว`);
   }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+
+/* ── Seed Historical Rounds ── */
+async function seedHistoryRounds(btn) {
+  if (!confirm('เพิ่มงวดย้อนหลัง 1 งวดต่อประเภทหวย (TH_GOV, LA_GOV, VN_HAN, TH_STK, CN_STK, MY_STK, SG_STK)\nรันซ้ำได้ไม่มีผลข้างเคียง (ข้ามงวดที่มีอยู่แล้ว)\n\nดำเนินการต่อ?')) return;
+  UI.loading(btn, true);
+  try {
+    const d = await API.AdminAPI.seedHistory();
+    const lines = (d.results || []).map(r => {
+      const icon = r.status === 'ok' ? '✅' : r.status === 'skip' ? '⏩' : '❌';
+      return `${icon} ${r.code}: ${r.status === 'ok' ? r.round_name + ' ('+r.prize_1st+')' : (r.reason||r.status)}`;
+    }).join('\n');
+    toast(d.success ? 'สำเร็จ' : 'มีข้อผิดพลาด', d.message, d.success ? 'success' : 'warning', 6000);
+    alert('ผลลัพธ์:\n\n' + lines);
+    loadRounds();
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+  } finally {
+    UI.loading(btn, false);
+  }
 }
 
 /* ── Open Add Round Modal ── */

@@ -391,4 +391,67 @@ router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.
   }
 });
 
+// ─── POST /api/admin/seed-history — เพิ่มงวดย้อนหลัง (Superadmin) ─
+router.post('/seed-history', authAdmin, rbac.requirePerm('settings.edit'), async (req, res) => {
+  try {
+    // Run inline (ไม่ spawn process — ใช้ module เดียวกัน)
+    const path   = require('path');
+    const mysql  = require('mysql2/promise');
+
+    const HISTORY = [
+      { code:'TH_GOV', round_code:'TH_GOV-20260401', round_name:'งวดวันที่ 1 เมษายน 2569',  draw_date:'2026-04-01', close_at:'2026-04-01 14:30:00', announced_at:'2026-04-01 15:30:00', total_bet:158000, total_win:73500,  bet_count:312, prize_1st:'916894', prize_last_2:'17', prize_front_3:['293','635'], prize_last_3:['149','274'] },
+      { code:'LA_GOV', round_code:'LA_GOV-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 20:00:00', announced_at:'2026-04-16 20:45:00', total_bet:42500,  total_win:18200,  bet_count:98,  prize_1st:'85241', prize_last_2:'41', prize_front_3:[], prize_last_3:['241'] },
+      { code:'VN_HAN', round_code:'VN_HAN-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 18:15:00', announced_at:'2026-04-16 18:45:00', total_bet:35000,  total_win:14700,  bet_count:76,  prize_1st:'72638', prize_last_2:'38', prize_front_3:[], prize_last_3:['638'] },
+      { code:'TH_STK', round_code:'TH_STK-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 17:00:00', announced_at:'2026-04-16 17:30:00', total_bet:29500,  total_win:11200,  bet_count:65,  prize_1st:'438712', prize_last_2:'12', prize_front_3:[], prize_last_3:['712'] },
+      { code:'CN_STK', round_code:'CN_STK-20260415', round_name:'งวดวันที่ 15 เมษายน 2569', draw_date:'2026-04-15', close_at:'2026-04-15 15:30:00', announced_at:'2026-04-15 16:00:00', total_bet:22000,  total_win:8900,   bet_count:51,  prize_1st:'307524', prize_last_2:'24', prize_front_3:[], prize_last_3:['524'] },
+      { code:'MY_STK', round_code:'MY_STK-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 17:30:00', announced_at:'2026-04-16 18:00:00', total_bet:18500,  total_win:7200,   bet_count:43,  prize_1st:'619083', prize_last_2:'83', prize_front_3:[], prize_last_3:['083'] },
+      { code:'SG_STK', round_code:'SG_STK-20260415', round_name:'งวดวันที่ 15 เมษายน 2569', draw_date:'2026-04-15', close_at:'2026-04-15 18:00:00', announced_at:'2026-04-15 18:30:00', total_bet:16000,  total_win:6100,   bet_count:38,  prize_1st:'524167', prize_last_2:'67', prize_front_3:[], prize_last_3:['167'] },
+    ];
+
+    // Get lottery_type map
+    const codes = HISTORY.map(h => h.code);
+    const typeRows = await query(
+      `SELECT id, code FROM lottery_types WHERE code IN (${codes.map(()=>'?').join(',')})`,
+      codes
+    );
+    const typeMap = {};
+    typeRows.forEach(r => { typeMap[r.code] = r.id; });
+
+    const results = [];
+    for (const h of HISTORY) {
+      const lotteryId = typeMap[h.code];
+      if (!lotteryId) { results.push({ code: h.code, status: 'skip', reason: 'lottery_type not found' }); continue; }
+      try {
+        const [rRes] = await query(
+          `INSERT IGNORE INTO lottery_rounds (uuid, lottery_id, round_code, round_name, draw_date, close_at, status, total_bet, total_win, bet_count)
+           VALUES (UUID(), ?, ?, ?, ?, ?, 'announced', ?, ?, ?)`,
+          [lotteryId, h.round_code, h.round_name, h.draw_date, h.close_at, h.total_bet, h.total_win, h.bet_count]
+        );
+        if (rRes.affectedRows === 0) { results.push({ code: h.code, status: 'skip', reason: 'already exists' }); continue; }
+        const roundId = rRes.insertId;
+        await query(
+          `INSERT IGNORE INTO lottery_results (round_id, prize_1st, prize_last_2, prize_front_3, prize_last_3, announced_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [roundId, h.prize_1st, h.prize_last_2, JSON.stringify(h.prize_front_3), JSON.stringify(h.prize_last_3), h.announced_at]
+        );
+        results.push({ code: h.code, status: 'ok', round_name: h.round_name, prize_1st: h.prize_1st });
+      } catch(e) {
+        results.push({ code: h.code, status: 'error', reason: e.message });
+      }
+    }
+
+    const ok   = results.filter(r => r.status === 'ok').length;
+    const skip = results.filter(r => r.status === 'skip').length;
+    const fail = results.filter(r => r.status === 'error').length;
+
+    res.json({
+      success: fail === 0,
+      message: `เสร็จสิ้น: เพิ่ม ${ok} งวด, ข้าม ${skip} งวด (มีอยู่แล้ว), ผิดพลาด ${fail} งวด`,
+      results,
+    });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 module.exports = router;

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "migrate": "node database/migrate.js"
+    "migrate": "node database/migrate.js",
+    "seed:history": "node database/seed-history.js"
   },
   "dependencies": {
     "axios": "^1.6.2",
