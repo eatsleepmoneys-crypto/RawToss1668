@@ -54,10 +54,10 @@ const HISTORY = [
     total_win  : 98500,
     bet_count  : 427,
     result: {
-      prize_1st    : '483621',
-      prize_last_2 : '54',
-      prize_front_3: ['512', '867'],
-      prize_last_3 : ['321', '048'],
+      prize_1st    : '309612',
+      prize_last_2 : '77',
+      prize_front_3: ['355', '108'],
+      prize_last_3 : ['868', '424'],
     },
   },
   {

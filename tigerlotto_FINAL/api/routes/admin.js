@@ -400,7 +400,7 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
 
     const HISTORY = [
       { code:'TH_GOV', round_code:'TH_GOV-20260401', round_name:'งวดวันที่ 1 เมษายน 2569',   draw_date:'2026-04-01', close_at:'2026-04-01 14:30:00', announced_at:'2026-04-01 15:30:00', total_bet:158000, total_win:73500,  bet_count:312, prize_1st:'916894', prize_last_2:'17', prize_front_3:['293','635'], prize_last_3:['149','274'] },
-      { code:'TH_GOV', round_code:'TH_GOV-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 14:30:00', announced_at:'2026-04-16 15:30:00', total_bet:214000, total_win:98500, bet_count:427, prize_1st:'483621', prize_last_2:'54', prize_front_3:['512','867'], prize_last_3:['321','048'] },
+      { code:'TH_GOV', round_code:'TH_GOV-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 14:30:00', announced_at:'2026-04-16 15:30:00', total_bet:214000, total_win:98500, bet_count:427, prize_1st:'309612', prize_last_2:'77', prize_front_3:['355','108'], prize_last_3:['868','424'] },
       { code:'LA_GOV', round_code:'LA_GOV-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 20:00:00', announced_at:'2026-04-16 20:45:00', total_bet:42500,  total_win:18200,  bet_count:98,  prize_1st:'85241', prize_last_2:'41', prize_front_3:[], prize_last_3:['241'] },
       { code:'VN_HAN', round_code:'VN_HAN-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 18:15:00', announced_at:'2026-04-16 18:45:00', total_bet:35000,  total_win:14700,  bet_count:76,  prize_1st:'72638', prize_last_2:'38', prize_front_3:[], prize_last_3:['638'] },
       { code:'TH_STK', round_code:'TH_STK-20260416', round_name:'งวดวันที่ 16 เมษายน 2569', draw_date:'2026-04-16', close_at:'2026-04-16 17:00:00', announced_at:'2026-04-16 17:30:00', total_bet:29500,  total_win:11200,  bet_count:65,  prize_1st:'438712', prize_last_2:'12', prize_front_3:[], prize_last_3:['712'] },
@@ -423,16 +423,28 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
       const lotteryId = typeMap[h.code];
       if (!lotteryId) { results.push({ code: h.code, status: 'skip', reason: 'lottery_type not found' }); continue; }
       try {
+        // Insert round (skip if exists)
         const rRes = await query(
           `INSERT IGNORE INTO lottery_rounds (uuid, lottery_id, round_code, round_name, draw_date, close_at, status, total_bet, total_win, bet_count)
            VALUES (UUID(), ?, ?, ?, ?, ?, 'announced', ?, ?, ?)`,
           [lotteryId, h.round_code, h.round_name, h.draw_date, h.close_at, h.total_bet, h.total_win, h.bet_count]
         );
-        if (rRes.affectedRows === 0) { results.push({ code: h.code, status: 'skip', reason: 'already exists' }); continue; }
-        const roundId = rRes.insertId;
+        // หา round_id ไม่ว่าจะ insert ใหม่หรือมีอยู่แล้ว
+        let roundId = rRes.insertId;
+        if (!roundId) {
+          const existing = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [h.round_code]);
+          roundId = existing[0]?.id;
+        }
+        if (!roundId) { results.push({ code: h.code, status: 'error', reason: 'cannot find round_id' }); continue; }
+
+        // Upsert result — ถ้ามีอยู่แล้วให้ UPDATE ด้วยข้อมูลล่าสุด (แก้ผลที่ผิดได้)
         await query(
-          `INSERT IGNORE INTO lottery_results (round_id, prize_1st, prize_last_2, prize_front_3, prize_last_3, announced_at)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO lottery_results (round_id, prize_1st, prize_last_2, prize_front_3, prize_last_3, announced_at)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE
+             prize_1st=VALUES(prize_1st), prize_last_2=VALUES(prize_last_2),
+             prize_front_3=VALUES(prize_front_3), prize_last_3=VALUES(prize_last_3),
+             announced_at=VALUES(announced_at)`,
           [roundId, h.prize_1st, h.prize_last_2, JSON.stringify(h.prize_front_3), JSON.stringify(h.prize_last_3), h.announced_at]
         );
         results.push({ code: h.code, status: 'ok', round_name: h.round_name, prize_1st: h.prize_1st });
