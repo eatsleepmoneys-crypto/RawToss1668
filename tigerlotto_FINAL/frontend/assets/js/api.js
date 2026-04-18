@@ -54,19 +54,21 @@ const AuthAPI = {
   },
 
   register: async (payload) => {
-    const data = await apiFetch('/auth/register', {
+    const resp = await apiFetch('/auth/register', {
       method: 'POST', body: JSON.stringify(payload)
     });
-    if (data.token) Token.setMember(data.token);
+    const data = resp.data || resp; // unwrap { success, data: { token, member } }
+    if (data?.token) Token.setMember(data.token);
     Token.clearVerified();
     return data;
   },
 
   login: async (phone, password) => {
-    const data = await apiFetch('/auth/login', {
+    const resp = await apiFetch('/auth/login', {
       method: 'POST', body: JSON.stringify({ phone, password })
     });
-    if (data.token) Token.setMember(data.token);
+    const data = resp.data || resp; // unwrap { success, data: { token, member } }
+    if (data?.token) Token.setMember(data.token);
     return data;
   },
 
