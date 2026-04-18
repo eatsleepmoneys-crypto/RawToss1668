@@ -587,6 +587,38 @@ function applyTransform(transform, data, src) {
       return laGovExtract(p6);
     }
 
+    // ─── Sanook laolotto page (4-digit เลขท้าย) ───────────────
+    case 'html_sanook_lao': {
+      const $ = cheerio.load(data);
+      let raw = '';
+      // Primary: find 4-digit number in strong/b elements — skip BE years (2500-2600)
+      $('strong,b,.textBold').each((_, el) => {
+        if ($(el).children().length > 0) return;
+        const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
+        if (/^\d{4}$/.test(t)) {
+          const n = parseInt(t, 10);
+          if (n >= 2500 && n <= 2600) return; // skip Buddhist Era years
+          if (!raw) raw = t;
+        }
+      });
+      // Fallback: also accept 6-digit
+      if (!raw) {
+        $('strong,b,td,span').each((_, el) => {
+          if ($(el).children().length > 0) return;
+          const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
+          if (/^\d{6}$/.test(t) && !raw) raw = t;
+        });
+      }
+      // Regex fallback: first 4-digit number that's not a year
+      if (!raw) {
+        const m4 = (String(data).match(/\b(\d{4})\b/g) || [])
+          .find(m => !(parseInt(m) >= 2500 && parseInt(m) <= 2600));
+        if (m4) raw = m4;
+      }
+      if (!raw) throw new Error('html_sanook_lao: ไม่พบตัวเลข');
+      return laGovExtract(raw);
+    }
+
     // ─── HTML scrape — VN_HAN ─────────────────────────────────
     case 'html_vn_han': {
       const $ = cheerio.load(data);
