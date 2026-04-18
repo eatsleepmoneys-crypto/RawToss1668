@@ -869,7 +869,7 @@ function updateNavbar(user){
     const panelBal = document.getElementById('mpanel-balance');
     if(panelBal) panelBal.textContent = bal;
     const panelName = document.getElementById('mpanel-name');
-    if(panelName) panelName.textContent = user.full_name || user.phone || 'สมาชิก';
+    if(panelName) panelName.textContent = user.name || user.full_name || user.phone || 'สมาชิก';
     // show notification dot if any unread
     API.MemberAPI.getNotifications({limit:1}).then(d=>{
       const dot = document.getElementById('notif-dot');
@@ -882,7 +882,7 @@ async function refreshBalance(){
   if(!window.currentUser) return;
   try{
     const d   = await API.MemberAPI.getWallet();
-    const bal = d.wallet?.balance;
+    const bal = (d.data?.balance ?? d.data?.wallet?.balance ?? d.wallet?.balance);
     window.currentUser.balance = bal;
     const fmt = UI.formatMoney(bal);
     document.getElementById('nav-balance').textContent = fmt;

@@ -298,9 +298,10 @@ const UI = {
 async function initMemberSession() {
   if (!Token.getMember()) return null;
   try {
-    const data = await AuthAPI.me();
-    window.currentUser = data.member;
-    return data.member;
+    const resp = await AuthAPI.me();
+    const member = resp.data || resp;   // unwrap { success, data: { ...memberFields } }
+    window.currentUser = member;
+    return member;
   } catch {
     Token.clearMember();
     return null;
