@@ -3116,11 +3116,22 @@ async function submitAddRound(){
 }
 
 function setTab(el,id){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  // Find the tab-bar containing the clicked button
+  const bar=el.closest('.tab-bar');
+  if(!bar){return;}
+  // Collect all tab IDs referenced by this tab-bar's buttons
+  const tabIds=[];
+  bar.querySelectorAll('.tab-btn').forEach(btn=>{
+    const m=(btn.getAttribute('onclick')||'').match(/setTab\(this,'([^']+)'\)/);
+    if(m)tabIds.push(m[1]);
+  });
+  // Update active state on buttons in this bar only
+  bar.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
   el.classList.add('on');
-  ['s-general','s-finance','s-promo','s-security','s-maint'].forEach(s=>{
-    const el=document.getElementById(s);
-    if(el)el.style.display=s===id?'block':'none';
+  // Show/hide only the tabs belonging to this bar
+  tabIds.forEach(tid=>{
+    const t=document.getElementById(tid);
+    if(t)t.style.display=tid===id?'block':'none';
   });
 }
 </script>

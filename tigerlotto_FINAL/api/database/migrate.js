@@ -403,7 +403,7 @@ const SEEDS = [
     ('TH_GOV','Sanook Lottery (HTML)','https://www.sanook.com/lottery/','html_th_gov',1,1),
     ('TH_GOV','Manager Lottery (HTML)','https://www.manager.co.th/Lottery/','html_th_gov',1,2),
     ('LA_GOV','HuayLao.net (HTML)','https://huaylao.net/','html_la_gov',1,0),
-    ('LA_GOV','Lotto.com.la (HTML)','https://www.lotto.com.la/','html_la_gov',1,1),
+    ('LA_GOV','LD1 Official (HTML)','https://www.ld1.la/','html_la_gov',1,1),
     ('LA_GOV','LottovipLao (HTML)','https://www.lottovip.com/lao-lottery-result/','html_la_gov',1,2),
     ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,0),
     ('VN_HAN','xosomiennam.net (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1),

@@ -193,39 +193,55 @@ async function fetchLAGov() {
     }
   } catch(e) { console.warn('[FETCHER:LA_GOV] huaylao.net error:', e.message); }
 
-  // Source 2: laosassociationlottery.com (HTML)
+  // Source 2: LD1 Official Lao Lottery (HTML)
   try {
-    const res = await httpGetProxy('https://laosassociationlottery.com/en/home/', 20000);
+    const res = await httpGetProxy('https://www.ld1.la/', 40000, 'la');
     const $   = cheerio.load(res.data);
-    const nums = [];
-    $('[class*="prize"],[class*="result"],[class*="number"]').each((_, el) => {
+    let p6 = '';
+    $('[class*="prize"],[class*="result"],[class*="number"],[class*="lotto"],[class*="jackpot"],[class*="winner"]').each((_, el) => {
       const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
-      if (t.length >= 4 && t.length <= 6) nums.push(t);
+      if (/^\d{6}$/.test(t) && !p6) p6 = t;
     });
-    if (!nums.length) {
-      $('td,span,div').each((_, el) => {
-        const t = $(el).text().trim().replace(/\D/g,'');
-        if (t.length >= 4 && t.length <= 6) nums.push(t);
+    if (!p6) {
+      $('strong,b,h1,h2,h3,span,td').each((_, el) => {
+        if ($(el).children().length > 0) return;
+        const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
+        if (/^\d{6}$/.test(t) && !p6) p6 = t;
       });
     }
-    if (nums.length) {
-      console.log('[FETCHER:LA_GOV] Source: laosassociationlottery.com');
-      return laGovExtract(nums[0]);
+    if (!p6) {
+      const m = String(res.data).match(/\b(\d{6})\b/);
+      if (m) p6 = m[1];
     }
-  } catch(e) { console.warn('[FETCHER:LA_GOV] laosassociation error:', e.message); }
+    if (p6) {
+      console.log('[FETCHER:LA_GOV] Source: ld1.la (official)');
+      return laGovExtract(p6);
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] ld1.la error:', e.message); }
 
-  // Source 3: lottovip.com
+  // Source 3: lottovip.com (Thai residential proxy — works in production 1×/day)
   try {
-    const res = await httpGetProxy('https://www.lottovip.com/lao-lottery-result/');
+    const res = await httpGetProxy('https://www.lottovip.com/lao-lottery-result/', 40000, 'th');
     const $   = cheerio.load(res.data);
-    let raw = '';
-    $('[class*="result"],[class*="number"],[class*="prize"]').each((_, el) => {
-      const t = $(el).text().trim().replace(/\D/g,'');
-      if (t.length >= 4 && !raw) raw = t;
+    let p6 = '';
+    $('[class*="result"],[class*="number"],[class*="prize"],[class*="jackpot"]').each((_, el) => {
+      const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
+      if (/^\d{6}$/.test(t) && !p6) p6 = t;
     });
-    if (raw) {
+    if (!p6) {
+      $('strong,b,span,td').each((_, el) => {
+        if ($(el).children().length > 0) return;
+        const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
+        if (/^\d{6}$/.test(t) && !p6) p6 = t;
+      });
+    }
+    if (!p6) {
+      const m = String(res.data).match(/\b(\d{6})\b/);
+      if (m) p6 = m[1];
+    }
+    if (p6) {
       console.log('[FETCHER:LA_GOV] Source: lottovip.com');
-      return laGovExtract(raw);
+      return laGovExtract(p6);
     }
   } catch(e) { console.warn('[FETCHER:LA_GOV] lottovip error:', e.message); }
 
@@ -543,19 +559,32 @@ function applyTransform(transform, data, src) {
     // ─── HTML scrape — LA_GOV ─────────────────────────────────
     case 'html_la_gov': {
       const $ = cheerio.load(data);
-      const nums = [];
-      // Pass 1: prize/result classes
-      $('[class*="prize"],[class*="result"],[class*="number"],[class*="lotto"],[class*="jackpot"],td,span,b,strong').each((_, el) => {
+      let p6 = '';
+      // Pass 1: prize/result/number class elements — look for exactly 6 digits
+      $('[class*="prize"],[class*="result"],[class*="number"],[class*="lotto"],[class*="jackpot"],[class*="winner"],[class*="reward"],[class*="digit"]').each((_, el) => {
         const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
-        if (t.length >= 4 && t.length <= 6) nums.push(t);
+        if (/^\d{6}$/.test(t) && !p6) p6 = t;
       });
-      // Pass 2: regex on raw HTML
-      if (!nums.length) {
-        const matches = String(data).match(/\b(\d{4,6})\b/g) || [];
-        matches.forEach(m => nums.push(m));
+      // Pass 2: leaf nodes (strong/b/td/span/h tags) with exactly 6 digits
+      if (!p6) {
+        $('strong,b,h1,h2,h3,h4,span,td').each((_, el) => {
+          if ($(el).children().length > 0) return;
+          const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
+          if (/^\d{6}$/.test(t) && !p6) p6 = t;
+        });
       }
-      if (!nums.length) throw new Error('html_la_gov: scrape ไม่พบตัวเลข 4-6 หลัก');
-      return laGovExtract(nums[0]);
+      // Pass 3: regex scan for standalone 6-digit number in raw HTML
+      if (!p6) {
+        const m6 = String(data).match(/\b(\d{6})\b/g) || [];
+        if (m6.length) p6 = m6[0];
+      }
+      // Pass 4: accept 4-5 digit and pad (last resort)
+      if (!p6) {
+        const m45 = String(data).match(/\b(\d{4,5})\b/g) || [];
+        if (m45.length) p6 = m45[0].padStart(6, '0');
+      }
+      if (!p6) throw new Error('html_la_gov: scrape ไม่พบตัวเลข');
+      return laGovExtract(p6);
     }
 
     // ─── HTML scrape — VN_HAN ─────────────────────────────────
@@ -678,8 +707,10 @@ async function fetchOneSource(src) {
       rawData = resp.data;
     } else {
       // Determine country code and timeout based on lottery type
-      const cc = src.lottery_code?.startsWith('VN_') ? 'vn' : 'th';
-      const ms = (src.lottery_code === 'LA_GOV' || src.lottery_code?.startsWith('VN_')) ? 40000 : 30000;
+      const cc = src.lottery_code?.startsWith('VN_') ? 'vn'
+               : src.lottery_code === 'LA_GOV' ? 'la'
+               : 'th';
+      const ms = (src.lottery_code === 'LA_GOV' || src.lottery_code?.startsWith('VN_')) ? 45000 : 30000;
       // Route through proxy (ScraperAPI) if key configured, else direct
       const resp = await httpGetProxy(src.source_url, ms, cc);
       rawData = resp.data;
