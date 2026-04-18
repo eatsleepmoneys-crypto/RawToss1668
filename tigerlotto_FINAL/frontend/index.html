@@ -239,6 +239,7 @@ select.fi option{background:var(--card2)}
 .res-nums{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
 .res-n1{font-size:24px;font-weight:900;color:var(--gold2)}
 .res-n2{font-size:16px;font-weight:700;color:var(--text)}
+.res-n2bot{color:var(--muted);font-size:14px}
 .res-n3{font-size:13px;font-weight:600;color:var(--muted)}
 
 /* ─── MOBILE ─── */
@@ -1590,6 +1591,8 @@ function _renderResultsList(filterCode){
   list.innerHTML = results.map(r => {
     const last3  = _parseJsonArr(r.prize_last_3);
     const front3 = _parseJsonArr(r.prize_front_3);
+    // LA_GOV และ VN_HAN* มี 2ตัวล่าง (prize_2bot) แยกจาก 2ตัวบน
+    const has2bot = r.prize_2bot && (r.code === 'LA_GOV' || (r.code && r.code.startsWith('VN_')));
     return `<div class="res-row">
       <div>
         <div class="res-type">${r.flag||'🎰'} ${r.lottery_name}</div>
@@ -1597,8 +1600,9 @@ function _renderResultsList(filterCode){
       </div>
       <div class="res-nums">
         <span class="res-n1">${r.prize_1st||'-'}</span>
-        <span class="res-n2">${r.prize_last_2||'-'}</span>
         ${[...front3,...last3].map(n=>`<span class="res-n3">${n}</span>`).join('')}
+        <span class="res-n2">${r.prize_last_2||'-'}</span>
+        ${has2bot ? `<span class="res-n2 res-n2bot">${r.prize_2bot}</span>` : ''}
       </div>
     </div>`;
   }).join('');

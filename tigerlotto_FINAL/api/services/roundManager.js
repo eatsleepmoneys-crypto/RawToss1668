@@ -88,15 +88,17 @@ function buildRoundsForToday() {
     });
   }
 
-  // ── ลาวพัฒนา (ทุกวัน) ────────────────────────────────────────
-  rounds.push({
-    code:       'LA_GOV',
-    round_code: `LAOS-${compact}`,
-    round_name: `ลาวพัฒนา ${dateThai}`,
-    draw_date:  dateStr,
-    open_at:    `${dateStr} 00:00:00`,
-    close_at:   `${dateStr} 20:00:00`,
-  });
+  // ── ลาวพัฒนา (จันทร์–ศุกร์ เท่านั้น — หยุดเสาร์-อาทิตย์) ──────
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'LA_GOV',
+      round_code: `LAOS-${compact}`,
+      round_name: `ลาวพัฒนา ${dateThai}`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 00:00:00`,
+      close_at:   `${dateStr} 20:00:00`,
+    });
+  }
 
   // ── ฮานอยปกติ (ทุกวัน ~18:30) ────────────────────────────────
   rounds.push({

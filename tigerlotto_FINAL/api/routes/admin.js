@@ -415,7 +415,7 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
       { code:'TH_GOV',     round_code:'TH_GOV-20260401',     round_name:'งวดวันที่ 1 เมษายน 2569',                     draw_date:'2026-04-01', close_at:'2026-04-01 14:30:00', announced_at:'2026-04-01 15:30:00', total_bet:158000, total_win:73500,  bet_count:312, prize_1st:'916894', prize_last_2:'17', prize_front_3:['293','635'], prize_last_3:['149','274'] },
       { code:'TH_GOV',     round_code:'TH_GOV-20260416',     round_name:'งวดวันที่ 16 เมษายน 2569',                    draw_date:'2026-04-16', close_at:'2026-04-16 14:30:00', announced_at:'2026-04-16 15:30:00', total_bet:214000, total_win:98500, bet_count:427, prize_1st:'309612', prize_last_2:'77', prize_front_3:['355','108'], prize_last_3:['868','424'] },
       // ลาวพัฒนา 6 หลัก: 2bot=slice(2,4)='98', 2top=prize_last_2=slice(4,6)='13', 3top=slice(3,6)='813'
-      { code:'LA_GOV',     round_code:'LA_GOV-20260413',     round_name:'ลาวพัฒนา งวดวันที่ 13 เมษายน 2569',           draw_date:'2026-04-13', close_at:'2026-04-13 20:00:00', announced_at:'2026-04-13 20:45:00', total_bet:42500,  total_win:18200,  bet_count:98,  prize_1st:'129813', prize_last_2:'13', prize_front_3:[], prize_last_3:['813'] },
+      { code:'LA_GOV',     round_code:'LA_GOV-20260413',     round_name:'ลาวพัฒนา งวดวันที่ 13 เมษายน 2569',           draw_date:'2026-04-13', close_at:'2026-04-13 20:00:00', announced_at:'2026-04-13 20:45:00', total_bet:42500,  total_win:18200,  bet_count:98,  prize_1st:'129813', prize_last_2:'13', prize_2bot:'98', prize_front_3:[], prize_last_3:['813'] },
       { code:'VN_HAN',     round_code:'VN_HAN-20260416',     round_name:'ฮานอยปกติ งวดวันที่ 16 เมษายน 2569',            draw_date:'2026-04-16', close_at:'2026-04-16 18:15:00', announced_at:'2026-04-16 18:45:00', total_bet:35000,  total_win:14700,  bet_count:76,  prize_1st:'72638', prize_last_2:'38', prize_front_3:[], prize_last_3:['638'] },
       { code:'VN_HAN_SP',  round_code:'VN_HAN_SP-20260416',  round_name:'ฮานอยพิเศษ งวดวันที่ 16 เมษายน 2569',          draw_date:'2026-04-16', close_at:'2026-04-16 17:00:00', announced_at:'2026-04-16 17:35:00', total_bet:21000,  total_win:8900,   bet_count:48,  prize_1st:'54219', prize_last_2:'19', prize_front_3:[], prize_last_3:['219'] },
       { code:'VN_HAN_VIP', round_code:'VN_HAN_VIP-20260416', round_name:'ฮานอย VIP งวดวันที่ 16 เมษายน 2569',           draw_date:'2026-04-16', close_at:'2026-04-16 16:30:00', announced_at:'2026-04-16 17:05:00', total_bet:18500,  total_win:7600,   bet_count:41,  prize_1st:'83475', prize_last_2:'75', prize_front_3:[], prize_last_3:['475'] },
@@ -454,14 +454,17 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
         if (!roundId) { results.push({ code: h.code, status: 'error', reason: 'cannot find round_id' }); continue; }
 
         // Upsert result — ถ้ามีอยู่แล้วให้ UPDATE ด้วยข้อมูลล่าสุด (แก้ผลที่ผิดได้)
+        // prize_2bot: ลาวพัฒนา = slice(2,4), ฮานอย = last 2 ของ G1 (ถ้ามี)
+        const prize2bot = h.prize_2bot || null;
         await query(
-          `INSERT INTO lottery_results (round_id, prize_1st, prize_last_2, prize_front_3, prize_last_3, announced_at)
-           VALUES (?, ?, ?, ?, ?, ?)
+          `INSERT INTO lottery_results (round_id, prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
            ON DUPLICATE KEY UPDATE
              prize_1st=VALUES(prize_1st), prize_last_2=VALUES(prize_last_2),
+             prize_2bot=VALUES(prize_2bot),
              prize_front_3=VALUES(prize_front_3), prize_last_3=VALUES(prize_last_3),
              announced_at=VALUES(announced_at)`,
-          [roundId, h.prize_1st, h.prize_last_2, JSON.stringify(h.prize_front_3), JSON.stringify(h.prize_last_3), h.announced_at]
+          [roundId, h.prize_1st, h.prize_last_2, prize2bot, JSON.stringify(h.prize_front_3), JSON.stringify(h.prize_last_3), h.announced_at]
         );
         results.push({ code: h.code, status: 'ok', round_name: h.round_name, prize_1st: h.prize_1st });
       } catch(e) {

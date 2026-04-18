@@ -997,17 +997,17 @@ function startLotteryFetcher() {
     }
   }, { timezone: TIMEZONE });
 
-  // ── หวยลาว ────────────────────────────────────────────────────
-  // ออกผล ~20:30 → fetch 20:45
-  cron.schedule('45 20 * * *', () => {
+  // ── หวยลาว (จันทร์–ศุกร์ เท่านั้น) ──────────────────────────────
+  // ออกผล ~20:00-20:30 → fetch 20:45
+  cron.schedule('45 20 * * 1-5', () => {
     console.log('[FETCHER] Trigger: LA_GOV');
     runFetcher('LA_GOV', fetchLAGov).catch(e =>
       console.error('[FETCHER] LA_GOV error:', e.message)
     );
   }, { timezone: TIMEZONE });
 
-  // Retry 21:15
-  cron.schedule('15 21 * * *', async () => {
+  // Retry 21:15 (Mon-Fri เท่านั้น)
+  cron.schedule('15 21 * * 1-5', async () => {
     const status = fetcherStatus['LA_GOV'];
     if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
       console.log('[FETCHER] LA_GOV retry @ 21:15');
@@ -1066,7 +1066,7 @@ function startLotteryFetcher() {
 
   console.log('[FETCHER] Crons ลงทะเบียนแล้ว:');
   console.log('  TH_GOV      → วันที่ 1, 16 @ 15:30 (retry 16:00)');
-  console.log('  LA_GOV      → ทุกวัน @ 20:45 (retry 21:15)');
+  console.log('  LA_GOV      → จันทร์-ศุกร์ @ 20:45 (retry 21:15)');
   console.log('  VN_HAN_VIP  → ทุกวัน @ 17:15 (retry 17:45)');
   console.log('  VN_HAN_SP   → ทุกวัน @ 17:45 (retry 18:15)');
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
