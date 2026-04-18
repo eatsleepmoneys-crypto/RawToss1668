@@ -94,22 +94,38 @@ nav a:hover{color:var(--text);background:var(--card2)}
 .divider{height:1px;background:var(--border);border:none;margin:0}
 
 /* ─── LOTTERY CARDS ─── */
-.lot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:20px}
-.lot-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:26px;position:relative;overflow:hidden;transition:.3s;cursor:pointer}
-.lot-card:hover{border-color:var(--gold);transform:translateY(-5px);box-shadow:0 12px 40px rgba(212,160,23,.2)}
+.lot-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;justify-content:center}
+.lot-ftab{padding:8px 18px;border-radius:30px;font-size:13px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;user-select:none;font-family:'Sarabun',sans-serif}
+.lot-ftab.on{background:var(--grad);color:#000;border-color:transparent}
+.lot-group{margin-bottom:36px}
+.lot-group-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.lot-group-hdr h3{font-size:15px;font-weight:700}
+.lot-group-hdr .cnt-badge{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--muted)}
+.lot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+.lot-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;position:relative;overflow:hidden;transition:.3s;cursor:pointer}
+.lot-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 10px 36px rgba(212,160,23,.2)}
 .lot-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad)}
-.lot-tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:14px;background:rgba(212,160,23,.1);color:var(--gold2);border:1px solid var(--bgold)}
+.lot-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.lot-tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;background:rgba(212,160,23,.1);color:var(--gold2);border:1px solid var(--bgold)}
 .lot-tag.hot{background:rgba(255,71,87,.1);color:#ff8a92;border-color:rgba(255,71,87,.3)}
 .lot-tag.vip{background:rgba(61,139,205,.1);color:#7ec8e3;border-color:rgba(61,139,205,.3)}
 .lot-tag.lao{background:rgba(46,213,115,.1);color:#7dffb3;border-color:rgba(46,213,115,.3)}
-.lot-name{font-size:19px;font-weight:700;margin-bottom:6px}
-.lot-prize{font-size:26px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
-.lot-meta{font-size:12px;color:var(--muted);margin-bottom:4px}
+.lot-status{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.lot-status.open{background:rgba(46,213,115,.12);color:#2ed573;border:1px solid rgba(46,213,115,.3)}
+.lot-status.closed{background:rgba(255,71,87,.08);color:#ff6b81;border:1px solid rgba(255,71,87,.25)}
+.lot-status.soon{background:rgba(255,165,0,.1);color:#ffa500;border:1px solid rgba(255,165,0,.3)}
+.lot-name{font-size:17px;font-weight:700;margin-bottom:4px}
+.lot-prize{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.lot-meta{font-size:12px;color:var(--muted);margin-bottom:3px}
 .lot-meta span{color:var(--red);font-weight:700}
-.lot-rate{font-size:12px;color:var(--muted);margin-bottom:18px}
+.lot-rate{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.8}
 .lot-rate b{color:var(--gold)}
-.lot-btn{width:100%;padding:12px;background:var(--grad);color:#000;border-radius:11px;font-size:15px;font-weight:700;transition:.25s;border:none;font-family:'Sarabun',sans-serif}
+.lot-btn{width:100%;padding:11px;background:var(--grad);color:#000;border-radius:11px;font-size:14px;font-weight:700;transition:.25s;border:none;font-family:'Sarabun',sans-serif}
 .lot-btn:hover{opacity:.88;transform:translateY(-2px)}
+/* Results filter */
+.res-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;justify-content:center}
+.res-ftab{padding:7px 16px;border-radius:30px;font-size:13px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;user-select:none;font-family:'Sarabun',sans-serif}
+.res-ftab.on{background:var(--grad);color:#000;border-color:transparent}
 
 /* ─── CHECKER ─── */
 .checker-wrap{max-width:680px;margin:0 auto}
@@ -421,8 +437,13 @@ select.fi option{background:var(--card2)}
       <h2>เลือก<span>ซื้อหวย</span>ได้เลย</h2>
       <p>หวยหลากหลายประเภท จ่ายสูง คืนทุนเยอะ</p>
     </div>
-    <div class="lot-grid" id="lot-grid">
-      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
+    <!-- Filter tabs (populated by JS) -->
+    <div class="lot-filter" id="lot-filter">
+      <button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>
+    </div>
+    <!-- Groups container (populated by JS) -->
+    <div id="lot-groups">
+      <div style="text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
     </div>
   </div>
 </section>
@@ -434,7 +455,11 @@ select.fi option{background:var(--card2)}
   <div class="container">
     <div class="sec-hdr">
       <h2>ผล<span>รางวัล</span>ย้อนหลัง</h2>
-      <p>ผลรางวัลล่าสุด อัพเดทอัตโนมัติ</p>
+      <p>เลือกดูผลแยกตามประเภทหวย อัพเดทอัตโนมัติ</p>
+    </div>
+    <!-- Result type filter (populated by JS) -->
+    <div class="res-filter" id="res-filter">
+      <button class="res-ftab on" data-code="ALL" onclick="filterResults(this,'ALL')">🎰 ทั้งหมด</button>
     </div>
     <div class="results-list" id="results-list">
       <div style="text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
@@ -1348,49 +1373,112 @@ async function loadStats(){
 }
 
 /* ─── Lottery Cards ─── */
+const LOT_TYPE_META = {
+  TH_GOV:  { label:'หวยรัฐบาล',   flag:'🇹🇭', tagClass:'hot',   tagText:'🔥 HOT'       },
+  YEEKEE:  { label:'หวยยี่กี',    flag:'⚡',   tagClass:'vip',   tagText:'⚡ ยี่กี'     },
+  LA_GOV:  { label:'หวยลาว',      flag:'🇱🇦', tagClass:'lao',   tagText:'🇱🇦 ลาว'     },
+  VN_HAN:  { label:'หวยฮานอย',    flag:'🇻🇳', tagClass:'',      tagText:'🇻🇳 ฮานอย'   },
+};
 function _tagFor(code){
-  if(code==='TH_GOV') return '<span class="lot-tag hot">🔥 HOT</span>';
-  if(code==='YEEKEE') return '<span class="lot-tag vip">⚡ ยี่กี</span>';
-  if(code==='LA_GOV') return '<span class="lot-tag lao">🇱🇦 ลาว</span>';
-  if(code==='VN_HAN') return '<span class="lot-tag" style="background:rgba(255,155,0,.1);color:#ffbb55;border-color:rgba(255,155,0,.3)">🇻🇳 เวียดนาม</span>';
-  return '<span class="lot-tag">หวย</span>';
+  const m = LOT_TYPE_META[code];
+  return m ? `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>` : '<span class="lot-tag">หวย</span>';
+}
+function _statusFor(r){
+  const now = Date.now();
+  const close = new Date(r.close_at).getTime();
+  const diff = close - now;
+  if(diff < 0) return '<span class="lot-status closed">🔴 ปิดรับแล้ว</span>';
+  if(diff < 60*60*1000) return '<span class="lot-status soon">🟡 ใกล้ปิด</span>';
+  return '<span class="lot-status open">🟢 เปิดรับ</span>';
+}
+
+// Store all rounds globally for filter
+let _allRounds = [];
+
+function filterLotCards(el, code){
+  document.querySelectorAll('.lot-ftab').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  _renderLotGroups(code);
+}
+
+function _renderLotGroups(filterCode){
+  const container = document.getElementById('lot-groups');
+  if(!container) return;
+  const rounds = filterCode === 'ALL' ? _allRounds : _allRounds.filter(r => r.code === filterCode);
+  if(rounds.length === 0){
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ไม่มีหวยในประเภทนี้</div>';
+    return;
+  }
+  // Group by code
+  const groups = {};
+  rounds.forEach(r => {
+    const key = r.code || 'OTHER';
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  container.innerHTML = Object.entries(groups).map(([code, list]) => {
+    const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
+    const cards = list.map(r => {
+      const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+      const safeEsc  = s => String(s||'').replace(/'/g,'&apos;');
+      return `<div class="lot-card" onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">
+        <div class="lot-card-top">
+          ${_tagFor(code)}
+          ${_statusFor(r)}
+        </div>
+        <div class="lot-name">${r.flag||meta.flag} ${r.lottery_name}</div>
+        <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
+        <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
+        <div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>
+        <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
+        <button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">🎰 ซื้อเลย</button>
+      </div>`;
+    }).join('');
+    return `<div class="lot-group">
+      <div class="lot-group-hdr">
+        <span style="font-size:18px">${meta.flag}</span>
+        <h3>${meta.label}</h3>
+        <span class="cnt-badge">${list.length} งวด</span>
+      </div>
+      <div class="lot-grid">${cards}</div>
+    </div>`;
+  }).join('');
 }
 
 async function loadLotteryCards(){
-  const grid = document.getElementById('lot-grid');
-  if(!grid) return;
+  const container = document.getElementById('lot-groups');
+  if(!container) return;
   try{
     const d      = await API.LotteryAPI.getRounds();
-    const rounds = d.data || [];
-    if(rounds.length===0){
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">ยังไม่มีหวยเปิดรับในขณะนี้</div>';
+    _allRounds   = d.data || [];
+    if(_allRounds.length === 0){
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีหวยเปิดรับในขณะนี้</div>';
       return;
     }
-    // Use first round for countdown
-    const first = rounds[0];
+    // Countdown & hero sub from first round
+    const first = _allRounds[0];
     setCountdownTarget(new Date(first.close_at));
     const heroSub = document.getElementById('hero-sub');
     if(heroSub){
       const closeStr = new Date(first.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'});
       heroSub.textContent = `🎯 งวดถัดไป: ${first.round_name} · ปิดรับ ${closeStr}`;
     }
-    // Set default curRoundId
     curRoundId = first.id;
 
-    grid.innerHTML = rounds.map(r => {
-      const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
-      const safeEsc  = s => String(s||'').replace(/'/g,'&apos;');
-      return `<div class="lot-card" onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">
-        ${_tagFor(r.code)}
-        <div class="lot-name">${r.flag||'🎰'} ${r.lottery_name}</div>
-        <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
-        <div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>
-        <div class="lot-rate">3 บน <b>${r.rate_3top}</b> | 3 โต้ด <b>${r.rate_3tod}</b> | 2 บน <b>${r.rate_2top}</b> | 2 ล่าง <b>${r.rate_2bot}</b></div>
-        <button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">ซื้อเลย</button>
-      </div>`;
-    }).join('');
+    // Build dynamic filter tabs
+    const filterEl = document.getElementById('lot-filter');
+    if(filterEl){
+      const codes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))];
+      const extraTabs = codes.map(code => {
+        const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
+        return `<button class="lot-ftab" data-code="${code}" onclick="filterLotCards(this,'${code}')">${meta.flag} ${meta.label}</button>`;
+      }).join('');
+      filterEl.innerHTML = `<button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
+    }
+
+    _renderLotGroups('ALL');
   }catch(e){
-    if(grid) grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)">⚠️ ไม่สามารถโหลดข้อมูลได้</div>';
+    if(container) container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ ไม่สามารถโหลดข้อมูลได้</div>';
   }
 }
 
@@ -1456,31 +1544,60 @@ async function loadHeroResult(){
 }
 
 /* ─── Results History ─── */
+let _allResults = [];
+
+function filterResults(el, code){
+  document.querySelectorAll('.res-ftab').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  _renderResultsList(code);
+}
+
+function _renderResultsList(filterCode){
+  const list = document.getElementById('results-list');
+  if(!list) return;
+  const results = filterCode === 'ALL' ? _allResults : _allResults.filter(r => r.code === filterCode);
+  if(results.length === 0){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีผลรางวัลในประเภทนี้</div>';
+    return;
+  }
+  list.innerHTML = results.map(r => {
+    const last3  = _parseJsonArr(r.prize_last_3);
+    const front3 = _parseJsonArr(r.prize_front_3);
+    return `<div class="res-row">
+      <div>
+        <div class="res-type">${r.flag||'🎰'} ${r.lottery_name}</div>
+        <div class="res-date-small">งวด ${r.round_name} · ${UI.formatDateOnly(r.draw_date)}</div>
+      </div>
+      <div class="res-nums">
+        <span class="res-n1">${r.prize_1st||'-'}</span>
+        <span class="res-n2">${r.prize_last_2||'-'}</span>
+        ${[...front3,...last3].map(n=>`<span class="res-n3">${n}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function loadResultsHistory(){
   const list = document.getElementById('results-list');
   if(!list) return;
   try{
-    const d       = await API.LotteryAPI.getResults({ limit:10 });
-    const results = d.data || [];
-    if(results.length===0){
+    const d    = await API.LotteryAPI.getResults({ limit: 30 });
+    _allResults = d.data || [];
+    if(_allResults.length === 0){
       list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีผลรางวัล</div>';
       return;
     }
-    list.innerHTML = results.map(r=>{
-      const last3  = _parseJsonArr(r.prize_last_3);
-      const front3 = _parseJsonArr(r.prize_front_3);
-      return `<div class="res-row">
-        <div>
-          <div class="res-type">${r.flag||'🎰'} ${r.lottery_name}</div>
-          <div class="res-date-small">งวด ${r.round_name} · ${UI.formatDateOnly(r.draw_date)}</div>
-        </div>
-        <div class="res-nums">
-          <span class="res-n1">${r.prize_1st||'-'}</span>
-          <span class="res-n2">${r.prize_last_2||'-'}</span>
-          ${[...front3,...last3].map(n=>`<span class="res-n3">${n}</span>`).join('')}
-        </div>
-      </div>`;
-    }).join('');
+    // Build dynamic filter tabs
+    const filterEl = document.getElementById('res-filter');
+    if(filterEl){
+      const codes = [...new Set(_allResults.map(r => r.code).filter(Boolean))];
+      const extraTabs = codes.map(code => {
+        const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
+        return `<button class="res-ftab" data-code="${code}" onclick="filterResults(this,'${code}')">${meta.flag} ${meta.label}</button>`;
+      }).join('');
+      filterEl.innerHTML = `<button class="res-ftab on" data-code="ALL" onclick="filterResults(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
+    }
+    _renderResultsList('ALL');
   }catch(e){
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ โหลดข้อมูลไม่ได้ในขณะนี้</div>';
   }
