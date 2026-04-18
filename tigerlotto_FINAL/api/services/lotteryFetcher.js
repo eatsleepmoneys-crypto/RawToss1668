@@ -278,9 +278,20 @@ async function fetchLAGov() {
  * รางวัลที่ 1 (Giải nhất) = 5 หลัก
  */
 async function fetchVNHanoi() {
-  // Source 1: ketqua.tv (HTML scrape — fast, reliable)
+  // Source 1: xskt.com.vn RSS feed (XML — most reliable from Railway US servers)
   try {
-    const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac.html', 25000, 'sg');
+    const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss', 20000);
+    const matches = String(res.data).match(/\b\d{5}\b/g);
+    if (matches && matches.length) {
+      const p = matches[0];
+      console.log('[FETCHER:VN_HAN] Source: xskt.com.vn RSS', p);
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] xskt RSS error:', e.message); }
+
+  // Source 2: ketqua.tv (HTML scrape via ScraperAPI)
+  try {
+    const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac.html', 30000, 'sg');
     const $   = cheerio.load(res.data);
     let p = '';
     $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"]').each((_, el) => {
@@ -299,12 +310,11 @@ async function fetchVNHanoi() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] ketqua.tv error:', e.message); }
 
-  // Source 2: xosomiennam.net (HTML scrape)
+  // Source 3: xosomiennam.net (HTML scrape via ScraperAPI)
   try {
-    const res = await httpGetProxy('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 25000, 'sg');
+    const res = await httpGetProxy('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 30000, 'sg');
     const $   = cheerio.load(res.data);
     let p = '';
-    // Giải nhất มักอยู่ใน <td> หรือ <div> ที่มี 5 หลัก
     $('td,span,div').each((_, el) => {
       const t = $(el).text().trim().replace(/\D/g,'');
       if (/^\d{5}$/.test(t) && !p) p = t;
@@ -314,20 +324,6 @@ async function fetchVNHanoi() {
       return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] xosomiennam error:', e.message); }
-
-  // Source 3: xoso.com.vn (JSON — may be blocked)
-  try {
-    const today = new Date(Date.now() + 7*3600000).toISOString().slice(0,10).replace(/-/g,'/');
-    const res   = await httpGetProxy(`https://xoso.com.vn/api/xs-mb-${today}.js`, 25000, 'sg');
-    const html  = res.data;
-    // ดึง giainhat: ["12345"] จาก JSON
-    const m = JSON.stringify(html).match(/"giainhat"\s*:\s*\["(\d+)"\]/);
-    if (m) {
-      const p = m[1];
-      console.log('[FETCHER:VN_HAN] Source: xoso.com.vn', p);
-      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN] xoso.com.vn error:', e.message); }
 
   throw new Error('VN_HAN: แหล่งข้อมูลทุกแหล่งล้มเหลว');
 }
