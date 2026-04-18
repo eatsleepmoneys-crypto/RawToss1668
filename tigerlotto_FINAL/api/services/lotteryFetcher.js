@@ -182,7 +182,7 @@ function laGovExtract(rawDigits) {
 async function fetchLAGov() {
   // Source 1: huaylao.net (JSON)
   try {
-    const res = await httpGetProxy('https://huaylao.net/api/latest');
+    const res = await httpGetProxy('https://huaylao.net/api/latest', 30000, 'th');
     const d   = res.data;
     if (d && (d.prize1 || d.first)) {
       const raw = (d.prize1 || d.first || '').replace(/\D/g,'');
@@ -195,7 +195,7 @@ async function fetchLAGov() {
 
   // Source 2: LD1 Official Lao Lottery (HTML)
   try {
-    const res = await httpGetProxy('https://www.ld1.la/', 40000, 'la');
+    const res = await httpGetProxy('https://www.ld1.la/', 40000, 'th');
     const $   = cheerio.load(res.data);
     let p6 = '';
     $('[class*="prize"],[class*="result"],[class*="number"],[class*="lotto"],[class*="jackpot"],[class*="winner"]').each((_, el) => {
@@ -707,9 +707,10 @@ async function fetchOneSource(src) {
       rawData = resp.data;
     } else {
       // Determine country code and timeout based on lottery type
-      const cc = src.lottery_code?.startsWith('VN_') ? 'vn'
-               : src.lottery_code === 'LA_GOV' ? 'la'
-               : 'th';
+      // Note: ScraperAPI supports 'th' (Thailand) and 'sg' (Singapore) for SEA;
+      // 'la' (Laos) and 'vn' (Vietnam) are NOT valid country codes — use nearest.
+      const cc = src.lottery_code?.startsWith('VN_') ? 'sg'
+               : 'th'; // LA_GOV and TH_GOV: Thai residential proxy
       const ms = (src.lottery_code === 'LA_GOV' || src.lottery_code?.startsWith('VN_')) ? 45000 : 30000;
       // Route through proxy (ScraperAPI) if key configured, else direct
       const resp = await httpGetProxy(src.source_url, ms, cc);
