@@ -405,11 +405,11 @@ const SEEDS = [
     ('LA_GOV','HuayLao.net (HTML)','https://huaylao.net/','html_la_gov',1,0),
     ('LA_GOV','Lotto.com.la (HTML)','https://www.lotto.com.la/','html_la_gov',1,1),
     ('LA_GOV','LottovipLao (HTML)','https://www.lottovip.com/lao-lottery-result/','html_la_gov',1,2),
-    ('VN_HAN','xoso.com.vn (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
-    ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,1),
+    ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,0),
+    ('VN_HAN','xosomiennam.net (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1),
     ('VN_HAN','xskt RSS (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
-    ('VN_HAN_SP','xoso special (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
-    ('VN_HAN_VIP','xoso VIP (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0)`,
+    ('VN_HAN_SP','xosomiennam special (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,0),
+    ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,0)`,
 
   // ─── Cleanup duplicate sources (keep lowest id per lottery_code+name) ───
   `DELETE s1 FROM \`lottery_api_sources\` s1

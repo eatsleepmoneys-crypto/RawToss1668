@@ -517,10 +517,25 @@ function applyTransform(transform, data, src) {
     case 'html_th_gov': {
       const $ = cheerio.load(data);
       let p1 = '';
-      $('span,td,div,p').each((_, el) => {
-        const t = $(el).text().trim().replace(/\D/g, '');
+      // Pass 1: specific prize elements
+      $('[class*="prize"],[class*="first"],[class*="jackpot"],[class*="lotto"],[id*="prize"],[id*="first"]').each((_, el) => {
+        const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
         if (/^\d{6}$/.test(t) && !p1) p1 = t;
       });
+      // Pass 2: broad scrape — any element containing exactly 6 digits
+      if (!p1) {
+        $('*').each((_, el) => {
+          const children = $(el).children();
+          if (children.length > 0) return; // leaf nodes only
+          const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
+          if (/^\d{6}$/.test(t) && !p1) p1 = t;
+        });
+      }
+      // Pass 3: regex scan on full HTML for standalone 6-digit numbers
+      if (!p1) {
+        const m = String(data).match(/\b(\d{6})\b/);
+        if (m) p1 = m[1];
+      }
       if (!p1) throw new Error('html_th_gov: scrape ไม่พบ 6 หลัก');
       return { prize_1st: p1, prize_last_2: p1.slice(-2), prize_front_3: [], prize_last_3: [] };
     }
@@ -529,10 +544,16 @@ function applyTransform(transform, data, src) {
     case 'html_la_gov': {
       const $ = cheerio.load(data);
       const nums = [];
-      $('[class*="prize"],[class*="result"],[class*="number"],td,span,div').each((_, el) => {
+      // Pass 1: prize/result classes
+      $('[class*="prize"],[class*="result"],[class*="number"],[class*="lotto"],[class*="jackpot"],td,span,b,strong').each((_, el) => {
         const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
         if (t.length >= 4 && t.length <= 6) nums.push(t);
       });
+      // Pass 2: regex on raw HTML
+      if (!nums.length) {
+        const matches = String(data).match(/\b(\d{4,6})\b/g) || [];
+        matches.forEach(m => nums.push(m));
+      }
       if (!nums.length) throw new Error('html_la_gov: scrape ไม่พบตัวเลข 4-6 หลัก');
       return laGovExtract(nums[0]);
     }
@@ -541,15 +562,23 @@ function applyTransform(transform, data, src) {
     case 'html_vn_han': {
       const $ = cheerio.load(data);
       let p = '';
-      $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"]').each((_, el) => {
+      // Pass 1: specific prize classes (Vietnamese lottery sites)
+      $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"],[class*="special"],[class*="dac-biet"],[class*="dacbiet"]').each((_, el) => {
         const t = $(el).text().trim().replace(/\D/g, '');
         if (t.length >= 4 && !p) p = t;
       });
+      // Pass 2: look for 5-digit numbers in table cells
       if (!p) {
-        $('td,span,div').each((_, el) => {
+        $('td,span,div,b,strong').each((_, el) => {
+          const children = $(el).children();
           const t = $(el).text().trim().replace(/\D/g, '');
           if (/^\d{5}$/.test(t) && !p) p = t;
         });
+      }
+      // Pass 3: regex scan for first 5-digit number in HTML
+      if (!p) {
+        const m = String(data).match(/\b(\d{5})\b/);
+        if (m) p = m[1];
       }
       if (!p) throw new Error('html_vn_han: scrape ไม่พบ 5 หลัก');
       return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
