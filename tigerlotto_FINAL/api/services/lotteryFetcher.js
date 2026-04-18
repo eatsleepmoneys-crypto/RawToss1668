@@ -648,8 +648,11 @@ async function fetchOneSource(src) {
       const resp = await axios.get(src.source_url, { headers, timeout: 25000 });
       rawData = resp.data;
     } else {
+      // Determine country code and timeout based on lottery type
+      const cc = src.lottery_code?.startsWith('VN_') ? 'vn' : 'th';
+      const ms = (src.lottery_code === 'LA_GOV' || src.lottery_code?.startsWith('VN_')) ? 40000 : 30000;
       // Route through proxy (ScraperAPI) if key configured, else direct
-      const resp = await httpGetProxy(src.source_url, 25000);
+      const resp = await httpGetProxy(src.source_url, ms, cc);
       rawData = resp.data;
     }
   }

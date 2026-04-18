@@ -343,7 +343,8 @@ const CREATES = [
     \`last_result\`   TEXT         DEFAULT NULL COMMENT 'JSON snapshot of last successful response',
     \`created_at\`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX \`idx_code_enabled\` (\`lottery_code\`, \`enabled\`, \`sort_order\`)
+    INDEX \`idx_code_enabled\` (\`lottery_code\`, \`enabled\`, \`sort_order\`),
+    UNIQUE KEY \`uk_code_name\` (\`lottery_code\`, \`name\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
@@ -395,19 +396,27 @@ const SEEDS = [
     ('CASHBACK5','คืนยอด 5% ทุกงวด','cashback',5,1,1),
     ('REF3','ค่าแนะนำเพื่อน 3%','referral',3,1,1)`,
 
-  // Default lottery API sources (INSERT IGNORE)
+  // Default lottery API sources (INSERT IGNORE — unique on lottery_code+name)
   `INSERT IGNORE INTO \`lottery_api_sources\`
      (\`lottery_code\`,\`name\`,\`source_url\`,\`transform\`,\`enabled\`,\`sort_order\`) VALUES
-    ('TH_GOV','Longdo Money (JSON)','https://money.longdo.com/lotto/api','longdo',1,0),
-    ('TH_GOV','Sanook Lotto API','https://api.sanook.com/lottoapi/latest','sanook',1,1),
-    ('TH_GOV','Manager.co.th (HTML)','https://www.manager.co.th/Lotto/','html_th_gov',1,2),
+    ('TH_GOV','GLO Official (HTML)','https://www.glo.or.th/th/lotto/result','html_th_gov',1,0),
+    ('TH_GOV','Sanook Lottery (HTML)','https://www.sanook.com/lottery/','html_th_gov',1,1),
+    ('TH_GOV','Manager Lottery (HTML)','https://www.manager.co.th/Lottery/','html_th_gov',1,2),
     ('LA_GOV','HuayLao.net (HTML)','https://huaylao.net/','html_la_gov',1,0),
     ('LA_GOV','Lotto.com.la (HTML)','https://www.lotto.com.la/','html_la_gov',1,1),
+    ('LA_GOV','LottovipLao (HTML)','https://www.lottovip.com/lao-lottery-result/','html_la_gov',1,2),
     ('VN_HAN','xoso.com.vn (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
-    ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/','html_vn_han',1,1),
-    ('VN_HAN','xskt.com.vn (JSON)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
-    ('VN_HAN_SP','xoso.com.vn special (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
-    ('VN_HAN_VIP','xoso.com.vn VIP (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0)`,
+    ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,1),
+    ('VN_HAN','xskt RSS (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
+    ('VN_HAN_SP','xoso special (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
+    ('VN_HAN_VIP','xoso VIP (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0)`,
+
+  // ─── Cleanup duplicate sources (keep lowest id per lottery_code+name) ───
+  `DELETE s1 FROM \`lottery_api_sources\` s1
+   INNER JOIN \`lottery_api_sources\` s2
+   WHERE s1.lottery_code = s2.lottery_code
+     AND s1.name = s2.name
+     AND s1.id > s2.id`,
 ];
 
 // ─── Main migration function ─────────────────────────────────────────────────
@@ -510,6 +519,8 @@ async function migrate() {
     `ALTER TABLE \`lottery_rounds\` ADD COLUMN \`open_at\` DATETIME DEFAULT NULL AFTER \`round_code\``,
     // round_code unique index (safe re-add attempt)
     `ALTER TABLE \`lottery_rounds\` ADD UNIQUE KEY \`uk_round_code\` (\`round_code\`)`,
+    // lottery_api_sources: unique key to prevent duplicate seeds
+    `ALTER TABLE \`lottery_api_sources\` ADD UNIQUE KEY \`uk_code_name\` (\`lottery_code\`, \`name\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
