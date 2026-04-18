@@ -49,7 +49,28 @@ router.get('/rounds', async (req, res) => {
 
 // GET /api/lottery/results — recent results
 router.get('/results', async (req, res) => {
-  const { lottery_id, limit = 10 } = req.query;
+  const { lottery_id, limit = 10, latest_per_type } = req.query;
+
+  // ─── latest_per_type=1 : คืน latest result ของแต่ละ lottery type ───
+  // ใช้สำหรับสร้าง filter tabs บนหน้าผลรางวัล
+  if (latest_per_type === '1') {
+    const rows = await query(
+      `SELECT lr.id,lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag,lt.code,
+              res.prize_1st,res.prize_last_2,res.prize_2bot,res.prize_last_3,res.prize_front_3,res.announced_at
+       FROM lottery_types lt
+       JOIN lottery_rounds lr ON lr.lottery_id=lt.id AND lr.status='announced'
+       JOIN lottery_results res ON res.round_id=lr.id
+       WHERE lt.status='open'
+         AND lr.id = (
+           SELECT lr2.id FROM lottery_rounds lr2
+           WHERE lr2.lottery_id=lt.id AND lr2.status='announced'
+           ORDER BY lr2.draw_date DESC, lr2.id DESC LIMIT 1
+         )
+       ORDER BY lt.sort_order, lt.id`
+    );
+    return res.json({ success: true, data: rows });
+  }
+
   const lim = Math.min(parseInt(limit) || 10, 50);
   const where = []; const params = [];
   where.push("lr.status='announced'");

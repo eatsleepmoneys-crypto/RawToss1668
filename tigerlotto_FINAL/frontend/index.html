@@ -1612,22 +1612,37 @@ async function loadResultsHistory(){
   const list = document.getElementById('results-list');
   if(!list) return;
   try{
-    const d    = await API.LotteryAPI.getResults({ limit: 30 });
-    _allResults = d.data || [];
-    if(_allResults.length === 0){
+    // ดึง 2 ชุดพร้อมกัน:
+    //  1) recent 30 สำหรับแสดงในรายการ (มี yeekee ล่าสุด)
+    //  2) latest_per_type สำหรับสร้าง filter tabs (ครอบทุก lottery type)
+    const [dList, dTypes] = await Promise.all([
+      API.LotteryAPI.getResults({ limit: 30 }),
+      API.LotteryAPI.getResults({ latest_per_type: 1 }),
+    ]);
+    _allResults = dList.data || [];
+    const typeResults = dTypes.data || [];
+
+    if(_allResults.length === 0 && typeResults.length === 0){
       list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีผลรางวัล</div>';
       return;
     }
-    // Build dynamic filter tabs
+
+    // Build filter tabs จาก typeResults (ครบทุก type เสมอ)
     const filterEl = document.getElementById('res-filter');
     if(filterEl){
-      const codes = [...new Set(_allResults.map(r => r.code).filter(Boolean))];
+      const codes = [...new Set(typeResults.map(r => r.code).filter(Boolean))];
       const extraTabs = codes.map(code => {
         const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
         return `<button class="res-ftab" data-code="${code}" onclick="filterResults(this,'${code}')">${meta.flag} ${meta.label}</button>`;
       }).join('');
       filterEl.innerHTML = `<button class="res-ftab on" data-code="ALL" onclick="filterResults(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
     }
+
+    // เมื่อกด filter แต่ละ type → ดึงผลเพิ่มเติมจาก _allResults + typeResults รวมกัน
+    // รวม typeResults เข้าใน _allResults (dedup โดย round id)
+    const ids = new Set(_allResults.map(r => r.id));
+    typeResults.forEach(r => { if(!ids.has(r.id)){ _allResults.push(r); ids.add(r.id); } });
+
     _renderResultsList('ALL');
   }catch(e){
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ โหลดข้อมูลไม่ได้ในขณะนี้</div>';
