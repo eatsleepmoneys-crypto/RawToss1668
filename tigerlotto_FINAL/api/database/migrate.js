@@ -319,6 +319,32 @@ const CREATES = [
     INDEX \`idx_member\` (\`member_id\`),
     INDEX \`idx_read\`   (\`is_read\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // lottery API sources — configurable per lottery type, tried in priority order
+  `CREATE TABLE IF NOT EXISTS \`lottery_api_sources\` (
+    \`id\`            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`lottery_code\`  VARCHAR(20)  NOT NULL,
+    \`name\`          VARCHAR(100) NOT NULL DEFAULT '',
+    \`source_url\`    TEXT         NOT NULL,
+    \`method\`        ENUM('GET','POST') NOT NULL DEFAULT 'GET',
+    \`api_key\`       VARCHAR(500) DEFAULT NULL COMMENT 'ส่งเป็น header: x-api-key',
+    \`api_secret\`    VARCHAR(500) DEFAULT NULL,
+    \`extra_headers\` TEXT         DEFAULT NULL COMMENT 'JSON object {"Header":"Value"}',
+    \`body_template\` TEXT         DEFAULT NULL COMMENT 'POST body template (JSON string)',
+    \`transform\`     VARCHAR(50)  NOT NULL DEFAULT 'auto' COMMENT 'auto|json_flat|longdo|sanook|huaylao|xoso|custom',
+    \`path_prize1\`   VARCHAR(200) DEFAULT NULL COMMENT 'dot-path เช่น data.first หรือ result.prize1',
+    \`path_last2\`    VARCHAR(200) DEFAULT NULL,
+    \`path_front3\`   VARCHAR(200) DEFAULT NULL COMMENT 'array path, comma-sep keys, or single string',
+    \`path_last3\`    VARCHAR(200) DEFAULT NULL,
+    \`enabled\`       TINYINT(1)   NOT NULL DEFAULT 1,
+    \`sort_order\`    SMALLINT     NOT NULL DEFAULT 0 COMMENT 'ลำดับการลอง 0=ก่อนสุด',
+    \`last_status\`   ENUM('ok','error','untested') NOT NULL DEFAULT 'untested',
+    \`last_checked\`  DATETIME     DEFAULT NULL,
+    \`last_result\`   TEXT         DEFAULT NULL COMMENT 'JSON snapshot of last successful response',
+    \`created_at\`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\`    DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_code_enabled\` (\`lottery_code\`, \`enabled\`, \`sort_order\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 // ─── Seed data ───────────────────────────────────────────────────────────────
@@ -368,6 +394,20 @@ const SEEDS = [
     ('WELCOME50','โบนัสต้อนรับสมาชิกใหม่','welcome',50,0,1),
     ('CASHBACK5','คืนยอด 5% ทุกงวด','cashback',5,1,1),
     ('REF3','ค่าแนะนำเพื่อน 3%','referral',3,1,1)`,
+
+  // Default lottery API sources (INSERT IGNORE)
+  `INSERT IGNORE INTO \`lottery_api_sources\`
+     (\`lottery_code\`,\`name\`,\`source_url\`,\`transform\`,\`enabled\`,\`sort_order\`) VALUES
+    ('TH_GOV','Longdo Money (JSON)','https://money.longdo.com/lotto/api','longdo',1,0),
+    ('TH_GOV','Sanook Lotto API','https://api.sanook.com/lottoapi/latest','sanook',1,1),
+    ('TH_GOV','Manager.co.th (HTML)','https://www.manager.co.th/Lotto/','html_th_gov',1,2),
+    ('LA_GOV','HuayLao.net (HTML)','https://huaylao.net/','html_la_gov',1,0),
+    ('LA_GOV','Lotto.com.la (HTML)','https://www.lotto.com.la/','html_la_gov',1,1),
+    ('VN_HAN','xoso.com.vn (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
+    ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/','html_vn_han',1,1),
+    ('VN_HAN','xskt.com.vn (JSON)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
+    ('VN_HAN_SP','xoso.com.vn special (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0),
+    ('VN_HAN_VIP','xoso.com.vn VIP (HTML)','https://xoso.com.vn/ket-qua-xo-so-mien-bac.html','html_vn_han',1,0)`,
 ];
 
 // ─── Main migration function ─────────────────────────────────────────────────

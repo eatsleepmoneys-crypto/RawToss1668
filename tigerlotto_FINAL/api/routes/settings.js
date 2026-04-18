@@ -76,4 +76,114 @@ router.post('/admin/maintenance', authAdmin, rbac.requirePerm('settings.manage')
   res.json({ success: true, message: `Maintenance mode ${enabled ? 'เปิด' : 'ปิด'} แล้ว` });
 });
 
+// ═══════════════════════════════════════════════════════════
+//  LOTTERY API SOURCES
+// ═══════════════════════════════════════════════════════════
+
+// GET /api/settings/admin/lottery-sources — list all sources
+router.get('/admin/lottery-sources', authAdmin, rbac.requirePerm('api.view'), async (req, res) => {
+  try {
+    const rows = await query(
+      `SELECT id, lottery_code, name, source_url, method, api_key, api_secret,
+              extra_headers, body_template, transform,
+              path_prize1, path_last2, path_front3, path_last3,
+              enabled, sort_order, last_status, last_checked, last_result, updated_at
+       FROM lottery_api_sources
+       ORDER BY lottery_code, sort_order, id`
+    );
+    // mask api_secret
+    rows.forEach(r => { if (r.api_secret) r.api_secret = '••••••••'; });
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/settings/admin/lottery-sources — add new source
+router.post('/admin/lottery-sources', authAdmin, rbac.requirePerm('api.manage'), async (req, res) => {
+  const {
+    lottery_code, name, source_url, method = 'GET',
+    api_key, api_secret, extra_headers, body_template,
+    transform = 'auto', path_prize1, path_last2, path_front3, path_last3,
+    enabled = 1, sort_order = 99,
+  } = req.body;
+  if (!lottery_code || !source_url) {
+    return res.status(400).json({ success: false, message: 'lottery_code และ source_url จำเป็น' });
+  }
+  try {
+    const result = await query(
+      `INSERT INTO lottery_api_sources
+         (lottery_code, name, source_url, method, api_key, api_secret, extra_headers, body_template,
+          transform, path_prize1, path_last2, path_front3, path_last3, enabled, sort_order)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [lottery_code, name || source_url, source_url, method,
+       api_key || null, api_secret || null, extra_headers || null, body_template || null,
+       transform, path_prize1 || null, path_last2 || null, path_front3 || null, path_last3 || null,
+       enabled ? 1 : 0, sort_order]
+    );
+    await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+      [req.admin.id, 'api_source.add', `${lottery_code}: ${source_url}`, req.ip]);
+    res.status(201).json({ success: true, message: 'เพิ่ม API Source สำเร็จ', id: result.insertId });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// PATCH /api/settings/admin/lottery-sources/:id — update source
+router.patch('/admin/lottery-sources/:id', authAdmin, rbac.requirePerm('api.manage'), async (req, res) => {
+  const { id } = req.params;
+  const allowed = ['name','source_url','method','api_key','api_secret','extra_headers','body_template',
+                   'transform','path_prize1','path_last2','path_front3','path_last3','enabled','sort_order'];
+  const sets = []; const vals = [];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) {
+      sets.push(`\`${k}\`=?`);
+      vals.push(req.body[k] === '' ? null : req.body[k]);
+    }
+  }
+  if (!sets.length) return res.status(400).json({ success: false, message: 'ไม่มีข้อมูลที่จะอัพเดท' });
+  vals.push(id);
+  try {
+    await query(`UPDATE lottery_api_sources SET ${sets.join(',')} WHERE id=?`, vals);
+    res.json({ success: true, message: 'อัพเดท API Source สำเร็จ' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/settings/admin/lottery-sources/:id
+router.delete('/admin/lottery-sources/:id', authAdmin, rbac.requirePerm('api.manage'), async (req, res) => {
+  try {
+    await query('DELETE FROM lottery_api_sources WHERE id=?', [req.params.id]);
+    res.json({ success: true, message: 'ลบ API Source สำเร็จ' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/settings/admin/lottery-sources/:id/test — test connectivity + parse result
+router.post('/admin/lottery-sources/:id/test', authAdmin, rbac.requirePerm('api.view'), async (req, res) => {
+  try {
+    const rows = await query('SELECT * FROM lottery_api_sources WHERE id=?', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ success: false, message: 'ไม่พบ source' });
+    const src = rows[0];
+
+    // Lazy-load fetcher for its HTTP helper + transform logic
+    const fetcher = require('../services/lotteryFetcher');
+    const result  = await fetcher.testSource(src);
+
+    // Update status in DB
+    await query(
+      'UPDATE lottery_api_sources SET last_status=?, last_checked=NOW(), last_result=? WHERE id=?',
+      [result.success ? 'ok' : 'error', JSON.stringify(result), src.id]
+    );
+
+    res.json({ success: true, data: result });
+  } catch (err) {
+    await query('UPDATE lottery_api_sources SET last_status="error", last_checked=NOW() WHERE id=?',
+      [req.params.id]).catch(() => {});
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;

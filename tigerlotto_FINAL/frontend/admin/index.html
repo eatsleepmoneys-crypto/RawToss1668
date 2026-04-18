@@ -376,7 +376,7 @@ async function afterNav(page){
     else if(page==='winpay') await loadWinPay();
     else if(page==='yeekee') await loadYeeKee();
     else if(page==='autoresult') await loadAutoResult();
-    else if(page==='api') await loadApiSettings();
+    else if(page==='api'){ await loadApiSettings(); await loadLotSources(); }
     else if(page==='reports') await loadReports();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
@@ -1737,6 +1737,195 @@ const API_GROUP_KEYS = {
   security   : ['webhook_secret','ip_whitelist'],
 };
 
+// ═══ LOTTERY SOURCES UI ═══
+
+let _lotSources = [];
+const LOT_CODE_NAMES = {
+  TH_GOV:'🇹🇭 หวยรัฐบาลไทย', LA_GOV:'🇱🇦 ลาวพัฒนา',
+  VN_HAN:'🇻🇳 ฮานอยปกติ', VN_HAN_SP:'🇻🇳 ฮานอยพิเศษ', VN_HAN_VIP:'🇻🇳 ฮานอย VIP',
+};
+const TRANSFORMS = ['auto','longdo','sanook','html_th_gov','html_la_gov','html_vn_han','xoso_js','rss_vn','json_flat','custom'];
+
+async function loadLotSources(){
+  const filterCode = document.getElementById('ls-filter-code')?.value || '';
+  const el = document.getElementById('ls-list');
+  if (!el) return;
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">⏳ กำลังโหลด...</div>';
+  try {
+    const d = await API.AdminAPI.getLotterySources();
+    _lotSources = (d.data || []).filter(s => !filterCode || s.lottery_code === filterCode);
+    renderLotSources();
+  } catch(e) {
+    el.innerHTML = `<div style="color:var(--red);padding:20px">❌ ${e.message}</div>`;
+  }
+}
+
+function renderLotSources(){
+  const el = document.getElementById('ls-list');
+  if (!el) return;
+  if (!_lotSources.length){
+    el.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">ยังไม่มี source — กด ➕ เพิ่ม Source</div>';
+    return;
+  }
+  // Group by lottery_code
+  const groups = {};
+  _lotSources.forEach(s => { (groups[s.lottery_code] = groups[s.lottery_code]||[]).push(s); });
+
+  el.innerHTML = Object.entries(groups).map(([code, list]) => `
+    <div style="margin-bottom:16px">
+      <div style="font-size:11px;font-weight:700;color:var(--gold);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">
+        ${LOT_CODE_NAMES[code]||code}
+      </div>
+      ${list.map((s, i) => `
+        <div class="api-card" style="margin-bottom:6px${!s.enabled?';opacity:.5':''}">
+          <div style="display:flex;align-items:center;gap:8px;padding:10px 14px">
+            <div style="min-width:22px;height:22px;background:#1a1a1a;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:var(--gold)">${i+1}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:12px;font-weight:700;color:#fff;display:flex;align-items:center;gap:6px">
+                ${s.name}
+                <span style="font-size:9px;padding:1px 6px;border-radius:4px;${s.last_status==='ok'?'background:#0a1a0a;color:#3BD441;border:1px solid #3BD44133':s.last_status==='error'?'background:#1a0a0a;color:#D85A30;border:1px solid #D85A3033':'background:#111;color:#555;border:1px solid #2a2a2a'}">
+                  ${s.last_status==='ok'?'✅ OK':s.last_status==='error'?'❌ Error':'— ยังไม่ทดสอบ'}
+                </span>
+                ${s.api_key?'<span style="font-size:9px;padding:1px 5px;border-radius:4px;background:#1A1200;color:#FFD700;border:1px solid #FFD70033">🔑 API Key</span>':''}
+              </div>
+              <div style="font-size:10px;color:#555;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.source_url}</div>
+              <div style="font-size:9px;color:#444;margin-top:1px">Transform: <b style="color:#777">${s.transform}</b>${s.last_checked?' · Tested: '+s.last_checked.slice(0,16):''}</div>
+            </div>
+            <div style="display:flex;gap:5px;flex-shrink:0">
+              <button class="btn btn-sm btn-outline" onclick="testLotSource(${s.id})">🧪 Test</button>
+              <button class="btn btn-sm btn-outline" onclick="editLotSource(${s.id})">✏️</button>
+              <button class="btn btn-sm" style="background:#1a0a0a;color:#D85A30;border:1px solid #D85A3033" onclick="toggleLotSource(${s.id},${s.enabled?0:1})">${s.enabled?'⏸':'▶'}</button>
+              <button class="btn btn-sm" style="background:#1a0a0a;color:#D85A30;border:1px solid #D85A3033" onclick="deleteLotSource(${s.id})">🗑</button>
+            </div>
+          </div>
+        </div>`).join('')}
+    </div>`).join('');
+}
+
+async function testLotSource(id){
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳';
+  try {
+    const d = await API.AdminAPI.testLotterySource(id);
+    const r = d.data;
+    if (r.success){
+      toast('✅ Test สำเร็จ', `prize_1st: ${r.prize_1st} · last_2: ${r.prize_last_2}`, 4000);
+    } else {
+      toast('❌ Test ล้มเหลว', r.error || 'ไม่ทราบสาเหตุ');
+    }
+    await loadLotSources();
+  } catch(e){ toast('ผิดพลาด', e.message); }
+  finally { btn.disabled=false; btn.textContent='🧪 Test'; }
+}
+
+async function toggleLotSource(id, enabled){
+  try {
+    await API.AdminAPI.updateLotterySource(id, { enabled });
+    await loadLotSources();
+  } catch(e){ toast('ผิดพลาด', e.message); }
+}
+
+async function deleteLotSource(id){
+  if (!confirm('ลบ source นี้?')) return;
+  try {
+    await API.AdminAPI.deleteLotterySource(id);
+    toast('ลบสำเร็จ','');
+    await loadLotSources();
+  } catch(e){ toast('ผิดพลาด', e.message); }
+}
+
+function openAddSourceModal(prefill={}){
+  openModal(`
+    <h3>${prefill.id?'✏️ แก้ไข':'➕ เพิ่ม'} Lottery API Source</h3>
+    <div class="fi-row">
+      <div class="fg"><label>ประเภทหวย</label>
+        <select id="ls-code" class="fi-full">
+          ${Object.entries(LOT_CODE_NAMES).map(([k,v])=>`<option value="${k}"${prefill.lottery_code===k?' selected':''}>${v}</option>`).join('')}
+        </select>
+      </div>
+      <div class="fg"><label>ชื่อ Source</label>
+        <input id="ls-name" class="fi-full" placeholder="เช่น Longdo Money" value="${prefill.name||''}">
+      </div>
+    </div>
+    <div class="fg"><label>URL</label>
+      <input id="ls-url" class="fi-full" placeholder="https://..." value="${prefill.source_url||''}">
+    </div>
+    <div class="fi-row">
+      <div class="fg"><label>Method</label>
+        <select id="ls-method" class="fi-full">
+          <option value="GET"${prefill.method!=='POST'?' selected':''}>GET</option>
+          <option value="POST"${prefill.method==='POST'?' selected':''}>POST</option>
+        </select>
+      </div>
+      <div class="fg"><label>Transform</label>
+        <select id="ls-transform" class="fi-full">
+          ${TRANSFORMS.map(t=>`<option value="${t}"${prefill.transform===t?' selected':''}>${t}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="fi-row">
+      <div class="fg"><label>API Key (header: x-api-key)</label>
+        <input id="ls-apikey" class="fi-full" placeholder="ถ้าไม่ใช้ ปล่อยว่าง" value="${prefill.api_key||''}">
+      </div>
+      <div class="fg"><label>Priority (0=สูงสุด)</label>
+        <input id="ls-order" class="fi-full" type="number" min="0" max="99" value="${prefill.sort_order??99}">
+      </div>
+    </div>
+    <details style="margin-bottom:10px">
+      <summary style="cursor:pointer;font-size:11px;color:var(--muted);margin-bottom:6px">⚙️ Advanced (custom path mapping)</summary>
+      <div class="fi-row">
+        <div class="fg"><label>Path prize_1st</label><input id="ls-p1" class="fi-full" placeholder="data.first" value="${prefill.path_prize1||''}"></div>
+        <div class="fg"><label>Path prize_last_2</label><input id="ls-p2" class="fi-full" placeholder="data.last2" value="${prefill.path_last2||''}"></div>
+      </div>
+      <div class="fi-row">
+        <div class="fg"><label>Path prize_front_3</label><input id="ls-p3f" class="fi-full" placeholder="data.front3" value="${prefill.path_front3||''}"></div>
+        <div class="fg"><label>Path prize_last_3</label><input id="ls-p3b" class="fi-full" placeholder="data.last3" value="${prefill.path_last3||''}"></div>
+      </div>
+      <div class="fg"><label>Extra Headers (JSON)</label>
+        <input id="ls-hdrs" class="fi-full" placeholder='{"Authorization":"Bearer xxx"}' value="${prefill.extra_headers||''}">
+      </div>
+    </details>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitLotSource(${prefill.id||0})">บันทึก</button>
+    </div>`);
+}
+
+function editLotSource(id){
+  const s = _lotSources.find(x => x.id === id);
+  if (!s) return;
+  openAddSourceModal(s);
+}
+
+async function submitLotSource(editId){
+  const payload = {
+    lottery_code: document.getElementById('ls-code')?.value,
+    name:         document.getElementById('ls-name')?.value?.trim(),
+    source_url:   document.getElementById('ls-url')?.value?.trim(),
+    method:       document.getElementById('ls-method')?.value,
+    transform:    document.getElementById('ls-transform')?.value,
+    api_key:      document.getElementById('ls-apikey')?.value?.trim()||null,
+    sort_order:   parseInt(document.getElementById('ls-order')?.value)||99,
+    path_prize1:  document.getElementById('ls-p1')?.value?.trim()||null,
+    path_last2:   document.getElementById('ls-p2')?.value?.trim()||null,
+    path_front3:  document.getElementById('ls-p3f')?.value?.trim()||null,
+    path_last3:   document.getElementById('ls-p3b')?.value?.trim()||null,
+    extra_headers:document.getElementById('ls-hdrs')?.value?.trim()||null,
+  };
+  if (!payload.source_url){ toast('ผิดพลาด','กรุณาใส่ URL'); return; }
+  try {
+    if (editId) {
+      await API.AdminAPI.updateLotterySource(editId, payload);
+      toast('สำเร็จ','อัพเดท Source แล้ว');
+    } else {
+      await API.AdminAPI.addLotterySource(payload);
+      toast('สำเร็จ','เพิ่ม Source แล้ว');
+    }
+    closeModal();
+    await loadLotSources();
+  } catch(e){ toast('ผิดพลาด', e.message); }
+}
+
 async function saveApiGroup(group){
   const keys = API_GROUP_KEYS[group] || [];
   const payload = {};
@@ -2362,7 +2551,36 @@ kyc:()=>`
 </div>`,
 
 api:()=>`
-<div class="alert alert-gold">🔌 ตั้งค่า API เชื่อมต่อภายนอก — LINE, SMS, Payment Gateway</div>
+<div class="tab-bar" style="margin-bottom:14px">
+  <button class="tab-btn on" onclick="setTab(this,'api-lottery-tab')">🎰 Lottery Sources</button>
+  <button class="tab-btn" onclick="setTab(this,'api-notif-tab')">💬 LINE / SMS</button>
+  <button class="tab-btn" onclick="setTab(this,'api-payment-tab')">💳 Payment</button>
+  <button class="tab-btn" onclick="setTab(this,'api-security-tab')">🔑 Security</button>
+</div>
+
+<!-- ══ LOTTERY SOURCES TAB ══ -->
+<div id="api-lottery-tab">
+<div class="alert alert-gold" style="margin-bottom:12px">🎰 จัดการ API Source สำหรับดึงผลหวย — ระบบจะลองทีละ source ตามลำดับ Priority</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+  <select id="ls-filter-code" class="fi fi-sm" onchange="loadLotSources()">
+    <option value="">ทุกประเภท</option>
+    <option value="TH_GOV">🇹🇭 หวยรัฐบาลไทย</option>
+    <option value="LA_GOV">🇱🇦 ลาวพัฒนา</option>
+    <option value="VN_HAN">🇻🇳 ฮานอยปกติ</option>
+    <option value="VN_HAN_SP">🇻🇳 ฮานอยพิเศษ</option>
+    <option value="VN_HAN_VIP">🇻🇳 ฮานอย VIP</option>
+  </select>
+  <button class="btn btn-gold btn-sm" onclick="openAddSourceModal()">➕ เพิ่ม Source</button>
+  <button class="btn btn-outline btn-sm" onclick="loadLotSources()">🔄 รีเฟรช</button>
+</div>
+
+<div id="ls-list"><div style="text-align:center;padding:30px;color:var(--muted)">⏳ กำลังโหลด...</div></div>
+</div><!-- end api-lottery-tab -->
+
+<!-- ══ LINE / SMS TAB ══ -->
+<div id="api-notif-tab" style="display:none">
+<div class="alert alert-gold">🔌 ตั้งค่า API เชื่อมต่อภายนอก — LINE, SMS</div>
 
 <div class="api-card">
   <div class="api-card-hdr">
@@ -2394,7 +2612,10 @@ api:()=>`
   </div>
   <button class="btn btn-gold" onclick="saveApiGroup('sms')">บันทึก</button>
 </div>
+</div><!-- end api-notif-tab -->
 
+<!-- ══ PAYMENT TAB ══ -->
+<div id="api-payment-tab" style="display:none">
 <div class="api-card">
   <div class="api-card-hdr">
     <div class="api-card-title"><span class="ico">💳</span>PromptPay (QR)</div>
@@ -2429,7 +2650,11 @@ api:()=>`
     <button class="btn btn-gold btn-sm" onclick="saveApiGroup('truemoney')">บันทึก</button>
   </div>
 </div>
-<div class="api-card" style="margin-top:14px">
+</div><!-- end api-payment-tab -->
+
+<!-- ══ SECURITY TAB ══ -->
+<div id="api-security-tab" style="display:none">
+<div class="api-card" style="margin-top:0">
   <div class="api-card-hdr">
     <div class="api-card-title"><span class="ico">🔑</span>Webhook & Security</div>
   </div>
@@ -2438,7 +2663,9 @@ api:()=>`
   </div>
   <div class="fg"><label>IP Whitelist (คั่นด้วย ,)</label><textarea id="api-ip-whitelist" class="fi-full" rows="2" placeholder="103.x.x.x, 203.x.x.x"></textarea></div>
   <button class="btn btn-gold" onclick="saveApiGroup('security')">บันทึก</button>
-</div>`,
+</div>
+</div><!-- end api-security-tab -->
+`,
 
 reports:()=>`
 <div class="filter-bar">

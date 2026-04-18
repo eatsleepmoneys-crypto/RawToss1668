@@ -256,6 +256,17 @@ const AdminAPI = {
     apiFetch('/settings/admin/api-keys', { method: 'PUT', body: JSON.stringify(keys) }, 'admin'),
   setMaintenance : (enabled, message) =>
     apiFetch('/settings/admin/maintenance', { method: 'POST', body: JSON.stringify({ enabled, message }) }, 'admin'),
+
+  // Lottery API Sources
+  getLotterySources   : () => apiFetch('/settings/admin/lottery-sources', {}, 'admin'),
+  addLotterySource    : (payload) =>
+    apiFetch('/settings/admin/lottery-sources', { method: 'POST', body: JSON.stringify(payload) }, 'admin'),
+  updateLotterySource : (id, payload) =>
+    apiFetch(`/settings/admin/lottery-sources/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }, 'admin'),
+  deleteLotterySource : (id) =>
+    apiFetch(`/settings/admin/lottery-sources/${id}`, { method: 'DELETE' }, 'admin'),
+  testLotterySource   : (id) =>
+    apiFetch(`/settings/admin/lottery-sources/${id}/test`, { method: 'POST' }, 'admin'),
 };
 
 /* ─── UI Helpers ─── */

@@ -423,6 +423,250 @@ function generateSimulatedResult(lotteryCode) {
   };
 }
 
+// ══════════════════════════════════════════════════════════════
+//  DB-DRIVEN SOURCE ENGINE
+//  อ่าน lottery_api_sources จาก DB แล้วลองทีละ source
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * ดึงค่าจาก JSON object ด้วย dot-path เช่น "data.result.prize1"
+ */
+function getByPath(obj, path) {
+  if (!path) return undefined;
+  return path.split('.').reduce((o, k) => (o && o[k] !== undefined ? o[k] : undefined), obj);
+}
+
+/**
+ * Transform response ตาม transform type ที่กำหนด
+ * Returns standardized { prize_1st, prize_last_2, prize_front_3:[], prize_last_3:[], prize_2bot? }
+ * or throws on failure
+ */
+function applyTransform(transform, data, src) {
+  const clean = s => String(s || '').replace(/\D/g, '');
+
+  switch (transform) {
+    // ─── Longdo Money JSON ─────────────────────────────────────
+    case 'longdo': {
+      const p1 = clean(data.first || data.prize1 || data.prizeFirst);
+      if (!/^\d{6}$/.test(p1)) throw new Error('longdo: ไม่พบรางวัลที่ 1 (6 หลัก)');
+      const last2  = clean(data.last2 || p1.slice(-2));
+      const front3 = [clean(data.front3_1), clean(data.front3_2)].filter(x => /^\d{3}$/.test(x));
+      const last3  = [clean(data.last3_1),  clean(data.last3_2)].filter(x => /^\d{3}$/.test(x));
+      return { prize_1st: p1, prize_last_2: last2, prize_front_3: front3, prize_last_3: last3 };
+    }
+
+    // ─── Sanook Lotto API JSON ─────────────────────────────────
+    case 'sanook': {
+      const d  = data.result || data;
+      const p1 = clean(d.prize1 || d.first);
+      if (!/^\d{6}$/.test(p1)) throw new Error('sanook: ไม่พบรางวัลที่ 1 (6 หลัก)');
+      return {
+        prize_1st:     p1,
+        prize_last_2:  clean(d.last2 || p1.slice(-2)),
+        prize_front_3: [d.front3_1, d.front3_2].filter(Boolean).map(clean).filter(x => /^\d{3}$/.test(x)),
+        prize_last_3:  [d.last3_1,  d.last3_2].filter(Boolean).map(clean).filter(x => /^\d{3}$/.test(x)),
+      };
+    }
+
+    // ─── HTML scrape — TH_GOV ──────────────────────────────────
+    case 'html_th_gov': {
+      const $ = cheerio.load(data);
+      let p1 = '';
+      $('span,td,div,p').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g, '');
+        if (/^\d{6}$/.test(t) && !p1) p1 = t;
+      });
+      if (!p1) throw new Error('html_th_gov: scrape ไม่พบ 6 หลัก');
+      return { prize_1st: p1, prize_last_2: p1.slice(-2), prize_front_3: [], prize_last_3: [] };
+    }
+
+    // ─── HTML scrape — LA_GOV ─────────────────────────────────
+    case 'html_la_gov': {
+      const $ = cheerio.load(data);
+      const nums = [];
+      $('[class*="prize"],[class*="result"],[class*="number"],td,span,div').each((_, el) => {
+        const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
+        if (t.length >= 4 && t.length <= 6) nums.push(t);
+      });
+      if (!nums.length) throw new Error('html_la_gov: scrape ไม่พบตัวเลข 4-6 หลัก');
+      return laGovExtract(nums[0]);
+    }
+
+    // ─── HTML scrape — VN_HAN ─────────────────────────────────
+    case 'html_vn_han': {
+      const $ = cheerio.load(data);
+      let p = '';
+      $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"]').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g, '');
+        if (t.length >= 4 && !p) p = t;
+      });
+      if (!p) {
+        $('td,span,div').each((_, el) => {
+          const t = $(el).text().trim().replace(/\D/g, '');
+          if (/^\d{5}$/.test(t) && !p) p = t;
+        });
+      }
+      if (!p) throw new Error('html_vn_han: scrape ไม่พบ 5 หลัก');
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+
+    // ─── xoso.com.vn JS endpoint ──────────────────────────────
+    case 'xoso_js': {
+      const m = JSON.stringify(data).match(/"giainhat"\s*:\s*\["(\d+)"\]/);
+      if (!m) throw new Error('xoso_js: ไม่พบ giainhat');
+      const p = m[1];
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+
+    // ─── RSS/XML ─────────────────────────────────────────────
+    case 'rss_vn': {
+      // ดึง 5-digit จาก RSS content
+      const matches = String(data).match(/\b\d{5}\b/g);
+      if (!matches || !matches.length) throw new Error('rss_vn: ไม่พบ 5 หลัก');
+      const p = matches[0];
+      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    }
+
+    // ─── JSON flat (prize_1st, prize_last_2 ตรงๆ) ──────────
+    case 'json_flat': {
+      const p1 = clean(data.prize_1st || data.prize1 || data.first);
+      if (!p1) throw new Error('json_flat: ไม่พบ prize_1st');
+      return {
+        prize_1st:     p1,
+        prize_last_2:  clean(data.prize_last_2 || data.last2 || p1.slice(-2)),
+        prize_front_3: (data.prize_front_3 || data.front3 || []).map(clean).filter(Boolean),
+        prize_last_3:  (data.prize_last_3  || data.last3  || []).map(clean).filter(Boolean),
+      };
+    }
+
+    // ─── Custom path mapping ──────────────────────────────────
+    case 'custom': {
+      const p1 = clean(getByPath(data, src.path_prize1));
+      if (!p1) throw new Error(`custom: path "${src.path_prize1}" ไม่พบค่า`);
+      const last2Val = getByPath(data, src.path_last2);
+      return {
+        prize_1st:     p1,
+        prize_last_2:  last2Val ? clean(last2Val) : p1.slice(-2),
+        prize_front_3: src.path_front3 ? [].concat(getByPath(data, src.path_front3) || []).map(clean).filter(Boolean) : [],
+        prize_last_3:  src.path_last3  ? [].concat(getByPath(data, src.path_last3)  || []).map(clean).filter(Boolean) : [],
+      };
+    }
+
+    // ─── Auto: ลอง detect รูปแบบ JSON ────────────────────────
+    case 'auto':
+    default: {
+      // ถ้าเป็น HTML
+      if (typeof data === 'string' && data.trim().startsWith('<')) {
+        // ลอง detect lottery type จาก src.lottery_code
+        if (src.lottery_code === 'TH_GOV') return applyTransform('html_th_gov', data, src);
+        if (src.lottery_code === 'LA_GOV') return applyTransform('html_la_gov', data, src);
+        return applyTransform('html_vn_han', data, src);
+      }
+      // ถ้าเป็น JSON — ลอง longdo, sanook, json_flat ตามลำดับ
+      if (data && (data.first || data.prize1 || data.prizeFirst)) {
+        // longdo-like
+        const p1 = (data.first || data.prize1 || '').replace(/\D/g,'');
+        if (/^\d{6}$/.test(p1)) return applyTransform('longdo', data, src);
+      }
+      if (data && data.result) return applyTransform('sanook', data, src);
+      return applyTransform('json_flat', data, src);
+    }
+  }
+}
+
+/**
+ * ดึงผลจาก source เดียว (สำหรับ test และ loop)
+ * Returns standardized result หรือ throw
+ */
+async function fetchOneSource(src) {
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/json,*/*',
+    'Accept-Language': 'th,en;q=0.9',
+  };
+  // Extra headers from DB
+  if (src.extra_headers) {
+    try { Object.assign(headers, JSON.parse(src.extra_headers)); } catch {}
+  }
+  // API Key
+  if (src.api_key) headers['x-api-key'] = src.api_key;
+
+  let rawData;
+  if (src.method === 'POST') {
+    const bodyData = src.body_template ? JSON.parse(src.body_template) : {};
+    const resp = await axios.post(src.source_url, bodyData, { headers, timeout: 20000 });
+    rawData = resp.data;
+  } else {
+    const resp = await httpGet(src.source_url, 20000);
+    rawData = resp.data;
+  }
+
+  return applyTransform(src.transform, rawData, src);
+}
+
+/**
+ * ลองดึงผลจาก DB sources ทั้งหมดของ lotteryCode ตามลำดับ sort_order
+ * Returns result หรือ null ถ้าทุก source ล้มเหลว
+ */
+async function fetchFromDbSources(lotteryCode) {
+  let sources = [];
+  try {
+    sources = await query(
+      `SELECT * FROM lottery_api_sources
+       WHERE lottery_code=? AND enabled=1
+       ORDER BY sort_order, id`,
+      [lotteryCode]
+    );
+  } catch (e) {
+    console.warn(`[FETCHER:${lotteryCode}] ไม่สามารถอ่าน DB sources:`, e.message);
+    return null;
+  }
+
+  if (!sources.length) {
+    console.log(`[FETCHER:${lotteryCode}] ไม่มี DB sources ที่ enable`);
+    return null;
+  }
+
+  for (const src of sources) {
+    try {
+      console.log(`[FETCHER:${lotteryCode}] ลอง DB source: "${src.name}" (${src.source_url.slice(0,60)})`);
+      const result = await fetchOneSource(src);
+      // Update last_status in background
+      query('UPDATE lottery_api_sources SET last_status="ok", last_checked=NOW() WHERE id=?', [src.id])
+        .catch(() => {});
+      console.log(`[FETCHER:${lotteryCode}] ✅ DB source สำเร็จ: ${src.name} → ${result.prize_1st}`);
+      return result;
+    } catch (e) {
+      console.warn(`[FETCHER:${lotteryCode}] DB source "${src.name}" ล้มเหลว: ${e.message}`);
+      query('UPDATE lottery_api_sources SET last_status="error", last_checked=NOW() WHERE id=?', [src.id])
+        .catch(() => {});
+    }
+  }
+
+  console.log(`[FETCHER:${lotteryCode}] DB sources ทั้งหมดล้มเหลว`);
+  return null;
+}
+
+/**
+ * ทดสอบ source เดียว — ใช้โดย admin API
+ */
+async function testSource(src) {
+  try {
+    const result = await fetchOneSource(src);
+    return {
+      success:    true,
+      prize_1st:  result.prize_1st,
+      prize_last_2: result.prize_last_2,
+      prize_front_3: result.prize_front_3,
+      prize_last_3:  result.prize_last_3,
+      transform:  src.transform,
+      source:     src.name,
+    };
+  } catch (e) {
+    return { success: false, error: e.message, source: src.name };
+  }
+}
+
 // ── Retry wrapper ──────────────────────────────────────────────
 
 const SIMULATE_FALLBACK = ['LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP']; // TH_GOV must be real
@@ -450,7 +694,24 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
     }
   } catch(e) { /* non-fatal */ }
 
-  // Try real external fetch
+  // ── STEP 1: ลอง DB sources ก่อน (configured by admin) ─────
+  const dbResult = await fetchFromDbSources(lotteryCode);
+  if (dbResult) {
+    try {
+      await announceResult(lotteryCode, dbResult);
+      status.lastSuccess = new Date().toISOString();
+      status.lastError   = null;
+      status.retries     = 0;
+      status.simulated   = false;
+      console.log(`[FETCHER:${lotteryCode}] ✅ ใช้ DB source สำเร็จ`);
+      return true;
+    } catch (e) {
+      console.error(`[FETCHER:${lotteryCode}] announceResult จาก DB source ล้มเหลว: ${e.message}`);
+      // ต่อไปลอง hardcoded
+    }
+  }
+
+  // ── STEP 2: ลอง hardcoded fetcher (fallback) ──────────────
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const result = await fetchFn();
@@ -458,35 +719,18 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
       status.lastSuccess = new Date().toISOString();
       status.lastError   = null;
       status.retries     = 0;
-      console.log(`[FETCHER:${lotteryCode}] ✅ ดึงผลจากแหล่งจริงสำเร็จ`);
+      status.simulated   = false;
+      console.log(`[FETCHER:${lotteryCode}] ✅ ดึงผลจาก hardcoded source สำเร็จ`);
       return true;
     } catch(e) {
-      console.error(`[FETCHER:${lotteryCode}] attempt ${attempt}/${MAX_RETRIES}: ${e.message}`);
+      console.error(`[FETCHER:${lotteryCode}] hardcoded attempt ${attempt}/${MAX_RETRIES}: ${e.message}`);
       status.lastError = e.message;
       status.retries   = attempt;
-      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 30 * 1000)); // 30s retry
+      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 30 * 1000));
     }
   }
 
-  // Fallback: simulate result for non-government lotteries
-  if (SIMULATE_FALLBACK.includes(lotteryCode) || simulate) {
-    console.warn(`[FETCHER:${lotteryCode}] ⚠️  ดึงผลจากภายนอกล้มเหลว — ใช้ผลสุ่มแทน (fallback)`);
-    try {
-      const simResult = generateSimulatedResult(lotteryCode);
-      await announceResult(lotteryCode, simResult);
-      status.lastSuccess  = new Date().toISOString();
-      status.lastError    = 'SIMULATED';
-      status.retries      = 0;
-      status.simulated    = true;
-      console.log(`[FETCHER:${lotteryCode}] ✅ ออกผลสุ่ม (fallback): ${simResult.prize_1st}`);
-      return true;
-    } catch(e2) {
-      console.error(`[FETCHER:${lotteryCode}] fallback ล้มเหลว: ${e2.message}`);
-      status.lastError = e2.message;
-    }
-  } else {
-    console.error(`[FETCHER:${lotteryCode}] หยุดหลัง ${MAX_RETRIES} ครั้ง — ต้องกรอกผลด้วยตนเอง`);
-  }
+  console.error(`[FETCHER:${lotteryCode}] ทุก source ล้มเหลว`);
   return false;
 }
 
@@ -605,4 +849,4 @@ function startLotteryFetcher() {
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testSource };
