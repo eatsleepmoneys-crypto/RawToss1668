@@ -214,7 +214,7 @@ router.post('/admin/login', loginLimit,
 // ─── GET /api/auth/me ─────────────────────────────
 router.get('/me', authMember, async (req, res) => {
   const [m] = await query(
-    'SELECT id,uuid,name,phone,email,bank_code,bank_account,balance,bonus_balance,level,member_code,created_at FROM members WHERE id=?',
+    'SELECT id,uuid,name,phone,email,bank_code,bank_account,bank_name,balance,bonus_balance,level,member_code,created_at FROM members WHERE id=?',
     [req.member.id]
   );
   res.json({ success: true, data: m });
