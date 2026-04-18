@@ -16,6 +16,8 @@ let STATE = {
   buyItems:   [],         // [{number,bet_type_id,bet_type_name,payout_rate,amount}]
   cancelTarget: null,
   cdIntervals: {},
+  pollInterval: null,     // 60-second polling interval for buy tab
+  pendingReload: false,   // guard against duplicate reload triggers
 };
 
 const TABS = [
@@ -321,6 +323,14 @@ function startCountdowns() {
         el.className = 'cd cd-hot';
         el.innerHTML = '⏰ ปิดรับแล้ว';
         clearInterval(interval);
+        // Auto-reload buy tab 3.5s after close so server cron has time to process
+        if (STATE.tab === 1 && !STATE.pendingReload) {
+          STATE.pendingReload = true;
+          setTimeout(() => {
+            STATE.pendingReload = false;
+            if (STATE.tab === 1) renderBuy();
+          }, 3500);
+        }
         return;
       }
       const m = Math.floor(tl/60000), s = Math.floor((tl%60000)/1000);
@@ -331,11 +341,18 @@ function startCountdowns() {
     }, 1000);
     STATE.cdIntervals[r.id] = interval;
   });
+
+  // Poll every 60 seconds while on the buy tab (picks up newly opened rounds)
+  if (STATE.pollInterval) clearInterval(STATE.pollInterval);
+  STATE.pollInterval = setInterval(() => {
+    if (STATE.tab === 1) renderBuy();
+  }, 60 * 1000);
 }
 
 function clearAllCountdowns() {
   Object.values(STATE.cdIntervals).forEach(clearInterval);
   STATE.cdIntervals = {};
+  if (STATE.pollInterval) { clearInterval(STATE.pollInterval); STATE.pollInterval = null; }
 }
 
 async function openBuySlip(roundId, roundName) {
