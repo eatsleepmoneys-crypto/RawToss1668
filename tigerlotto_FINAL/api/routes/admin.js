@@ -326,7 +326,7 @@ router.get('/yeekee/today', authAdmin, rbac.requirePerm('reports.view'), async (
     FROM lottery_rounds lr
     JOIN lottery_types lt ON lr.lottery_id = lt.id AND lt.code = 'YEEKEE'
     LEFT JOIN lottery_results res ON lr.id = res.round_id
-    WHERE DATE(lr.draw_date) = CURDATE()
+    WHERE DATE(lr.draw_date) = DATE(DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR))
     ORDER BY lr.close_at ASC
   `);
   const summary = {
@@ -336,6 +336,17 @@ router.get('/yeekee/today', authAdmin, rbac.requirePerm('reports.view'), async (
     announced: rows.filter(r => r.status === 'announced').length,
   };
   res.json({ success: true, data: rows, summary });
+});
+
+// ─── POST /api/admin/yeekee/trigger-manage — trigger open/close rounds ─
+router.post('/yeekee/trigger-manage', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  try {
+    const { autoManageRounds } = require('../services/roundManager');
+    await autoManageRounds();
+    res.json({ success: true, message: 'Trigger open/close rounds สำเร็จ' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
 });
 
 // ─── POST /api/admin/yeekee/trigger-announce — trigger ออกผลทันที ─

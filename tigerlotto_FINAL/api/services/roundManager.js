@@ -217,16 +217,21 @@ async function createTodayRounds() {
 // ── Auto-open / Auto-close ────────────────────────────────────────
 
 async function autoManageRounds() {
+  // open_at / close_at are stored as Bangkok-time strings (UTC+7).
+  // Use DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR) to get "Bangkok now"
+  // without depending on the MySQL session time_zone variable.
+  const bkk = "DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)";
+
   // upcoming → open เมื่อถึงเวลา open_at
   const opened = await query(
-    "UPDATE lottery_rounds SET status='open' WHERE status='upcoming' AND open_at IS NOT NULL AND open_at <= NOW()"
+    `UPDATE lottery_rounds SET status='open' WHERE status='upcoming' AND open_at IS NOT NULL AND open_at <= ${bkk}`
   );
   if (opened.affectedRows > 0)
     console.log(`[ROUND_MGR] Auto-opened ${opened.affectedRows} งวด`);
 
   // open → closed เมื่อ close_at ผ่าน
   const closed = await query(
-    "UPDATE lottery_rounds SET status='closed' WHERE status='open' AND close_at <= NOW()"
+    `UPDATE lottery_rounds SET status='closed' WHERE status='open' AND close_at <= ${bkk}`
   );
   if (closed.affectedRows > 0)
     console.log(`[ROUND_MGR] Auto-closed ${closed.affectedRows} งวด`);
@@ -420,4 +425,4 @@ function startRoundManager() {
   console.log('  yeekeeAutoAnnounce → ทุก 1 นาที');
 }
 
-module.exports = { startRoundManager, createTodayRounds, yeekeeAutoAnnounce };
+module.exports = { startRoundManager, createTodayRounds, autoManageRounds, yeekeeAutoAnnounce };
