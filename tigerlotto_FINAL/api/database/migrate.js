@@ -535,6 +535,22 @@ async function migrate() {
     await run(`SEED ${table}`, sql);
   }
 
+  // 3b. Auto-seed ScraperAPI key from environment variable (if set)
+  //     Uses INSERT … ON DUPLICATE KEY UPDATE with IF() to avoid overwriting
+  //     an existing non-empty key that was saved through the admin UI.
+  if (process.env.SCRAPERAPI_KEY) {
+    const safeKey = process.env.SCRAPERAPI_KEY.replace(/'/g, "\\'");
+    await run(
+      'SEED settings[scraperapi_key from env]',
+      `INSERT INTO \`settings\` (\`key\`, value, type, \`group\`)
+       VALUES ('scraperapi_key', '${safeKey}', 'string', 'api')
+       ON DUPLICATE KEY UPDATE
+         value = IF(value IS NULL OR value = '' OR value = 'your_scraperapi_key_here',
+                    VALUES(value), value)`
+    );
+    console.log('   🔑 ScraperAPI key seeded from SCRAPERAPI_KEY env var');
+  }
+
   // 4. List tables for verification
   try {
     const [rows] = await conn.query(
