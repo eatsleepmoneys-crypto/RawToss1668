@@ -180,7 +180,32 @@ function laGovExtract(rawDigits) {
 }
 
 async function fetchLAGov() {
-  // Source 1: huaylao.net (JSON)
+  // Source 1: Sanook Lao Lottery (Thai site — fast, reliable 4-digit result)
+  try {
+    const res = await httpGetProxy('https://www.sanook.com/news/laolotto/', 30000, 'th');
+    const $   = cheerio.load(res.data);
+    let raw = '';
+    $('strong,b,.textBold').each((_, el) => {
+      if ($(el).children().length > 0) return;
+      const t = $(el).text().replace(/\s+/g, '').replace(/\D/g, '');
+      if (/^\d{4}$/.test(t)) {
+        const n = parseInt(t, 10);
+        if (n >= 2500 && n <= 2600) return; // skip Buddhist Era years
+        if (!raw) raw = t;
+      }
+    });
+    if (!raw) {
+      const m4 = (String(res.data).match(/\b(\d{4})\b/g) || [])
+        .find(m => !(parseInt(m) >= 2500 && parseInt(m) <= 2600));
+      if (m4) raw = m4;
+    }
+    if (raw) {
+      console.log('[FETCHER:LA_GOV] Source: sanook.com (4-digit)', raw);
+      return laGovExtract(raw);
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] sanook.com error:', e.message); }
+
+  // Source 2: huaylao.net (JSON — may timeout)
   try {
     const res = await httpGetProxy('https://huaylao.net/api/latest', 30000, 'th');
     const d   = res.data;
@@ -193,7 +218,7 @@ async function fetchLAGov() {
     }
   } catch(e) { console.warn('[FETCHER:LA_GOV] huaylao.net error:', e.message); }
 
-  // Source 2: LD1 Official Lao Lottery (HTML)
+  // Source 4: LD1 Official Lao Lottery (HTML — slow, may timeout)
   try {
     const res = await httpGetProxy('https://www.ld1.la/', 40000, 'th');
     const $   = cheerio.load(res.data);
@@ -219,7 +244,7 @@ async function fetchLAGov() {
     }
   } catch(e) { console.warn('[FETCHER:LA_GOV] ld1.la error:', e.message); }
 
-  // Source 3: lottovip.com (Thai residential proxy — works in production 1×/day)
+  // Source 5: lottovip.com (Thai residential proxy — works in production 1×/day)
   try {
     const res = await httpGetProxy('https://www.lottovip.com/lao-lottery-result/', 40000, 'th');
     const $   = cheerio.load(res.data);
