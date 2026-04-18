@@ -182,6 +182,7 @@ const CREATES = [
     \`prize_front_3\`  JSON DEFAULT NULL,
     \`prize_last_3\`   JSON DEFAULT NULL,
     \`prize_last_2\`   VARCHAR(2) DEFAULT NULL,
+    \`prize_2bot\`     VARCHAR(2) DEFAULT NULL,
     \`announced_at\`   DATETIME DEFAULT NULL,
     \`announced_by\`   INT UNSIGNED DEFAULT NULL,
     \`created_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -583,6 +584,8 @@ async function migrate() {
     `ALTER TABLE \`lottery_rounds\` ADD UNIQUE KEY \`uk_round_code\` (\`round_code\`)`,
     // lottery_api_sources: unique key to prevent duplicate seeds
     `ALTER TABLE \`lottery_api_sources\` ADD UNIQUE KEY \`uk_code_name\` (\`lottery_code\`, \`name\`)`,
+    // lottery_results: เพิ่ม prize_2bot สำหรับ VN_HAN/VN_HAN_SP/VN_HAN_VIP (2 ตัวล่าง = last 2 ของ Giải Nhất)
+    `ALTER TABLE \`lottery_results\` ADD COLUMN \`prize_2bot\` VARCHAR(2) DEFAULT NULL AFTER \`prize_last_2\``,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

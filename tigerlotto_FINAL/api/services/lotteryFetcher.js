@@ -416,9 +416,9 @@ async function announceResult(lotteryCode, result) {
     // 1. Insert ผลรางวัล
     await conn.execute(
       `INSERT INTO lottery_results
-         (round_id, prize_1st, prize_last_2, prize_front_3, prize_last_3, announced_at)
-       VALUES (?, ?, ?, ?, ?, NOW())`,
-      [round.id, prize_1st, prize_last_2,
+         (round_id, prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [round.id, prize_1st, prize_last_2, effective_2bot !== prize_last_2 ? effective_2bot : null,
        JSON.stringify(prize_front_3), JSON.stringify(prize_last_3)]
     );
 
@@ -879,6 +879,7 @@ async function testSource(src) {
       success:    true,
       prize_1st:  result.prize_1st,
       prize_last_2: result.prize_last_2,
+      prize_2bot:   result.prize_2bot || null,   // 2 ตัวล่าง (VN/LA)
       prize_front_3: result.prize_front_3,
       prize_last_3:  result.prize_last_3,
       transform:  src.transform,
