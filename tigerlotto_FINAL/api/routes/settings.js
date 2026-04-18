@@ -77,6 +77,55 @@ router.post('/admin/maintenance', authAdmin, rbac.requirePerm('settings.manage')
 });
 
 // ═══════════════════════════════════════════════════════════
+//  SCRAPERAPI PROXY KEY
+// ═══════════════════════════════════════════════════════════
+const axios = require('axios');
+
+// POST /api/settings/admin/scraper-key — save ScraperAPI key
+router.post('/admin/scraper-key', authAdmin, rbac.requirePerm('api.manage'), async (req, res) => {
+  const { key } = req.body;
+  if (!key || key.length < 8) return res.status(400).json({ success: false, message: 'กรุณาใส่ key ที่ถูกต้อง' });
+  try {
+    await query(
+      `INSERT INTO settings (\`key\`, value, type, \`group\`)
+       VALUES ('scraperapi_key', ?, 'string', 'api')
+       ON DUPLICATE KEY UPDATE value=?`,
+      [key, key]
+    );
+    // Invalidate cache in fetcher
+    try { require('../services/lotteryFetcher').clearScraperApiKeyCache?.(); } catch {}
+    await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+      [req.admin.id, 'api.scraperkey.save', 'scraperapi_key saved', req.ip]);
+    res.json({ success: true, message: 'บันทึก ScraperAPI Key สำเร็จ' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/settings/admin/scraper-key/test — test ScraperAPI connectivity
+router.post('/admin/scraper-key/test', authAdmin, rbac.requirePerm('api.view'), async (req, res) => {
+  // Use provided key (from form) or fetch from DB
+  let key = req.body?.key?.trim();
+  if (!key) {
+    const rows = await query("SELECT value FROM settings WHERE `key`='scraperapi_key' LIMIT 1");
+    key = rows[0]?.value;
+  }
+  if (!key) return res.status(400).json({ success: false, message: 'ไม่พบ ScraperAPI Key — กรุณาบันทึกก่อน' });
+
+  // Test by fetching ScraperAPI's account endpoint (returns credit info)
+  try {
+    const r = await axios.get(`https://api.scraperapi.com/account?api_key=${key}`, { timeout: 10000 });
+    const d = r.data;
+    const msg = `เครดิตที่ใช้: ${d.requestCount || 0} / ${d.requestLimit || '?'} calls`;
+    return res.json({ success: true, message: msg, data: d });
+  } catch (e) {
+    const code = e.response?.status;
+    if (code === 403) return res.json({ success: false, message: 'API Key ไม่ถูกต้อง (403)' });
+    return res.json({ success: false, message: `ทดสอบล้มเหลว: ${e.message}` });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 //  LOTTERY API SOURCES
 // ═══════════════════════════════════════════════════════════
 

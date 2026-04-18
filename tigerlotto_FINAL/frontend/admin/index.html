@@ -1724,6 +1724,14 @@ async function loadApiSettings(){
     // Set default webhook url if empty
     const wh = document.getElementById('api-line-webhook');
     if(wh && !wh.value) wh.value = `${window.location.origin.replace(/\/admin.*$/,'')}/api/line/webhook`;
+    // Load ScraperAPI key (masked)
+    const skRow = (d.data||[]).find(r => r.key === 'scraperapi_key');
+    const skEl  = document.getElementById('api-scraperapi-status');
+    if (skRow?.value) {
+      const keyEl = document.getElementById('api-scraperapi-key');
+      if (keyEl) keyEl.placeholder = '••••••' + skRow.value.slice(-4) + ' (บันทึกแล้ว)';
+      if (skEl) skEl.innerHTML = '<span style="color:#3BD441">✅ มี Key บันทึกอยู่แล้ว</span>';
+    }
   }catch(e){ console.warn('loadApiSettings:', e.message); }
 }
 
@@ -1924,6 +1932,33 @@ async function submitLotSource(editId){
     closeModal();
     await loadLotSources();
   } catch(e){ toast('ผิดพลาด', e.message); }
+}
+
+async function saveScraperApiKey(){
+  const key = document.getElementById('api-scraperapi-key')?.value?.trim();
+  if (!key) { toast('ผิดพลาด','กรุณาใส่ API Key'); return; }
+  try {
+    await API.AdminAPI.saveScraperApiKey(key);
+    toast('สำเร็จ','บันทึก ScraperAPI Key แล้ว 🔑');
+    document.getElementById('api-scraperapi-status').innerHTML = '<span style="color:#3BD441">✅ บันทึกแล้ว</span>';
+  } catch(e){ toast('ผิดพลาด', e.message); }
+}
+
+async function testScraperApiKey(){
+  const key = document.getElementById('api-scraperapi-key')?.value?.trim() || '';
+  const statusEl = document.getElementById('api-scraperapi-status');
+  statusEl.innerHTML = '<span style="color:#FFD700">⏳ กำลังทดสอบ...</span>';
+  try {
+    const d = await API.AdminAPI.testScraperApiKey(key);
+    if (d.success){
+      statusEl.innerHTML = `<span style="color:#3BD441">✅ เชื่อมต่อสำเร็จ — ${d.message||'OK'}</span>`;
+      toast('ทดสอบสำเร็จ','ScraperAPI พร้อมใช้งาน ✅');
+    } else {
+      statusEl.innerHTML = `<span style="color:#D85A30">❌ ${d.message||'ล้มเหลว'}</span>`;
+    }
+  } catch(e){
+    statusEl.innerHTML = `<span style="color:#D85A30">❌ ${e.message}</span>`;
+  }
 }
 
 async function saveApiGroup(group){
@@ -2663,6 +2698,31 @@ api:()=>`
   </div>
   <div class="fg"><label>IP Whitelist (คั่นด้วย ,)</label><textarea id="api-ip-whitelist" class="fi-full" rows="2" placeholder="103.x.x.x, 203.x.x.x"></textarea></div>
   <button class="btn btn-gold" onclick="saveApiGroup('security')">บันทึก</button>
+</div>
+
+<div class="api-card" style="margin-top:10px;border-color:#FFD70044">
+  <div class="api-card-hdr">
+    <div class="api-card-title"><span class="ico">🌐</span>ScraperAPI — Proxy สำหรับดึงผลหวย</div>
+  </div>
+  <div class="alert alert-gold" style="margin:0 0 10px">
+    Railway server อยู่ที่ US ถูก block โดยเว็บหวยไทย/ลาว/เวียดนาม ต้องใช้ <b>ScraperAPI</b> เป็น proxy ผ่าน IP ของไทย<br>
+    <small>✅ มี Free tier 1,000 calls/เดือน — สมัครฟรีที่ <a href="https://scraperapi.com" target="_blank" style="color:var(--gold)">scraperapi.com</a></small>
+  </div>
+  <div class="fi-row">
+    <div class="fg">
+      <label>ScraperAPI Key</label>
+      <input id="api-scraperapi-key" class="fi-full" type="password" placeholder="ใส่ API Key จาก scraperapi.com">
+    </div>
+    <div class="fg">
+      <label>สถานะ</label>
+      <div id="api-scraperapi-status" style="padding:10px;background:#111;border-radius:8px;font-size:11px;color:#555">— ยังไม่ได้ทดสอบ</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-gold" onclick="saveScraperApiKey()">💾 บันทึก Key</button>
+    <button class="btn btn-outline" onclick="testScraperApiKey()">🧪 ทดสอบการเชื่อมต่อ</button>
+  </div>
+</div>
 </div>
 </div><!-- end api-security-tab -->
 `,

@@ -257,6 +257,12 @@ const AdminAPI = {
   setMaintenance : (enabled, message) =>
     apiFetch('/settings/admin/maintenance', { method: 'POST', body: JSON.stringify({ enabled, message }) }, 'admin'),
 
+  // ScraperAPI proxy key
+  saveScraperApiKey : (key) =>
+    apiFetch('/settings/admin/scraper-key', { method: 'POST', body: JSON.stringify({ key }) }, 'admin'),
+  testScraperApiKey : (key) =>
+    apiFetch('/settings/admin/scraper-key/test', { method: 'POST', body: JSON.stringify({ key }) }, 'admin'),
+
   // Lottery API Sources
   getLotterySources   : () => apiFetch('/settings/admin/lottery-sources', {}, 'admin'),
   addLotterySource    : (payload) =>

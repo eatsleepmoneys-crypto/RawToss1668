@@ -43,15 +43,60 @@ function initStatus(code) {
 }
 ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP'].forEach(initStatus);
 
+// ── ScraperAPI proxy support ───────────────────────────────────────
+// Railway servers are blocked by Thai/Lao sites at IP level.
+// Solution: route via ScraperAPI which has residential IPs in TH/LA.
+// Get a free key at https://scraperapi.com (1000 calls/month free)
+// Set env var: SCRAPERAPI_KEY=your_key
+// Or store in settings table: key='scraperapi_key'
+
+let _scraperApiKey = process.env.SCRAPERAPI_KEY || null;
+
+async function getScraperApiKey() {
+  if (_scraperApiKey) return _scraperApiKey;
+  try {
+    const rows = await query("SELECT value FROM settings WHERE `key`='scraperapi_key' LIMIT 1");
+    if (rows.length && rows[0].value) {
+      _scraperApiKey = rows[0].value;
+      return _scraperApiKey;
+    }
+  } catch {}
+  return null;
+}
+
+// Invalidate cache when settings change
+function clearScraperApiKeyCache() { _scraperApiKey = null; }
+
+/**
+ * Build proxy URL via ScraperAPI if key is configured, otherwise direct.
+ * country_code=th routes through Thai residential IP.
+ */
+async function buildProxyUrl(targetUrl, countryCode = 'th') {
+  const key = await getScraperApiKey();
+  if (!key) return targetUrl; // direct (may be blocked)
+  return `https://api.scraperapi.com?api_key=${key}&url=${encodeURIComponent(targetUrl)}&country_code=${countryCode}&render=false`;
+}
+
 // ── HTTP helper ────────────────────────────────────────────────────
-const httpGet = (url, ms = 15000) => axios.get(url, {
-  timeout: ms,
-  headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
-    'Accept-Language': 'th,en;q=0.9',
-    'Accept': 'text/html,application/xhtml+xml,application/json,*/*',
-  },
-});
+const BROWSER_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
+  'Accept-Language': 'th,lo;q=0.9,en;q=0.8',
+  'Accept': 'text/html,application/xhtml+xml,application/json,*/*',
+};
+
+// Direct HTTP (no proxy) — used for non-blocked sources or ScraperAPI itself
+const httpGet = (url, ms = 15000) => axios.get(url, { timeout: ms, headers: BROWSER_HEADERS });
+
+// Proxy-aware HTTP — auto-routes through ScraperAPI if key configured
+async function httpGetProxy(url, ms = 25000, countryCode = 'th') {
+  const proxyUrl = await buildProxyUrl(url, countryCode);
+  const usingProxy = proxyUrl !== url;
+  if (usingProxy) console.log(`[PROXY] ${url.slice(0, 60)}... → ScraperAPI (${countryCode})`);
+  return axios.get(proxyUrl, {
+    timeout: ms,
+    headers: usingProxy ? {} : BROWSER_HEADERS, // ScraperAPI sends its own headers
+  });
+}
 
 // ── ─────────────────────────────────────────────────────────────
 //    FETCH FUNCTIONS — คืน { prize_1st, prize_last_2, front3:[], last3:[] }
@@ -64,7 +109,7 @@ const httpGet = (url, ms = 15000) => axios.get(url, {
 async function fetchTHGov() {
   // Source 1: Longdo Money (JSON API — เชื่อถือได้)
   try {
-    const res = await httpGet('https://money.longdo.com/lotto/api');
+    const res = await httpGetProxy('https://money.longdo.com/lotto/api');
     const d   = res.data;
     if (d && (d.first || d.prize1)) {
       const p1 = (d.first || d.prize1 || '').replace(/\D/g,'');
@@ -80,7 +125,7 @@ async function fetchTHGov() {
 
   // Source 2: Sanook lotto (JSON endpoint)
   try {
-    const res = await httpGet('https://api.sanook.com/lottoapi/latest');
+    const res = await httpGetProxy('https://api.sanook.com/lottoapi/latest');
     const d   = res.data?.result || res.data;
     if (d && d.prize1) {
       const p1 = d.prize1.replace(/\D/g,'');
@@ -98,7 +143,7 @@ async function fetchTHGov() {
 
   // Source 3: Manager Online (HTML scrape)
   try {
-    const res = await httpGet('https://www.manager.co.th/Lotto/');
+    const res = await httpGetProxy('https://www.manager.co.th/Lotto/');
     const $   = cheerio.load(res.data);
     // หา 6-digit text ที่น่าจะเป็นรางวัลที่ 1
     let p1 = '';
@@ -137,7 +182,7 @@ function laGovExtract(rawDigits) {
 async function fetchLAGov() {
   // Source 1: huaylao.net (JSON)
   try {
-    const res = await httpGet('https://huaylao.net/api/latest');
+    const res = await httpGetProxy('https://huaylao.net/api/latest');
     const d   = res.data;
     if (d && (d.prize1 || d.first)) {
       const raw = (d.prize1 || d.first || '').replace(/\D/g,'');
@@ -150,7 +195,7 @@ async function fetchLAGov() {
 
   // Source 2: laosassociationlottery.com (HTML)
   try {
-    const res = await httpGet('https://laosassociationlottery.com/en/home/', 20000);
+    const res = await httpGetProxy('https://laosassociationlottery.com/en/home/', 20000);
     const $   = cheerio.load(res.data);
     const nums = [];
     $('[class*="prize"],[class*="result"],[class*="number"]').each((_, el) => {
@@ -171,7 +216,7 @@ async function fetchLAGov() {
 
   // Source 3: lottovip.com
   try {
-    const res = await httpGet('https://www.lottovip.com/lao-lottery-result/');
+    const res = await httpGetProxy('https://www.lottovip.com/lao-lottery-result/');
     const $   = cheerio.load(res.data);
     let raw = '';
     $('[class*="result"],[class*="number"],[class*="prize"]').each((_, el) => {
@@ -195,7 +240,7 @@ async function fetchVNHanoi() {
   // Source 1: xoso.com.vn (JSON)
   try {
     const today = new Date(Date.now() + 7*3600000).toISOString().slice(0,10).replace(/-/g,'/');
-    const res   = await httpGet(`https://xoso.com.vn/api/xs-mb-${today}.js`);
+    const res   = await httpGetProxy(`https://xoso.com.vn/api/xs-mb-${today}.js`);
     const html  = res.data;
     // ดึง giainhat: ["12345"] จาก JSON
     const m = JSON.stringify(html).match(/"giainhat"\s*:\s*\["(\d+)"\]/);
@@ -208,7 +253,7 @@ async function fetchVNHanoi() {
 
   // Source 2: xosomiennam.net (HTML scrape)
   try {
-    const res = await httpGet('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 20000);
+    const res = await httpGetProxy('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 20000);
     const $   = cheerio.load(res.data);
     let p = '';
     // Giải nhất มักอยู่ใน <td> หรือ <div> ที่มี 5 หลัก
@@ -224,7 +269,7 @@ async function fetchVNHanoi() {
 
   // Source 3: ketqua.tv (HTML scrape)
   try {
-    const res = await httpGet('https://ketqua.tv/xo-so-mien-bac.html');
+    const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac.html');
     const $   = cheerio.load(res.data);
     let p = '';
     $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"]').each((_, el) => {
@@ -579,26 +624,34 @@ function applyTransform(transform, data, src) {
  * Returns standardized result หรือ throw
  */
 async function fetchOneSource(src) {
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/json,*/*',
-    'Accept-Language': 'th,en;q=0.9',
-  };
+  // If source has its own api_key configured — use direct (it's likely a proxy/API service already)
+  // Otherwise route through ScraperAPI proxy if configured
+  const useDirectForApiKey = !!src.api_key;
+
+  const headers = { ...BROWSER_HEADERS };
   // Extra headers from DB
   if (src.extra_headers) {
     try { Object.assign(headers, JSON.parse(src.extra_headers)); } catch {}
   }
-  // API Key
+  // API Key header
   if (src.api_key) headers['x-api-key'] = src.api_key;
 
   let rawData;
   if (src.method === 'POST') {
     const bodyData = src.body_template ? JSON.parse(src.body_template) : {};
-    const resp = await axios.post(src.source_url, bodyData, { headers, timeout: 20000 });
+    const url = useDirectForApiKey ? src.source_url : await buildProxyUrl(src.source_url);
+    const resp = await axios.post(url, bodyData, { headers, timeout: 25000 });
     rawData = resp.data;
   } else {
-    const resp = await httpGet(src.source_url, 20000);
-    rawData = resp.data;
+    if (useDirectForApiKey) {
+      // Source has its own auth — call directly
+      const resp = await axios.get(src.source_url, { headers, timeout: 25000 });
+      rawData = resp.data;
+    } else {
+      // Route through proxy (ScraperAPI) if key configured, else direct
+      const resp = await httpGetProxy(src.source_url, 25000);
+      rawData = resp.data;
+    }
   }
 
   return applyTransform(src.transform, rawData, src);
@@ -849,4 +902,4 @@ function startLotteryFetcher() {
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testSource };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testSource, clearScraperApiKeyCache };
