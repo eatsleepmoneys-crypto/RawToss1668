@@ -278,14 +278,32 @@ async function fetchLAGov() {
  * รางวัลที่ 1 (Giải nhất) = 5 หลัก
  */
 async function fetchVNHanoi() {
+  /**
+   * โครงสร้างรางวัล XSMB:
+   *   matches[0] = Giải Đặc Biệt (GDB) → prize_1st → 2 ตัวบน = GDB[-2:]
+   *   matches[1] = Giải Nhất (G1)       → prize_2bot → 2 ตัวล่าง = G1[-2:]
+   */
+  function vn(gdb, g1) {
+    return {
+      prize_1st:    gdb,
+      prize_last_2: gdb.slice(-2),            // 2 ตัวบน  (last 2 ของ GDB)
+      prize_2bot:   g1 ? g1.slice(-2) : null, // 2 ตัวล่าง (last 2 ของ G1)
+      prize_front_3: [],
+      prize_last_3:  [gdb.slice(-3)],
+    };
+  }
+
   // Source 1: xskt.com.vn RSS feed (XML — most reliable from Railway US servers)
   try {
     const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss', 20000);
     const matches = String(res.data).match(/\b\d{5}\b/g);
-    if (matches && matches.length) {
-      const p = matches[0];
-      console.log('[FETCHER:VN_HAN] Source: xskt.com.vn RSS', p);
-      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    if (matches && matches.length >= 2) {
+      console.log('[FETCHER:VN_HAN] RSS GDB=%s G1=%s', matches[0], matches[1]);
+      return vn(matches[0], matches[1]);
+    }
+    if (matches && matches.length === 1) {
+      console.log('[FETCHER:VN_HAN] RSS GDB=%s (G1 not found)', matches[0]);
+      return vn(matches[0], null);
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] xskt RSS error:', e.message); }
 
@@ -293,20 +311,30 @@ async function fetchVNHanoi() {
   try {
     const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac.html', 30000, 'sg');
     const $   = cheerio.load(res.data);
-    let p = '';
-    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"]').each((_, el) => {
+    let gdb = '', g1 = '';
+    // ลอง selector เฉพาะ GDB ก่อน
+    $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"]').each((_, el) => {
       const t = $(el).text().trim().replace(/\D/g,'');
-      if (t.length >= 4 && !p) p = t;
+      if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5,'0');
     });
-    if (!p) {
+    // G1
+    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5,'0');
+    });
+    // fallback: เก็บ 2 ตัวแรกที่เป็น 5 หลัก
+    if (!gdb) {
+      const nums = [];
       $('td,span').each((_, el) => {
         const t = $(el).text().trim().replace(/\D/g,'');
-        if (/^\d{5}$/.test(t) && !p) p = t;
+        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
       });
+      if (nums[0]) gdb = nums[0];
+      if (nums[1] && !g1) g1 = nums[1];
     }
-    if (p) {
-      console.log('[FETCHER:VN_HAN] Source: ketqua.tv', p);
-      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN] ketqua.tv GDB=%s G1=%s', gdb, g1 || '?');
+      return vn(gdb, g1 || null);
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] ketqua.tv error:', e.message); }
 
@@ -314,14 +342,14 @@ async function fetchVNHanoi() {
   try {
     const res = await httpGetProxy('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 30000, 'sg');
     const $   = cheerio.load(res.data);
-    let p = '';
+    const nums = [];
     $('td,span,div').each((_, el) => {
       const t = $(el).text().trim().replace(/\D/g,'');
-      if (/^\d{5}$/.test(t) && !p) p = t;
+      if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
     });
-    if (p) {
-      console.log('[FETCHER:VN_HAN] Source: xosomiennam.net', p);
-      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+    if (nums[0]) {
+      console.log('[FETCHER:VN_HAN] xosomiennam GDB=%s G1=%s', nums[0], nums[1] || '?');
+      return vn(nums[0], nums[1] || null);
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] xosomiennam error:', e.message); }
 
@@ -374,8 +402,9 @@ async function announceResult(lotteryCode, result) {
     prize_2bot,           // ลาวพัฒนา เท่านั้น: 2bot = ตำแหน่ง 3-4
   } = result;
 
-  // สำหรับลาวพัฒนา 2bot ใช้ตำแหน่ง 3-4 แทน prize_last_2 (ซึ่งคือ 2top)
-  const effective_2bot = (lotteryCode === 'LA_GOV' && prize_2bot)
+  // LA_GOV: 2bot = ตำแหน่ง 3-4, VN_*: 2bot = last 2 ของ Giải Nhất (G1)
+  const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
+  const effective_2bot = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
     ? prize_2bot
     : prize_last_2;
   // สำหรับลาวพัฒนา 3top ใช้ตำแหน่ง 4-5-6 (= prize_last_3[0])
@@ -411,8 +440,8 @@ async function announceResult(lotteryCode, result) {
     );
 
     console.log(`[FETCHER:${lotteryCode}] ตรวจ ${bets.length} bets, งวด #${round.id} (${prize_1st})`);
-    if (lotteryCode === 'LA_GOV')
-      console.log(`[FETCHER:LA_GOV] 2bot=${effective_2bot}, 2top=${prize_last_2}, 3top=${effective_3top}`);
+    if (USES_SEPARATE_2BOT.includes(lotteryCode))
+      console.log(`[FETCHER:${lotteryCode}] 2top=${prize_last_2}, 2bot=${effective_2bot}, 3top=${effective_3top}`);
 
     // 5. ตรวจผลและจ่ายรางวัล
     for (const bet of bets) {
@@ -643,27 +672,42 @@ function applyTransform(transform, data, src) {
     // ─── HTML scrape — VN_HAN ─────────────────────────────────
     case 'html_vn_han': {
       const $ = cheerio.load(data);
-      let p = '';
-      // Pass 1: specific prize classes (Vietnamese lottery sites)
-      $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"],[class*="jackpot"],[class*="special"],[class*="dac-biet"],[class*="dacbiet"]').each((_, el) => {
+      let gdb = '', g1 = '';
+      // Pass 1a: selector เฉพาะ GDB (Giải Đặc Biệt)
+      $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"],[class*="special"]').each((_, el) => {
         const t = $(el).text().trim().replace(/\D/g, '');
-        if (t.length >= 4 && !p) p = t;
+        if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5,'0');
       });
-      // Pass 2: look for 5-digit numbers in table cells
-      if (!p) {
+      // Pass 1b: selector เฉพาะ G1 (Giải Nhất)
+      $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g, '');
+        if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5,'0');
+      });
+      // Pass 2: fallback — เก็บ 2 ตัวแรกที่เป็น 5 หลักจาก table cells
+      if (!gdb) {
+        const nums = [];
         $('td,span,div,b,strong').each((_, el) => {
-          const children = $(el).children();
+          if ($(el).children().length > 0) return;
           const t = $(el).text().trim().replace(/\D/g, '');
-          if (/^\d{5}$/.test(t) && !p) p = t;
+          if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
         });
+        if (nums[0]) gdb = nums[0];
+        if (nums[1] && !g1) g1 = nums[1];
       }
-      // Pass 3: regex scan for first 5-digit number in HTML
-      if (!p) {
-        const m = String(data).match(/\b(\d{5})\b/);
-        if (m) p = m[1];
+      // Pass 3: regex scan ในกรณีสุดท้าย
+      if (!gdb) {
+        const all5 = String(data).match(/\b\d{5}\b/g) || [];
+        if (all5[0]) gdb = all5[0];
+        if (all5[1] && !g1) g1 = all5[1];
       }
-      if (!p) throw new Error('html_vn_han: scrape ไม่พบ 5 หลัก');
-      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+      if (!gdb) throw new Error('html_vn_han: scrape ไม่พบ 5 หลัก');
+      return {
+        prize_1st:    gdb,
+        prize_last_2: gdb.slice(-2),            // 2 ตัวบน (GDB)
+        prize_2bot:   g1 ? g1.slice(-2) : null, // 2 ตัวล่าง (G1)
+        prize_front_3: [],
+        prize_last_3:  [gdb.slice(-3)],
+      };
     }
 
     // ─── xoso.com.vn JS endpoint ──────────────────────────────
@@ -676,11 +720,19 @@ function applyTransform(transform, data, src) {
 
     // ─── RSS/XML ─────────────────────────────────────────────
     case 'rss_vn': {
-      // ดึง 5-digit จาก RSS content
+      // matches[0] = Giải Đặc Biệt (GDB) → 2 ตัวบน
+      // matches[1] = Giải Nhất (G1)       → 2 ตัวล่าง
       const matches = String(data).match(/\b\d{5}\b/g);
       if (!matches || !matches.length) throw new Error('rss_vn: ไม่พบ 5 หลัก');
-      const p = matches[0];
-      return { prize_1st: p, prize_last_2: p.slice(-2), prize_front_3: [], prize_last_3: [p.slice(-3)] };
+      const gdb = matches[0];
+      const g1  = matches[1] || null;
+      return {
+        prize_1st:    gdb,
+        prize_last_2: gdb.slice(-2),            // 2 ตัวบน (GDB)
+        prize_2bot:   g1 ? g1.slice(-2) : null, // 2 ตัวล่าง (G1)
+        prize_front_3: [],
+        prize_last_3:  [gdb.slice(-3)],
+      };
     }
 
     // ─── JSON flat (prize_1st, prize_last_2 ตรงๆ) ──────────

@@ -411,10 +411,10 @@ const SEEDS = [
     ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,0),
     ('VN_HAN','xosomiennam.net (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1),
     ('VN_HAN','xskt RSS (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
-    ('VN_HAN_SP','xskt RSS SP (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,0),
-    ('VN_HAN_SP','xosomiennam special (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1),
-    ('VN_HAN_VIP','xskt RSS VIP (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,0),
-    ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1)`,
+    ('VN_HAN_SP','xskt RSS SP XSMT (XML)','https://xskt.com.vn/rss-feed/mien-trung-xsmt.rss','rss_vn',1,0),
+    ('VN_HAN_SP','xosomiennam SP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-trung','html_vn_han',1,1),
+    ('VN_HAN_VIP','xskt RSS VIP XSMN (XML)','https://xskt.com.vn/rss-feed/mien-nam-xsmn.rss','rss_vn',1,0),
+    ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-nam','html_vn_han',1,1)`,
 
   // ─── Force correct sort_order for LA_GOV (INSERT IGNORE keeps old values) ───
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
@@ -445,16 +445,32 @@ const SEEDS = [
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=11, \`enabled\`=0
    WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xskt.com.vn (JSON)'`,
 
-  // ─── Force correct sort_order for VN_HAN_SP (xskt RSS first) ───
-  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
-   WHERE \`lottery_code\`='VN_HAN_SP' AND \`name\`='xskt RSS SP (XML)'`,
-  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=1, \`enabled\`=1
-   WHERE \`lottery_code\`='VN_HAN_SP' AND \`name\`='xosomiennam special (HTML)'`,
+  // ─── Force correct sort_order + URL for VN_HAN_SP (XSMT = ภาคกลาง) ───
+  // Disable old wrong sources that pointed to XSMB (ภาคเหนือ)
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=10, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN_SP' AND \`source_url\` LIKE '%mien-bac%'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=11, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN_SP' AND \`source_url\` LIKE '%ket-qua-xo-so-mien-bac%'`,
+  // New correct sources for SP (XSMT)
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1,
+   \`source_url\`='https://xskt.com.vn/rss-feed/mien-trung-xsmt.rss'
+   WHERE \`lottery_code\`='VN_HAN_SP' AND \`name\`='xskt RSS SP XSMT (XML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=1, \`enabled\`=1,
+   \`source_url\`='https://xosomiennam.net/ket-qua-xo-so-mien-trung'
+   WHERE \`lottery_code\`='VN_HAN_SP' AND \`name\`='xosomiennam SP (HTML)'`,
 
-  // ─── Force correct sort_order for VN_HAN_VIP (xskt RSS first) ───
-  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
-   WHERE \`lottery_code\`='VN_HAN_VIP' AND \`name\`='xskt RSS VIP (XML)'`,
-  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=1, \`enabled\`=1
+  // ─── Force correct sort_order + URL for VN_HAN_VIP (XSMN = ภาคใต้) ───
+  // Disable old wrong sources that pointed to XSMB (ภาคเหนือ)
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=10, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN_VIP' AND \`source_url\` LIKE '%mien-bac%'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=11, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN_VIP' AND \`source_url\` LIKE '%ket-qua-xo-so-mien-bac%'`,
+  // New correct sources for VIP (XSMN)
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1,
+   \`source_url\`='https://xskt.com.vn/rss-feed/mien-nam-xsmn.rss'
+   WHERE \`lottery_code\`='VN_HAN_VIP' AND \`name\`='xskt RSS VIP XSMN (XML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=1, \`enabled\`=1,
+   \`source_url\`='https://xosomiennam.net/ket-qua-xo-so-mien-nam'
    WHERE \`lottery_code\`='VN_HAN_VIP' AND \`name\`='xosomiennam VIP (HTML)'`,
 
   // ─── Cleanup duplicate sources (keep lowest id per lottery_code+name) ───
