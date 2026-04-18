@@ -431,6 +431,18 @@ const SEEDS = [
   `UPDATE \`lottery_api_sources\` SET \`enabled\`=0
    WHERE \`lottery_code\`='LA_GOV' AND \`source_url\` LIKE '%lotto.com.la%'`,
 
+  // ─── Force correct sort_order for VN_HAN (ketqua.tv first, disable dead) ───
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='ketqua.tv (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=1, \`enabled\`=1
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xosomiennam.net (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=2, \`enabled\`=1
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xskt RSS (XML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=10, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xoso.com.vn (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=11, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xskt.com.vn (JSON)'`,
+
   // ─── Cleanup duplicate sources (keep lowest id per lottery_code+name) ───
   `DELETE s1 FROM \`lottery_api_sources\` s1
    INNER JOIN \`lottery_api_sources\` s2
