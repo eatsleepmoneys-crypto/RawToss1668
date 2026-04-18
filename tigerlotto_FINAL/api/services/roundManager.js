@@ -385,6 +385,17 @@ function startRoundManager() {
     console.error('[ROUND_MGR] createTodayRounds error:', e.message)
   );
 
+  // Backfill: ปิดงวดที่ค้างอยู่ทันทีหลัง server เริ่ม
+  // (เผื่อ server หยุดไประหว่างวันและมีงวดที่ผ่านเวลาไปแล้ว)
+  setTimeout(() => {
+    autoManageRounds().catch(e =>
+      console.error('[ROUND_MGR] backfill autoManageRounds error:', e.message)
+    );
+    yeekeeAutoAnnounce().catch(e =>
+      console.error('[ROUND_MGR] backfill yeekeeAutoAnnounce error:', e.message)
+    );
+  }, 5000); // รอ 5 วิให้ DB connection พร้อม
+
   // เที่ยงคืน: สร้างงวดของวันถัดไป
   cron.schedule('0 0 * * *', () => {
     console.log('[ROUND_MGR] เที่ยงคืน: สร้างงวดวันใหม่');

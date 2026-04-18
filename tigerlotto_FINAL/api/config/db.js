@@ -40,6 +40,17 @@ const pool = mysql.createPool({
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : undefined,
 });
 
+// ─── Set session timezone on every connection ───
+// mysql2's `timezone` pool option only affects JS Date serialisation;
+// it does NOT set MySQL's server-side NOW() timezone.
+// We must explicitly set time_zone so that NOW() returns Bangkok time,
+// which matches the Bangkok-time strings stored in open_at / close_at.
+pool.on('connection', (connection) => {
+  connection.query("SET time_zone = '+07:00'", (err) => {
+    if (err) console.warn('⚠️  Failed to set session time_zone:', err.message);
+  });
+});
+
 // ─── Test connection ───
 pool.getConnection()
   .then(conn => {
