@@ -414,6 +414,23 @@ const SEEDS = [
     ('VN_HAN_SP','xosomiennam special (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,0),
     ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,0)`,
 
+  // ─── Force correct sort_order for LA_GOV (INSERT IGNORE keeps old values) ───
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
+   WHERE \`lottery_code\`='LA_GOV' AND \`name\`='Sanook Lao (4-digit)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=10, \`enabled\`=0
+   WHERE \`lottery_code\`='LA_GOV' AND \`name\`='HuayLao.net (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=11, \`enabled\`=0
+   WHERE \`lottery_code\`='LA_GOV' AND \`name\`='Tookhuay Lao (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=12, \`enabled\`=0
+   WHERE \`lottery_code\`='LA_GOV' AND \`name\`='Ruaythai Lao (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=13, \`enabled\`=0
+   WHERE \`lottery_code\`='LA_GOV' AND \`name\`='LD1 Official (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=14, \`enabled\`=0
+   WHERE \`lottery_code\`='LA_GOV' AND \`name\`='LottovipLao (HTML)'`,
+  // Disable old lotto.com.la source (returns 500)
+  `UPDATE \`lottery_api_sources\` SET \`enabled\`=0
+   WHERE \`lottery_code\`='LA_GOV' AND \`source_url\` LIKE '%lotto.com.la%'`,
+
   // ─── Cleanup duplicate sources (keep lowest id per lottery_code+name) ───
   `DELETE s1 FROM \`lottery_api_sources\` s1
    INNER JOIN \`lottery_api_sources\` s2
