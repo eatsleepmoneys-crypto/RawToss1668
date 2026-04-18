@@ -50,13 +50,18 @@ function formatDateThai(day, month, year) {
 }
 
 /**
- * กำหนด status เริ่มต้นของงวดจาก close_at
- * ถ้า close_at ผ่านแล้ว → 'closed'  มิฉะนั้น → 'open'
+ * กำหนด status เริ่มต้นจาก open_at และ close_at
+ *  - nowMs >= closeMs  → 'closed'
+ *  - nowMs >= openMs   → 'open'
+ *  - else              → 'upcoming'
  */
-function determineStatus(closeAtStr) {
+function determineStatus(openAtStr, closeAtStr) {
   const nowMs   = Date.now();
   const closeMs = new Date(closeAtStr.replace(' ', 'T') + '+07:00').getTime();
-  return nowMs >= closeMs ? 'closed' : 'open';
+  const openMs  = new Date(openAtStr.replace(' ', 'T')  + '+07:00').getTime();
+  if (nowMs >= closeMs) return 'closed';
+  if (nowMs >= openMs)  return 'open';
+  return 'upcoming';
 }
 
 // ── กำหนดตารางงวดของวันนี้ ─────────────────────────────────────────
@@ -74,81 +79,96 @@ function buildRoundsForToday() {
   // ── หวยรัฐบาลไทย (วันที่ 1 และ 16 ของเดือน) ───────────────────
   if (day === 1 || day === 16) {
     rounds.push({
-      code: 'TH_GOV',
+      code:       'TH_GOV',
       round_code: `GOV-${compact}`,
       round_name: `หวยรัฐบาลไทย ${dateThai}`,
       draw_date:  dateStr,
+      open_at:    `${dateStr} 00:00:00`,
       close_at:   `${dateStr} 14:30:00`,
     });
   }
 
   // ── ลาวพัฒนา (ทุกวัน) ────────────────────────────────────────
   rounds.push({
-    code: 'LA_GOV',
+    code:       'LA_GOV',
     round_code: `LAOS-${compact}`,
     round_name: `ลาวพัฒนา ${dateThai}`,
     draw_date:  dateStr,
+    open_at:    `${dateStr} 00:00:00`,
     close_at:   `${dateStr} 20:00:00`,
   });
 
   // ── ฮานอยปกติ (ทุกวัน ~18:30) ────────────────────────────────
   rounds.push({
-    code: 'VN_HAN',
+    code:       'VN_HAN',
     round_code: `HANOI-${compact}`,
     round_name: `ฮานอยปกติ ${dateThai}`,
     draw_date:  dateStr,
+    open_at:    `${dateStr} 00:00:00`,
     close_at:   `${dateStr} 18:00:00`,
   });
 
   // ── ฮานอยพิเศษ (ทุกวัน ~17:30) ──────────────────────────────
   rounds.push({
-    code: 'VN_HAN_SP',
+    code:       'VN_HAN_SP',
     round_code: `HANOISP-${compact}`,
     round_name: `ฮานอยพิเศษ ${dateThai}`,
     draw_date:  dateStr,
+    open_at:    `${dateStr} 00:00:00`,
     close_at:   `${dateStr} 17:00:00`,
   });
 
   // ── ฮานอย VIP (ทุกวัน ~17:00) ───────────────────────────────
   rounds.push({
-    code: 'VN_HAN_VIP',
+    code:       'VN_HAN_VIP',
     round_code: `HANOIVIP-${compact}`,
     round_name: `ฮานอย VIP ${dateThai}`,
     draw_date:  dateStr,
+    open_at:    `${dateStr} 00:00:00`,
     close_at:   `${dateStr} 16:30:00`,
   });
 
   // ── หวยหุ้นไทย SET (วันจันทร์–ศุกร์) ─────────────────────────
   if (dow >= 1 && dow <= 5) {
     rounds.push({
-      code: 'TH_STK',
+      code:       'TH_STK',
       round_code: `THSTK-${compact}-1`,
       round_name: `หวยหุ้นไทย ${dateThai} (รอบเช้า)`,
       draw_date:  dateStr,
+      open_at:    `${dateStr} 09:30:00`,
       close_at:   `${dateStr} 12:00:00`,
     });
     rounds.push({
-      code: 'TH_STK',
+      code:       'TH_STK',
       round_code: `THSTK-${compact}-2`,
       round_name: `หวยหุ้นไทย ${dateThai} (รอบบ่าย)`,
       draw_date:  dateStr,
+      open_at:    `${dateStr} 13:00:00`,
       close_at:   `${dateStr} 16:00:00`,
     });
   }
 
   // ── หวยยี่กี 90 งวด (ทุก 16 นาที ตลอด 24 ชม.) ────────────────
-  // งวด n: close_at = n×16 − 5 นาที จากเที่ยงคืน
+  // งวด n: open_at = (n-1)×16 นาที, close_at = n×16−5 นาที จากเที่ยงคืน
   for (let n = 1; n <= 90; n++) {
+    const openMins  = (n - 1) * 16;
     const closeMins = n * 16 - 5;
-    const daysAhead = closeMins >= 1440 ? 1 : 0;
-    const mins      = closeMins % 1440;
-    const closeDate = daysAhead ? tomorrow : dateStr;
-    const closeTime = `${pad2(Math.floor(mins / 60))}:${pad2(mins % 60)}:00`;
+
+    const openDaysAhead  = openMins  >= 1440 ? 1 : 0;
+    const closeDaysAhead = closeMins >= 1440 ? 1 : 0;
+
+    const openDate  = openDaysAhead  ? tomorrow : dateStr;
+    const closeDate = closeDaysAhead ? tomorrow : dateStr;
+
+    const openTime  = `${pad2(Math.floor((openMins  % 1440) / 60))}:${pad2((openMins  % 1440) % 60)}:00`;
+    const closeTime = `${pad2(Math.floor((closeMins % 1440) / 60))}:${pad2((closeMins % 1440) % 60)}:00`;
+
     rounds.push({
       code:       'YEEKEE',
       round_code: `YEEKEE-${compact}-${pad2(n)}`,
       round_name: `หวยยี่กี ${dateThai} งวดที่ ${pad2(n)}`,
       draw_date:  dateStr,
+      open_at:    `${openDate} ${openTime}`,
       close_at:   `${closeDate} ${closeTime}`,
     });
   }
@@ -177,13 +197,13 @@ async function createTodayRounds() {
     );
     if (existing.length > 0) continue;
 
-    const status = determineStatus(r.close_at);
+    const status = determineStatus(r.open_at, r.close_at);
 
     await query(
       `INSERT INTO lottery_rounds
-         (uuid, lottery_id, round_code, round_name, draw_date, close_at, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [uuidv4(), lottery_id, r.round_code, r.round_name, r.draw_date, r.close_at, status]
+         (uuid, lottery_id, round_code, round_name, draw_date, open_at, close_at, status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [uuidv4(), lottery_id, r.round_code, r.round_name, r.draw_date, r.open_at, r.close_at, status]
     );
     created++;
   }
@@ -197,9 +217,14 @@ async function createTodayRounds() {
 // ── Auto-open / Auto-close ────────────────────────────────────────
 
 async function autoManageRounds() {
-  // upcoming → open เมื่อถึงเวลาเปิด (ใช้ close_at - 11 min เป็น open proxy)
-  // ในกรณีนี้เราไม่มี open_at จึงสร้างงวดเป็น 'open' ตั้งแต่ต้น
-  // เพียงแต่ปิดอัตโนมัติเมื่อ close_at ผ่าน
+  // upcoming → open เมื่อถึงเวลา open_at
+  const opened = await query(
+    "UPDATE lottery_rounds SET status='open' WHERE status='upcoming' AND open_at IS NOT NULL AND open_at <= NOW()"
+  );
+  if (opened.affectedRows > 0)
+    console.log(`[ROUND_MGR] Auto-opened ${opened.affectedRows} งวด`);
+
+  // open → closed เมื่อ close_at ผ่าน
   const closed = await query(
     "UPDATE lottery_rounds SET status='closed' WHERE status='open' AND close_at <= NOW()"
   );

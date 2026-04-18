@@ -1384,11 +1384,26 @@ function _tagFor(code){
   return m ? `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>` : '<span class="lot-tag">หวย</span>';
 }
 function _statusFor(r){
+  // Use DB status first for accuracy
+  if(r.status === 'upcoming'){
+    // Show countdown to open_at
+    if(r.open_at){
+      const openMs = new Date(r.open_at).getTime();
+      const diffOpen = openMs - Date.now();
+      if(diffOpen > 0){
+        const hh = Math.floor(diffOpen/3600000);
+        const mm = Math.floor((diffOpen%3600000)/60000);
+        const label = hh > 0 ? `${hh}ช ${mm}น` : `${mm} นาที`;
+        return `<span class="lot-status soon">🕐 เปิดใน ${label}</span>`;
+      }
+    }
+    return '<span class="lot-status soon">🕐 เปิดรับเร็วๆ นี้</span>';
+  }
   const now = Date.now();
   const close = new Date(r.close_at).getTime();
   const diff = close - now;
   if(diff < 0) return '<span class="lot-status closed">🔴 ปิดรับแล้ว</span>';
-  if(diff < 60*60*1000) return '<span class="lot-status soon">🟡 ใกล้ปิด</span>';
+  if(diff < 30*60*1000) return '<span class="lot-status soon">🟡 ใกล้ปิด ' + Math.ceil(diff/60000) + ' น.</span>';
   return '<span class="lot-status open">🟢 เปิดรับ</span>';
 }
 
@@ -1421,7 +1436,10 @@ function _renderLotGroups(filterCode){
     const cards = list.map(r => {
       const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
       const safeEsc  = s => String(s||'').replace(/'/g,'&apos;');
-      return `<div class="lot-card" onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">
+      const isUpcoming = r.status === 'upcoming';
+      const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})"`;
+      const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
+      return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
         <div class="lot-card-top">
           ${_tagFor(code)}
           ${_statusFor(r)}
@@ -1429,9 +1447,15 @@ function _renderLotGroups(filterCode){
         <div class="lot-name">${r.flag||meta.flag} ${r.lottery_name}</div>
         <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
         <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
-        <div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>
+        ${isUpcoming
+          ? `<div class="lot-meta">เปิดรับ: <span>${openStr}</span></div>`
+          : `<div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>`
+        }
         <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
-        <button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">🎰 ซื้อเลย</button>
+        ${isUpcoming
+          ? `<button class="lot-btn" disabled style="opacity:.45;cursor:not-allowed">🕐 ยังไม่เปิดรับ</button>`
+          : `<button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">🎰 ซื้อเลย</button>`
+        }
       </div>`;
     }).join('');
     return `<div class="lot-group">

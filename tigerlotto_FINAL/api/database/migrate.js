@@ -155,6 +155,7 @@ const CREATES = [
     \`round_code\`  VARCHAR(50) DEFAULT NULL,
     \`round_name\`  VARCHAR(100) NOT NULL,
     \`draw_date\`   DATE NOT NULL,
+    \`open_at\`     DATETIME DEFAULT NULL,
     \`close_at\`    DATETIME NOT NULL,
     \`status\`      ENUM('upcoming','open','closed','announcing','announced','cancelled') NOT NULL DEFAULT 'upcoming',
     \`total_bet\`   DECIMAL(15,2) NOT NULL DEFAULT 0.00,
@@ -437,16 +438,23 @@ async function migrate() {
     console.warn(`   ⚠️  FK scan error: ${e.message.substring(0, 120)}`);
   }
 
-  // 1. Drop all tables (FK-safe: disable checks first so old-schema FKs don't block)
-  console.log('\n📦 Dropping tables...');
-  await conn.query('SET FOREIGN_KEY_CHECKS = 0');
-  for (const sql of DROPS) {
-    const table = sql.match(/`(\w+)`$/)?.[1] || '?';
-    await run(`DROP ${table}`, sql);
-  }
-  await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+  // ─── SAFE MODE (default): CREATE IF NOT EXISTS + seeds only — NO drops ───
+  // ─── RESET MODE: drop first, then create ──────────────────────────────────
+  const forceReset = process.env.DB_FORCE_RESET === 'true';
 
-  // 2. Create all tables (parent → child order)
+  if (forceReset) {
+    console.log('\n⚠️  FORCE RESET: Dropping all tables...');
+    await conn.query('SET FOREIGN_KEY_CHECKS = 0');
+    for (const sql of DROPS) {
+      const table = sql.match(/`(\w+)`$/)?.[1] || '?';
+      await run(`DROP ${table}`, sql);
+    }
+    await conn.query('SET FOREIGN_KEY_CHECKS = 1');
+  } else {
+    console.log('\n🔒 Safe mode — skipping DROP (use DB_FORCE_RESET=true to reset)');
+  }
+
+  // 1. Create all tables (IF NOT EXISTS — safe to run every startup)
   console.log('\n🔨 Creating tables...');
   await conn.query('SET FOREIGN_KEY_CHECKS = 0');
   for (const sql of CREATES) {
@@ -455,14 +463,39 @@ async function migrate() {
   }
   await conn.query('SET FOREIGN_KEY_CHECKS = 1');
 
-  // 3. Seed data
+  // 2. Safe ALTER TABLE — add new columns to existing tables
+  console.log('\n🔧 Applying schema patches...');
+  const ALTERS = [
+    // Add open_at column to lottery_rounds (for upcoming→open auto-transition)
+    `ALTER TABLE \`lottery_rounds\` ADD COLUMN \`open_at\` DATETIME DEFAULT NULL AFTER \`round_code\``,
+    // round_code unique index (safe re-add attempt)
+    `ALTER TABLE \`lottery_rounds\` ADD UNIQUE KEY \`uk_round_code\` (\`round_code\`)`,
+  ];
+  for (const sql of ALTERS) {
+    const label = sql.replace(/\s+/g, ' ').substring(0, 60);
+    try {
+      await conn.query(sql);
+      ok++;
+      console.log(`   ✅ ${label}`);
+    } catch (e) {
+      // 1060 = Duplicate column, 1061 = Duplicate key — both are OK (already applied)
+      if (e.errno === 1060 || e.errno === 1061) {
+        console.log(`   ✔  ${label} (already exists)`);
+      } else {
+        fail++;
+        console.warn(`   ⚠️  ${label} — [${e.code}] ${e.message.substring(0, 80)}`);
+      }
+    }
+  }
+
+  // 3. Seed data (INSERT IGNORE — won't overwrite existing rows)
   console.log('\n🌱 Seeding data...');
   for (const sql of SEEDS) {
     const table = sql.match(/INTO `(\w+)`/)?.[1] || '?';
     await run(`SEED ${table}`, sql);
   }
 
-  // 4. List created tables for verification
+  // 4. List tables for verification
   try {
     const [rows] = await conn.query(
       `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME`
@@ -471,12 +504,10 @@ async function migrate() {
   } catch (e) { /* non-fatal */ }
 
   console.log(`\n✅ Migration complete! ok=${ok} fail=${fail}`);
-  if (fail > 0) console.log('   (failures above are logged — check Railway logs)');
-
   await conn.end();
 }
 
-// Export สำหรับ server.js เรียกใช้ auto-migrate on startup
+// Export
 module.exports = { runMigration: migrate };
 
 // รัน standalone: node database/migrate.js

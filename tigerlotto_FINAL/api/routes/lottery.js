@@ -5,6 +5,12 @@ const { authAdmin, optionalAuth } = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 const { v4: uuidv4 } = require('uuid');
 
+// Lazy-load services (avoid circular dep at startup)
+let _roundMgr = null;
+let _fetcher   = null;
+const getRoundMgr = () => _roundMgr || (_roundMgr = require('../services/roundManager'));
+const getFetcher  = () => _fetcher  || (_fetcher  = require('../services/lotteryFetcher'));
+
 // ════════════════════════════════════
 //  PUBLIC: Lottery types + rounds
 // ════════════════════════════════════
@@ -26,17 +32,17 @@ router.get('/types/:id', async (req, res) => {
   res.json({ success: true, data: { ...lt, rounds } });
 });
 
-// GET /api/lottery/rounds — open rounds (for buying)
+// GET /api/lottery/rounds — open + upcoming rounds (for buying / display)
 router.get('/rounds', async (req, res) => {
   const rows = await query(
-    `SELECT lr.id,lr.uuid,lr.round_name,lr.draw_date,lr.close_at,lr.status,lr.total_bet,lr.bet_count,
+    `SELECT lr.id,lr.uuid,lr.round_name,lr.draw_date,lr.open_at,lr.close_at,lr.status,lr.total_bet,lr.bet_count,
             lt.id as lottery_id,lt.name as lottery_name,lt.flag,lt.code,
             lt.rate_3top,lt.rate_3tod,lt.rate_2top,lt.rate_2bot,lt.rate_run_top,lt.rate_run_bot,
             lt.min_bet,lt.max_bet
      FROM lottery_rounds lr
      JOIN lottery_types lt ON lr.lottery_id=lt.id
-     WHERE lr.status='open' AND lt.status='open' AND lr.close_at > NOW()
-     ORDER BY lr.close_at ASC`);
+     WHERE lr.status IN ('open','upcoming') AND lt.status='open' AND lr.close_at > NOW()
+     ORDER BY lr.status='upcoming' DESC, lr.close_at ASC`);
   res.json({ success: true, data: rows });
 });
 
@@ -261,5 +267,88 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
     res.json({ success: true, message: 'ประกาศผลและจ่ายรางวัลเรียบร้อย' });
   }
 );
+
+// ════════════════════════════════════
+//  ADMIN: Auto-round + fetcher control
+// ════════════════════════════════════
+
+// POST /api/lottery/admin/force-rounds — force-recreate today's rounds
+router.post('/admin/force-rounds', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  try {
+    const rm = getRoundMgr();
+    await rm.createTodayRounds();
+    await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+      [req.admin.id, 'rounds.force', 'system', 0, 'manual force-create today rounds', req.ip]);
+    res.json({ success: true, message: 'สร้างงวดของวันนี้สำเร็จ (งวดที่มีแล้วจะ skip)' });
+  } catch (err) {
+    console.error('[ADMIN] force-rounds error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/lottery/admin/trigger-fetch/:code — manually trigger result fetch
+router.post('/admin/trigger-fetch/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  const { code } = req.params;
+  const validCodes = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','YEEKEE'];
+  if (!validCodes.includes(code)) {
+    return res.status(400).json({ success: false, message: `ไม่รู้จัก lottery code: ${code}` });
+  }
+  try {
+    const fetcher = getFetcher();
+    // Run fetch in background — respond immediately
+    fetcher.triggerFetch(code).catch(e => console.error(`[ADMIN] trigger-fetch ${code}:`, e.message));
+    await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+      [req.admin.id, 'fetcher.trigger', 'lottery_type', 0, `manual trigger: ${code}`, req.ip]);
+    res.json({ success: true, message: `กำลังดึงผล ${code}...` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/lottery/admin/fetcher-status — show fetcher + round status
+router.get('/admin/fetcher-status', authAdmin, rbac.requirePerm('lottery.view'), async (req, res) => {
+  try {
+    const fetcher = getFetcher();
+    const status  = fetcher.fetcherStatus || {};
+
+    // Latest round per lottery type
+    const rounds = await query(
+      `SELECT lt.code, lt.name, lr.id, lr.round_name, lr.status, lr.open_at, lr.close_at,
+              lr.bet_count, lr.total_bet,
+              res.announced_at, res.prize_1st
+       FROM lottery_types lt
+       LEFT JOIN lottery_rounds lr ON lr.id = (
+         SELECT id FROM lottery_rounds WHERE lottery_id=lt.id ORDER BY id DESC LIMIT 1
+       )
+       LEFT JOIN lottery_results res ON res.round_id = lr.id
+       WHERE lt.status='open'
+       ORDER BY lt.sort_order`
+    );
+
+    res.json({ success: true, fetcherStatus: status, rounds });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/lottery/admin/rounds/today — today's round summary for all types
+router.get('/admin/rounds/today', authAdmin, rbac.requirePerm('rounds.view'), async (req, res) => {
+  try {
+    const rows = await query(
+      `SELECT lr.id, lr.round_code, lr.round_name, lr.status,
+              lr.open_at, lr.close_at, lr.bet_count, lr.total_bet,
+              lt.code AS lottery_code, lt.name AS lottery_name, lt.flag,
+              res.prize_1st, res.announced_at
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lt.id = lr.lottery_id
+       LEFT JOIN lottery_results res ON res.round_id = lr.id
+       WHERE DATE(lr.draw_date) = CURDATE()
+       ORDER BY lt.sort_order, lr.open_at`
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 module.exports = router;
