@@ -1345,7 +1345,7 @@ const MP_PAGE_SIZE = 30;
 function openMemberPanel(){
   if(!window.currentUser){ openAuth('login'); return; }
   const u = window.currentUser;
-  document.getElementById('mpanel-name').textContent    = u.full_name || u.phone || 'สมาชิก';
+  document.getElementById('mpanel-name').textContent    = u.name || u.full_name || u.phone || 'สมาชิก';
   document.getElementById('mpanel-balance').textContent = UI.formatMoney(u.balance || 0);
   document.getElementById('mpanel-ov').classList.add('on');
   document.body.style.overflow = 'hidden';
