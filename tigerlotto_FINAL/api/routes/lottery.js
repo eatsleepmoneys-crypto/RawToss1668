@@ -41,8 +41,9 @@ router.get('/rounds', async (req, res) => {
             lt.min_bet,lt.max_bet
      FROM lottery_rounds lr
      JOIN lottery_types lt ON lr.lottery_id=lt.id
-     WHERE lr.status IN ('open','upcoming') AND lt.status='open' AND lr.close_at > NOW()
-     ORDER BY lr.status='upcoming' DESC, lr.close_at ASC`);
+     WHERE lr.status IN ('open','upcoming') AND lt.status='open'
+       AND lr.close_at > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)
+     ORDER BY lr.status='open' DESC, lr.close_at ASC`);
   res.json({ success: true, data: rows });
 });
 
