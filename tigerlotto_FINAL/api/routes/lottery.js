@@ -55,7 +55,7 @@ router.get('/results', async (req, res) => {
   if (lottery_id) { where.push('lr.lottery_id=?'); params.push(lottery_id); }
   const rows = await query(
     `SELECT lr.id,lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag,lt.code,
-            res.prize_1st,res.prize_last_2,res.prize_last_3,res.prize_front_3,res.announced_at
+            res.prize_1st,res.prize_last_2,res.prize_2bot,res.prize_last_3,res.prize_front_3,res.announced_at
      FROM lottery_rounds lr
      JOIN lottery_types lt ON lr.lottery_id=lt.id
      LEFT JOIN lottery_results res ON lr.id=res.round_id
@@ -69,7 +69,7 @@ router.get('/results/:roundId', async (req, res) => {
   const [res_] = await query(
     `SELECT lr.*,lt.name as lottery_name,lt.flag,
             r.prize_1st,r.prize_2nd,r.prize_3rd,r.prize_4th,r.prize_5th,
-            r.prize_near_1st,r.prize_front_3,r.prize_last_3,r.prize_last_2,r.announced_at
+            r.prize_near_1st,r.prize_front_3,r.prize_last_3,r.prize_last_2,r.prize_2bot,r.announced_at
      FROM lottery_rounds lr
      JOIN lottery_types lt ON lr.lottery_id=lt.id
      LEFT JOIN lottery_results r ON lr.id=r.round_id
