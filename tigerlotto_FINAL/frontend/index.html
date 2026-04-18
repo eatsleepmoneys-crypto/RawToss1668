@@ -195,9 +195,14 @@ select.fi option{background:var(--card2)}
 .payout-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px}
 .payout-row:last-child{margin-bottom:0;font-size:15px;font-weight:700}
 .payout-row .val{color:var(--gold2)}
-.bet-types{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:20px}
-.bet-type{padding:10px;text-align:center;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.2s;border:1px solid var(--border);background:var(--card2)}
+.bet-group-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:10px 0 5px}
+.bet-types{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.bet-types-run{grid-template-columns:repeat(4,1fr)}
+.bet-type{padding:8px 4px;text-align:center;border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:.2s;border:1px solid var(--border);background:var(--card2);line-height:1.4;user-select:none}
+.bet-type small{font-size:10px;opacity:.8}
 .bet-type.on{background:var(--grad);color:#000;border-color:transparent}
+.buy-cart-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:8px;margin-bottom:5px;background:var(--card2);font-size:12px}
+.buy-cart-item .rm-btn{background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
 
 /* ─── WALLET BAR (logged in) ─── */
 .wallet-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid rgba(212,160,23,.3);padding:12px 24px;z-index:800;align-items:center;justify-content:space-between}
@@ -682,29 +687,61 @@ select.fi option{background:var(--card2)}
   <div class="modal modal-lg">
     <button class="modal-close" onclick="closeM('buy-ov')">✕</button>
     <h2>ซื้อ<span id="buy-name">หวย</span></h2>
-    <p class="modal-sub">เลือกประเภทการแทงและกรอกเลข</p>
+    <p class="modal-sub">เลือกประเภทได้หลายรายการ แล้วกด ➕ เพิ่ม</p>
+
+    <!-- 3-digit group -->
+    <div class="bet-group-label">🎯 3 ตัว</div>
     <div class="bet-types">
-      <div class="bet-type on" onclick="selBet(this,'3บนตรง',750)">3 บนตรง</div>
-      <div class="bet-type" onclick="selBet(this,'3โต๊ด',120)">3 โต๊ด</div>
-      <div class="bet-type" onclick="selBet(this,'2บน',95)">2 บน</div>
-      <div class="bet-type" onclick="selBet(this,'2ล่าง',90)">2 ล่าง</div>
-      <div class="bet-type" onclick="selBet(this,'วิ่งบน',3.2)">วิ่งบน</div>
-      <div class="bet-type" onclick="selBet(this,'วิ่งล่าง',4.2)">วิ่งล่าง</div>
+      <div class="bet-type" data-key="3top" onclick="togBet(this)">3 บนตรง<br><small>×750</small></div>
+      <div class="bet-type" data-key="3tod" onclick="togBet(this)">3 โต๊ด<br><small>×120</small></div>
+      <div class="bet-type" data-key="3rev" onclick="togBet(this)">3 ตรงกลับ<br><small>×750×2</small></div>
     </div>
-    <div class="fg">
-      <label>กรอกเลข</label>
-      <input type="text" class="num-inp" id="buy-num" placeholder="XXX" style="width:100%;font-size:28px" maxlength="3" oninput="this.value=this.value.replace(/\D/g,'');calcPay()">
+
+    <!-- 2-digit group -->
+    <div class="bet-group-label">🎯 2 ตัว</div>
+    <div class="bet-types">
+      <div class="bet-type" data-key="2top" onclick="togBet(this)">2 บน<br><small>×95</small></div>
+      <div class="bet-type" data-key="2bot" onclick="togBet(this)">2 ล่าง<br><small>×90</small></div>
+      <div class="bet-type" data-key="2rev" onclick="togBet(this)">2 บนล่างกลับ<br><small>×95+×90</small></div>
     </div>
-    <div class="fi-row fg">
-      <div><label>จำนวนเงินแทง (บาท)</label><input type="number" class="fi" id="buy-amt" value="10" min="1" max="5000" oninput="calcPay()"></div>
-      <div><label>อัตราจ่าย</label><input type="text" class="fi" id="buy-rate" value="750" readonly style="color:var(--gold)"></div>
+
+    <!-- Run/slide group -->
+    <div class="bet-group-label">🏃 รูด / วิ่ง</div>
+    <div class="bet-types bet-types-run">
+      <div class="bet-type" data-key="run_top" onclick="togBet(this)">วิ่งบน<br><small>×3.2</small></div>
+      <div class="bet-type" data-key="run_bot" onclick="togBet(this)">วิ่งล่าง<br><small>×4.2</small></div>
+      <div class="bet-type" data-key="slide_f_top" onclick="togBet(this)">รูดหน้าบน<br><small>10ใบ×95</small></div>
+      <div class="bet-type" data-key="slide_f_bot" onclick="togBet(this)">รูดหน้าล่าง<br><small>10ใบ×90</small></div>
+      <div class="bet-type" data-key="slide_b_top" onclick="togBet(this)">รูดหลังบน<br><small>10ใบ×95</small></div>
+      <div class="bet-type" data-key="slide_b_bot" onclick="togBet(this)">รูดหลังล่าง<br><small>10ใบ×90</small></div>
+      <div class="bet-type" data-key="double" onclick="togBet(this)">รูดเบิ้ล<br><small>20ใบ</small></div>
     </div>
-    <div class="payout-info">
-      <div class="payout-row"><span>จำนวนเงินแทง</span><span id="pi-bet">฿10</span></div>
-      <div class="payout-row"><span>อัตราจ่าย</span><span id="pi-rate">750 เท่า</span></div>
-      <div class="payout-row"><span style="color:var(--gold)">ถ้าถูก จะได้รับ</span><span class="val" id="pi-win">฿7,500</span></div>
+
+    <!-- Number + amount input row -->
+    <div class="fi-row fg" style="margin-bottom:10px">
+      <div>
+        <label>กรอกเลข</label>
+        <input type="text" class="fi num-inp" id="buy-num" placeholder="—" style="font-size:22px;letter-spacing:4px;text-align:center" maxlength="3" oninput="this.value=this.value.replace(/\D/g,'')">
+        <small id="buy-num-hint" style="color:var(--muted);font-size:11px;display:block;margin-top:3px">เลือกประเภทก่อน</small>
+      </div>
+      <div>
+        <label>จำนวนเงิน/ใบ (บาท)</label>
+        <input type="number" class="fi" id="buy-amt" value="10" min="1" max="5000">
+      </div>
     </div>
-    <button class="btn btn-gold" style="width:100%;padding:14px;font-size:16px;border-radius:12px" onclick="doBuy()">✅ ยืนยันการแทง</button>
+
+    <button class="btn" id="btn-add-cart" style="width:100%;padding:10px;font-size:14px;border-radius:10px;background:var(--card2);border:1px solid var(--gold);color:var(--gold);margin-bottom:14px" onclick="addToBuyCart()">➕ เพิ่มรายการ</button>
+
+    <!-- Cart preview -->
+    <div id="buy-cart-wrap" style="display:none">
+      <div class="bet-group-label" style="margin-top:0">🛒 รายการที่เลือก</div>
+      <div id="buy-cart-list" style="max-height:160px;overflow-y:auto;margin-bottom:12px"></div>
+      <div class="payout-info">
+        <div class="payout-row"><span>จำนวนใบทั้งหมด</span><span id="pc-count">0 ใบ</span></div>
+        <div class="payout-row"><span style="color:var(--gold)">ยอดแทงรวม</span><span class="val" id="pc-total">฿0</span></div>
+      </div>
+      <button class="btn btn-gold" id="btn-confirm-buy" style="width:100%;padding:14px;font-size:16px;border-radius:12px" onclick="doBuy()">✅ ยืนยันการแทง <span id="btn-buy-count">0</span> ใบ</button>
+    </div>
   </div>
 </div>
 
@@ -1060,52 +1097,189 @@ async function doWithdraw(){
   }finally{ UI.loading(btn, false); }
 }
 
-/* ─── Buy Modal ─── */
-let curBetTypeMap = { '3บนตรง':'3top','3โต๊ด':'3tod','2บน':'2top','2ล่าง':'2bot','วิ่งบน':'run_top','วิ่งล่าง':'run_bot' };
+/* ─── Buy Modal (Multi-bet) ─── */
+const BET_CFG = {
+  '3top':       { label:'3 บนตรง',      rate:750,  digits:3, type:'3top',    expand:'single'  },
+  '3tod':       { label:'3 โต๊ด',       rate:120,  digits:3, type:'3tod',    expand:'single'  },
+  '3rev':       { label:'3 ตรงกลับ',    rate:750,  digits:3, type:'3top',    expand:'rev3'    },
+  '2top':       { label:'2 บน',          rate:95,   digits:2, type:'2top',    expand:'single'  },
+  '2bot':       { label:'2 ล่าง',        rate:90,   digits:2, type:'2bot',    expand:'single'  },
+  '2rev':       { label:'2 บนล่างกลับ', rate:95,   digits:2, type:'2top',    expand:'rev2'    },
+  'run_top':    { label:'วิ่งบน',        rate:3.2,  digits:1, type:'run_top', expand:'single'  },
+  'run_bot':    { label:'วิ่งล่าง',      rate:4.2,  digits:1, type:'run_bot', expand:'single'  },
+  'slide_f_top':{ label:'รูดหน้าบน',    rate:95,   digits:1, type:'2top',    expand:'slideF'  },
+  'slide_f_bot':{ label:'รูดหน้าล่าง',  rate:90,   digits:1, type:'2bot',    expand:'slideF'  },
+  'slide_b_top':{ label:'รูดหลังบน',    rate:95,   digits:1, type:'2top',    expand:'slideB'  },
+  'slide_b_bot':{ label:'รูดหลังล่าง',  rate:90,   digits:1, type:'2bot',    expand:'slideB'  },
+  'double':     { label:'รูดเบิ้ล',     rate:92.5, digits:0, type:'2top',    expand:'double'  },
+};
+
+let buyCart = [];
+let buySelKeys = new Set();
 
 function openBuy(name, rate, roundId){
   if(!window.currentUser){ openAuth('login'); return; }
   document.getElementById('buy-name').textContent = name;
-  curRate = rate;
   if(roundId) curRoundId = roundId;
-  document.getElementById('buy-rate').value = rate;
+  buyCart = [];
+  buySelKeys.clear();
+  document.querySelectorAll('.bet-type').forEach(b => b.classList.remove('on'));
+  document.getElementById('buy-num').value = '';
+  document.getElementById('buy-num').style.display = '';
+  document.getElementById('buy-amt').value = '10';
+  document.getElementById('buy-cart-wrap').style.display = 'none';
+  document.getElementById('buy-cart-list').innerHTML = '';
+  updateBuyNumHint();
   document.getElementById('buy-ov').classList.add('on');
-  calcPay();
 }
 
-function selBet(el, type, rate){
-  document.querySelectorAll('.bet-type').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  curRate = rate;
-  curBetType = curBetTypeMap[type] || '3top';
-  document.getElementById('buy-rate').value = rate;
-  const digits = type.includes('วิ่ง')?1:type.includes('2')?2:3;
-  document.getElementById('buy-num').maxLength = digits;
-  document.getElementById('buy-num').placeholder = 'X'.repeat(digits);
-  calcPay();
+function togBet(el){
+  const key = el.dataset.key;
+  if(buySelKeys.has(key)){
+    buySelKeys.delete(key);
+    el.classList.remove('on');
+  } else {
+    const newDigits = BET_CFG[key].digits;
+    // Deselect incompatible digit-count types
+    const toRemove = [];
+    buySelKeys.forEach(k => { if(BET_CFG[k].digits !== newDigits) toRemove.push(k); });
+    toRemove.forEach(k => {
+      buySelKeys.delete(k);
+      const prev = document.querySelector(`.bet-type[data-key="${k}"]`);
+      if(prev) prev.classList.remove('on');
+    });
+    buySelKeys.add(key);
+    el.classList.add('on');
+  }
+  updateBuyNumHint();
 }
 
-function calcPay(){
+function updateBuyNumHint(){
+  const inp  = document.getElementById('buy-num');
+  const hint = document.getElementById('buy-num-hint');
+  if(buySelKeys.size === 0){
+    inp.style.display = '';
+    inp.maxLength = 3;
+    inp.placeholder = '—';
+    hint.textContent = 'เลือกประเภทก่อน';
+    return;
+  }
+  const firstKey = [...buySelKeys][0];
+  const cfg = BET_CFG[firstKey];
+  if(cfg.digits === 0){
+    inp.style.display = 'none';
+    hint.textContent = 'ไม่ต้องกรอกเลข — สร้างอัตโนมัติ';
+  } else {
+    inp.style.display = '';
+    inp.maxLength = cfg.digits;
+    inp.placeholder = 'X'.repeat(cfg.digits);
+    hint.textContent = `กรอก ${cfg.digits} หลัก`;
+  }
+}
+
+function expandToBets(num, key, amount){
+  const cfg = BET_CFG[key];
+  const bets = [];
+  switch(cfg.expand){
+    case 'single':
+      bets.push({ number: num, bet_type: cfg.type, amount });
+      break;
+    case 'rev3': {
+      const rev = num.split('').reverse().join('');
+      bets.push({ number: num, bet_type:'3top', amount });
+      if(rev !== num) bets.push({ number: rev, bet_type:'3top', amount });
+      break;
+    }
+    case 'rev2': {
+      const rev = num.split('').reverse().join('');
+      bets.push({ number: num, bet_type:'2top', amount });
+      bets.push({ number: num, bet_type:'2bot', amount });
+      if(rev !== num){
+        bets.push({ number: rev, bet_type:'2top', amount });
+        bets.push({ number: rev, bet_type:'2bot', amount });
+      }
+      break;
+    }
+    case 'slideF': // X0–X9
+      for(let i=0;i<10;i++) bets.push({ number: num+i, bet_type: cfg.type, amount });
+      break;
+    case 'slideB': // 0X–9X
+      for(let i=0;i<10;i++) bets.push({ number: i+num, bet_type: cfg.type, amount });
+      break;
+    case 'double': // 00,11,..,99 on 2top & 2bot
+      for(let i=0;i<10;i++){
+        const d = i.toString().repeat(2);
+        bets.push({ number: d, bet_type:'2top', amount });
+        bets.push({ number: d, bet_type:'2bot', amount });
+      }
+      break;
+  }
+  return bets;
+}
+
+function addToBuyCart(){
+  if(buySelKeys.size === 0){ toast('แจ้งเตือน','กรุณาเลือกประเภทการแทงก่อน'); return; }
   const amt = parseFloat(document.getElementById('buy-amt').value)||0;
-  const win = amt * curRate;
-  document.getElementById('pi-bet').textContent = '฿'+amt.toLocaleString();
-  document.getElementById('pi-rate').textContent = curRate+' เท่า';
-  document.getElementById('pi-win').textContent  = '฿'+win.toLocaleString();
+  if(amt < 1){ toast('แจ้งเตือน','จำนวนเงินต้องมากกว่า 0'); return; }
+
+  const firstKey = [...buySelKeys][0];
+  const requiredDigits = BET_CFG[firstKey].digits;
+  const num = document.getElementById('buy-num').value.trim();
+
+  if(requiredDigits > 0){
+    if(!num){ toast('แจ้งเตือน','กรุณากรอกเลข'); return; }
+    if(num.length !== requiredDigits){ toast('แจ้งเตือน',`ต้องกรอกเลข ${requiredDigits} หลัก`); return; }
+  }
+
+  buySelKeys.forEach(key => {
+    const cfg = BET_CFG[key];
+    const inputNum = cfg.digits === 0 ? '' : num;
+    const expanded = expandToBets(inputNum, key, amt);
+    const desc = cfg.digits === 0
+      ? `${cfg.label} (${expanded.length} ใบ)`
+      : `${cfg.label} [${inputNum}] (${expanded.length} ใบ)`;
+    buyCart.push({ key, desc, bets: expanded, amount: amt * expanded.length });
+  });
+
+  document.getElementById('buy-num').value = '';
+  renderBuyCart();
+  toast('เพิ่มแล้ว','เพิ่มรายการในตะกร้าแล้ว ✅');
+}
+
+function renderBuyCart(){
+  const list = document.getElementById('buy-cart-list');
+  const wrap = document.getElementById('buy-cart-wrap');
+  if(buyCart.length === 0){ wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+  list.innerHTML = buyCart.map((item,i) => `
+    <div class="buy-cart-item">
+      <span>${item.desc}</span>
+      <span style="color:var(--gold);margin:0 8px">฿${item.amount.toLocaleString()}</span>
+      <button class="rm-btn" onclick="removeCartItem(${i})">✕</button>
+    </div>`).join('');
+  const totalBets = buyCart.reduce((s,c) => s+c.bets.length, 0);
+  const totalAmt  = buyCart.reduce((s,c) => s+c.amount, 0);
+  document.getElementById('pc-count').textContent = totalBets + ' ใบ';
+  document.getElementById('pc-total').textContent = '฿'+totalAmt.toLocaleString();
+  document.getElementById('btn-buy-count').textContent = totalBets;
+}
+
+function removeCartItem(idx){
+  buyCart.splice(idx, 1);
+  renderBuyCart();
 }
 
 async function doBuy(){
   if(!window.currentUser){ openAuth('login'); return; }
-  const num = document.getElementById('buy-num').value.trim();
-  const amt = parseFloat(document.getElementById('buy-amt').value);
-  if(!num){ toast('ข้อผิดพลาด','กรุณากรอกเลข'); return; }
-  if(!amt||amt<1){ toast('ข้อผิดพลาด','จำนวนเงินต้องมากกว่า 0'); return; }
+  if(buyCart.length === 0){ toast('แจ้งเตือน','กรุณาเพิ่มรายการก่อน'); return; }
   if(!curRoundId){ toast('ข้อผิดพลาด','ไม่พบรอบหวยที่เปิดรับ'); return; }
-  const btn = document.querySelector('#buy-ov .btn-gold');
+  const allBets = buyCart.flatMap(c => c.bets);
+  const btn = document.getElementById('btn-confirm-buy');
   UI.loading(btn, true);
   try{
-    await API.BetsAPI.place(curRoundId, [{ number: num, bet_type: curBetType, amount: amt }]);
+    await API.BetsAPI.place(curRoundId, allBets);
     closeM('buy-ov');
-    toast('แทงหวยสำเร็จ','บันทึกเรียบร้อย โชคดีนะ! 🍀');
+    toast('แทงหวยสำเร็จ',`บันทึก ${allBets.length} ใบ เรียบร้อย โชคดีนะ! 🍀`);
     refreshBalance();
   }catch(e){
     toast('แทงไม่สำเร็จ', e.message);
