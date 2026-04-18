@@ -1377,7 +1377,9 @@ const LOT_TYPE_META = {
   TH_GOV:  { label:'หวยรัฐบาล',   flag:'🇹🇭', tagClass:'hot',   tagText:'🔥 HOT'       },
   YEEKEE:  { label:'หวยยี่กี',    flag:'⚡',   tagClass:'vip',   tagText:'⚡ ยี่กี'     },
   LA_GOV:  { label:'หวยลาว',      flag:'🇱🇦', tagClass:'lao',   tagText:'🇱🇦 ลาว'     },
-  VN_HAN:  { label:'หวยฮานอย',    flag:'🇻🇳', tagClass:'',      tagText:'🇻🇳 ฮานอย'   },
+  VN_HAN:     { label:'ฮานอยปกติ',   flag:'🇻🇳', tagClass:'',    tagText:'🇻🇳 ปกติ'    },
+  VN_HAN_SP:  { label:'ฮานอยพิเศษ',  flag:'🇻🇳', tagClass:'',    tagText:'🇻🇳 พิเศษ'   },
+  VN_HAN_VIP: { label:'ฮานอย VIP',   flag:'🇻🇳', tagClass:'vip', tagText:'🇻🇳 VIP'     },
 };
 function _tagFor(code){
   const m = LOT_TYPE_META[code];
@@ -1516,10 +1518,14 @@ async function loadHeroResult(){
   const card = document.getElementById('hero-result-card');
   if(!card) return;
   try{
-    const d       = await API.LotteryAPI.getResults({ limit:1 });
+    // แสดงเฉพาะหวยรัฐบาลไทย (TH_GOV) ล่าสุด
+    const types  = await API.LotteryAPI.getTypes();
+    const thGov  = (types.data||[]).find(t => t.code === 'TH_GOV');
+    const params = thGov ? { limit:1, lottery_id: thGov.id } : { limit:1 };
+    const d      = await API.LotteryAPI.getResults(params);
     const results = d.data || [];
     if(results.length===0){
-      card.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">ยังไม่มีผลรางวัลล่าสุด</div>';
+      card.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">ยังไม่มีผลหวยไทยล่าสุด</div>';
       return;
     }
     const r = results[0];
@@ -1535,25 +1541,22 @@ async function loadHeroResult(){
     card.innerHTML = `
       <div class="result-header">
         <div>
-          <div class="result-label">ผลรางวัลล่าสุด</div>
-          <div class="result-date">${r.flag||'🎰'} ${r.lottery_name} <span>งวด ${r.round_name}</span></div>
+          <div class="result-label">ผลหวยล่าสุด</div>
+          <div class="result-date">${r.flag||'🇹🇭'} ${r.lottery_name} <span>งวด ${r.round_name}</span></div>
         </div>
         <div style="text-align:right;font-size:12px;color:var(--muted)">${UI.formatDate(r.announced_at)}</div>
       </div>
       <div class="result-grid">
         <div class="ritem">
           <div class="ritem-name">รางวัลที่ 1</div>
-          <div class="ritem-prize">6,000,000 บาท</div>
           <div class="ritem-num">${r.prize_1st||'-'}</div>
         </div>
         <div class="ritem">
           <div class="ritem-name">เลขท้าย 2 ตัว</div>
-          <div class="ritem-prize">2,000 บาท</div>
           <div class="ritem-small">${r.prize_last_2||'-'}</div>
         </div>
         <div class="ritem">
           <div class="ritem-name">เลขหน้า/ท้าย 3 ตัว</div>
-          <div class="ritem-prize">4,000 บาท</div>
           <div class="rnum-row">
             ${[...front3,...last3].length>0
               ? [...front3,...last3].map(n=>`<span class="rnum-badge">${n}</span>`).join('')
