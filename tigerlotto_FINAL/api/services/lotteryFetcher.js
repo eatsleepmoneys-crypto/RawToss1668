@@ -460,9 +460,11 @@ async function announceResult(lotteryCode, result) {
 
   // LA_GOV: 2bot = ตำแหน่ง 3-4, VN_*: 2bot = last 2 ของ Giải Nhất (G1)
   const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
-  const effective_2bot = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
+  // ถ้า lotteryCode ใช้ 2bot แยก และมี prize_2bot → เก็บเสมอ (แม้จะเท่ากับ prize_last_2)
+  // เพราะ G1 last 2 อาจตรงกับ GDB last 2 ได้ (เช่น GDB=41528, G1=xxxxx28 → 2bot='28'=2top)
+  const prize_2bot_store = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
     ? prize_2bot
-    : prize_last_2;
+    : null;
   // สำหรับลาวพัฒนา 3top ใช้ตำแหน่ง 4-5-6 (= prize_last_3[0])
   const effective_3top = (lotteryCode === 'LA_GOV' && prize_last_3.length > 0)
     ? prize_last_3[0]
@@ -474,7 +476,7 @@ async function announceResult(lotteryCode, result) {
       `INSERT INTO lottery_results
          (round_id, prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [round.id, prize_1st, prize_last_2, effective_2bot !== prize_last_2 ? effective_2bot : null,
+      [round.id, prize_1st, prize_last_2, prize_2bot_store,
        JSON.stringify(prize_front_3), JSON.stringify(prize_last_3)]
     );
 
