@@ -1512,6 +1512,8 @@ async function loadLotteryCards(){
 /* ─── Hero Result Card ─── */
 function _parseJsonArr(str){
   if(!str) return [];
+  if(Array.isArray(str)) return str;           // mysql2 คืน JSON column เป็น array โดยตรง
+  if(typeof str !== 'string') return [str];
   try{ const v=JSON.parse(str); return Array.isArray(v)?v:[v]; }catch{ return [str]; }
 }
 
