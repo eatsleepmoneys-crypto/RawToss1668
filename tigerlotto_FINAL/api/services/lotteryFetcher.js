@@ -465,6 +465,10 @@ async function announceResult(lotteryCode, result) {
   const prize_2bot_store = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
     ? prize_2bot
     : null;
+  // effective_2bot ใช้สำหรับตรวจ bets: VN/LA ใช้ prize_2bot, อื่นๆ ใช้ prize_last_2
+  const effective_2bot = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
+    ? prize_2bot
+    : prize_last_2;
   // สำหรับลาวพัฒนา 3top ใช้ตำแหน่ง 4-5-6 (= prize_last_3[0])
   const effective_3top = (lotteryCode === 'LA_GOV' && prize_last_3.length > 0)
     ? prize_last_3[0]
