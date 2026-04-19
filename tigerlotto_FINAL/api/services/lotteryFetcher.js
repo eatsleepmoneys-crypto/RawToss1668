@@ -273,6 +273,25 @@ async function fetchLAGov() {
   throw new Error('LA_GOV: แหล่งข้อมูลทุกแหล่งล้มเหลว');
 }
 
+/** Extract GDB + G1 from raw RSS/HTML text using label-based regex first,
+ *  then fall back to positional matching.
+ *  Returns { gdb, g1 } (g1 may be null) or null if nothing found.
+ */
+function extractGdbG1(raw) {
+  // Pass 1: label-based (works when Vietnamese prize labels are present)
+  const gdbM = raw.match(/(?:Đặc Biệt|đặc biệt|\bDB\b|\bĐB\b)[^\d]*(\d{5})/i)
+             || raw.match(/(?:dac biet|dacbiet)[^\d]*(\d{5})/i);
+  const g1M  = raw.match(/(?:Giải Nhất|giải nhất|Gi[àảã]i Nh[aấ]t|Nh[aấ]t)[^\d]*(\d{5})/i)
+             || raw.match(/(?:\bG\.?1\b|Nhat)[^\d]*(\d{5})/i);
+  if (gdbM) return { gdb: gdbM[1], g1: g1M ? g1M[1] : null };
+
+  // Pass 2: positional — first two 5-digit numbers in text
+  const nums = raw.match(/\b\d{5}\b/g);
+  if (nums && nums.length >= 2) return { gdb: nums[0], g1: nums[1] };
+  if (nums && nums.length === 1) return { gdb: nums[0], g1: null };
+  return null;
+}
+
 /**
  * หวยฮานอย (Xổ số Miền Bắc) — ออกผลทุกวัน ~18:30 น.
  * รางวัลที่ 1 (Giải nhất) = 5 หลัก
@@ -280,8 +299,8 @@ async function fetchLAGov() {
 async function fetchVNHanoi() {
   /**
    * โครงสร้างรางวัล XSMB:
-   *   matches[0] = Giải Đặc Biệt (GDB) → prize_1st → 2 ตัวบน = GDB[-2:]
-   *   matches[1] = Giải Nhất (G1)       → prize_2bot → 2 ตัวล่าง = G1[-2:]
+   *   GDB (Giải Đặc Biệt) → prize_1st → 2 ตัวบน = GDB[-2:]
+   *   G1  (Giải Nhất)     → prize_2bot → 2 ตัวล่าง = G1[-2:]
    */
   function vn(gdb, g1) {
     return {
@@ -296,14 +315,10 @@ async function fetchVNHanoi() {
   // Source 1: xskt.com.vn RSS feed (XML — most reliable from Railway US servers)
   try {
     const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss', 20000);
-    const matches = String(res.data).match(/\b\d{5}\b/g);
-    if (matches && matches.length >= 2) {
-      console.log('[FETCHER:VN_HAN] RSS GDB=%s G1=%s', matches[0], matches[1]);
-      return vn(matches[0], matches[1]);
-    }
-    if (matches && matches.length === 1) {
-      console.log('[FETCHER:VN_HAN] RSS GDB=%s (G1 not found)', matches[0]);
-      return vn(matches[0], null);
+    const parsed = extractGdbG1(String(res.data));
+    if (parsed) {
+      console.log('[FETCHER:VN_HAN] RSS GDB=%s G1=%s', parsed.gdb, parsed.g1 || '?');
+      return vn(parsed.gdb, parsed.g1);
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] xskt RSS error:', e.message); }
 
@@ -312,17 +327,31 @@ async function fetchVNHanoi() {
     const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac.html', 30000, 'sg');
     const $   = cheerio.load(res.data);
     let gdb = '', g1 = '';
-    // ลอง selector เฉพาะ GDB ก่อน
+    // Pass A: CSS class selectors for GDB
     $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"]').each((_, el) => {
       const t = $(el).text().trim().replace(/\D/g,'');
       if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5,'0');
     });
-    // G1
+    // Pass B: CSS class selectors for G1
     $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
       const t = $(el).text().trim().replace(/\D/g,'');
       if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5,'0');
     });
-    // fallback: เก็บ 2 ตัวแรกที่เป็น 5 หลัก
+    // Pass C: text-based row matching (handles sites without semantic class names)
+    if (!g1) {
+      $('tr,li').each((_, el) => {
+        const rowText = $(el).text();
+        if (/nh[aấ]t|g\.?1\b/i.test(rowText) && !g1) {
+          const m = rowText.match(/\d{5}/);
+          if (m) g1 = m[0];
+        }
+        if (/đặc biệt|dac biet|DB|ĐB/i.test(rowText) && !gdb) {
+          const m = rowText.match(/\d{5}/);
+          if (m) gdb = m[0];
+        }
+      });
+    }
+    // Pass D: positional fallback — first two distinct 5-digit numbers
     if (!gdb) {
       const nums = [];
       $('td,span').each((_, el) => {
@@ -342,16 +371,43 @@ async function fetchVNHanoi() {
   try {
     const res = await httpGetProxy('https://xosomiennam.net/ket-qua-xo-so-mien-bac', 30000, 'sg');
     const $   = cheerio.load(res.data);
-    const nums = [];
-    $('td,span,div').each((_, el) => {
-      const t = $(el).text().trim().replace(/\D/g,'');
-      if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
+    let gdb = '', g1 = '';
+    // Text-based row matching
+    $('tr,li').each((_, el) => {
+      const rowText = $(el).text();
+      if (/nh[aấ]t|g\.?1\b/i.test(rowText) && !g1) {
+        const m = rowText.match(/\d{5}/);
+        if (m) g1 = m[0];
+      }
+      if (/đặc biệt|dac biet/i.test(rowText) && !gdb) {
+        const m = rowText.match(/\d{5}/);
+        if (m) gdb = m[0];
+      }
     });
-    if (nums[0]) {
-      console.log('[FETCHER:VN_HAN] xosomiennam GDB=%s G1=%s', nums[0], nums[1] || '?');
-      return vn(nums[0], nums[1] || null);
+    // Positional fallback
+    if (!gdb) {
+      const nums = [];
+      $('td,span,div').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g,'');
+        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
+      });
+      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN] xosomiennam GDB=%s G1=%s', gdb, g1 || '?');
+      return vn(gdb, g1 || null);
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] xosomiennam error:', e.message); }
+
+  // Source 4: xsmb.vn RSS (backup RSS source)
+  try {
+    const res = await httpGet('https://xsmb.vn/rss', 20000);
+    const parsed = extractGdbG1(String(res.data));
+    if (parsed) {
+      console.log('[FETCHER:VN_HAN] xsmb.vn RSS GDB=%s G1=%s', parsed.gdb, parsed.g1 || '?');
+      return vn(parsed.gdb, parsed.g1);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] xsmb.vn RSS error:', e.message); }
 
   throw new Error('VN_HAN: แหล่งข้อมูลทุกแหล่งล้มเหลว');
 }
@@ -673,17 +729,31 @@ function applyTransform(transform, data, src) {
     case 'html_vn_han': {
       const $ = cheerio.load(data);
       let gdb = '', g1 = '';
-      // Pass 1a: selector เฉพาะ GDB (Giải Đặc Biệt)
+      // Pass 1a: CSS selector เฉพาะ GDB (Giải Đặc Biệt)
       $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"],[class*="special"]').each((_, el) => {
         const t = $(el).text().trim().replace(/\D/g, '');
         if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5,'0');
       });
-      // Pass 1b: selector เฉพาะ G1 (Giải Nhất)
+      // Pass 1b: CSS selector เฉพาะ G1 (Giải Nhất)
       $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
         const t = $(el).text().trim().replace(/\D/g, '');
         if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5,'0');
       });
-      // Pass 2: fallback — เก็บ 2 ตัวแรกที่เป็น 5 หลักจาก table cells
+      // Pass 1c: text-based row matching (sites without semantic class names)
+      if (!gdb || !g1) {
+        $('tr,li').each((_, el) => {
+          const rowText = $(el).text();
+          if (!gdb && /đặc biệt|dac biet|\bDB\b|\bĐB\b/i.test(rowText)) {
+            const m = rowText.match(/\d{5}/);
+            if (m) gdb = m[0];
+          }
+          if (!g1 && /nh[aấ]t|g\.?1\b/i.test(rowText)) {
+            const m = rowText.match(/\d{5}/);
+            if (m) g1 = m[0];
+          }
+        });
+      }
+      // Pass 2: positional fallback — first two distinct 5-digit numbers
       if (!gdb) {
         const nums = [];
         $('td,span,div,b,strong').each((_, el) => {
@@ -694,11 +764,10 @@ function applyTransform(transform, data, src) {
         if (nums[0]) gdb = nums[0];
         if (nums[1] && !g1) g1 = nums[1];
       }
-      // Pass 3: regex scan ในกรณีสุดท้าย
+      // Pass 3: label-based regex scan on raw HTML (last resort)
       if (!gdb) {
-        const all5 = String(data).match(/\b\d{5}\b/g) || [];
-        if (all5[0]) gdb = all5[0];
-        if (all5[1] && !g1) g1 = all5[1];
+        const parsed = extractGdbG1(String(data));
+        if (parsed) { gdb = parsed.gdb; if (!g1) g1 = parsed.g1 || ''; }
       }
       if (!gdb) throw new Error('html_vn_han: scrape ไม่พบ 5 หลัก');
       return {
@@ -720,18 +789,16 @@ function applyTransform(transform, data, src) {
 
     // ─── RSS/XML ─────────────────────────────────────────────
     case 'rss_vn': {
-      // matches[0] = Giải Đặc Biệt (GDB) → 2 ตัวบน
-      // matches[1] = Giải Nhất (G1)       → 2 ตัวล่าง
-      const matches = String(data).match(/\b\d{5}\b/g);
-      if (!matches || !matches.length) throw new Error('rss_vn: ไม่พบ 5 หลัก');
-      const gdb = matches[0];
-      const g1  = matches[1] || null;
+      // GDB (Giải Đặc Biệt) → prize_1st / 2 ตัวบน
+      // G1  (Giải Nhất)     → prize_2bot / 2 ตัวล่าง
+      const parsed = extractGdbG1(String(data));
+      if (!parsed) throw new Error('rss_vn: ไม่พบ 5 หลัก');
       return {
-        prize_1st:    gdb,
-        prize_last_2: gdb.slice(-2),            // 2 ตัวบน (GDB)
-        prize_2bot:   g1 ? g1.slice(-2) : null, // 2 ตัวล่าง (G1)
+        prize_1st:    parsed.gdb,
+        prize_last_2: parsed.gdb.slice(-2),
+        prize_2bot:   parsed.g1 ? parsed.g1.slice(-2) : null,
         prize_front_3: [],
-        prize_last_3:  [gdb.slice(-3)],
+        prize_last_3:  [parsed.gdb.slice(-3)],
       };
     }
 
