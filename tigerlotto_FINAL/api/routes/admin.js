@@ -395,6 +395,16 @@ router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.
   const code = req.params.code.toUpperCase();
   if (!['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(code))
     return res.status(400).json({ success: false, message: `Invalid code: ${code}` });
+
+  // Guard: LA_GOV หยุดเสาร์-อาทิตย์ (ป้องกัน fetch วันหยุด → record ซ้ำ)
+  if (code === 'LA_GOV') {
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Bangkok' }));
+    const dow = now.getDay(); // 0=Sun, 6=Sat
+    if (dow === 0 || dow === 6) {
+      return res.json({ success: false, message: 'หวยลาวหยุดวันเสาร์-อาทิตย์ ไม่มีผลออก' });
+    }
+  }
+
   try {
     const { triggerFetch } = require('../services/lotteryFetcher');
     const ok = await triggerFetch(code);

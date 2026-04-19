@@ -1375,12 +1375,16 @@ async function loadStats(){
 
 /* ─── Lottery Cards ─── */
 const LOT_TYPE_META = {
-  TH_GOV:  { label:'หวยรัฐบาล',   flag:'🇹🇭', tagClass:'hot',   tagText:'🔥 HOT'       },
-  YEEKEE:  { label:'หวยยี่กี',    flag:'⚡',   tagClass:'vip',   tagText:'⚡ ยี่กี'     },
-  LA_GOV:  { label:'หวยลาว',      flag:'🇱🇦', tagClass:'lao',   tagText:'🇱🇦 ลาว'     },
-  VN_HAN:     { label:'ฮานอยปกติ',   flag:'🇻🇳', tagClass:'',    tagText:'🇻🇳 ปกติ'    },
-  VN_HAN_SP:  { label:'ฮานอยพิเศษ',  flag:'🇻🇳', tagClass:'',    tagText:'🇻🇳 พิเศษ'   },
-  VN_HAN_VIP: { label:'ฮานอย VIP',   flag:'🇻🇳', tagClass:'vip', tagText:'🇻🇳 VIP'     },
+  TH_GOV:     { label:'หวยรัฐบาล',    flag:'🇹🇭', tagClass:'hot',  tagText:'🔥 HOT'       },
+  YEEKEE:     { label:'หวยยี่กี',     flag:'⚡',   tagClass:'vip',  tagText:'⚡ ยี่กี'     },
+  LA_GOV:     { label:'หวยลาว',       flag:'🇱🇦', tagClass:'lao',  tagText:'🇱🇦 ลาว'      },
+  VN_HAN:     { label:'ฮานอยปกติ',    flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ปกติ'     },
+  VN_HAN_SP:  { label:'ฮานอยพิเศษ',   flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 พิเศษ'    },
+  VN_HAN_VIP: { label:'ฮานอย VIP',    flag:'🇻🇳', tagClass:'vip',  tagText:'🇻🇳 VIP'      },
+  TH_STK:     { label:'หวยหุ้นไทย',   flag:'🇹🇭', tagClass:'',     tagText:'🇹🇭 หุ้นไทย'  },
+  CN_STK:     { label:'หวยหุ้นจีน',   flag:'🇨🇳', tagClass:'',     tagText:'🇨🇳 หุ้นจีน'  },
+  SG_STK:     { label:'หวยสิงคโปร์',  flag:'🇸🇬', tagClass:'',     tagText:'🇸🇬 สิงคโปร์' },
+  MY_STK:     { label:'หวยมาเลย์',    flag:'🇲🇾', tagClass:'',     tagText:'🇲🇾 มาเลย์'   },
 };
 function _tagFor(code){
   const m = LOT_TYPE_META[code];
