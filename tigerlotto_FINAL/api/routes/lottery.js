@@ -55,6 +55,8 @@ router.get('/results', async (req, res) => {
   // ใช้สำหรับสร้าง filter tabs บนหน้าผลรางวัล
   // ใช้ GROUP BY + MAX(id) แทน correlated subquery เพื่อรองรับทุก MySQL version
   if (latest_per_type === '1') {
+    // ใช้ MAX(draw_date) ก่อน แล้วค่อย MAX(id) เพื่อให้ได้ผลล่าสุดตามวันที่ออกรางวัล
+    // ป้องกัน seed-history ที่สร้าง round_id ใหม่สูงกว่าผลจริงแต่ draw_date เก่ากว่า
     const rows = await query(
       `SELECT lt.code, lt.name as lottery_name, lt.flag,
               lr2.id, lr2.round_name, lr2.draw_date,
@@ -64,6 +66,12 @@ router.get('/results', async (req, res) => {
        JOIN (
          SELECT lr.lottery_id, MAX(lr.id) AS max_id
          FROM lottery_rounds lr
+         INNER JOIN (
+           SELECT lottery_id, MAX(draw_date) AS max_date
+           FROM lottery_rounds
+           WHERE status = 'announced'
+           GROUP BY lottery_id
+         ) ld ON lr.lottery_id = ld.lottery_id AND lr.draw_date = ld.max_date
          WHERE lr.status = 'announced'
          GROUP BY lr.lottery_id
        ) latest ON latest.lottery_id = lt.id
@@ -74,7 +82,7 @@ router.get('/results', async (req, res) => {
     return res.json({ success: true, data: rows });
   }
 
-  const lim = Math.min(parseInt(limit) || 10, 50);
+  const lim = Math.min(parseInt(limit) || 10, 200);
   const where = []; const params = [];
   where.push("lr.status='announced'");
   if (lottery_id) { where.push('lr.lottery_id=?'); params.push(lottery_id); }
