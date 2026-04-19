@@ -414,6 +414,24 @@ router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.
   }
 });
 
+// ─── DELETE /api/admin/lottery-result/:id — ลบผลรางวัล + reset round status ─
+router.delete('/lottery-result/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const resultId = parseInt(req.params.id);
+  if (!resultId) return res.status(400).json({ success: false, message: 'Invalid result id' });
+  try {
+    // หา round_id ของ result นี้
+    const [row] = await query('SELECT round_id FROM lottery_results WHERE id=?', [resultId]);
+    if (!row) return res.status(404).json({ success: false, message: `ไม่พบ result id=${resultId}` });
+    const roundId = row.round_id;
+    // ลบ result แล้ว reset round → closed (เพื่อให้ re-announce ได้ถ้าจำเป็น)
+    await query('DELETE FROM lottery_results WHERE id=?', [resultId]);
+    await query("UPDATE lottery_rounds SET status='closed' WHERE id=?", [roundId]);
+    res.json({ success: true, message: `ลบ result id=${resultId}, reset round id=${roundId} → closed` });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── POST /api/admin/seed-history — เพิ่มงวดย้อนหลัง (Superadmin) ─
 router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   try {
