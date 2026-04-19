@@ -414,19 +414,32 @@ router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.
   }
 });
 
-// ─── DELETE /api/admin/lottery-result/:id — ลบผลรางวัล + reset round status ─
+// ─── DELETE /api/admin/lottery-result/:id — ลบผลรางวัล + reset round (by result_id) ─
 router.delete('/lottery-result/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   const resultId = parseInt(req.params.id);
   if (!resultId) return res.status(400).json({ success: false, message: 'Invalid result id' });
   try {
-    // หา round_id ของ result นี้
     const [row] = await query('SELECT round_id FROM lottery_results WHERE id=?', [resultId]);
     if (!row) return res.status(404).json({ success: false, message: `ไม่พบ result id=${resultId}` });
     const roundId = row.round_id;
-    // ลบ result แล้ว reset round → closed (เพื่อให้ re-announce ได้ถ้าจำเป็น)
     await query('DELETE FROM lottery_results WHERE id=?', [resultId]);
     await query("UPDATE lottery_rounds SET status='closed' WHERE id=?", [roundId]);
     res.json({ success: true, message: `ลบ result id=${resultId}, reset round id=${roundId} → closed` });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// ─── DELETE /api/admin/lottery-round/:roundId/result — ลบผลรางวัลโดย round_id ─
+router.delete('/lottery-round/:roundId/result', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const roundId = parseInt(req.params.roundId);
+  if (!roundId) return res.status(400).json({ success: false, message: 'Invalid round id' });
+  try {
+    const [res_] = await query('SELECT id FROM lottery_results WHERE round_id=?', [roundId]);
+    if (!res_) return res.status(404).json({ success: false, message: `ไม่พบ result สำหรับ round_id=${roundId}` });
+    await query('DELETE FROM lottery_results WHERE round_id=?', [roundId]);
+    await query("UPDATE lottery_rounds SET status='closed' WHERE id=?", [roundId]);
+    res.json({ success: true, message: `ลบ result (round_id=${roundId}), reset round → closed` });
   } catch(e) {
     res.status(500).json({ success: false, message: e.message });
   }
