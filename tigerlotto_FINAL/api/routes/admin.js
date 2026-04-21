@@ -607,10 +607,10 @@ router.get('/agent-deposits', authAdmin, rbac.requirePerm('finance.view'), async
   const rows = await query(`
     SELECT ad.*, a.name AS agent_name, a.phone AS agent_phone
     FROM agent_deposits ad
-    JOIN agents a ON ad.agent_id = a.id
+    LEFT JOIN agents a ON ad.agent_id = a.id
     ${where}
     ORDER BY ad.id DESC LIMIT ? OFFSET ?`, [Number(limit), offset]
-  ).catch(() => []);
+  ).catch((e) => { console.error('[agent-deposits] query error:', e.message); return []; });
   const [total] = await query(
     `SELECT COUNT(*) cnt FROM agent_deposits ad ${where}`
   ).catch(() => [{ cnt: 0 }]);
@@ -660,10 +660,10 @@ router.get('/agent-withdrawals', authAdmin, rbac.requirePerm('finance.view'), as
   const rows = await query(`
     SELECT aw.*, a.name AS agent_name, a.phone AS agent_phone
     FROM agent_withdrawals aw
-    JOIN agents a ON aw.agent_id = a.id
+    LEFT JOIN agents a ON aw.agent_id = a.id
     ${where}
     ORDER BY aw.id DESC LIMIT ? OFFSET ?`, [Number(limit), offset]
-  ).catch(() => []);
+  ).catch((e) => { console.error('[agent-withdrawals] query error:', e.message); return []; });
   const [total] = await query(
     `SELECT COUNT(*) cnt FROM agent_withdrawals aw ${where}`
   ).catch(() => [{ cnt: 0 }]);
