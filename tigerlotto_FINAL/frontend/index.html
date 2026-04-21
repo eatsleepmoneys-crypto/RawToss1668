@@ -908,6 +908,10 @@ window.API_BASE = (location.hostname === 'localhost' || location.hostname === '1
 /* ─── State ─── */
 let curRate = 750, curBetType = '3top', curRoundId = null, otpTimer = null;
 
+/* ─── Global state (ต้องประกาศก่อน countdown เพื่อหลีกเลี่ยง TDZ) ─── */
+let _allRounds    = [];
+let _activeFilter = 'ALL';
+
 /* ─── Countdown + Live card status ─── */
 let _cdTarget = new Date(Date.now() + 7*24*60*60*1000); // placeholder until API loads
 let _nextBoundaryMs = Infinity;   // เวลาถัดไปที่ต้อง reload API (open_at / close_at ที่ใกล้สุด)
@@ -1527,10 +1531,6 @@ function _statusFor(r){
   return '<span class="lot-status open">🟢 เปิดรับ</span>';
 }
 
-// Store all rounds globally for filter
-let _allRounds = [];
-
-let _activeFilter = 'ALL';
 function filterLotCards(el, code){
   document.querySelectorAll('.lot-ftab').forEach(b => b.classList.remove('on'));
   el.classList.add('on');
