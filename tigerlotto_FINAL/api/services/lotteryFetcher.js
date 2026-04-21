@@ -641,7 +641,10 @@ async function getTNewsData() {
     const parsed = parseTNewsSections(artRes.data);
     const found  = Object.keys(parsed);
     console.log('[FETCHER:TNEWS] ✅ article parsed, types found:', found.length ? found.join(', ') : 'ไม่พบ section');
-    _tnewsCache = { data: parsed, ts: now };
+    // ถ้ายังไม่ครบทุก section ให้ cache แค่ 1 นาที (แทน 5 นาที) เพื่อให้ retry เร็วขึ้น
+    const allFound = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'].every(t => parsed[t]);
+    const cacheTs  = allFound ? now : now - (TNEWS_CACHE_TTL - 60 * 1000);
+    _tnewsCache = { data: parsed, ts: cacheTs };
     return parsed;
   } catch(e) {
     console.warn('[FETCHER:TNEWS] article fetch error:', e.message);
