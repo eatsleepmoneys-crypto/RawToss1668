@@ -251,6 +251,7 @@ select.fi option{background:var(--card2)}
 
     <div class="sb-item" onclick="nav('promotions')"><span class="ic">🎁</span>โปรโมชั่น</div>
     <div class="sb-item" onclick="nav('hotnumbers')"><span class="ic">🔥</span>ตัวเลขฮอต</div>
+    <div class="sb-item" onclick="nav('referral')"><span class="ic">🔗</span>ระบบแนะนำ</div>
 
     <div class="sb-sec">ระบบ</div>
     <div class="sb-item" onclick="nav('api')"><span class="ic">🔌</span>API Settings</div>
@@ -346,6 +347,7 @@ const PAGE_TITLES={
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
   kyc:'🪪 ยืนยันตัวตน KYC',
+  referral:'🔗 ระบบแนะนำ',
   api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs',branding:'🎨 ตั้งค่าหน้าเว็บ'
 };
 function nav(page){
@@ -386,6 +388,7 @@ async function afterNav(page){
     else if(page==='reports') await loadReports();
     else if(page==='agentdeposits') await loadAgentDeposits();
     else if(page==='agentwithdrawals') await loadAgentWithdrawals();
+    else if(page==='referral') await loadReferralAdmin();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -1389,6 +1392,73 @@ async function loadLogs(){
       <td style="font-size:12px;color:var(--muted)">${l.detail||'-'}</td>
       <td style="font-size:12px;color:var(--muted)">${l.ip||'-'}</td>
     </tr>`).join('');
+}
+
+/* ── Referral Admin ── */
+async function loadReferralAdmin(){
+  try {
+    const d = await apiFetch('/admin/referral/stats', {}, 'admin');
+    if (!d.success) throw new Error(d.message || 'โหลดไม่ได้');
+    const { global_rate, summary, top_earners, recent_commissions } = d.data;
+
+    // Stats
+    const fmt = v => parseFloat(v||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const el = id => document.getElementById(id);
+    if(el('ref-total-all'))    el('ref-total-all').textContent    = '฿'+fmt(summary.total_all);
+    if(el('ref-total-month'))  el('ref-total-month').textContent  = '฿'+fmt(summary.total_month);
+    if(el('ref-member-earners')) el('ref-member-earners').textContent = summary.member_earners || 0;
+    if(el('ref-agent-earners'))  el('ref-agent-earners').textContent  = summary.agent_earners  || 0;
+
+    // Global rate input
+    if(el('ref-global-rate')) el('ref-global-rate').value = global_rate;
+    if(el('ref-rate-cur')) el('ref-rate-cur').textContent = `อัตราปัจจุบัน: ${global_rate}%`;
+
+    // Top earners table
+    const topTbody = el('ref-top-tbody');
+    if(topTbody) topTbody.innerHTML = top_earners.length === 0
+      ? `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีข้อมูล</td></tr>`
+      : top_earners.map((r,i) => `<tr>
+          <td>${i+1}</td>
+          <td>${r.earner_name||'-'}</td>
+          <td><span style="font-size:11px;padding:2px 7px;border-radius:10px;background:${r.earner_type==='member'?'rgba(59,130,246,.2)':'rgba(212,160,23,.2)'}">
+            ${r.earner_type==='member'?'👥 สมาชิก':'🤝 เอเยนต์'}
+          </span></td>
+          <td>${r.cnt} รายการ</td>
+          <td style="color:var(--gold2);font-weight:700">฿${fmt(r.total)}</td>
+        </tr>`).join('');
+
+    // Recent commissions
+    const recTbody = el('ref-recent-tbody');
+    if(recTbody) recTbody.innerHTML = recent_commissions.length === 0
+      ? `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีข้อมูล</td></tr>`
+      : recent_commissions.map(r => `<tr>
+          <td style="font-size:12px;color:var(--muted)">${new Date(r.created_at).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td>${r.earner_name||'-'}</td>
+          <td><span style="font-size:11px;padding:2px 7px;border-radius:10px;background:${r.earner_type==='member'?'rgba(59,130,246,.2)':'rgba(212,160,23,.2)'}">
+            ${r.earner_type==='member'?'👥 สมาชิก':'🤝 เอเยนต์'}
+          </span></td>
+          <td style="font-size:12px">${r.from_name||'id:'+r.from_member_id}</td>
+          <td>฿${fmt(r.bet_amount)}</td>
+          <td style="color:var(--muted)">${r.rate}%</td>
+          <td style="color:var(--gold2);font-weight:700">฿${fmt(r.amount)}</td>
+        </tr>`).join('');
+  } catch(e) {
+    console.error('loadReferralAdmin error:', e);
+  }
+}
+
+async function saveGlobalRefRate(){
+  const rate = parseFloat(document.getElementById('ref-global-rate')?.value);
+  if(isNaN(rate) || rate < 0 || rate > 50) { toast('ผิดพลาด','rate ต้องอยู่ระหว่าง 0–50','error'); return; }
+  try {
+    const res = await apiFetch('/admin/referral/rate', {
+      method:'PATCH', body: JSON.stringify({ rate })
+    }, 'admin');
+    if(!res.success) throw new Error(res.message);
+    toast('สำเร็จ', `ตั้งค่าอัตราค่าคอมแนะนำ ${rate}% แล้ว`);
+    const el = document.getElementById('ref-rate-cur');
+    if(el) el.textContent = `อัตราปัจจุบัน: ${rate}%`;
+  } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
 }
 
 /* ── Settings ── */
@@ -3395,6 +3465,45 @@ logs:()=>`
 </div>`,
 
 // ── เพิ่ม/ลด เครดิต ──
+referral:()=>`
+<div class="stats-grid" style="margin-bottom:18px">
+  <div class="stat-card"><div class="sc-icon">💸</div><div class="sc-label">ค่าคอมทั้งหมด</div><div class="sc-val" id="ref-total-all">⏳</div><div class="sc-change">บาท</div></div>
+  <div class="stat-card"><div class="sc-icon">📅</div><div class="sc-label">ค่าคอมเดือนนี้</div><div class="sc-val" id="ref-total-month">⏳</div><div class="sc-change">บาท</div></div>
+  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">ผู้รับค่าคอม (Member)</div><div class="sc-val" id="ref-member-earners">⏳</div><div class="sc-change">คน</div></div>
+  <div class="stat-card"><div class="sc-icon">🤝</div><div class="sc-label">ผู้รับค่าคอม (Agent)</div><div class="sc-val" id="ref-agent-earners">⏳</div><div class="sc-change">คน</div></div>
+</div>
+<div class="g2" style="margin-bottom:18px">
+  <div class="card">
+    <h3>⚙️ ตั้งค่าอัตราค่าคอมแนะนำ</h3>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 14px">อัตรานี้ใช้กับ<b>ทุกคน</b> ทั้ง สมาชิก และ เอเยนต์ ที่มีคนสมัครผ่านลิงก์แนะนำ</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <label style="font-size:14px;color:var(--muted)">อัตราค่าคอม (%)</label>
+      <input id="ref-global-rate" type="number" min="0" max="50" step="0.1" class="fi"
+             style="width:120px" placeholder="เช่น 3">
+      <button class="btn btn-gold" onclick="saveGlobalRefRate()">💾 บันทึก</button>
+      <span id="ref-rate-cur" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>🏆 Top ผู้รับค่าคอม</h3>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>#</th><th>ชื่อ</th><th>ประเภท</th><th>รายการ</th><th>ยอดรวม</th></tr></thead>
+        <tbody id="ref-top-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">⏳</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<div class="card">
+  <h3>📋 รายการค่าคอมล่าสุด</h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>วันที่</th><th>ผู้รับ</th><th>ประเภท</th><th>แทงจาก</th><th>ยอดแทง</th><th>อัตรา</th><th>ค่าคอม</th></tr></thead>
+      <tbody id="ref-recent-tbody"><tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">⏳</td></tr></tbody>
+    </table>
+  </div>
+</div>`,
+
 credits:()=>`
 <div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
   <button class="btn btn-gold" id="cr-tab-member" onclick="switchCreditTab('member')">👥 สมาชิก</button>

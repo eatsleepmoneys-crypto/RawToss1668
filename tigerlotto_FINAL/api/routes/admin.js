@@ -788,4 +788,72 @@ router.post('/agent-withdrawals/:id/reject', authAdmin, rbac.requirePerm('financ
   res.json({ success: true, message: 'ปฏิเสธคำขอถอนเงินแล้ว' });
 });
 
+// ══════════════════════════════════════
+//  REFERRAL COMMISSION MANAGEMENT
+// ══════════════════════════════════════
+
+// GET /api/admin/referral/stats — ข้อมูลระบบแนะนำ + global rate
+router.get('/referral/stats', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  const safe = async (sql, fallback, params = []) => {
+    try { const [r] = await query(sql, params); return r ?? fallback; }
+    catch { return fallback; }
+  };
+  const safeAll = async (sql, params = []) => {
+    try { return await query(sql, params); }
+    catch { return []; }
+  };
+
+  const [rateSetting, summary, topEarners, recentComms] = await Promise.all([
+    safe("SELECT value FROM settings WHERE `key`='referral_commission'", { value: '0' }),
+    safe(`SELECT
+      COALESCE(SUM(amount),0) AS total_all,
+      COALESCE(SUM(CASE WHEN MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW()) THEN amount END),0) AS total_month,
+      COUNT(DISTINCT from_member_id) AS unique_bettors,
+      COUNT(*) AS total_records,
+      COUNT(DISTINCT CASE WHEN earner_type='member' THEN earner_id END) AS member_earners,
+      COUNT(DISTINCT CASE WHEN earner_type='agent' THEN earner_id END) AS agent_earners
+    FROM commissions`, { total_all:0, total_month:0, unique_bettors:0, total_records:0, member_earners:0, agent_earners:0 }),
+    safeAll(`SELECT
+      earner_type, earner_id,
+      CASE WHEN earner_type='member' THEN (SELECT name FROM members WHERE id=c.earner_id)
+           ELSE (SELECT name FROM agents WHERE id=c.earner_id) END AS earner_name,
+      SUM(amount) AS total, COUNT(*) AS cnt
+      FROM commissions c
+      GROUP BY earner_type, earner_id
+      ORDER BY total DESC LIMIT 10`),
+    safeAll(`SELECT c.*,
+      CASE WHEN c.earner_type='member' THEN (SELECT name FROM members WHERE id=c.earner_id)
+           ELSE (SELECT name FROM agents WHERE id=c.earner_id) END AS earner_name,
+      (SELECT name FROM members WHERE id=c.from_member_id) AS from_name
+      FROM commissions c
+      ORDER BY c.id DESC LIMIT 50`)
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      global_rate: parseFloat(rateSetting?.value || 0),
+      summary,
+      top_earners: topEarners,
+      recent_commissions: recentComms,
+    }
+  });
+});
+
+// PATCH /api/admin/referral/rate — ตั้งค่า global referral commission rate
+router.patch('/referral/rate', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const rate = parseFloat(req.body.rate);
+  if (isNaN(rate) || rate < 0 || rate > 50)
+    return res.status(400).json({ success: false, message: 'rate ต้องอยู่ระหว่าง 0–50' });
+
+  await query(
+    "INSERT INTO settings (`key`, value) VALUES ('referral_commission', ?) ON DUPLICATE KEY UPDATE value=?",
+    [String(rate), String(rate)]
+  );
+  await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+    [req.admin.id, 'settings.referral_rate', 'settings', 0, `rate=${rate}%`, req.ip]);
+
+  res.json({ success: true, message: `ตั้งค่าอัตราค่าคอมแนะนำ ${rate}% สำเร็จ` });
+});
+
 module.exports = router;

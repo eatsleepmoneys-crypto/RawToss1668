@@ -121,13 +121,19 @@ router.get('/dashboard', authAgent, async (req, res) => {
     [agentId]
   );
 
+  // global referral rate จาก settings
+  const [dashRateSetting] = await query(
+    "SELECT value FROM settings WHERE `key`='referral_commission'"
+  ).catch(() => [null]);
+  const dashGlobalRate = parseFloat(dashRateSetting?.value || 0);
+
   res.json({
     success: true,
     data: {
       balance:               parseFloat(req.agent.balance),
       total_commission:      parseFloat(req.agent.total_commission),
       commission_rate:       req.agent.commission_rate,   // ส่วนลดซื้อหวย (%)
-      referral_rate:         parseFloat(req.agent.referral_rate || 0),
+      referral_rate:         dashGlobalRate,
       member_count:          memberCount.cnt,
       new_members_today:     newToday.cnt,
       bets_today:            betStats.bet_count,
@@ -206,6 +212,12 @@ router.get('/commissions', authAgent, async (req, res) => {
     FROM commissions WHERE earner_type='agent' AND earner_id=?
   `, [agentId]).catch(() => [{ total_all: 0, total_month: 0 }]);
 
+  // global referral rate จาก settings
+  const [rateSetting] = await query(
+    "SELECT value FROM settings WHERE `key`='referral_commission'"
+  ).catch(() => [null]);
+  const globalRate = parseFloat(rateSetting?.value || 0);
+
   res.json({
     success: true,
     daily,
@@ -213,7 +225,7 @@ router.get('/commissions', authAgent, async (req, res) => {
     summary: {
       total_all:   parseFloat(totals?.total_all || 0),
       total_month: parseFloat(totals?.total_month || 0),
-      referral_rate: parseFloat(req.agent.referral_rate || 0),
+      referral_rate: globalRate,
       discount_rate: parseFloat(req.agent.commission_rate || 0),
     }
   });

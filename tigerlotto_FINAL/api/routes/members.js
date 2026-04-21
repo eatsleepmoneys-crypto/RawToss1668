@@ -117,14 +117,18 @@ router.get('/referrals', authMember, async (req, res) => {
     ORDER BY c.id DESC LIMIT 30
   `, [req.member.id]).catch(() => []);
 
-  // อัตรา referral_rate ของตัวเอง
-  const [me] = await query('SELECT member_code, referral_rate FROM members WHERE id=?', [req.member.id]);
+  // ดึงข้อมูลสมาชิก + global referral rate จาก settings
+  const [me] = await query('SELECT member_code FROM members WHERE id=?', [req.member.id]);
+  const [rateSetting] = await query(
+    "SELECT value FROM settings WHERE `key`='referral_commission'"
+  ).catch(() => [null]);
+  const globalRate = parseFloat(rateSetting?.value || 0);
 
   res.json({
     success: true,
     data: {
       member_code:   me?.member_code || '',
-      referral_rate: parseFloat(me?.referral_rate || 0),
+      referral_rate: globalRate,
       referrals:     refs,
       total_commission:       parseFloat(totals?.total_all || 0),
       commission_this_month:  parseFloat(totals?.total_month || 0),
