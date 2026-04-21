@@ -758,7 +758,6 @@ select.fi option{background:var(--card2)}
       <div class="bet-group-label" style="margin-top:0">🛒 รายการที่เลือก</div>
       <div id="buy-cart-list" style="max-height:160px;overflow-y:auto;margin-bottom:12px"></div>
       <div class="payout-info">
-        <div class="payout-row"><span>จำนวนใบทั้งหมด</span><span id="pc-count">0 ใบ</span></div>
         <div class="payout-row"><span style="color:var(--gold)">ยอดแทงรวม</span><span class="val" id="pc-total">฿0</span></div>
       </div>
       <button class="btn btn-gold" id="btn-confirm-buy" style="width:100%;padding:14px;font-size:16px;border-radius:12px" onclick="doBuy()">✅ ยืนยันการแทง <span id="btn-buy-count">0</span> ใบ</button>
@@ -1264,15 +1263,45 @@ function renderBuyCart(){
   const wrap = document.getElementById('buy-cart-wrap');
   if(buyCart.length === 0){ wrap.style.display='none'; return; }
   wrap.style.display = 'block';
-  list.innerHTML = buyCart.map((item,i) => `
-    <div class="buy-cart-item">
-      <span>${item.desc}</span>
-      <span style="color:var(--gold);margin:0 8px">฿${item.amount.toLocaleString()}</span>
-      <button class="rm-btn" onclick="removeCartItem(${i})">✕</button>
-    </div>`).join('');
+
+  // จัดกลุ่ม: 3ตัว | บน | ล่าง | อื่นๆ
+  const GROUPS = {
+    '3 ตัว': ['3top','3tod','3rev'],
+    'บน':    ['2top','2rev','run_top','slide_f_top','slide_b_top'],
+    'ล่าง':  ['2bot','run_bot','slide_f_bot','slide_b_bot','double']
+  };
+  const buckets = { '3 ตัว': [], 'บน': [], 'ล่าง': [] };
+
+  buyCart.forEach((item, i) => {
+    // ดึงตัวเลขจาก desc เช่น "2 บน [77] (1 ใบ)" → "77"
+    const m = item.desc.match(/\[([^\]]+)\]/);
+    const numStr = m ? m[1] : item.desc;
+    const entry = { idx: i, num: numStr, amount: item.amount };
+    let placed = false;
+    for(const [grp, keys] of Object.entries(GROUPS)){
+      if(keys.includes(item.key)){ buckets[grp].push(entry); placed = true; break; }
+    }
+    if(!placed) buckets['บน'].push(entry); // fallback
+  });
+
+  let html = '';
+  for(const grp of ['3 ตัว','บน','ล่าง']){
+    if(buckets[grp].length === 0) continue;
+    html += `<div style="margin:6px 0 3px;font-size:12px;font-weight:700;color:var(--gold)">${grp}</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
+    buckets[grp].forEach(e => {
+      html += `<div style="display:flex;align-items:center;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:3px 8px;font-size:13px">
+        <span style="font-weight:700;letter-spacing:1px">${e.num}</span>
+        <span style="color:var(--gold);font-size:11px">฿${e.amount.toLocaleString()}</span>
+        <button class="rm-btn" onclick="removeCartItem(${e.idx})" style="margin-left:2px">✕</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  list.innerHTML = html;
+
   const totalBets = buyCart.reduce((s,c) => s+c.bets.length, 0);
   const totalAmt  = buyCart.reduce((s,c) => s+c.amount, 0);
-  document.getElementById('pc-count').textContent = totalBets + ' ใบ';
   document.getElementById('pc-total').textContent = '฿'+totalAmt.toLocaleString();
   document.getElementById('btn-buy-count').textContent = totalBets;
 }
