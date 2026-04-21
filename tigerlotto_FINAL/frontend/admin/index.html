@@ -253,6 +253,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-sec">ระบบ</div>
     <div class="sb-item" onclick="nav('api')"><span class="ic">🔌</span>API Settings</div>
     <div class="sb-item" onclick="nav('reports')"><span class="ic">📈</span>รายงาน</div>
+    <div class="sb-item" onclick="nav('branding')"><span class="ic">🎨</span>ตั้งค่าหน้าเว็บ</div>
     <div class="sb-item" onclick="nav('settings')"><span class="ic">⚙️</span>ตั้งค่าระบบ</div>
     <div class="sb-item" onclick="nav('logs')"><span class="ic">📝</span>Activity Logs</div>
   </nav>
@@ -343,7 +344,7 @@ const PAGE_TITLES={
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
   kyc:'🪪 ยืนยันตัวตน KYC',
-  api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs'
+  api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs',branding:'🎨 ตั้งค่าหน้าเว็บ'
 };
 function nav(page){
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('on'));
@@ -370,6 +371,7 @@ async function afterNav(page){
     else if(page==='admins') await loadAdmins();
     else if(page==='logs') await loadLogs();
     else if(page==='settings') await loadSettings();
+    else if(page==='branding') await loadBranding();
     else if(page==='results') await loadResultsPage();
     else if(page==='promotions') await loadPromotions();
     else if(page==='hotnumbers') await loadHotNumbers();
@@ -1338,6 +1340,65 @@ async function savePromoSettings(){
 function previewColor(val){
   // Live preview in admin panel CSS variable (optional UX touch)
   document.documentElement.style.setProperty('--gold', val);
+}
+/* ─── Branding Page ─── */
+async function loadBranding(){
+  try{
+    const d = await API.AdminAPI.getSettings();
+    const s = {};
+    (d.data||[]).forEach(r => { s[r.key] = r.value; });
+    const set = (id, val) => { const el=document.getElementById(id); if(el) el.value = val||''; };
+    set('br-site-name',    s.site_name    || 'TigerLotto');
+    set('br-site-tagline', s.site_tagline || 'OFFICIAL');
+    set('br-logo-url',     s.site_logo_url|| '');
+    // show current logo preview
+    updateBrandPreview();
+  }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+function updateBrandPreview(){
+  const name    = document.getElementById('br-site-name')?.value    || 'TigerLotto';
+  const tagline = document.getElementById('br-site-tagline')?.value || 'OFFICIAL';
+  const logoUrl = document.getElementById('br-logo-url')?.value     || '';
+  const prev    = document.getElementById('brand-preview');
+  if(!prev) return;
+  const logoHtml = logoUrl
+    ? `<img src="${logoUrl}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid #d4a017">`
+    : `<div style="width:52px;height:52px;border-radius:50%;background:rgba(212,160,23,.15);border:2px solid #d4a017;display:flex;align-items:center;justify-content:center;font-size:24px">🐯</div>`;
+  prev.innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;background:#0e0e0e;border:1px solid rgba(212,160,23,.3);border-radius:16px;padding:18px 22px">
+      ${logoHtml}
+      <div>
+        <div style="font-size:20px;font-weight:900;background:linear-gradient(135deg,#d4a017,#ffd700,#b8860b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">${name}</div>
+        <div style="font-size:10px;color:#d4a017;background:rgba(212,160,23,.12);border:1px solid rgba(212,160,23,.3);padding:2px 8px;border-radius:20px;font-weight:700;display:inline-block;margin-top:4px">${tagline}</div>
+      </div>
+    </div>`;
+}
+function handleLogoUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 500*1024){ toast('ไฟล์ใหญ่เกิน','กรุณาใช้ภาพขนาดไม่เกิน 500KB','error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('br-logo-url').value = e.target.result;
+    updateBrandPreview();
+  };
+  reader.readAsDataURL(file);
+}
+function removeLogo(){
+  document.getElementById('br-logo-url').value = '';
+  const fileInput = document.getElementById('br-logo-file');
+  if(fileInput) fileInput.value = '';
+  updateBrandPreview();
+}
+async function saveBranding(){
+  const name    = document.getElementById('br-site-name')?.value?.trim();
+  const tagline = document.getElementById('br-site-tagline')?.value?.trim();
+  const logoUrl = document.getElementById('br-logo-url')?.value?.trim();
+  if(!name){ toast('ผิดพลาด','กรุณากรอกชื่อเว็บไซต์','error'); return; }
+  try{
+    await API.AdminAPI.updateSettings({ site_name: name, site_tagline: tagline, site_logo_url: logoUrl });
+    toast('สำเร็จ','🎨 บันทึก Branding แล้ว');
+  }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
 function testLineUrl(){
   const url = document.getElementById('set-line-url')?.value?.trim();
@@ -2876,6 +2937,48 @@ reports:()=>`
     <div id="rpt-finance" style="display:flex;flex-direction:column;gap:10px">
       <div style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</div>
     </div>
+  </div>
+</div>`,
+
+branding:()=>`
+<div class="g2" style="max-width:860px">
+  <!-- Preview Card -->
+  <div class="card" style="grid-column:1/-1">
+    <h3 style="margin-bottom:12px">👁️ ตัวอย่าง Logo & ชื่อเว็บ</h3>
+    <div id="brand-preview" style="min-height:90px;display:flex;align-items:center"></div>
+  </div>
+
+  <!-- Logo -->
+  <div class="card">
+    <h3>🖼️ Logo เว็บไซต์</h3>
+    <div class="fg">
+      <label>อัปโหลดรูป Logo <span style="font-size:11px;color:#888">(PNG/JPG ไม่เกิน 500KB)</span></label>
+      <input type="file" id="br-logo-file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp"
+        class="fi-full" style="padding:8px" onchange="handleLogoUpload(this)">
+    </div>
+    <div class="fg">
+      <label>หรือวาง URL รูปภาพ</label>
+      <div style="display:flex;gap:8px">
+        <input id="br-logo-url" class="fi-full" placeholder="https://..." style="flex:1" oninput="updateBrandPreview()">
+        <button class="btn" style="padding:9px 12px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff6b81;border-radius:8px;font-size:12px;white-space:nowrap" onclick="removeLogo()">🗑️ ลบ Logo</button>
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:4px">เว้นว่างไว้ = ใช้ Logo Tiger เดิม</div>
+    </div>
+  </div>
+
+  <!-- Name & Tagline -->
+  <div class="card">
+    <h3>✏️ ชื่อ & ข้อความ</h3>
+    <div class="fg">
+      <label>ชื่อเว็บไซต์ (แสดงที่ header)</label>
+      <input id="br-site-name" class="fi-full" placeholder="TigerLotto" oninput="updateBrandPreview()">
+    </div>
+    <div class="fg">
+      <label>ข้อความใต้ชื่อ (badge)</label>
+      <input id="br-site-tagline" class="fi-full" placeholder="OFFICIAL" oninput="updateBrandPreview()">
+      <div style="font-size:11px;color:#888;margin-top:4px">เช่น OFFICIAL · BETA · v2.0 · ชื่อบริษัท</div>
+    </div>
+    <button class="btn btn-gold" style="margin-top:8px" onclick="saveBranding()">💾 บันทึก Branding</button>
   </div>
 </div>`,
 

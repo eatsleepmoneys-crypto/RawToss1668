@@ -309,7 +309,8 @@ select.fi option{background:var(--card2)}
 <header>
   <div class="hdr">
     <a href="#" class="logo">
-      <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <img id="site-logo-img" src="" alt="" style="display:none;width:44px;height:44px;border-radius:50%;object-fit:cover">
+      <svg id="site-logo-svg" class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#d4a017"/>
@@ -360,8 +361,8 @@ select.fi option{background:var(--card2)}
         <circle cx="56" cy="18" r="1.8" fill="url(#g1)" opacity=".5"/>
       </svg>
       <div>
-        <span class="logo-name">TigerLotto</span>
-        <div class="logo-tag">OFFICIAL</div>
+        <span class="logo-name" id="site-name-hdr">TigerLotto</span>
+        <div class="logo-tag" id="site-tagline-hdr">OFFICIAL</div>
       </div>
     </a>
     <nav>
@@ -618,7 +619,7 @@ select.fi option{background:var(--card2)}
 <footer>
   <div class="footer-grid">
     <div class="foot-brand">
-      <span class="logo-name">TigerLotto</span>
+      <span class="logo-name" id="site-name-footer">TigerLotto</span>
       <p>แพลตฟอร์มหวยออนไลน์ที่ดีที่สุดในประเทศไทย มั่นคง ปลอดภัย โปร่งใส จ่ายตรงเวลาทุกครั้ง เปิดให้บริการตลอด 24 ชั่วโมง</p>
       <div class="foot-social">
         <a href="#" title="LINE">💬</a>
@@ -2067,18 +2068,42 @@ async function loadNotifications(){
 document.getElementById('mpanel-ov')?.addEventListener('click', function(e){ if(e.target===this) closeMPanel(); });
 
 /* ─── Init ─── */
-/* ─── LINE Widget ─── */
+/* ─── Site Settings (branding + LINE) ─── */
 async function loadLineContact(){
   try{
     const d = await API.PublicAPI.getSettings();
     const s = d.data || {};
+    // LINE widget
     const lineId  = s.line_id  || '@tigerlotto';
     const lineUrl = s.line_url || `https://line.me/R/ti/p/${lineId}`;
     const idEl  = document.getElementById('line-id-display');
     const btnEl = document.getElementById('line-link-btn');
     if(idEl)  idEl.textContent = lineId;
     if(btnEl) btnEl.href = lineUrl;
+    // Branding
+    applySiteSettings(s);
   }catch(e){}
+}
+function applySiteSettings(s){
+  const name    = s.site_name    || 'TigerLotto';
+  const tagline = s.site_tagline || 'OFFICIAL';
+  const logoUrl = s.site_logo_url || '';
+  // update all name instances
+  document.querySelectorAll('[id^="site-name"]').forEach(el => el.textContent = name);
+  // update tagline
+  const tagEl = document.getElementById('site-tagline-hdr');
+  if(tagEl) tagEl.textContent = tagline;
+  // update page title
+  document.title = `${name} — หวยออนไลน์อันดับ 1`;
+  // logo: show img or svg
+  const imgEl = document.getElementById('site-logo-img');
+  const svgEl = document.getElementById('site-logo-svg');
+  if(logoUrl && imgEl && svgEl){
+    imgEl.src = logoUrl; imgEl.style.display = 'block';
+    svgEl.style.display = 'none';
+  } else if(imgEl && svgEl){
+    imgEl.style.display = 'none'; svgEl.style.display = '';
+  }
 }
 
 async function init(){

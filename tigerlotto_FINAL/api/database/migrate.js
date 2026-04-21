@@ -383,6 +383,8 @@ const SEEDS = [
     ('bonus_new_member','50','number','promotion'),
     ('cashback_percent','5','number','promotion'),
     ('referral_commission','3','number','promotion'),
+    ('site_tagline','OFFICIAL','string','general'),
+    ('site_logo_url','','string','general'),
     ('line_id','@tigerlotto','string','contact'),
     ('line_url','https://line.me/R/ti/p/@tigerlotto','string','contact'),
     ('contact_tel','02-xxx-xxxx','string','contact'),
