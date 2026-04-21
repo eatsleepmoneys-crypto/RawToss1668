@@ -1251,6 +1251,7 @@ async function loadSettings(){
   setInput('set-site-name',      s.site_name);
   setInput('set-site-url',       s.site_url);
   setInput('set-line-id',        s.line_id);
+  setInput('set-line-url',       s.line_url);
   setInput('set-tel',            s.contact_tel);
   setInput('set-min-dep',        s.min_deposit);
   setInput('set-max-dep',        s.max_deposit);
@@ -1273,7 +1274,7 @@ async function loadSettings(){
 
 // Settings save — group → key mapping
 const SETTINGS_GROUPS = {
-  general  : ['site_name','site_url','line_id','contact_tel'],
+  general  : ['site_name','site_url','line_id','line_url','contact_tel'],
   seo      : ['seo_title'],
   finance  : ['min_deposit','max_deposit','min_withdraw','max_withdraw','auto_approve_max'],
   promo    : ['bonus_new_member','cashback_percent','referral_commission'],
@@ -1283,6 +1284,7 @@ const SETTINGS_ID_MAP = {
   site_name         : 'set-site-name',
   site_url          : 'set-site-url',
   line_id           : 'set-line-id',
+  line_url          : 'set-line-url',
   contact_tel       : 'set-tel',
   min_deposit       : 'set-min-dep',
   max_deposit       : 'set-max-dep',
@@ -1336,6 +1338,13 @@ async function savePromoSettings(){
 function previewColor(val){
   // Live preview in admin panel CSS variable (optional UX touch)
   document.documentElement.style.setProperty('--gold', val);
+}
+function testLineUrl(){
+  const url = document.getElementById('set-line-url')?.value?.trim();
+  const prev = document.getElementById('line-url-preview');
+  if(!url){ if(prev) prev.innerHTML='<span style="color:#ff6b81">กรุณากรอก URL ก่อน</span>'; return; }
+  if(prev) prev.innerHTML = `<a href="${url}" target="_blank" rel="noopener" style="color:#06c755">🔗 ${url}</a> (คลิกเพื่อทดสอบ)`;
+  window.open(url, '_blank', 'noopener');
 }
 async function saveThemeSettings(){
   const color    = document.getElementById('set-primary-color')?.value || '#d4a017';
@@ -2883,9 +2892,20 @@ settings:()=>`
     <div class="card"><h3>⚙️ ข้อมูลเว็บไซต์</h3>
       <div class="fg"><label>ชื่อเว็บไซต์</label><input id="set-site-name" class="fi-full" placeholder="TigerLotto"></div>
       <div class="fg"><label>URL เว็บไซต์</label><input id="set-site-url" class="fi-full" placeholder="https://tigerlotto.com"></div>
-      <div class="fg"><label>LINE ID</label><input id="set-line-id" class="fi-full" placeholder="@tigerlotto"></div>
+      <div class="fg"><label>LINE ID (เช่น @tigerlotto)</label><input id="set-line-id" class="fi-full" placeholder="@tigerlotto"></div>
+      <div class="fg">
+        <label style="display:flex;align-items:center;gap:8px">
+          🔗 LINE URL (ลิ้งเพิ่มเพื่อน)
+          <span style="font-size:11px;color:#888;font-weight:400">— ปรากฏบนปุ่มซ้ายหน้าเว็บ</span>
+        </label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="set-line-url" class="fi-full" placeholder="https://line.me/R/ti/p/@tigerlotto" style="flex:1">
+          <button type="button" class="btn btn-ghost" style="padding:10px 12px;font-size:12px;white-space:nowrap" onclick="testLineUrl()">ทดสอบ</button>
+        </div>
+        <div id="line-url-preview" style="font-size:11px;color:#888;margin-top:4px"></div>
+      </div>
       <div class="fg"><label>เบอร์โทรศัพท์ติดต่อ</label><input id="set-tel" class="fi-full" placeholder="02-XXX-XXXX"></div>
-      <button class="btn btn-gold" onclick="saveSettings('general')">บันทึกการตั้งค่า</button>
+      <button class="btn btn-gold" onclick="saveSettings('general')">💾 บันทึกการตั้งค่า</button>
     </div>
     <div class="card"><h3>🖼️ Logo & Theme</h3>
       <div class="fg"><label>สีหลัก (Gold)</label><input type="color" id="set-primary-color" value="#d4a017" class="fi-full" style="height:44px;cursor:pointer" oninput="previewColor(this.value)"></div>

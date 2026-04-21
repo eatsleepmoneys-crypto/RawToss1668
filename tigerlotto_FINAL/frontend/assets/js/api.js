@@ -152,6 +152,10 @@ const TransactionsAPI = {
 };
 
 /* ─── Members API ─── */
+const PublicAPI = {
+  getSettings: () => apiFetch('/settings'),
+};
+
 const MemberAPI = {
   getProfile  : () => apiFetch('/members/profile'),
   updateProfile: (data) => apiFetch('/members/profile', { method: 'PATCH', body: JSON.stringify(data) }),
@@ -346,7 +350,7 @@ async function initAdminSession() {
 }
 
 /* ─── Export globals ─── */
-window.API        = { AuthAPI, AdminAuthAPI, LotteryAPI, BetsAPI, TransactionsAPI, MemberAPI, AdminAPI };
+window.API        = { AuthAPI, AdminAuthAPI, LotteryAPI, BetsAPI, TransactionsAPI, MemberAPI, AdminAPI, PublicAPI };
 window.Token      = Token;
 window.UI         = UI;
 window.initMemberSession = initMemberSession;
