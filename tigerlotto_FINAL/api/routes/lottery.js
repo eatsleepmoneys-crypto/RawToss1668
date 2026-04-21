@@ -138,6 +138,15 @@ router.post('/check', async (req, res) => {
   const [result] = await query('SELECT * FROM lottery_results WHERE round_id=?', [round_id]);
   if (!result) return res.status(404).json({ success: false, message: 'ยังไม่มีผลรางวัลของงวดนี้' });
 
+  // Safe JSON array parser — handles mysql2 auto-parse (Array) and raw JSON string
+  const safeArr = (v) => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    if (typeof v !== 'string') return [String(v)];
+    try { const r = JSON.parse(v); return Array.isArray(r) ? r : [String(r)]; }
+    catch { return String(v).split(',').map(s => s.trim()).filter(Boolean); }
+  };
+
   const n = number.trim();
   const prizes = [];
 
@@ -147,10 +156,10 @@ router.post('/check', async (req, res) => {
   if (result.prize_last_2 === last2) prizes.push({ name: 'รางวัลเลขท้าย 2 ตัว', amount: 2000 });
 
   const last3 = n.slice(-3);
-  const last3arr = result.prize_last_3 ? JSON.parse(result.prize_last_3) : [];
+  const last3arr = safeArr(result.prize_last_3);
   if (n.length >= 3 && last3arr.includes(last3)) prizes.push({ name: 'รางวัลเลขท้าย 3 ตัว', amount: 4000 });
 
-  const front3arr = result.prize_front_3 ? JSON.parse(result.prize_front_3) : [];
+  const front3arr = safeArr(result.prize_front_3);
   if (n.length >= 3 && front3arr.includes(n.slice(0, 3))) prizes.push({ name: 'รางวัลเลขหน้า 3 ตัว', amount: 4000 });
 
   res.json({ success: true, data: { number: n, prizes, won: prizes.length > 0 } });

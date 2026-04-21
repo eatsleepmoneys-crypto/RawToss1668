@@ -419,6 +419,26 @@ select.fi option{background:var(--card2)}
     <div style="text-align:center;padding:30px;color:var(--muted)">⏳ กำลังโหลดผลรางวัล...</div>
   </div>
 
+  <!-- Checker (inline in hero) -->
+  <div class="checker-wrap" style="margin:0 auto 28px">
+    <div class="checker-box" style="padding:24px 28px">
+      <div style="text-align:center;margin-bottom:16px">
+        <span style="font-size:17px;font-weight:800;color:var(--gold2)">🔍 ตรวจผลรางวัล</span>
+      </div>
+      <div class="tabs" style="margin-bottom:14px">
+        <button class="tab on" onclick="setChk(this,6)">6 ตัว (รัฐบาล)</button>
+        <button class="tab" onclick="setChk(this,3)">3 ตัว</button>
+        <button class="tab" onclick="setChk(this,2)">2 ตัว</button>
+      </div>
+      <div class="chk-row">
+        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
+        <button class="chk-btn" onclick="doCheck()">ตรวจสอบ</button>
+      </div>
+      <div id="chk-res" style="display:none" class="chk-result"></div>
+      <div style="text-align:center;margin-top:10px"><span id="chk-hint" style="font-size:12px;color:var(--muted)">กำลังโหลดข้อมูลงวดล่าสุด...</span></div>
+    </div>
+  </div>
+
   <!-- Countdown -->
   <div class="countdown-wrap">
     <div class="cd-title">⏳ งวดถัดไป ปิดรับในอีก</div>
@@ -479,33 +499,6 @@ select.fi option{background:var(--card2)}
     </div>
     <div class="results-list" id="results-list">
       <div style="text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
-    </div>
-  </div>
-</section>
-
-<hr class="divider">
-
-<!-- ══════════ CHECKER ══════════ -->
-<section class="section" id="check">
-  <div class="container">
-    <div class="sec-hdr">
-      <h2>ตรวจ<span>ผลรางวัล</span></h2>
-      <p>กรอกเลขที่ต้องการตรวจสอบ งวดล่าสุด</p>
-    </div>
-    <div class="checker-wrap">
-      <div class="checker-box">
-        <div class="tabs">
-          <button class="tab on" onclick="setChk(this,6)">6 ตัว (รัฐบาล)</button>
-          <button class="tab" onclick="setChk(this,3)">3 ตัว</button>
-          <button class="tab" onclick="setChk(this,2)">2 ตัว</button>
-        </div>
-        <div class="chk-row">
-          <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')">
-          <button class="chk-btn" onclick="doCheck()">ตรวจสอบ</button>
-        </div>
-        <div id="chk-res" style="display:none" class="chk-result"></div>
-        <div style="text-align:center;margin-top:16px"><span id="chk-hint" style="font-size:12px;color:var(--muted)">กำลังโหลดข้อมูลงวดล่าสุด...</span></div>
-      </div>
     </div>
   </div>
 </section>
