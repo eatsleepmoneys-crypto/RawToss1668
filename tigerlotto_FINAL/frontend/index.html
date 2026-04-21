@@ -1197,9 +1197,12 @@ function expandToBets(num, key, amount){
       bets.push({ number: num, bet_type: cfg.type, amount });
       break;
     case 'rev3': {
-      const rev = num.split('').reverse().join('');
-      bets.push({ number: num, bet_type:'3top', amount });
-      if(rev !== num) bets.push({ number: rev, bet_type:'3top', amount });
+      // 6 ประตู = ทุก permutation ของ 3 หลัก (unique)
+      const d = num.split('');
+      const perms = new Set();
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++)
+        if(i!==j && i!==k && j!==k) perms.add(d[i]+d[j]+d[k]);
+      for(const p of perms) bets.push({ number: p, bet_type:'3top', amount });
       break;
     }
     case 'rev2': {
