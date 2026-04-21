@@ -235,23 +235,27 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
     const lotteryCode = round.lottery_code;
 
     // ลาวพัฒนา: 2bot = ตำแหน่ง 3-4, 2top = ตำแหน่ง 5-6, 3top = ตำแหน่ง 4-5-6
+    // VN_*: 2bot = G1 last 2 (ส่งมาใน prize_2bot หรือ fallback = prize_last_2)
+    const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
     const isLaGov = lotteryCode === 'LA_GOV';
     const effective_2bot = isLaGov ? prize_1st.slice(2, 4) : prize_last_2;
     const effective_3top = isLaGov ? prize_1st.slice(3, 6) : prize_1st?.slice(-3);
+    // prize_2bot_store: เก็บเฉพาะ lottery ที่ใช้ 2bot แยก
+    const prize_2bot_store = USES_SEPARATE_2BOT.includes(lotteryCode) ? effective_2bot : null;
 
     await transaction(async (conn) => {
       // Insert result
       await conn.execute(
         `INSERT INTO lottery_results
           (round_id,prize_1st,prize_2nd,prize_3rd,prize_4th,prize_5th,
-           prize_near_1st,prize_front_3,prize_last_3,prize_last_2,announced_at,announced_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,NOW(),?)`,
+           prize_near_1st,prize_front_3,prize_last_3,prize_last_2,prize_2bot,announced_at,announced_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW(),?)`,
         [round_id, prize_1st,
           JSON.stringify(prize_2nd || []), JSON.stringify(prize_3rd || []),
           JSON.stringify(prize_4th || []), JSON.stringify(prize_5th || []),
           JSON.stringify(prize_near_1st || []),
           JSON.stringify(prize_front_3 || []), JSON.stringify(prize_last_3 || []),
-          prize_last_2, req.admin.id]);
+          prize_last_2, prize_2bot_store, req.admin.id]);
 
       // Update round status
       await conn.execute('UPDATE lottery_rounds SET status="announced" WHERE id=?', [round_id]);
