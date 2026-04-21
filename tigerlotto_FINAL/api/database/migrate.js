@@ -498,10 +498,16 @@ const SEEDS = [
 
   // ─── Fix existing TNews DB sources: เปลี่ยน html_vn_han → html_tnews + ชี้ไป RSS ──
   `UPDATE \`lottery_api_sources\`
-   SET \`source_type\`='html_tnews',
+   SET \`transform\`='html_tnews',
        \`source_url\`='https://www.tnews.co.th/lotto-horo-belief/feed',
        \`sort_order\`=CASE WHEN \`lottery_code\`='VN_HAN' THEN 3 ELSE 0 END
-   WHERE \`name\` LIKE '%TNews%' AND \`source_type\`='html_vn_han'`,
+   WHERE \`name\` LIKE '%TNews%' AND \`transform\`='html_vn_han'`,
+
+  // ─── Force correct transform + URL for ALL TNews sources (belt-and-suspenders) ──
+  `UPDATE \`lottery_api_sources\`
+   SET \`transform\`='html_tnews',
+       \`source_url\`='https://www.tnews.co.th/lotto-horo-belief/feed'
+   WHERE \`name\` LIKE '%TNews%' AND \`lottery_code\` IN ('VN_HAN','VN_HAN_SP','VN_HAN_VIP')`,
 
   // ─── ลบ VN_HAN_SP/VIP sources เวียดนาม (XSMT/XSMN/xosomiennam) ที่ผิด type ──
   `DELETE FROM \`lottery_api_sources\`
