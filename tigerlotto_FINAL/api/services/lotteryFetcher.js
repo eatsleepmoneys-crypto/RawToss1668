@@ -1030,14 +1030,230 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
   return false;
 }
 
+/**
+ * ฮานอยพิเศษ (VN_HAN_SP) = "Xổ Số miền Bắc thêm" — ออกผลทุกวัน ~17:30 น.
+ * เป็นหวยเอกชนเวียดนาม (ไม่ใช่ XSMB รัฐบาล) ออกผลก่อน XSMB ปกติ
+ */
+async function fetchVNHanoiSP() {
+  function vn(gdb, g1) {
+    return {
+      prize_1st:    gdb,
+      prize_last_2: gdb.slice(-2),
+      prize_2bot:   g1 ? g1.slice(-2) : null,
+      prize_front_3: [],
+      prize_last_3:  [gdb.slice(-3)],
+    };
+  }
+
+  // Source 1: xskt.com.vn — Miền Bắc thêm RSS (XSMBT)
+  try {
+    const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-them-xsmbt.rss', 20000);
+    const parsed = extractGdbG1(String(res.data));
+    if (parsed) {
+      console.log('[FETCHER:VN_HAN_SP] xskt.com.vn thêm RSS GDB=%s G1=%s', parsed.gdb, parsed.g1 || '?');
+      return vn(parsed.gdb, parsed.g1);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] xskt thêm RSS error:', e.message); }
+
+  // Source 2: xoso.com.vn XSMBT (Miền Bắc thêm)
+  try {
+    const res = await httpGetProxy('https://xoso.com.vn/xsmbt.html', 30000, 'sg');
+    const $ = cheerio.load(res.data);
+    let gdb = '', g1 = '';
+    $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"],[class*="special"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g, '');
+      if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5, '0');
+    });
+    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g, '');
+      if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5, '0');
+    });
+    if (!gdb || !g1) {
+      $('tr,li').each((_, el) => {
+        const rowText = $(el).text();
+        if (!gdb && /đặc biệt|dac biet|\bDB\b|\bĐB\b/i.test(rowText)) {
+          const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
+        }
+        if (!g1 && /nh[aấ]t|g\.?1\b/i.test(rowText)) {
+          const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
+        }
+      });
+    }
+    if (!gdb) {
+      const nums = [];
+      $('td,span,b,strong').each((_, el) => {
+        if ($(el).children().length > 0) return;
+        const t = $(el).text().trim().replace(/\D/g, '');
+        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
+      });
+      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN_SP] xoso.com.vn GDB=%s G1=%s', gdb, g1 || '?');
+      return vn(gdb, g1 || null);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] xoso.com.vn error:', e.message); }
+
+  // Source 3: ketqua.tv Miền Bắc thêm
+  try {
+    const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac-them.html', 30000, 'sg');
+    const $ = cheerio.load(res.data);
+    let gdb = '', g1 = '';
+    $('tr,li').each((_, el) => {
+      const rowText = $(el).text();
+      if (!gdb && /đặc biệt|dac biet/i.test(rowText)) {
+        const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
+      }
+      if (!g1 && /nh[aấ]t|g\.?1/i.test(rowText)) {
+        const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
+      }
+    });
+    if (!gdb) {
+      const parsed = extractGdbG1(String(res.data));
+      if (parsed) { gdb = parsed.gdb; g1 = parsed.g1 || ''; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN_SP] ketqua.tv GDB=%s G1=%s', gdb, g1 || '?');
+      return vn(gdb, g1 || null);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] ketqua.tv error:', e.message); }
+
+  // Source 4: xskt.com.vn — ลองดู RSS ทั่วไปของ XSMBT ในชื่อต่างๆ
+  const altRssUrls = [
+    'https://xskt.com.vn/rss-feed/mien-bac-them.rss',
+    'https://xskt.com.vn/rss-feed/xsmbt.rss',
+    'https://xsmb.vn/rss-them',
+  ];
+  for (const url of altRssUrls) {
+    try {
+      const res = await httpGet(url, 15000);
+      const parsed = extractGdbG1(String(res.data));
+      if (parsed) {
+        console.log('[FETCHER:VN_HAN_SP] alt RSS (%s) GDB=%s G1=%s', url, parsed.gdb, parsed.g1 || '?');
+        return vn(parsed.gdb, parsed.g1);
+      }
+    } catch(e) { /* continue */ }
+  }
+
+  throw new Error('VN_HAN_SP: แหล่งข้อมูลทุกแหล่งล้มเหลว — กรุณา config DB sources ใน Admin Panel → API Sources');
+}
+
+/**
+ * ฮานอย VIP (VN_HAN_VIP) — ออกผลทุกวัน ~17:00 น.
+ * หวยเอกชนเวียดนาม (Hanoi VIP) ออกผลเร็วกว่า XSMB ปกติ
+ */
+async function fetchVNHanoiVIP() {
+  function vn(gdb, g1) {
+    return {
+      prize_1st:    gdb,
+      prize_last_2: gdb.slice(-2),
+      prize_2bot:   g1 ? g1.slice(-2) : null,
+      prize_front_3: [],
+      prize_last_3:  [gdb.slice(-3)],
+    };
+  }
+
+  // Source 1: xskt.com.vn — Hà Nội VIP RSS
+  try {
+    const res = await httpGet('https://xskt.com.vn/rss-feed/ha-noi-vip-xshnvip.rss', 20000);
+    const parsed = extractGdbG1(String(res.data));
+    if (parsed) {
+      console.log('[FETCHER:VN_HAN_VIP] xskt RSS GDB=%s G1=%s', parsed.gdb, parsed.g1 || '?');
+      return vn(parsed.gdb, parsed.g1);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] xskt RSS error:', e.message); }
+
+  // Source 2: xoso.com.vn XSHNVIP
+  try {
+    const res = await httpGetProxy('https://xoso.com.vn/xshnvip.html', 30000, 'sg');
+    const $ = cheerio.load(res.data);
+    let gdb = '', g1 = '';
+    $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g, '');
+      if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5, '0');
+    });
+    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g, '');
+      if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5, '0');
+    });
+    if (!gdb || !g1) {
+      $('tr,li').each((_, el) => {
+        const rowText = $(el).text();
+        if (!gdb && /đặc biệt|dac biet|\bDB\b|\bĐB\b/i.test(rowText)) {
+          const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
+        }
+        if (!g1 && /nh[aấ]t|g\.?1\b/i.test(rowText)) {
+          const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
+        }
+      });
+    }
+    if (!gdb) {
+      const nums = [];
+      $('td,span,b,strong').each((_, el) => {
+        if ($(el).children().length > 0) return;
+        const t = $(el).text().trim().replace(/\D/g, '');
+        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
+      });
+      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN_VIP] xoso.com.vn GDB=%s G1=%s', gdb, g1 || '?');
+      return vn(gdb, g1 || null);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] xoso.com.vn error:', e.message); }
+
+  // Source 3: ketqua.tv Hà Nội VIP
+  try {
+    const res = await httpGetProxy('https://ketqua.tv/xo-so-ha-noi-vip.html', 30000, 'sg');
+    const $ = cheerio.load(res.data);
+    let gdb = '', g1 = '';
+    $('tr,li').each((_, el) => {
+      const rowText = $(el).text();
+      if (!gdb && /đặc biệt|dac biet/i.test(rowText)) {
+        const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
+      }
+      if (!g1 && /nh[aấ]t|g\.?1/i.test(rowText)) {
+        const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
+      }
+    });
+    if (!gdb) {
+      const parsed = extractGdbG1(String(res.data));
+      if (parsed) { gdb = parsed.gdb; g1 = parsed.g1 || ''; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN_VIP] ketqua.tv GDB=%s G1=%s', gdb, g1 || '?');
+      return vn(gdb, g1 || null);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] ketqua.tv error:', e.message); }
+
+  // Source 4: ลอง RSS ในชื่อต่างๆ
+  const altRssUrls = [
+    'https://xskt.com.vn/rss-feed/ha-noi-vip.rss',
+    'https://xskt.com.vn/rss-feed/xshnvip.rss',
+    'https://xsmb.vn/rss-vip',
+  ];
+  for (const url of altRssUrls) {
+    try {
+      const res = await httpGet(url, 15000);
+      const parsed = extractGdbG1(String(res.data));
+      if (parsed) {
+        console.log('[FETCHER:VN_HAN_VIP] alt RSS (%s) GDB=%s G1=%s', url, parsed.gdb, parsed.g1 || '?');
+        return vn(parsed.gdb, parsed.g1);
+      }
+    } catch(e) { /* continue */ }
+  }
+
+  throw new Error('VN_HAN_VIP: แหล่งข้อมูลทุกแหล่งล้มเหลว — กรุณา config DB sources ใน Admin Panel → API Sources');
+}
+
 // ── Export สำหรับ manual trigger ──────────────────────────────
 
 const FETCH_FUNCS = {
   TH_GOV:     fetchTHGov,
   LA_GOV:     fetchLAGov,
   VN_HAN:     fetchVNHanoi,
-  VN_HAN_SP:  fetchVNHanoi,   // ฮานอยพิเศษ — ใช้ source เดียวกัน
-  VN_HAN_VIP: fetchVNHanoi,   // ฮานอย VIP — ใช้ source เดียวกัน
+  VN_HAN_SP:  fetchVNHanoiSP,   // ฮานอยพิเศษ (Xổ Số miền Bắc thêm) — แยก source
+  VN_HAN_VIP: fetchVNHanoiVIP,  // ฮานอย VIP — แยก source
 };
 
 async function triggerFetch(lotteryCode) {
@@ -1091,7 +1307,7 @@ function startLotteryFetcher() {
   // ── ฮานอย VIP (~17:00) ────────────────────────────────────────
   cron.schedule('15 17 * * *', () => {
     console.log('[FETCHER] Trigger: VN_HAN_VIP');
-    runFetcher('VN_HAN_VIP', fetchVNHanoi).catch(e =>
+    runFetcher('VN_HAN_VIP', fetchVNHanoiVIP).catch(e =>
       console.error('[FETCHER] VN_HAN_VIP error:', e.message)
     );
   }, { timezone: TIMEZONE });
@@ -1100,14 +1316,14 @@ function startLotteryFetcher() {
     const status = fetcherStatus['VN_HAN_VIP'];
     if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
       console.log('[FETCHER] VN_HAN_VIP retry @ 17:45');
-      runFetcher('VN_HAN_VIP', fetchVNHanoi).catch(e => console.error('[FETCHER] VN_HAN_VIP retry:', e.message));
+      runFetcher('VN_HAN_VIP', fetchVNHanoiVIP).catch(e => console.error('[FETCHER] VN_HAN_VIP retry:', e.message));
     }
   }, { timezone: TIMEZONE });
 
   // ── ฮานอยพิเศษ (~17:30) ─────────────────────────────────────
   cron.schedule('45 17 * * *', () => {
     console.log('[FETCHER] Trigger: VN_HAN_SP');
-    runFetcher('VN_HAN_SP', fetchVNHanoi).catch(e =>
+    runFetcher('VN_HAN_SP', fetchVNHanoiSP).catch(e =>
       console.error('[FETCHER] VN_HAN_SP error:', e.message)
     );
   }, { timezone: TIMEZONE });
@@ -1116,7 +1332,7 @@ function startLotteryFetcher() {
     const status = fetcherStatus['VN_HAN_SP'];
     if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
       console.log('[FETCHER] VN_HAN_SP retry @ 18:15');
-      runFetcher('VN_HAN_SP', fetchVNHanoi).catch(e => console.error('[FETCHER] VN_HAN_SP retry:', e.message));
+      runFetcher('VN_HAN_SP', fetchVNHanoiSP).catch(e => console.error('[FETCHER] VN_HAN_SP retry:', e.message));
     }
   }, { timezone: TIMEZONE });
 
