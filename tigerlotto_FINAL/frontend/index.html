@@ -1407,11 +1407,14 @@ const LOT_TYPE_META = {
   VN_HAN:     { label:'ฮานอยปกติ',    flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ปกติ'     },
   VN_HAN_SP:  { label:'ฮานอยพิเศษ',   flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 พิเศษ'    },
   VN_HAN_VIP: { label:'ฮานอย VIP',    flag:'🇻🇳', tagClass:'vip',  tagText:'🇻🇳 VIP'      },
+  VN_HANOI:   { label:'ฮานอย',        flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ฮานอย'    },
   TH_STK:     { label:'หวยหุ้นไทย',   flag:'🇹🇭', tagClass:'',     tagText:'🇹🇭 หุ้นไทย'  },
   CN_STK:     { label:'หวยหุ้นจีน',   flag:'🇨🇳', tagClass:'',     tagText:'🇨🇳 หุ้นจีน'  },
   SG_STK:     { label:'หวยสิงคโปร์',  flag:'🇸🇬', tagClass:'',     tagText:'🇸🇬 สิงคโปร์' },
   MY_STK:     { label:'หวยมาเลย์',    flag:'🇲🇾', tagClass:'',     tagText:'🇲🇾 มาเลย์'   },
 };
+// codes ที่จัดกลุ่มเป็น "ฮานอย" เดียว
+const VN_CODES = new Set(['VN_HAN','VN_HAN_SP','VN_HAN_VIP']);
 function _tagFor(code){
   const m = LOT_TYPE_META[code];
   return m ? `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>` : '<span class="lot-tag">หวย</span>';
@@ -1452,29 +1455,72 @@ function filterLotCards(el, code){
 function _renderLotGroups(filterCode){
   const container = document.getElementById('lot-groups');
   if(!container) return;
-  const rounds = filterCode === 'ALL' ? _allRounds : _allRounds.filter(r => r.code === filterCode);
+  // VN_HANOI = filter แสดงทุก VN_HAN*
+  let rounds;
+  if(filterCode === 'ALL')          rounds = _allRounds;
+  else if(filterCode === 'VN_HANOI') rounds = _allRounds.filter(r => VN_CODES.has(r.code));
+  else                               rounds = _allRounds.filter(r => r.code === filterCode);
   if(rounds.length === 0){
     container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ไม่มีหวยในประเภทนี้</div>';
     return;
   }
-  // Group by code
+  // Group by code — รวม VN_HAN* เป็น VN_HANOI เดียว
   const groups = {};
   rounds.forEach(r => {
-    const key = r.code || 'OTHER';
+    const key = VN_CODES.has(r.code) ? 'VN_HANOI' : (r.code || 'OTHER');
     if(!groups[key]) groups[key] = [];
     groups[key].push(r);
   });
-  // ลำดับการแสดงกลุ่มหวย: รัฐบาล → ลาว → ฮานอย 3 ประเภท → หุ้นไทย → อื่นๆ
-  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','TH_STK'];
+  // ลำดับการแสดงกลุ่มหวย: รัฐบาล → ลาว → ฮานอย → หุ้นไทย → อื่นๆ
+  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','TH_STK'];
   const sortedEntries = Object.entries(groups).sort(([a],[b]) => {
     const ia = GROUP_ORDER.indexOf(a); const ib = GROUP_ORDER.indexOf(b);
     return (ia===-1?999:ia) - (ib===-1?999:ib);
   });
   container.innerHTML = sortedEntries.map(([code, list]) => {
     const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
+
+    // ─── กรณีพิเศษ: ฮานอย → แสดง 1 card รวม กดเพื่อเลือกประเภท
+    if(code === 'VN_HANOI'){
+      // sub-groups by original code
+      const vnGroups = {};
+      list.forEach(r => {
+        if(!vnGroups[r.code]) vnGroups[r.code] = [];
+        vnGroups[r.code].push(r);
+      });
+      const vnOrder = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'];
+      const typesCount = Object.keys(vnGroups).length;
+      // หา close_at เร็วสุด เพื่อแสดงในการ์ด
+      const earliest = list.slice().sort((a,b)=>new Date(a.close_at)-new Date(b.close_at))[0];
+      const closeStr = new Date(earliest.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+      const maxRate = Math.max(...list.map(r=>r.rate_3top||720));
+      return `<div class="lot-group">
+        <div class="lot-group-hdr">
+          <span style="font-size:18px">🇻🇳</span>
+          <h3>ฮานอย</h3>
+          <span class="cnt-badge">${typesCount} ประเภท</span>
+        </div>
+        <div class="lot-grid">
+          <div class="lot-card" onclick="openHanoiSelector()" style="cursor:pointer">
+            <div class="lot-card-top">
+              <span class="lot-tag">🇻🇳 ฮานอย</span>
+              <span class="lot-status open">● เปิดรับ</span>
+            </div>
+            <div class="lot-name">🇻🇳 หวยฮานอย</div>
+            <div class="lot-prize">฿${Number(maxRate).toLocaleString()}x</div>
+            <div class="lot-meta" style="color:var(--gold)">3 ประเภท: ปกติ · พิเศษ · VIP</div>
+            <div class="lot-meta">ปิดรับเร็วสุด: <span>${closeStr}</span></div>
+            <div class="lot-rate">กดเพื่อเลือกประเภทฮานอย</div>
+            <button class="lot-btn" onclick="event.stopPropagation();openHanoiSelector()">🇻🇳 เลือกฮานอย</button>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    // ─── ปกติ
+    const safeEsc = s => String(s||'').replace(/'/g,'&apos;');
     const cards = list.map(r => {
       const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
-      const safeEsc  = s => String(s||'').replace(/'/g,'&apos;');
       const isUpcoming = r.status === 'upcoming';
       const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})"`;
       const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
@@ -1508,6 +1554,59 @@ function _renderLotGroups(filterCode){
   }).join('');
 }
 
+/* ─── Hanoi Selector Modal ─── */
+function openHanoiSelector(){
+  const vnRounds = _allRounds.filter(r => VN_CODES.has(r.code));
+  if(!vnRounds.length){ showToast('ไม่มีฮานอยเปิดรับในขณะนี้','warn'); return; }
+  const safeEsc = s => String(s||'').replace(/'/g,'&apos;');
+  const VN_LABEL = { VN_HAN:'ปกติ', VN_HAN_SP:'พิเศษ', VN_HAN_VIP:'VIP' };
+  const VN_COLOR = { VN_HAN:'var(--muted)', VN_HAN_SP:'var(--gold)', VN_HAN_VIP:'#7ec8e3' };
+
+  // group by code
+  const vnGrp = {};
+  vnRounds.forEach(r => {
+    if(!vnGrp[r.code]) vnGrp[r.code] = [];
+    vnGrp[r.code].push(r);
+  });
+  const cards = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'].filter(c=>vnGrp[c]).map(c => {
+    const list = vnGrp[c];
+    const meta = LOT_TYPE_META[c];
+    return list.map(r => {
+      const isUpcoming = r.status === 'upcoming';
+      const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+      return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;cursor:${isUpcoming?'not-allowed':'pointer'};opacity:${isUpcoming?.7:1};transition:.2s"
+        ${isUpcoming?'':` onclick="closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id})"`}>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:700;color:${VN_COLOR[c]};background:rgba(255,255,255,.06);padding:3px 10px;border-radius:20px">🇻🇳 ${VN_LABEL[c]||c}</span>
+          <span style="font-size:10px;color:${isUpcoming?'#ffa500':'#2ed573'};font-weight:700">${isUpcoming?'🕐 เร็วๆนี้':'● เปิดรับ'}</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">${r.lottery_name}</div>
+        <div style="font-size:22px;font-weight:900;color:var(--gold2);margin-bottom:6px">฿${Number(r.rate_3top||720).toLocaleString()}x</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ปิดรับ: ${closeStr}</div>
+        <div style="font-size:11px;color:var(--dim)">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
+        ${isUpcoming?'':`<button class="lot-btn" style="margin-top:10px" onclick="event.stopPropagation();closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id})">🎰 ซื้อเลย</button>`}
+      </div>`;
+    }).join('');
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'hanoi-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1px solid rgba(212,160,23,.3);border-radius:22px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;position:relative">
+      <button onclick="closeHanoiModal()" style="position:absolute;top:14px;right:14px;background:var(--card2);border:none;color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer">×</button>
+      <div style="font-size:18px;font-weight:800;color:var(--gold2);margin-bottom:6px">🇻🇳 เลือกฮานอย</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px">กรุณาเลือกประเภทที่ต้องการซื้อ</div>
+      <div style="display:flex;flex-direction:column;gap:12px">${cards}</div>
+    </div>`;
+  overlay.addEventListener('click', e => { if(e.target===overlay) closeHanoiModal(); });
+  document.body.appendChild(overlay);
+}
+function closeHanoiModal(){
+  const el = document.getElementById('hanoi-overlay');
+  if(el) el.remove();
+}
+
 async function loadLotteryCards(){
   const container = document.getElementById('lot-groups');
   if(!container) return;
@@ -1531,11 +1630,16 @@ async function loadLotteryCards(){
     // Build dynamic filter tabs
     const filterEl = document.getElementById('lot-filter');
     if(filterEl){
-      const _TAB_ORDER = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','TH_STK'];
-      const codes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))]
+      const _TAB_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','TH_STK'];
+      // รวม VN_HAN* เป็น VN_HANOI เดียวใน filter tab
+      const rawCodes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))];
+      const mergedCodes = [...new Set(rawCodes.map(c => VN_CODES.has(c) ? 'VN_HANOI' : c))]
         .sort((a,b)=>{ const ia=_TAB_ORDER.indexOf(a),ib=_TAB_ORDER.indexOf(b); return (ia===-1?999:ia)-(ib===-1?999:ib); });
-      const extraTabs = codes.map(code => {
+      const extraTabs = mergedCodes.map(code => {
         const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
+        // tab ฮานอยใช้ openHanoiSelector แทน filter ปกติ
+        if(code === 'VN_HANOI')
+          return `<button class="lot-ftab" data-code="VN_HANOI" onclick="filterLotCards(this,'VN_HANOI')">${meta.flag} ${meta.label}</button>`;
         return `<button class="lot-ftab" data-code="${code}" onclick="filterLotCards(this,'${code}')">${meta.flag} ${meta.label}</button>`;
       }).join('');
       filterEl.innerHTML = `<button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
