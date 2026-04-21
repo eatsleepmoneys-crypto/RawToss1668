@@ -224,16 +224,16 @@ select.fi option{background:var(--card2)}
 /* ─── WALLET BAR (logged in) ─── */
 .wallet-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid rgba(212,160,23,.3);padding:12px 24px;z-index:800;align-items:center;justify-content:space-between}
 .wallet-bar.on{display:flex}
-/* ── LINE slide panel ── */
-.line-tab{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:900;cursor:pointer;display:flex;flex-direction:column;align-items:center;background:#06c755;border-radius:0 10px 10px 0;padding:12px 8px 10px;gap:5px;box-shadow:3px 0 14px rgba(6,199,85,.4);transition:.25s;user-select:none}
-.line-tab:hover{padding-right:14px;box-shadow:4px 0 20px rgba(6,199,85,.6)}
-.line-tab .lt-icon{font-size:22px;line-height:1}
-.line-tab .lt-txt{font-size:9px;font-weight:800;color:#fff;letter-spacing:.5px;writing-mode:vertical-rl;text-orientation:mixed;line-height:1}
-.line-panel{position:fixed;left:-300px;top:50%;transform:translateY(-50%);z-index:901;width:260px;background:var(--card);border:1px solid rgba(6,199,85,.4);border-left:none;border-radius:0 16px 16px 0;padding:22px 20px;box-shadow:4px 0 24px rgba(0,0,0,.5);transition:left .3s cubic-bezier(.25,.8,.25,1)}
-.line-panel.open{left:0}
-.line-panel-close{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--muted);font-size:16px;cursor:pointer;line-height:1}
-.line-add-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#06c755;border:none;border-radius:12px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;transition:.2s;font-family:'Sarabun',sans-serif;margin-top:12px;text-decoration:none}
-.line-add-btn:hover{background:#05a847;transform:translateY(-1px)}
+/* ── LINE widget (compact, always visible) ── */
+.line-widget{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:900;width:148px;background:rgba(14,14,14,.93);border:1px solid rgba(6,199,85,.35);border-left:none;border-radius:0 12px 12px 0;padding:10px 12px 10px 10px;box-shadow:3px 0 16px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
+.line-widget-hdr{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.line-widget-dot{width:7px;height:7px;border-radius:50%;background:#06c755;flex-shrink:0;animation:linePulse 2s infinite}
+@keyframes linePulse{0%,100%{opacity:1}50%{opacity:.4}}
+.line-widget-title{font-size:11px;font-weight:700;color:#06c755;white-space:nowrap}
+.line-widget-sub{font-size:10px;color:var(--muted);margin-bottom:5px}
+.line-widget-id{font-size:13px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:.3px}
+.line-add-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px 6px;background:#06c755;border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:800;cursor:pointer;transition:.2s;font-family:'Sarabun',sans-serif;text-decoration:none;white-space:nowrap}
+.line-add-btn:hover{background:#05a847}
 
 /* ─── TOAST ─── */
 .toast{position:fixed;top:20px;right:20px;background:var(--card);border:1px solid rgba(212,160,23,.4);border-radius:14px;padding:16px 20px;z-index:3000;min-width:260px;transform:translateX(120%);transition:.4s cubic-bezier(.175,.885,.32,1.275)}
@@ -865,30 +865,18 @@ select.fi option{background:var(--card2)}
   </div>
 </div>
 
-<!-- ══════════ LINE SLIDE PANEL ══════════ -->
-<div class="line-tab" id="line-tab" onclick="toggleLinePanel()" title="ติดต่อ Admin LINE @">
-  <span class="lt-icon">💬</span>
-  <span class="lt-txt">LINE</span>
-  <span class="lt-txt">@</span>
-</div>
-<div class="line-panel" id="line-panel">
-  <button class="line-panel-close" onclick="toggleLinePanel()">✕</button>
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-    <span style="font-size:28px">💬</span>
-    <div>
-      <div style="font-size:15px;font-weight:800;color:#06c755">ติดต่อ Admin</div>
-      <div style="font-size:12px;color:var(--muted)">บริการ 24 ชั่วโมง</div>
-    </div>
+<!-- ══════════ LINE WIDGET ══════════ -->
+<div class="line-widget" id="line-widget">
+  <div class="line-widget-hdr">
+    <span class="line-widget-dot"></span>
+    <span class="line-widget-title">ติดต่อ Admin</span>
   </div>
-  <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:4px">
-    <div style="font-size:12px;color:var(--muted);margin-bottom:4px">LINE Official Account</div>
-    <div id="line-id-display" style="font-size:18px;font-weight:800;color:#06c755">@tigerlotto</div>
-  </div>
+  <div class="line-widget-sub">LINE Official Account</div>
+  <div id="line-id-display" class="line-widget-id">@tigerlotto</div>
   <a id="line-link-btn" href="https://line.me/R/ti/p/@tigerlotto" target="_blank" rel="noopener" class="line-add-btn">
-    <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg" style="width:22px;height:22px;filter:brightness(0)invert(1)" alt="LINE">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff"><path d="M12 2C6.48 2 2 6.21 2 11.39c0 3.17 1.58 5.98 4.05 7.79-.17.63-.64 2.29-.74 2.65-.12.44.16.43.34.31.14-.09 2.2-1.49 3.09-2.1.38.05.77.08 1.17.08 5.52 0 10-4.21 10-9.39C21.91 6.21 17.52 2 12 2z"/></svg>
     เพิ่มเพื่อน LINE @
   </a>
-  <div style="font-size:11px;color:var(--dim);text-align:center;margin-top:10px">กดปุ่มด้านบนเพื่อเพิ่มเพื่อน</div>
 </div>
 
 <!-- ⚠️ ต้อง set API_BASE ก่อน load api.js เสมอ เพราะ api.js capture ค่าตอน load -->
@@ -2079,12 +2067,7 @@ async function loadNotifications(){
 document.getElementById('mpanel-ov')?.addEventListener('click', function(e){ if(e.target===this) closeMPanel(); });
 
 /* ─── Init ─── */
-/* ─── LINE Panel ─── */
-let _linePanelOpen = false;
-function toggleLinePanel(){
-  _linePanelOpen = !_linePanelOpen;
-  document.getElementById('line-panel').classList.toggle('open', _linePanelOpen);
-}
+/* ─── LINE Widget ─── */
 async function loadLineContact(){
   try{
     const d = await API.PublicAPI.getSettings();
@@ -2094,14 +2077,9 @@ async function loadLineContact(){
     const idEl  = document.getElementById('line-id-display');
     const btnEl = document.getElementById('line-link-btn');
     if(idEl)  idEl.textContent = lineId;
-    if(btnEl){ btnEl.href = lineUrl; }
+    if(btnEl) btnEl.href = lineUrl;
   }catch(e){}
 }
-// ปิด panel เมื่อคลิกนอก
-document.addEventListener('click', e => {
-  if(_linePanelOpen && !e.target.closest('#line-panel') && !e.target.closest('#line-tab'))
-    toggleLinePanel();
-});
 
 async function init(){
   const user = await initMemberSession();
