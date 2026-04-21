@@ -30,6 +30,8 @@ const PERMISSIONS = {
   'bets.view':             ['staff','finance','admin','superadmin'],
   'bets.cancel':           ['admin','superadmin'],
   // Finance
+  'finance.view':          ['finance','admin','superadmin'],
+  'finance.manage':        ['finance','admin','superadmin'],
   'deposits.view':         ['finance','admin','superadmin'],
   'deposits.approve':      ['finance','admin','superadmin'],
   'withdrawals.view':      ['finance','admin','superadmin'],
