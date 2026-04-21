@@ -1264,36 +1264,43 @@ function renderBuyCart(){
   if(buyCart.length === 0){ wrap.style.display='none'; return; }
   wrap.style.display = 'block';
 
-  // จัดกลุ่ม: 3ตัว | บน | ล่าง | อื่นๆ
-  const GROUPS = {
-    '3 ตัว': ['3top','3tod','3rev'],
-    'บน':    ['2top','2rev','run_top','slide_f_top','slide_b_top'],
-    'ล่าง':  ['2bot','run_bot','slide_f_bot','slide_b_bot','double']
+  // map bet_type → กลุ่มโพย
+  const BET_GRP = {
+    '3top':'3 ตัว','3tod':'3 ตัว',
+    '2top':'บน','run_top':'บน',
+    '2bot':'ล่าง','run_bot':'ล่าง'
   };
+  // buckets: { '3 ตัว': [{cartIdx, nums:[], amount}], ... }
   const buckets = { '3 ตัว': [], 'บน': [], 'ล่าง': [] };
 
   buyCart.forEach((item, i) => {
-    // ดึงตัวเลขจาก desc เช่น "2 บน [77] (1 ใบ)" → "77"
-    const m = item.desc.match(/\[([^\]]+)\]/);
-    const numStr = m ? m[1] : item.desc;
-    const entry = { idx: i, num: numStr, amount: item.amount };
-    let placed = false;
-    for(const [grp, keys] of Object.entries(GROUPS)){
-      if(keys.includes(item.key)){ buckets[grp].push(entry); placed = true; break; }
+    // จัดกลุ่ม bets ของ item นี้ตาม bet_type
+    const sub = {};
+    item.bets.forEach(bet => {
+      const g = BET_GRP[bet.bet_type] || 'บน';
+      if(!sub[g]) sub[g] = { nums:[], amt:0 };
+      sub[g].nums.push(bet.number);
+      sub[g].amt += bet.amount;
+    });
+    // เพิ่มลง buckets หลัก
+    for(const [g, s] of Object.entries(sub)){
+      if(buckets[g]) buckets[g].push({ idx: i, nums: s.nums, amount: s.amt });
     }
-    if(!placed) buckets['บน'].push(entry); // fallback
   });
 
   let html = '';
   for(const grp of ['3 ตัว','บน','ล่าง']){
     if(buckets[grp].length === 0) continue;
     html += `<div style="margin:6px 0 3px;font-size:12px;font-weight:700;color:var(--gold)">${grp}</div>`;
-    html += `<div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px">`;
+    html += `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">`;
     buckets[grp].forEach(e => {
-      html += `<div style="display:flex;align-items:center;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:3px 8px;font-size:13px">
-        <span style="font-weight:700;letter-spacing:1px">${e.num}</span>
-        <span style="color:var(--gold);font-size:11px">฿${e.amount.toLocaleString()}</span>
-        <button class="rm-btn" onclick="removeCartItem(${e.idx})" style="margin-left:2px">✕</button>
+      const numsHtml = e.nums.map(n =>
+        `<span style="font-weight:700;letter-spacing:1px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px">${n}</span>`
+      ).join(' ');
+      html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:4px 8px;font-size:13px">
+        <span style="display:flex;flex-wrap:wrap;gap:3px;flex:1">${numsHtml}</span>
+        <span style="color:var(--gold);font-size:11px;white-space:nowrap;margin-left:4px">฿${e.amount.toLocaleString()}</span>
+        <button class="rm-btn" onclick="removeCartItem(${e.idx})" style="margin-left:4px">✕</button>
       </div>`;
     });
     html += `</div>`;
