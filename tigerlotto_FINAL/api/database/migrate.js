@@ -592,6 +592,8 @@ async function migrate() {
     `ALTER TABLE \`lottery_results\` ADD COLUMN \`prize_2bot\` VARCHAR(2) DEFAULT NULL AFTER \`prize_last_2\``,
     // admins: เพิ่ม balance สำหรับระบบเพิ่ม/ลด เครดิต Admin
     `ALTER TABLE \`admins\` ADD COLUMN \`balance\` DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER \`role\``,
+    // settings: ขยาย value เป็น MEDIUMTEXT รองรับ base64 logo/QR image
+    `ALTER TABLE \`settings\` MODIFY COLUMN \`value\` MEDIUMTEXT DEFAULT NULL`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
