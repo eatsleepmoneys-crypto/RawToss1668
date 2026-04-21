@@ -102,11 +102,163 @@ async function httpGetProxy(url, ms = 25000, countryCode = 'th') {
 //    FETCH FUNCTIONS — คืน { prize_1st, prize_last_2, front3:[], last3:[] }
 // ──────────────────────────────────────────────────────────────────
 
+// ── TNews Thai Government Lottery ─────────────────────────────────────────
+// TNews publishes Thai lottery results (1st & 16th) in lotto-horo-belief category
+// Keywords: "สลาก", "ตรวจหวย", "หวยรัฐบาล", "สลากกินแบ่ง"
+// Prize structure: รางวัลที่1 (6d), หน้า3ตัว (3d×2), ท้าย3ตัว (3d×2), ท้าย2ตัว (2d)
+// ═══════════════════════════════════════════════════════════════════
+
+let _tnewsThaiCache = { data: null, ts: 0 };
+const TNEWS_THAI_CACHE_TTL = 10 * 60 * 1000; // 10 min — Thai lottery doesn't change mid-day
+
+async function findTNewsThaiArticleUrl() {
+  const BROAD_KW = ['สลาก', 'ตรวจหวย', 'หวยรัฐบาล', 'สลากกินแบ่ง'];
+
+  const RSS_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief/feed',
+    'https://www.tnews.co.th/category/lotto-horo-belief/feed',
+    'https://www.tnews.co.th/feed?cat=lotto-horo-belief',
+    'https://www.tnews.co.th/feed',
+  ];
+
+  for (const rssUrl of RSS_URLS) {
+    try {
+      const rssRes = await httpGetProxy(rssUrl, 15000, 'th');
+      const xml    = String(rssRes.data);
+      const items  = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
+      for (const item of items) {
+        const titleM = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const linkM  = item.match(/<link>([\s\S]*?)<\/link>/i)
+                    || item.match(/<link[^>]*href="([^"]+)"/i);
+        if (!titleM || !linkM) continue;
+        const title = titleM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim().toLowerCase();
+        const link  = linkM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        const isThai = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        if (isThai && /lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS_TH] RSS →', link);
+          return link;
+        }
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS_TH] RSS error (%s):', rssUrl, e.message);
+    }
+  }
+
+  // HTML listing fallback
+  const LISTING_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief',
+    'https://www.tnews.co.th/category/lotto-horo-belief',
+  ];
+  for (const listUrl of LISTING_URLS) {
+    try {
+      const listRes = await httpGetProxy(listUrl, 20000, 'th');
+      const $list   = cheerio.load(listRes.data);
+      let articleUrl = null;
+      $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
+        if (articleUrl) return;
+        const href = $list(el).attr('href') || '';
+        const text = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
+        const hit  = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
+        if (hit && /\/lotto-horo-belief\/\d+/.test(href)) {
+          articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
+        }
+      });
+      if (articleUrl) {
+        console.log('[FETCHER:TNEWS_TH] HTML listing →', articleUrl);
+        return articleUrl;
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS_TH] listing error (%s):', listUrl, e.message);
+    }
+  }
+
+  console.warn('[FETCHER:TNEWS_TH] ไม่พบ URL บทความหวยรัฐบาล');
+  return null;
+}
+
+/**
+ * แยกรางวัลหวยรัฐบาลไทยจาก body text ของบทความ TNews
+ * คืน { prize_1st, prize_last_2, prize_front_3:[], prize_last_3:[] } หรือ null
+ */
+function parseTNewsThaiSection(html) {
+  const $ = cheerio.load(html);
+  let bodyText = '';
+  for (const sel of ['article', '.content-body', '.post-content', '.article-content',
+                     '.entry-content', '#content-body', '#article-body', 'body']) {
+    const t = $(sel).first().text();
+    if (t && t.length > bodyText.length) bodyText = t;
+  }
+  if (!bodyText) bodyText = $.text();
+
+  // ─── รางวัลที่ 1 (6 digits) ──────────────────────────────────
+  const m1 = bodyText.match(/รางวัลที่\s*1[^0-9]{0,30}(\d{6})/i)
+           || bodyText.match(/prize\s*1st?[^0-9]{0,30}(\d{6})/i)
+           || bodyText.match(/รางวัล(?:ที่|ท)?\s*1\s*[:=\-]?\s*(\d{6})/i);
+  if (!m1) {
+    // ลอง fallback: 6-digit ที่ไม่ใช่ปีพุทธ
+    const allSix = [...bodyText.matchAll(/\b(\d{6})\b/g)].map(m => m[1])
+      .filter(n => !(parseInt(n) >= 256000 && parseInt(n) <= 257000));
+    if (!allSix.length) return null;
+    // ไม่มี label → ใช้อันแรก
+    const p1 = allSix[0];
+    const last2 = bodyText.match(/(?:ท้าย\s*2\s*ตัว|2\s*ตัวท้าย|last\s*2)[^0-9]{0,20}(\d{2})/i)?.[1]
+               || p1.slice(-2);
+    const front3 = [...bodyText.matchAll(/(?:หน้า\s*3\s*ตัว|3\s*ตัวหน้า)[^0-9]{0,30}(\d{3})/gi)].map(m=>m[1]);
+    const last3  = [...bodyText.matchAll(/(?:ท้าย\s*3\s*ตัว|3\s*ตัวท้าย)[^0-9]{0,30}(\d{3})/gi)].map(m=>m[1]);
+    return { prize_1st: p1, prize_last_2: last2, prize_front_3: front3.slice(0,2), prize_last_3: last3.slice(0,2) };
+  }
+
+  const prize_1st = m1[1];
+
+  // ─── รางวัลท้าย 2 ตัว ────────────────────────────────────────
+  const mLast2 = bodyText.match(/(?:ท้าย\s*2\s*ตัว|2\s*ตัวท้าย|เลขท้าย\s*2)[^0-9]{0,20}(\d{2})/i);
+  const prize_last_2 = mLast2?.[1] || prize_1st.slice(-2);
+
+  // ─── รางวัลหน้า 3 ตัว (× 2 ชุด) ──────────────────────────────
+  const front3Matches = [...bodyText.matchAll(/(?:หน้า\s*3\s*ตัว|3\s*ตัวหน้า|เลขหน้า\s*3)[^0-9]{0,30}(\d{3})/gi)];
+  const prize_front_3 = front3Matches.map(m => m[1]).slice(0, 2);
+
+  // ─── รางวัลท้าย 3 ตัว (× 2 ชุด) ──────────────────────────────
+  const last3Matches = [...bodyText.matchAll(/(?:ท้าย\s*3\s*ตัว|3\s*ตัวท้าย|เลขท้าย\s*3)[^0-9]{0,30}(\d{3})/gi)];
+  const prize_last_3 = last3Matches.map(m => m[1]).slice(0, 2);
+
+  if (!prize_1st) return null;
+  console.log(`[FETCHER:TNEWS_TH] prize_1st=${prize_1st} last2=${prize_last_2} front3=[${prize_front_3}] last3=[${prize_last_3}]`);
+  return { prize_1st, prize_last_2, prize_front_3, prize_last_3 };
+}
+
+async function fetchTNewsTHGov() {
+  const now = Date.now();
+  if (_tnewsThaiCache.data && (now - _tnewsThaiCache.ts) < TNEWS_THAI_CACHE_TTL) {
+    return _tnewsThaiCache.data;
+  }
+  const url = await findTNewsThaiArticleUrl();
+  if (!url) return null;
+  try {
+    const artRes = await httpGetProxy(url, 25000, 'th');
+    const parsed = parseTNewsThaiSection(artRes.data);
+    if (parsed) {
+      _tnewsThaiCache = { data: parsed, ts: now };
+      console.log('[FETCHER:TNEWS_TH] ✅ prize_1st:', parsed.prize_1st);
+    }
+    return parsed;
+  } catch(e) {
+    console.warn('[FETCHER:TNEWS_TH] article fetch error:', e.message);
+    return null;
+  }
+}
+
 /**
  * หวยรัฐบาลไทย — ออกผลวันที่ 1 และ 16 เวลา ~15:00 น.
  * ลอง 3 source ตามลำดับ
  */
 async function fetchTHGov() {
+  // Source 0: TNews (tnews.co.th) — เข้าถึงได้จาก Railway
+  try {
+    const r = await fetchTNewsTHGov();
+    if (r) return r;
+  } catch(e) { console.warn('[FETCHER:TH_GOV] TNews error:', e.message); }
+
   // Source 1: Longdo Money (JSON API — เชื่อถือได้)
   try {
     const res = await httpGetProxy('https://money.longdo.com/lotto/api');
@@ -157,6 +309,53 @@ async function fetchTHGov() {
     }
   } catch(e) { console.warn('[FETCHER:TH_GOV] manager scrape error:', e.message); }
 
+  // Source 4: GLO official XML/JSON endpoints
+  const gloUrls = [
+    'https://www.glo.or.th/service/lottoXML',
+    'https://openapi.glo.or.th/api/v1/lottery',
+    'https://www.glo.or.th/service/p1',
+  ];
+  for (const gloUrl of gloUrls) {
+    try {
+      const res = await httpGetProxy(gloUrl, 20000, 'th');
+      const raw = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
+      const m6  = raw.match(/(?:prize1|รางวัลที่1|first)[^0-9]{0,20}(\d{6})/i)
+               || raw.match(/<Prize1[^>]*>(\d{6})<\/Prize1>/i)
+               || raw.match(/\b(\d{6})\b/);
+      if (m6) {
+        const p1 = m6[1];
+        const mL2 = raw.match(/(?:last2|ท้าย2|Last2)[^0-9]{0,10}(\d{2})/i);
+        const prize_last_2 = mL2?.[1] || p1.slice(-2);
+        const front3 = [...raw.matchAll(/(?:front3|หน้า3)[^0-9]{0,10}(\d{3})/gi)].map(m=>m[1]).slice(0,2);
+        const last3  = [...raw.matchAll(/(?:last3|ท้าย3)[^0-9]{0,10}(\d{3})/gi)].map(m=>m[1]).slice(0,2);
+        console.log('[FETCHER:TH_GOV] Source: GLO official', gloUrl);
+        return { prize_1st: p1, prize_last_2, prize_front_3: front3, prize_last_3: last3 };
+      }
+    } catch(e) { console.warn('[FETCHER:TH_GOV] GLO error (%s):', gloUrl, e.message); }
+  }
+
+  // Source 5: Thairath (major newspaper — less restrictive than sanook)
+  try {
+    const res = await httpGetProxy('https://www.thairath.co.th/news/local/lottery', 30000, 'th');
+    const $   = cheerio.load(res.data);
+    let p1 = '';
+    $('[class*="lottery"],[class*="prize"],[class*="number"],[class*="result"]').each((_, el) => {
+      const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
+      if (/^\d{6}$/.test(t) && !p1) p1 = t;
+    });
+    if (!p1) {
+      $('strong,b,h1,h2,span').each((_, el) => {
+        if ($(el).children().length) return;
+        const t = $(el).text().replace(/\s+/g,'').replace(/\D/g,'');
+        if (/^\d{6}$/.test(t) && !p1) p1 = t;
+      });
+    }
+    if (p1) {
+      console.log('[FETCHER:TH_GOV] Source: thairath.co.th');
+      return { prize_1st: p1, prize_last_2: p1.slice(-2), prize_front_3: [], prize_last_3: [] };
+    }
+  } catch(e) { console.warn('[FETCHER:TH_GOV] thairath error:', e.message); }
+
   throw new Error('TH_GOV: แหล่งข้อมูลทุกแหล่งล้มเหลว');
 }
 
@@ -180,6 +379,12 @@ function laGovExtract(rawDigits) {
 }
 
 async function fetchLAGov() {
+  // Source 0: TNews (tnews.co.th) — ใช้ได้จาก Railway (ไม่บล็อก datacenter IPs)
+  try {
+    const r = await fetchTNewsLAGov();
+    if (r) return r;
+  } catch(e) { console.warn('[FETCHER:LA_GOV] TNews error:', e.message); }
+
   // Source 1: Sanook Lao Lottery (Thai site — fast, reliable 4-digit result)
   try {
     const res = await httpGetProxy('https://www.sanook.com/news/laolotto/', 30000, 'th');
@@ -269,6 +474,58 @@ async function fetchLAGov() {
       return laGovExtract(p6);
     }
   } catch(e) { console.warn('[FETCHER:LA_GOV] lottovip error:', e.message); }
+
+  // Source 6: MThai lottery (Thai portal — datacenter-friendly)
+  try {
+    const res = await httpGetProxy('https://www.mthai.com/lottery', 30000, 'th');
+    const $   = cheerio.load(res.data);
+    let p6 = '';
+    // หา section หวยลาว
+    $('*').each((_, el) => {
+      const t = $(el).text();
+      if (t.includes('ลาว') || t.includes('Lao')) {
+        const digits = t.replace(/\D/g, '');
+        const m = digits.match(/\d{6}/);
+        if (m && !p6) p6 = m[0];
+      }
+    });
+    if (!p6) {
+      const m = String(res.data).match(/(?:ลาว|lao)[^<]{0,50}(\d{6})/i);
+      if (m) p6 = m[1];
+    }
+    if (p6) {
+      console.log('[FETCHER:LA_GOV] Source: mthai.com');
+      return laGovExtract(p6);
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] mthai error:', e.message); }
+
+  // Source 7: lotto.laos.gov.la official JSON API (government site — low bot protection)
+  try {
+    const today = new Date();
+    const dd = String(today.getDate()).padStart(2,'0');
+    const mm = String(today.getMonth()+1).padStart(2,'0');
+    const yyyy = today.getFullYear();
+    const dateStr = `${yyyy}-${mm}-${dd}`;
+    const apiUrls = [
+      `https://lotto.laos.gov.la/public/getLottoResult?date=${dateStr}`,
+      `https://lottery.laos.gov.la/api/result?date=${dateStr}`,
+      `https://www.lotto.laos.gov.la/api/latest`,
+    ];
+    for (const apiUrl of apiUrls) {
+      try {
+        const res = await httpGetProxy(apiUrl, 25000, 'th');
+        const d   = res.data;
+        const raw = typeof d === 'object'
+          ? (d.result || d.prize1 || d.number || d.winning_number || '')
+          : String(d);
+        const digits = String(raw).replace(/\D/g, '');
+        if (digits.length >= 4) {
+          console.log('[FETCHER:LA_GOV] Source: lotto.laos.gov.la API');
+          return laGovExtract(digits);
+        }
+      } catch(_) { /* try next */ }
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] laos.gov.la error:', e.message); }
 
   throw new Error('LA_GOV: แหล่งข้อมูลทุกแหล่งล้มเหลว');
 }
@@ -667,6 +924,201 @@ async function fetchTNewsVNHanoi(lotteryType) {
   }
 
   console.warn(`[FETCHER:${lotteryType}] TNews: section ไม่พบหรือยังไม่ออกผล`);
+  return null;
+}
+
+// ── TNews Lao Lottery ──────────────────────────────────────────────────────
+// TNews publishes daily Lao lottery articles in the same category as Hanoi.
+// Article title keywords: "ลาว", "ลาวพัฒนา", "หวยลาว"
+// Section format (6-digit main number):
+//   ผลหวยลาวพัฒนา
+//   ตัวเต็ง (รางวัลที่ 1) : 312456   ← 6 digits
+//   เลข 4 ตัว : 2456
+//   เลข 3 ตัวบน : 456
+//   เลข 2 ตัวบน : 56
+//   เลข 2 ตัวล่าง : 31
+// ═══════════════════════════════════════════════════════════════════
+
+const TNEWS_LAO_KEYWORDS = ['ลาวพัฒนา', 'หวยลาว', 'laosvip', 'ลาว วีไอพี', 'ลาวสตาร์'];
+const TNEWS_LAO_SECTION_HEADERS = [
+  'ผลหวยลาวพัฒนา', 'หวยลาวพัฒนา', 'ลาวพัฒนา',
+  'ผลหวยลาว', 'หวยลาว', 'ลาว พัฒนา', 'lao', 'ลาววีไอพี',
+];
+
+let _tnewsLaoCache = { data: null, ts: 0 };
+const TNEWS_LAO_CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * หา URL บทความ TNews สำหรับหวยลาว (ใช้ keyword "ลาว")
+ */
+async function findTNewsLaoArticleUrl() {
+  const BROAD_KW = ['ลาว', 'หวยลาว', 'ลาวพัฒนา'];
+
+  // ── Strategy 1: RSS feed ──────────────────────────────────────
+  const RSS_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief/feed',
+    'https://www.tnews.co.th/category/lotto-horo-belief/feed',
+    'https://www.tnews.co.th/feed?cat=lotto-horo-belief',
+    'https://www.tnews.co.th/feed',
+  ];
+
+  for (const rssUrl of RSS_URLS) {
+    try {
+      const rssRes = await httpGetProxy(rssUrl, 15000, 'th');
+      const xml    = String(rssRes.data);
+      const items  = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
+      for (const item of items) {
+        const titleM = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const linkM  = item.match(/<link>([\s\S]*?)<\/link>/i)
+                    || item.match(/<link[^>]*href="([^"]+)"/i);
+        if (!titleM || !linkM) continue;
+        const title = titleM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim().toLowerCase();
+        const link  = linkM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        const isLao = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        if (isLao && /lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS_LAO] RSS →', link);
+          return link;
+        }
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS_LAO] RSS error (%s):', rssUrl, e.message);
+    }
+  }
+
+  // ── Strategy 2: HTML listing ───────────────────────────────────
+  const LISTING_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief',
+    'https://www.tnews.co.th/category/lotto-horo-belief',
+  ];
+  for (const listUrl of LISTING_URLS) {
+    try {
+      const listRes = await httpGetProxy(listUrl, 20000, 'th');
+      const $list   = cheerio.load(listRes.data);
+      let articleUrl = null;
+      $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
+        if (articleUrl) return;
+        const href = $list(el).attr('href') || '';
+        const text = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
+        const hit  = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
+        if (hit && /\/lotto-horo-belief\/\d+/.test(href)) {
+          articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
+        }
+      });
+      if (articleUrl) {
+        console.log('[FETCHER:TNEWS_LAO] HTML listing →', articleUrl);
+        return articleUrl;
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS_LAO] listing error (%s):', listUrl, e.message);
+    }
+  }
+
+  console.warn('[FETCHER:TNEWS_LAO] ไม่พบ URL บทความ');
+  return null;
+}
+
+/**
+ * แยก section หวยลาวจาก body text ของบทความ TNews
+ * รองรับทั้ง 6-digit main number และ 4-digit padded
+ */
+function parseTNewsLaoSection(html) {
+  const $ = cheerio.load(html);
+  let bodyText = '';
+  for (const sel of ['article', '.content-body', '.post-content', '.article-content',
+                     '.entry-content', '#content-body', '#article-body', 'body']) {
+    const t = $(sel).first().text();
+    if (t && t.length > bodyText.length) bodyText = t;
+  }
+  if (!bodyText) bodyText = $.text();
+
+  for (const header of TNEWS_LAO_SECTION_HEADERS) {
+    const idx = bodyText.toLowerCase().indexOf(header.toLowerCase());
+    if (idx === -1) continue;
+
+    const chunk = bodyText.slice(idx, idx + 800);
+
+    // ลอง pattern ต่างๆ ตามลำดับความน่าเชื่อถือ
+
+    // 1. ตัวเต็ง / รางวัลที่ 1 / เลข 6 ตัว  → 6 digits
+    const m6 = chunk.match(/(?:ตัวเต็ง|รางวัลที่\s*1|เลข\s*6\s*ตัว|รางวัล\s*ที่\s*1)\s*[:\-]?\s*(\d{5,6})/i);
+    if (m6) {
+      console.log('[FETCHER:TNEWS_LAO] found 6-digit via label:', m6[1]);
+      return laGovExtract(m6[1]);
+    }
+
+    // 2. เลข 4 ตัว → 4 digits (เลขท้าย)
+    const m4 = chunk.match(/เลข\s*4\s*ตัว\s*[:\-]?\s*(\d{3,4})/i);
+    // เลข 3 ตัวบน → 3 digits
+    const m3 = chunk.match(/เลข\s*3\s*ตัวบน\s*[:\-]?\s*(\d{2,3})/i);
+    // เลข 2 ตัวบน → 2 digits
+    const m2t = chunk.match(/เลข\s*2\s*ตัวบน\s*[:\-]?\s*(\d{1,2})/i);
+    // เลข 2 ตัวล่าง → 2 digits (= prize_2bot for Lao)
+    const m2b = chunk.match(/เลข\s*2\s*ตัวล่าง\s*[:\-]?\s*(\d{1,2})/i);
+
+    if (m4 || m3) {
+      // ประกอบ 6 digits จากส่วนย่อย: bot2 + top4  (bot2 = m2b, top4 = m4)
+      const top4 = (m4 ? m4[1] : (m3 ? m3[1] : '0000')).padStart(4, '0');
+      const bot2 = m2b ? m2b[1].padStart(2, '0') : '00';
+      const full6 = bot2 + top4;
+      console.log('[FETCHER:TNEWS_LAO] reconstructed 6-digit from parts:', full6);
+      return laGovExtract(full6);
+    }
+
+    // 3. Fallback: หา standalone 6-digit ใน chunk
+    const mAny6 = chunk.match(/\b(\d{6})\b/);
+    if (mAny6) {
+      console.log('[FETCHER:TNEWS_LAO] found standalone 6-digit:', mAny6[1]);
+      return laGovExtract(mAny6[1]);
+    }
+
+    // section found but no numbers yet (result not out)
+    console.warn('[FETCHER:TNEWS_LAO] section found but no numbers yet');
+    return null;
+  }
+  return null;
+}
+
+/**
+ * ดึงและ cache ผลหวยลาวจาก TNews
+ */
+async function getTNewsLaoData() {
+  const now = Date.now();
+  if (_tnewsLaoCache.data && (now - _tnewsLaoCache.ts) < TNEWS_LAO_CACHE_TTL) {
+    return _tnewsLaoCache.data;
+  }
+
+  const url = await findTNewsLaoArticleUrl();
+  if (!url) {
+    console.warn('[FETCHER:TNEWS_LAO] ไม่พบ URL บทความ — ข้าม');
+    return null;
+  }
+
+  try {
+    const artRes = await httpGetProxy(url, 25000, 'th');
+    const parsed = parseTNewsLaoSection(artRes.data);
+    if (parsed) {
+      _tnewsLaoCache = { data: parsed, ts: now };
+      console.log('[FETCHER:TNEWS_LAO] ✅ parsed prize_1st:', parsed.prize_1st);
+    } else {
+      // ยังไม่มีผล — cache สั้นๆ 1 นาทีเพื่อให้ retry เร็ว
+      _tnewsLaoCache = { data: null, ts: now - (TNEWS_LAO_CACHE_TTL - 60 * 1000) };
+    }
+    return parsed;
+  } catch(e) {
+    console.warn('[FETCHER:TNEWS_LAO] article fetch error:', e.message);
+    return null;
+  }
+}
+
+/**
+ * ดึงผลหวยลาวพัฒนาจาก TNews
+ */
+async function fetchTNewsLAGov() {
+  const r = await getTNewsLaoData();
+  if (r) {
+    console.log(`[FETCHER:LA_GOV] TNews ✅ prize_1st=${r.prize_1st} last2=${r.prize_last_2} 2bot=${r.prize_2bot||'?'}`);
+    return r;
+  }
   return null;
 }
 
