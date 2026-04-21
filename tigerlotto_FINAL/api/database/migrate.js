@@ -594,6 +594,8 @@ async function migrate() {
     `ALTER TABLE \`admins\` ADD COLUMN \`balance\` DECIMAL(15,2) NOT NULL DEFAULT 0.00 AFTER \`role\``,
     // settings: ขยาย value เป็น MEDIUMTEXT รองรับ base64 logo/QR image
     `ALTER TABLE \`settings\` MODIFY COLUMN \`value\` MEDIUMTEXT DEFAULT NULL`,
+    // agents: เพิ่ม aff_code สำหรับ Affiliate link
+    `ALTER TABLE \`agents\` ADD COLUMN \`aff_code\` VARCHAR(20) DEFAULT NULL UNIQUE AFTER \`uuid\``,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

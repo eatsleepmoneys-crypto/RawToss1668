@@ -149,6 +149,7 @@
   <!-- Nav -->
   <div class="nav-tabs">
     <div class="nav-tab on" data-tab="dashboard" onclick="switchTab('dashboard',this)">📊 ภาพรวม</div>
+    <div class="nav-tab" data-tab="affiliate" onclick="switchTab('affiliate',this)">🔗 ลิ้งแนะนำ</div>
     <div class="nav-tab" data-tab="members" onclick="switchTab('members',this)">👥 สมาชิก</div>
     <div class="nav-tab" data-tab="commissions" onclick="switchTab('commissions',this)">💰 ค่าคอมมิชชั่น</div>
     <div class="nav-tab" data-tab="profile" onclick="switchTab('profile',this)">👤 ข้อมูลเอเยนต์</div>
@@ -237,16 +238,107 @@ function switchTab(tab, el) {
   _membersPage = 1;
   const content = document.getElementById('tab-content');
   content.innerHTML = '<div class="loading">⏳ กำลังโหลด...</div>';
-  if (tab === 'dashboard')    loadDashboard();
-  else if (tab === 'members') loadMembers();
+  if (tab === 'dashboard')        loadDashboard();
+  else if (tab === 'affiliate')   loadAffiliate();
+  else if (tab === 'members')     loadMembers();
   else if (tab === 'commissions') loadCommissions();
-  else if (tab === 'profile') loadProfile();
+  else if (tab === 'profile')     loadProfile();
+}
+
+// ── Affiliate ─────────────────────────────────────────────────────
+async function loadAffiliate() {
+  const d    = await aFetch('/agent/affiliate');
+  const code = d.data.aff_code;
+  const link = `${location.origin}/?aff=${code}`;
+  document.getElementById('tab-content').innerHTML = `
+    <div class="card">
+      <h3>🔗 ลิ้งแนะนำของคุณ</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7">
+        ส่งลิ้งนี้ให้ลูกค้า เมื่อลูกค้ากดลิ้งแล้วสมัครสมาชิก ระบบจะเชื่อมเข้าทีมของคุณ<b style="color:var(--gold)">โดยอัตโนมัติ</b> ไม่ต้องกรอกรหัสใดๆ
+      </p>
+      <!-- Link box -->
+      <div style="background:var(--card2);border:1px solid rgba(212,160,23,.4);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">ลิ้งแนะนำ (คลิกเพื่อคัดลอก)</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input id="aff-link-input" value="${link}" readonly
+            style="flex:1;background:transparent;border:none;color:var(--gold2);font-size:14px;font-weight:600;outline:none;cursor:text;min-width:0">
+          <button onclick="copyAffLink('${link}')" id="copy-btn"
+            style="background:var(--grad);color:#000;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            📋 คัดลอก
+          </button>
+        </div>
+      </div>
+      <!-- Short code -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">รหัส Affiliate</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold2);letter-spacing:2px">${code}</div>
+        </div>
+        <button onclick="regenAffLink()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">
+          🔄 สร้างลิ้งใหม่
+        </button>
+      </div>
+      <div id="aff-msg" style="min-height:20px;font-size:13px;text-align:center"></div>
+    </div>
+
+    <div class="card">
+      <h3>📱 แชร์ผ่านช่องทางต่างๆ</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="https://line.me/R/msg/text/?${encodeURIComponent('สมัครหวยออนไลน์ผ่านลิ้งของฉัน → '+link)}"
+          target="_blank" style="flex:1;min-width:120px;background:#06C755;color:#fff;text-decoration:none;border-radius:10px;padding:12px;text-align:center;font-weight:700;font-size:13px">
+          💬 แชร์ LINE
+        </a>
+        <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}"
+          target="_blank" style="flex:1;min-width:120px;background:#1877F2;color:#fff;text-decoration:none;border-radius:10px;padding:12px;text-align:center;font-weight:700;font-size:13px">
+          📘 แชร์ Facebook
+        </a>
+        <button onclick="copyAffLink('${link}')"
+          style="flex:1;min-width:120px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px;font-weight:700;font-size:13px;cursor:pointer">
+          🔗 คัดลอกลิ้ง
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>❓ วิธีใช้งาน</h3>
+      <div style="font-size:13px;color:var(--muted);line-height:2">
+        1. คัดลอกลิ้งแนะนำด้านบน<br>
+        2. ส่งให้ลูกค้าผ่าน LINE, Facebook หรือช่องทางอื่น<br>
+        3. เมื่อลูกค้ากดลิ้งและสมัครสมาชิก ระบบเชื่อมเข้าทีมคุณอัตโนมัติ<br>
+        4. ลูกค้า<b style="color:var(--gold)">ไม่ต้องกรอก</b>รหัสใดๆ ทั้งสิ้น<br>
+        5. คุณจะได้รับค่าคอม <b style="color:var(--green)">${_agentData.commission_rate}%</b> จากทุกการแทงของลูกค้า
+      </div>
+    </div>`;
+}
+
+function copyAffLink(link) {
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('copy-btn');
+    if (btn) { btn.textContent = '✅ คัดลอกแล้ว!'; setTimeout(() => { btn.textContent = '📋 คัดลอก'; }, 2000); }
+    const msg = document.getElementById('aff-msg');
+    if (msg) { msg.style.color='var(--green)'; msg.textContent='✅ คัดลอกลิ้งไปยัง Clipboard แล้ว'; setTimeout(()=>{ msg.textContent=''; },3000); }
+  }).catch(() => {
+    // fallback
+    const inp = document.getElementById('aff-link-input');
+    if (inp) { inp.select(); document.execCommand('copy'); }
+  });
+}
+
+async function regenAffLink() {
+  if (!confirm('สร้างลิ้งใหม่? ลิ้งเดิมจะใช้งานไม่ได้อีกต่อไป')) return;
+  try {
+    await aFetch('/agent/affiliate/regen', { method: 'POST' });
+    loadAffiliate();
+  } catch(e) {
+    alert('เกิดข้อผิดพลาด: ' + e.message);
+  }
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────
 async function loadDashboard() {
-  const d = await aFetch('/agent/dashboard');
-  const s = d.data;
+  const [d, aff] = await Promise.all([aFetch('/agent/dashboard'), aFetch('/agent/affiliate')]);
+  const s    = d.data;
+  const link = `${location.origin}/?aff=${aff.data.aff_code}`;
   document.getElementById('tab-content').innerHTML = `
     <div class="stat-grid">
       <div class="stat-card">
@@ -280,12 +372,16 @@ async function loadDashboard() {
         <div class="stat-sub">จากยอดแทง ${s.commission_rate}%</div>
       </div>
     </div>
-    <div class="card">
-      <h3>📢 วิธีชวนสมาชิก</h3>
-      <p style="font-size:13px;color:var(--muted);line-height:1.7">
-        แจ้งลิ้งค์ <b style="color:var(--gold)">${location.origin}</b> ให้สมาชิกสมัคร แล้วแจ้งรหัสเอเยนต์ของคุณ (ID: <b style="color:var(--gold2)">${_agentData.id}</b>)
-        ให้สมาชิกกรอกตอนสมัคร ระบบจะเชื่อมสมาชิกเข้าทีมของคุณอัตโนมัติ
-      </p>
+    <!-- Quick affiliate box -->
+    <div class="card" style="border-color:rgba(212,160,23,.3)">
+      <h3>🔗 ลิ้งแนะนำของคุณ</h3>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:12px 16px;margin-top:8px">
+        <span style="flex:1;color:var(--gold2);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${link}</span>
+        <button onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='✅').catch(()=>{});setTimeout(()=>this.textContent='📋 คัดลอก',2000)"
+          style="background:var(--grad);color:#000;border:none;border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;font-size:12px">
+          📋 คัดลอก
+        </button>
+      </div>
     </div>`;
 }
 

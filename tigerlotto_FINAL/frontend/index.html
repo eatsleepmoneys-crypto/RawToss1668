@@ -711,7 +711,12 @@ select.fi option{background:var(--card2)}
         </div>
         <div class="fg"><label>ชื่อบัญชีธนาคาร</label><input type="text" id="r-bank-name" class="fi" placeholder="ชื่อ-นามสกุลในบัญชี"></div>
         <div class="fg"><label>รหัสผ่าน (อย่างน้อย 8 ตัว)</label><input type="password" id="r-pass" class="fi" placeholder="••••••••"></div>
-        <div class="fg"><label>รหัสผู้แนะนำ (ถ้ามี)</label><input type="text" id="r-ref" class="fi" placeholder="TIGER-XXXX"></div>
+        <!-- Affiliate banner (แสดงเมื่อมา via ?aff= link) -->
+        <div id="aff-banner" style="display:none;background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:#2ed573">
+          🤝 สมัครผ่านเอเยนต์: <b id="aff-agent-name"></b>
+        </div>
+        <input type="hidden" id="r-aff-code">
+        <div class="fg" id="r-ref-wrap"><label>รหัสผู้แนะนำ (ถ้ามี)</label><input type="text" id="r-ref" class="fi" placeholder="TIGER-XXXX"></div>
         <button class="btn btn-gold" id="btn-do-reg" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doRegister()">สมัครสมาชิกฟรี</button>
       </div>
     </div>
@@ -970,6 +975,7 @@ function openAuth(tab){
   if(window.currentUser){ toast('แจ้งเตือน','คุณเข้าสู่ระบบแล้ว'); return; }
   document.getElementById('auth-ov').classList.add('on');
   mTab(tab);
+  if(tab === 'register') _showAffBanner();
 }
 function closeM(id){document.getElementById(id).classList.remove('on');}
 function mTab(t){
@@ -1068,7 +1074,9 @@ async function doLogin(){
 
 /* ─── Register ─── */
 async function doRegister(){
-  const phone = document.getElementById('r-phone').value.trim();
+  const phone    = document.getElementById('r-phone').value.trim();
+  const affCode  = document.getElementById('r-aff-code')?.value.trim()
+                || sessionStorage.getItem('aff_code') || undefined;
   const payload = {
     name        : document.getElementById('r-name').value.trim(),
     phone,
@@ -1077,6 +1085,7 @@ async function doRegister(){
     bank_name   : document.getElementById('r-bank-name').value.trim(),
     password    : document.getElementById('r-pass').value,
     ref_code    : document.getElementById('r-ref').value.trim() || undefined,
+    aff_code    : affCode,
   };
   if(!payload.name||!payload.bank_code||!payload.bank_account||!payload.bank_name||!payload.password){
     toast('ข้อผิดพลาด','กรุณากรอกข้อมูลให้ครบ'); return;
@@ -1086,6 +1095,9 @@ async function doRegister(){
   try{
     const data = await API.AuthAPI.register(payload);
     window.currentUser = data.member;
+    // ล้าง affiliate session หลังสมัครสำเร็จ
+    sessionStorage.removeItem('aff_code');
+    sessionStorage.removeItem('aff_agent_name');
     closeM('auth-ov');
     updateNavbar(data.member);
     toast('สมัครสมาชิกสำเร็จ','ยินดีต้อนรับสู่ TigerLotto! โบนัส 50 บาท เข้ากระเป๋าแล้ว 🎉');
@@ -2172,6 +2184,56 @@ async function init(){
   loadResultsHistory();
   loadTicker();
   loadLineContact();
+  // ── Affiliate link tracking ──
+  _initAffiliateTracking();
+}
+
+function _initAffiliateTracking(){
+  // อ่าน ?aff= จาก URL หรือ sessionStorage
+  const urlParams = new URLSearchParams(window.location.search);
+  const affFromUrl = urlParams.get('aff');
+  if(affFromUrl){
+    sessionStorage.setItem('aff_code', affFromUrl);
+    // ลบ ?aff= ออกจาก URL bar โดยไม่ reload
+    const cleanUrl = window.location.pathname + (window.location.hash || '');
+    window.history.replaceState({}, '', cleanUrl);
+  }
+  const affCode = affFromUrl || sessionStorage.getItem('aff_code');
+  if(!affCode) return;
+  // ดึงชื่อ Agent แบบ async แล้ว inject ลงฟอร์ม
+  fetch(`/api/agent/aff/${encodeURIComponent(affCode)}`)
+    .then(r => r.json())
+    .then(d => {
+      if(!d.success) return;
+      // เซ็ตค่าใน hidden field
+      const hiddenEl = document.getElementById('r-aff-code');
+      if(hiddenEl) hiddenEl.value = affCode;
+      // เก็บชื่อ agent สำหรับ banner
+      sessionStorage.setItem('aff_agent_name', d.data.name);
+      // ซ่อนช่องรหัสผู้แนะนำ (ไม่จำเป็นแล้ว)
+      const refWrap = document.getElementById('r-ref-wrap');
+      if(refWrap) refWrap.style.display = 'none';
+    })
+    .catch(()=>{
+      // aff_code ไม่ถูกต้อง ลบออก
+      sessionStorage.removeItem('aff_code');
+      sessionStorage.removeItem('aff_agent_name');
+    });
+}
+
+function _showAffBanner(){
+  const affCode  = sessionStorage.getItem('aff_code');
+  const affName  = sessionStorage.getItem('aff_agent_name');
+  const banner   = document.getElementById('aff-banner');
+  const nameEl   = document.getElementById('aff-agent-name');
+  const refWrap  = document.getElementById('r-ref-wrap');
+  const hiddenEl = document.getElementById('r-aff-code');
+  if(affCode && affName && banner){
+    if(hiddenEl) hiddenEl.value = affCode;
+    nameEl.textContent = affName;
+    banner.style.display = 'block';
+    if(refWrap) refWrap.style.display = 'none';
+  }
 }
 
 document.querySelectorAll('.overlay').forEach(ov=>{

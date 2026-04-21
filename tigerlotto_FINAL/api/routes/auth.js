@@ -75,14 +75,22 @@ router.post('/register', validateRegister, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
-  const { name, phone, password, bank_code, bank_account, bank_name, ref_code } = req.body;
+  const { name, phone, password, bank_code, bank_account, bank_name, ref_code, aff_code } = req.body;
   const [existing] = await query('SELECT id FROM members WHERE phone=?', [phone]);
   if (existing) return res.status(400).json({ success: false, message: 'เบอร์โทรนี้ถูกใช้แล้ว' });
 
+  // ref_code = รหัสสมาชิกที่แนะนำ (เดิม)
   let refId = null;
   if (ref_code) {
     const [ref] = await query('SELECT id FROM members WHERE member_code=?', [ref_code]);
     if (ref) refId = ref.id;
+  }
+
+  // aff_code = รหัส Affiliate ของ Agent (ลิ้ง ?aff=)
+  let agentId = null;
+  if (aff_code) {
+    const [ag] = await query('SELECT id FROM agents WHERE aff_code=? AND status="active"', [aff_code]);
+    if (ag) agentId = ag.id;
   }
 
   const memberCode = 'TL' + Date.now().toString().slice(-8);
@@ -90,8 +98,8 @@ router.post('/register', validateRegister, async (req, res) => {
 
   const member = await transaction(async (conn) => {
     const [result] = await conn.execute(
-      'INSERT INTO members (uuid,member_code,name,phone,password,bank_code,bank_account,bank_name,ref_by,status) VALUES (?,?,?,?,?,?,?,?,?,?)',
-      [uuidv4(), memberCode, name, phone, hashed, bank_code, bank_account, bank_name, refId, 'active']
+      'INSERT INTO members (uuid,member_code,name,phone,password,bank_code,bank_account,bank_name,ref_by,agent_id,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+      [uuidv4(), memberCode, name, phone, hashed, bank_code, bank_account, bank_name, refId, agentId, 'active']
     );
     const newId = result.insertId;
 
@@ -104,12 +112,9 @@ router.post('/register', validateRegister, async (req, res) => {
         [uuidv4(), newId, 'bonus', bonus, 0, bonus, 'โบนัสสมัครสมาชิกใหม่']);
     }
 
-    // Commission to referrer
+    // Commission to member referrer (ref_code)
     if (refId) {
-      const commRow = await conn.execute('SELECT value FROM settings WHERE `key`="referral_commission"');
-      const commPct = parseFloat(commRow[0][0]?.value || 3);
-      // Store ref for future commission calculation per bet
-      await conn.execute('UPDATE members SET agent_id=? WHERE id=?', [refId, newId]);
+      await conn.execute('SELECT value FROM settings WHERE `key`="referral_commission"').catch(()=>{});
     }
 
     const [newMember] = await conn.execute('SELECT id,uuid,name,phone,member_code,balance FROM members WHERE id=?', [newId]);
