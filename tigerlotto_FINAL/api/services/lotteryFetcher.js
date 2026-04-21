@@ -462,16 +462,61 @@ let _tnewsCache = { data: null, ts: 0 };
 const TNEWS_CACHE_TTL = 5 * 60 * 1000;
 
 /**
- * หา URL บทความ TNews วันนี้ (broad keyword — ทุก type อยู่ article เดียว)
+ * หา URL บทความ TNews วันนี้
+ * Strategy 1: RSS/Atom feed (server-rendered XML — ไม่ต้องการ JS)
+ * Strategy 2: HTML listing page (fallback)
  */
 async function findTNewsArticleUrl() {
+  const BROAD_KW = ['ฮานอย', 'หวยฮานอย', 'hanoi'];
+
+  // ── Strategy 1: WordPress RSS feed (เร็วกว่า, ไม่ต้องการ JS) ──────
+  const RSS_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief/feed',
+    'https://www.tnews.co.th/category/lotto-horo-belief/feed',
+    'https://www.tnews.co.th/feed?cat=lotto-horo-belief',
+    'https://www.tnews.co.th/feed',
+  ];
+
+  for (const rssUrl of RSS_URLS) {
+    try {
+      const rssRes = await httpGetProxy(rssUrl, 15000, 'th');
+      const xml    = String(rssRes.data);
+      // ดึง <link> จาก <item> ที่มี title ตรงกับ keyword ฮานอย
+      const items  = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
+      for (const item of items) {
+        const titleM = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+        const linkM  = item.match(/<link>([\s\S]*?)<\/link>/i)
+                    || item.match(/<link[^>]*href="([^"]+)"/i);
+        if (!titleM || !linkM) continue;
+        const title = titleM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim().toLowerCase();
+        const link  = linkM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        const isHanoi = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        if (isHanoi && /lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS] RSS →', link);
+          return link;
+        }
+      }
+      // fallback: ลิ้งแรกในหน้า RSS ที่ตรงกับ category
+      for (const item of items) {
+        const linkM = item.match(/<link>([\s\S]*?)<\/link>/i)
+                   || item.match(/<link[^>]*href="([^"]+)"/i);
+        if (!linkM) continue;
+        const link = linkM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        if (/lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS] RSS fallback (first item) →', link);
+          return link;
+        }
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS] RSS error (%s):', rssUrl, e.message);
+    }
+  }
+
+  // ── Strategy 2: HTML listing page ────────────────────────────────
   const LISTING_URLS = [
     'https://www.tnews.co.th/lotto-horo-belief',
     'https://www.tnews.co.th/category/lotto-horo-belief',
-    'https://www.tnews.co.th/contents/lotto-horo-belief',
-    'https://www.tnews.co.th/tag/%E0%B8%AB%E0%B8%A7%E0%B8%A2%E0%B8%AE%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%A2',
   ];
-  const BROAD_KW = ['ฮานอย', 'หวยฮานอย', 'hanoi'];
 
   for (const listUrl of LISTING_URLS) {
     try {
@@ -479,18 +524,16 @@ async function findTNewsArticleUrl() {
       const $list   = cheerio.load(listRes.data);
       let articleUrl = null;
 
-      // ลอง match broad keyword ก่อน
       $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
         if (articleUrl) return;
-        const href  = $list(el).attr('href') || '';
-        const text  = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
-        const hit   = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
+        const href = $list(el).attr('href') || '';
+        const text = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
+        const hit  = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
         if (hit && /\/lotto-horo-belief\/\d+/.test(href)) {
           articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
         }
       });
 
-      // fallback: ลิ้งแรกในหน้า listing
       if (!articleUrl) {
         $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
           if (articleUrl) return;
@@ -502,13 +545,15 @@ async function findTNewsArticleUrl() {
       }
 
       if (articleUrl) {
-        console.log('[FETCHER:TNEWS] listing OK →', articleUrl);
+        console.log('[FETCHER:TNEWS] HTML listing OK →', articleUrl);
         return articleUrl;
       }
     } catch(e) {
       console.warn('[FETCHER:TNEWS] listing error (%s):', listUrl, e.message);
     }
   }
+
+  console.warn('[FETCHER:TNEWS] ไม่พบ URL บทความ (RSS + listing ล้มเหลว)');
   return null;
 }
 
@@ -1294,6 +1339,48 @@ async function fetchOneSource(src) {
       const resp = await httpGetProxy(src.source_url, ms, cc);
       rawData = resp.data;
     }
+  }
+
+  // ── html_tnews: RSS → find article URL → fetch article → section parse ──
+  if (src.transform === 'html_tnews') {
+    const xml      = String(rawData);
+    const items    = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
+    const KW       = ['ฮานอย', 'หวยฮานอย', 'hanoi'];
+    let articleUrl = null;
+
+    // หา item ที่มี title ตรงกับ keyword
+    for (const item of items) {
+      const titleM = item.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+      const linkM  = item.match(/<link>([\s\S]*?)<\/link>/i)
+                  || item.match(/<link[^>]*href="([^"]+)"/i);
+      if (!titleM || !linkM) continue;
+      const title  = titleM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim().toLowerCase();
+      const link   = linkM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+      if (KW.some(kw => title.includes(kw.toLowerCase())) && /lotto-horo-belief\/\d+/.test(link)) {
+        articleUrl = link;
+        break;
+      }
+    }
+    // fallback: ลิ้งแรกใน RSS
+    if (!articleUrl) {
+      for (const item of items) {
+        const linkM = item.match(/<link>([\s\S]*?)<\/link>/i)
+                   || item.match(/<link[^>]*href="([^"]+)"/i);
+        if (!linkM) continue;
+        const link = linkM[1].replace(/<!\[CDATA\[|\]\]>/g, '').trim();
+        if (/lotto-horo-belief\/\d+/.test(link)) { articleUrl = link; break; }
+      }
+    }
+
+    if (!articleUrl) throw new Error('html_tnews: ไม่พบ article URL ใน RSS');
+
+    console.log(`[FETCHER:${src.lottery_code||'?'}] html_tnews → article: ${articleUrl}`);
+    const artResp = await httpGetProxy(articleUrl, 25000, 'th');
+    const sections = parseTNewsSections(artResp.data);
+    const lotteryCode = src.lottery_code;
+    const found = lotteryCode && sections[lotteryCode] ? sections[lotteryCode] : Object.values(sections)[0];
+    if (!found) throw new Error(`html_tnews: section "${lotteryCode}" ไม่พบหรือยังไม่ออกผล`);
+    return found;
   }
 
   return applyTransform(src.transform, rawData, src);

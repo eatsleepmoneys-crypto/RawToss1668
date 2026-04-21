@@ -492,13 +492,21 @@ const SEEDS = [
     ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,0),
     ('VN_HAN','xosomiennam.net (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1),
     ('VN_HAN','xskt RSS (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
-    ('VN_HAN','TNews ฮานอยปกติ (HTML)','https://www.tnews.co.th/lotto-horo-belief','html_vn_han',1,3),
-    ('VN_HAN_SP','xskt RSS SP XSMT (XML)','https://xskt.com.vn/rss-feed/mien-trung-xsmt.rss','rss_vn',1,0),
-    ('VN_HAN_SP','xosomiennam SP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-trung','html_vn_han',1,1),
-    ('VN_HAN_SP','TNews ฮานอยพิเศษ (HTML)','https://www.tnews.co.th/lotto-horo-belief','html_vn_han',1,2),
-    ('VN_HAN_VIP','xskt RSS VIP XSMN (XML)','https://xskt.com.vn/rss-feed/mien-nam-xsmn.rss','rss_vn',1,0),
-    ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-nam','html_vn_han',1,1),
-    ('VN_HAN_VIP','TNews ฮานอย VIP (HTML)','https://www.tnews.co.th/lotto-horo-belief','html_vn_han',1,2)`,
+    ('VN_HAN','TNews ฮานอยปกติ (HTML)','https://www.tnews.co.th/lotto-horo-belief/feed','html_tnews',1,3),
+    ('VN_HAN_SP','TNews ฮานอยพิเศษ (HTML)','https://www.tnews.co.th/lotto-horo-belief/feed','html_tnews',1,0),
+    ('VN_HAN_VIP','TNews ฮานอย VIP (HTML)','https://www.tnews.co.th/lotto-horo-belief/feed','html_tnews',1,0)`,
+
+  // ─── Fix existing TNews DB sources: เปลี่ยน html_vn_han → html_tnews + ชี้ไป RSS ──
+  `UPDATE \`lottery_api_sources\`
+   SET \`source_type\`='html_tnews',
+       \`source_url\`='https://www.tnews.co.th/lotto-horo-belief/feed',
+       \`sort_order\`=CASE WHEN \`lottery_code\`='VN_HAN' THEN 3 ELSE 0 END
+   WHERE \`name\` LIKE '%TNews%' AND \`source_type\`='html_vn_han'`,
+
+  // ─── ลบ VN_HAN_SP/VIP sources เวียดนาม (XSMT/XSMN/xosomiennam) ที่ผิด type ──
+  `DELETE FROM \`lottery_api_sources\`
+   WHERE \`lottery_code\` IN ('VN_HAN_SP','VN_HAN_VIP')
+   AND \`name\` NOT LIKE '%TNews%'`,
 
   // ─── Force correct sort_order for LA_GOV (INSERT IGNORE keeps old values) ───
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
