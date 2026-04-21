@@ -155,6 +155,13 @@
   .bet-type-btn:hover:not(.sel){border-color:var(--border);background:rgba(255,255,255,.04)}
   .bet-rate{font-size:18px;font-weight:900;color:var(--gold);margin-top:4px}
 
+  /* ── Cart-based buy modal ── */
+  .buy-grp-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}
+  .buy-types-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px}
+  .buy-type-btn{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:9px 6px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;font-weight:600;color:var(--muted);line-height:1.4}
+  .buy-type-btn.on{border-color:var(--gold);background:rgba(212,160,23,.15);color:var(--gold2)}
+  .buy-type-btn:hover:not(.on){background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15)}
+
   /* ── Tx badges ── */
   .badge-deposit{background:rgba(46,213,115,.12);color:var(--green);border:1px solid rgba(46,213,115,.3)}
   .badge-withdraw{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.3)}
@@ -894,7 +901,6 @@ async function submitWithdraw() {
 // ═══════════════════════════════════════════════════════════════════
 
 let _lotterySubTab = 'buy';
-let _selectedRound = null;
 let _allAgentRounds = [];
 let _agentLotFilter = 'ALL';
 
@@ -991,10 +997,301 @@ function _renderAgentLotGroups(filterCode){
   }
   el.innerHTML = html;
 }
-let _selectedBetType = null;
-
 const BET_LABEL  = {'3top':'3 ตัวบน','3tod':'3 ตัวโต','2top':'2 ตัวบน','2bot':'2 ตัวล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
 const BET_STATUS = {'waiting':'รอผล','win':'ถูกรางวัล','lose':'ไม่ถูก','cancelled':'ยกเลิก','refunded':'คืนเงิน'};
+
+// ─── Cart-based buy system (เหมือน index.html) ──────────────────
+const BET_CFG = {
+  '3top':       { label:'3 บนตรง',     digits:3, type:'3top',    expand:'single' },
+  '3tod':       { label:'3 โต๊ด',      digits:3, type:'3tod',    expand:'single' },
+  '3rev':       { label:'3 ตรงกลับ',   digits:3, type:'3top',    expand:'rev3'   },
+  '2top':       { label:'2 บน',         digits:2, type:'2top',    expand:'single' },
+  '2bot':       { label:'2 ล่าง',       digits:2, type:'2bot',    expand:'single' },
+  '2rev':       { label:'2 บนล่างกลับ',digits:2, type:'2top',    expand:'rev2'   },
+  'run_top':    { label:'วิ่งบน',       digits:1, type:'run_top', expand:'single' },
+  'run_bot':    { label:'วิ่งล่าง',     digits:1, type:'run_bot', expand:'single' },
+  'slide_f_top':{ label:'รูดหน้าบน',   digits:1, type:'2top',    expand:'slideF' },
+  'slide_f_bot':{ label:'รูดหน้าล่าง', digits:1, type:'2bot',    expand:'slideF' },
+  'slide_b_top':{ label:'รูดหลังบน',   digits:1, type:'2top',    expand:'slideB' },
+  'slide_b_bot':{ label:'รูดหลังล่าง', digits:1, type:'2bot',    expand:'slideB' },
+  'double':     { label:'รูดเบิ้ล',    digits:0, type:'2top',    expand:'double' },
+};
+let _buyCart    = [];
+let _buySelKeys = new Set();
+let _buyRound   = null; // round object ที่กำลัง buy
+
+function openBetModal(round) {
+  _buyRound   = round;
+  _buyCart    = [];
+  _buySelKeys = new Set();
+
+  const rates = {
+    '3top': round.rate_3top, '3tod': round.rate_3tod,
+    '2top': round.rate_2top, '2bot': round.rate_2bot,
+    'run_top': round.rate_run_top, 'run_bot': round.rate_run_bot,
+  };
+
+  // Remove existing modal if any
+  document.getElementById('agent-buy-modal')?.remove();
+
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'agent-buy-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box" style="max-width:500px">
+      <button class="modal-close" onclick="document.getElementById('agent-buy-modal').remove()">✕</button>
+      <h3>${round.flag||'🎲'} ${round.lottery_name}</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${round.round_name}</div>
+
+      <!-- 3-digit group -->
+      <div class="buy-grp-label">🎯 3 ตัว</div>
+      <div class="buy-types-grid">
+        <div class="buy-type-btn" data-key="3top"   onclick="agTogBet(this,'3top'  )">3 บนตรง<br><small>×${rates['3top']}</small></div>
+        <div class="buy-type-btn" data-key="3tod"   onclick="agTogBet(this,'3tod'  )">3 โต๊ด<br><small>×${rates['3tod']}</small></div>
+        <div class="buy-type-btn" data-key="3rev"   onclick="agTogBet(this,'3rev'  )">3 ตรงกลับ<br><small>×${rates['3top']}×2</small></div>
+      </div>
+
+      <!-- 2-digit group -->
+      <div class="buy-grp-label">🎯 2 ตัว</div>
+      <div class="buy-types-grid">
+        <div class="buy-type-btn" data-key="2top"   onclick="agTogBet(this,'2top'  )">2 บน<br><small>×${rates['2top']}</small></div>
+        <div class="buy-type-btn" data-key="2bot"   onclick="agTogBet(this,'2bot'  )">2 ล่าง<br><small>×${rates['2bot']}</small></div>
+        <div class="buy-type-btn" data-key="2rev"   onclick="agTogBet(this,'2rev'  )">2 บนล่างกลับ<br><small>×${rates['2top']}+×${rates['2bot']}</small></div>
+      </div>
+
+      <!-- Run/slide group -->
+      <div class="buy-grp-label">🏃 รูด / วิ่ง</div>
+      <div class="buy-types-grid">
+        <div class="buy-type-btn" data-key="run_top"    onclick="agTogBet(this,'run_top'    )">วิ่งบน<br><small>×${rates['run_top']}</small></div>
+        <div class="buy-type-btn" data-key="run_bot"    onclick="agTogBet(this,'run_bot'    )">วิ่งล่าง<br><small>×${rates['run_bot']}</small></div>
+        <div class="buy-type-btn" data-key="slide_f_top" onclick="agTogBet(this,'slide_f_top')">รูดหน้าบน<br><small>10ใบ×${rates['2top']}</small></div>
+        <div class="buy-type-btn" data-key="slide_f_bot" onclick="agTogBet(this,'slide_f_bot')">รูดหน้าล่าง<br><small>10ใบ×${rates['2bot']}</small></div>
+        <div class="buy-type-btn" data-key="slide_b_top" onclick="agTogBet(this,'slide_b_top')">รูดหลังบน<br><small>10ใบ×${rates['2top']}</small></div>
+        <div class="buy-type-btn" data-key="slide_b_bot" onclick="agTogBet(this,'slide_b_bot')">รูดหลังล่าง<br><small>10ใบ×${rates['2bot']}</small></div>
+        <div class="buy-type-btn" data-key="double"     onclick="agTogBet(this,'double'     )">รูดเบิ้ล<br><small>20ใบ</small></div>
+      </div>
+
+      <!-- Number + amount row -->
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <div class="fg" style="flex:1;margin:0">
+          <label>กรอกเลข</label>
+          <input type="text" class="fi" id="ag-buy-num" placeholder="—"
+            style="font-size:22px;letter-spacing:4px;text-align:center;font-weight:900"
+            maxlength="3" oninput="this.value=this.value.replace(/\\D/g,'')">
+          <small id="ag-buy-hint" style="color:var(--muted);font-size:11px;display:block;margin-top:3px">เลือกประเภทก่อน</small>
+        </div>
+        <div style="width:130px">
+          <label>จำนวนเงิน/ใบ (฿)</label>
+          <input type="number" class="fi" id="ag-buy-amt" value="${round.min_bet}" min="${round.min_bet}" max="${round.max_bet}">
+        </div>
+      </div>
+
+      <button class="btn" style="width:100%;padding:10px;font-size:14px;border-radius:10px;background:var(--card2);border:1px solid var(--gold);color:var(--gold);margin-bottom:14px" onclick="agAddToCart()">➕ เพิ่มรายการ</button>
+
+      <!-- Cart -->
+      <div id="ag-cart-wrap" style="display:none">
+        <div class="buy-grp-label" style="margin-top:0">🛒 รายการที่เลือก</div>
+        <div id="ag-cart-list" style="max-height:180px;overflow-y:auto;margin-bottom:12px"></div>
+        <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;margin-bottom:12px">
+          <span style="color:var(--gold);font-size:13px;font-weight:700">ยอดแทงรวม</span>
+          <span id="ag-cart-total" style="font-size:13px;font-weight:900;color:var(--gold2)">฿0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px;padding:0 2px">
+          <span>ยอดเงินปัจจุบัน: <b style="color:var(--text)">฿${fmt(_agentData?.balance||0)}</b></span>
+        </div>
+        <button class="btn btn-gold" id="ag-confirm-btn" style="width:100%;padding:14px;font-size:16px;border-radius:12px" onclick="agDoBuy()">
+          ✅ ยืนยันการแทง <span id="ag-buy-count">0</span> ใบ
+        </button>
+      </div>
+      <div class="err" id="ag-buy-err" style="margin-top:10px"></div>
+    </div>`;
+  document.body.appendChild(bg);
+}
+
+function agTogBet(el, key) {
+  if (_buySelKeys.has(key)) {
+    _buySelKeys.delete(key);
+    el.classList.remove('on');
+  } else {
+    const newDigits = BET_CFG[key].digits;
+    const toRemove = [];
+    _buySelKeys.forEach(k => { if (BET_CFG[k].digits !== newDigits) toRemove.push(k); });
+    toRemove.forEach(k => {
+      _buySelKeys.delete(k);
+      document.querySelector(`#agent-buy-modal .buy-type-btn[data-key="${k}"]`)?.classList.remove('on');
+    });
+    _buySelKeys.add(key);
+    el.classList.add('on');
+  }
+  // Update number input hint
+  const inp  = document.getElementById('ag-buy-num');
+  const hint = document.getElementById('ag-buy-hint');
+  if (!inp) return;
+  if (_buySelKeys.size === 0) {
+    inp.maxLength = 3; inp.placeholder = '—'; inp.style.display = '';
+    if (hint) hint.textContent = 'เลือกประเภทก่อน';
+    return;
+  }
+  const firstKey = [..._buySelKeys][0];
+  const cfg = BET_CFG[firstKey];
+  if (cfg.digits === 0) {
+    inp.style.display = 'none';
+    if (hint) hint.textContent = 'ไม่ต้องกรอกเลข — สร้างอัตโนมัติ';
+  } else {
+    inp.style.display = '';
+    inp.maxLength = cfg.digits;
+    inp.placeholder = 'X'.repeat(cfg.digits);
+    if (hint) hint.textContent = `กรอก ${cfg.digits} หลัก`;
+  }
+}
+
+function agExpandBets(num, key, amount) {
+  const cfg = BET_CFG[key];
+  const bets = [];
+  switch (cfg.expand) {
+    case 'single':
+      bets.push({ number: num, bet_type: cfg.type, amount }); break;
+    case 'rev3': {
+      const d = num.split(''), perms = new Set();
+      for (let i=0;i<3;i++) for (let j=0;j<3;j++) for (let k=0;k<3;k++)
+        if (i!==j&&i!==k&&j!==k) perms.add(d[i]+d[j]+d[k]);
+      for (const p of perms) bets.push({ number: p, bet_type: '3top', amount });
+      break;
+    }
+    case 'rev2': {
+      const rev = num.split('').reverse().join('');
+      bets.push({ number: num, bet_type: '2top', amount });
+      bets.push({ number: num, bet_type: '2bot', amount });
+      if (rev !== num) {
+        bets.push({ number: rev, bet_type: '2top', amount });
+        bets.push({ number: rev, bet_type: '2bot', amount });
+      }
+      break;
+    }
+    case 'slideF':
+      for (let i=0;i<10;i++) bets.push({ number: num+i, bet_type: cfg.type, amount }); break;
+    case 'slideB':
+      for (let i=0;i<10;i++) bets.push({ number: i+num, bet_type: cfg.type, amount }); break;
+    case 'double':
+      for (let i=0;i<10;i++) {
+        const d = i.toString().repeat(2);
+        bets.push({ number: d, bet_type: '2top', amount });
+        bets.push({ number: d, bet_type: '2bot', amount });
+      }
+      break;
+  }
+  return bets;
+}
+
+function agAddToCart() {
+  if (_buySelKeys.size === 0) { agBuyErr('กรุณาเลือกประเภทการแทงก่อน'); return; }
+  const amt = parseFloat(document.getElementById('ag-buy-amt')?.value) || 0;
+  if (amt < 1) { agBuyErr('จำนวนเงินต้องมากกว่า 0'); return; }
+  const firstKey = [..._buySelKeys][0];
+  const requiredDigits = BET_CFG[firstKey].digits;
+  const num = document.getElementById('ag-buy-num')?.value.trim() || '';
+  if (requiredDigits > 0) {
+    if (!num) { agBuyErr('กรุณากรอกเลข'); return; }
+    if (num.length !== requiredDigits) { agBuyErr(`ต้องกรอกเลข ${requiredDigits} หลัก`); return; }
+  }
+  _buySelKeys.forEach(key => {
+    const cfg = BET_CFG[key];
+    const inputNum  = cfg.digits === 0 ? '' : num;
+    const expanded  = agExpandBets(inputNum, key, amt);
+    const desc = cfg.digits === 0
+      ? `${cfg.label} (${expanded.length} ใบ)`
+      : `${cfg.label} [${inputNum}] (${expanded.length} ใบ)`;
+    _buyCart.push({ key, desc, bets: expanded, amount: amt * expanded.length });
+  });
+  const numInp = document.getElementById('ag-buy-num');
+  if (numInp) numInp.value = '';
+  agBuyErr('');
+  agRenderCart();
+}
+
+function agRenderCart() {
+  const list = document.getElementById('ag-cart-list');
+  const wrap = document.getElementById('ag-cart-wrap');
+  if (!list || !wrap) return;
+  if (_buyCart.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const BET_GRP = { '3top':'3 ตัว','3tod':'3 ตัว','2top':'บน','run_top':'บน','2bot':'ล่าง','run_bot':'ล่าง' };
+  const buckets = { '3 ตัว':[], 'บน':[], 'ล่าง':[] };
+  _buyCart.forEach((item, i) => {
+    const sub = {};
+    item.bets.forEach(bet => {
+      const g = BET_GRP[bet.bet_type] || 'บน';
+      if (!sub[g]) sub[g] = { nums:[], amt:0 };
+      sub[g].nums.push(bet.number);
+      sub[g].amt += bet.amount;
+    });
+    for (const [g, s] of Object.entries(sub)) {
+      if (buckets[g]) buckets[g].push({ idx: i, nums: s.nums, amount: s.amt });
+    }
+  });
+  let html = '';
+  for (const grp of ['3 ตัว','บน','ล่าง']) {
+    if (buckets[grp].length === 0) continue;
+    html += `<div style="margin:6px 0 3px;font-size:12px;font-weight:700;color:var(--gold)">${grp}</div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">`;
+    buckets[grp].forEach(e => {
+      const numsHtml = e.nums.map(n =>
+        `<span style="font-weight:700;letter-spacing:1px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px">${n}</span>`
+      ).join(' ');
+      html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:4px 8px;font-size:13px">
+        <span style="display:flex;flex-wrap:wrap;gap:3px;flex:1">${numsHtml}</span>
+        <span style="color:var(--gold);font-size:11px;white-space:nowrap;margin-left:4px">฿${e.amount.toLocaleString()}</span>
+        <button onclick="agRemoveCart(${e.idx})" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  list.innerHTML = html;
+  const totalBets = _buyCart.reduce((s,c) => s+c.bets.length, 0);
+  const totalAmt  = _buyCart.reduce((s,c) => s+c.amount, 0);
+  const tc = document.getElementById('ag-cart-total');
+  const bc = document.getElementById('ag-buy-count');
+  if (tc) tc.textContent = '฿' + totalAmt.toLocaleString();
+  if (bc) bc.textContent = totalBets;
+}
+
+function agRemoveCart(idx) {
+  _buyCart.splice(idx, 1);
+  agRenderCart();
+}
+
+function agBuyErr(msg) {
+  const el = document.getElementById('ag-buy-err');
+  if (el) { el.textContent = msg; el.style.color = msg ? 'var(--red)' : ''; }
+}
+
+async function agDoBuy() {
+  if (_buyCart.length === 0) { agBuyErr('กรุณาเพิ่มรายการก่อน'); return; }
+  if (!_buyRound) { agBuyErr('ไม่พบรอบหวย'); return; }
+  const allBets = _buyCart.flatMap(c => c.bets);
+  const btn = document.getElementById('ag-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...'; }
+  agBuyErr('');
+  try {
+    const d = await aFetch('/agent/lottery/bets-batch', {
+      method: 'POST',
+      body: JSON.stringify({ round_id: _buyRound.id, bets: allBets })
+    });
+    if (d.data?.balance !== undefined) _agentData.balance = d.data.balance;
+    document.getElementById('agent-buy-modal')?.remove();
+    // Toast
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:30px;right:20px;background:#1a2a1a;border:1px solid var(--green);border-radius:12px;padding:14px 20px;color:var(--green);font-weight:700;font-size:14px;z-index:9999';
+    toast.textContent = '✅ ' + d.message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+    loadLottery('buy');
+  } catch(e) {
+    agBuyErr(e.message);
+    if (btn) { btn.disabled = false; btn.textContent = `✅ ยืนยันการแทง ${_buyCart.flatMap(c=>c.bets).length} ใบ`; }
+  }
+}
 
 async function loadLottery(subTab = 'buy') {
   _lotterySubTab = subTab;
@@ -1049,141 +1346,6 @@ async function loadLotteryBuy() {
     _agentLotFilter = 'ALL';
     _renderAgentLotGroups('ALL');
   } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
-}
-
-function openBetModal(round) {
-  _selectedRound   = round;
-  _selectedBetType = '2bot';
-  const rates = { '3top': round.rate_3top, '3tod': round.rate_3tod, '2top': round.rate_2top,
-                  '2bot': round.rate_2bot, 'run_top': round.rate_run_top, 'run_bot': round.rate_run_bot };
-  const bg = document.createElement('div');
-  bg.className = 'modal-bg';
-  bg.id = 'bet-modal';
-  bg.onclick = e => { if (e.target === bg) bg.remove(); };
-  bg.innerHTML = `
-    <div class="modal-box">
-      <button class="modal-close" onclick="document.getElementById('bet-modal').remove()">✕</button>
-      <h3>${round.flag||'🎲'} ${round.lottery_name}</h3>
-      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${round.round_name}</div>
-
-      <!-- Bet type selector -->
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">เลือกประเภทการแทง</div>
-      <div class="bet-type-grid" id="bet-type-grid">
-        ${Object.entries(BET_LABEL).map(([type,label]) => `
-          <div class="bet-type-btn ${type==='2bot'?'sel':''}" id="btype-${type}" onclick="selectBetType('${type}',${JSON.stringify(rates)})">
-            <div>${label}</div>
-            <div class="bet-rate">×${rates[type]}</div>
-          </div>`).join('')}
-      </div>
-
-      <!-- Number + amount -->
-      <div id="bet-num-wrap" style="display:flex;gap:10px;margin-bottom:12px">
-        <div class="fg" style="flex:1;margin:0">
-          <label>เลขที่แทง</label>
-          <input class="fi" id="bet-number" type="text" inputmode="numeric" maxlength="3" placeholder="XX" style="font-size:22px;font-weight:900;text-align:center;letter-spacing:6px">
-        </div>
-        <div class="fg" style="width:130px;margin:0">
-          <label>จำนวนเงิน (฿)</label>
-          <input class="fi" id="bet-amount" type="number" min="${round.min_bet}" max="${Math.min(round.max_bet,_agentData?.balance||0)}" placeholder="${round.min_bet}" value="${round.min_bet}">
-        </div>
-      </div>
-
-      <!-- Quick amounts -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
-        ${[10,20,50,100,200,500].map(n=>`<button onclick="document.getElementById('bet-amount').value=${n}"
-          style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--muted)">฿${n}</button>`).join('')}
-      </div>
-
-      <!-- Payout preview -->
-      <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
-        <div>
-          <div style="font-size:11px;color:var(--muted)">ถ้าถูก จะได้รับ</div>
-          <div id="payout-preview" style="font-size:20px;font-weight:900;color:var(--gold2)">฿0.00</div>
-        </div>
-        <div style="text-align:right">
-          <div style="font-size:11px;color:var(--muted)">ยอดเงินปัจจุบัน</div>
-          <div style="font-size:14px;font-weight:700;color:var(--text)">฿${fmt(_agentData?.balance||0)}</div>
-        </div>
-      </div>
-
-      <button class="btn btn-gold" id="bet-submit-btn" onclick="submitBet()">🎯 ยืนยันแทง</button>
-      <div class="err" id="bet-err" style="margin-top:10px"></div>
-    </div>`;
-  document.body.appendChild(bg);
-
-  // Live payout preview
-  const updatePreview = () => {
-    const amt  = parseFloat(document.getElementById('bet-amount')?.value || 0);
-    const rate = parseFloat(rates[_selectedBetType] || 0);
-    const preview = document.getElementById('payout-preview');
-    if (preview) preview.textContent = '฿' + fmt(amt * rate);
-  };
-  setTimeout(() => {
-    document.getElementById('bet-amount')?.addEventListener('input', updatePreview);
-    document.getElementById('bet-number')?.addEventListener('input', () => {
-      // Enforce correct digit count
-      const el = document.getElementById('bet-number');
-      if (el) {
-        const maxLen = { '3top':3,'3tod':3,'2top':2,'2bot':2,'run_top':1,'run_bot':1 };
-        el.maxLength = maxLen[_selectedBetType] || 3;
-        el.placeholder = '0'.repeat(maxLen[_selectedBetType] || 2);
-      }
-    });
-    // Set initial maxlength
-    const numInp = document.getElementById('bet-number');
-    if (numInp) { numInp.maxLength = 2; numInp.placeholder = 'XX'; }
-    updatePreview();
-  }, 50);
-}
-
-function selectBetType(type, rates) {
-  _selectedBetType = type;
-  document.querySelectorAll('.bet-type-btn').forEach(b => b.classList.remove('sel'));
-  document.getElementById(`btype-${type}`)?.classList.add('sel');
-  const maxLen = { '3top':3,'3tod':3,'2top':2,'2bot':2,'run_top':1,'run_bot':1 };
-  const numInp = document.getElementById('bet-number');
-  if (numInp) { numInp.maxLength = maxLen[type]; numInp.placeholder = '0'.repeat(maxLen[type]); numInp.value = ''; }
-  const amt   = parseFloat(document.getElementById('bet-amount')?.value || 0);
-  const preview = document.getElementById('payout-preview');
-  if (preview) preview.textContent = '฿' + fmt(amt * (rates[type]||0));
-}
-
-async function submitBet() {
-  const number = document.getElementById('bet-number')?.value?.trim();
-  const amount = document.getElementById('bet-amount')?.value;
-  const err    = document.getElementById('bet-err');
-  const btn    = document.getElementById('bet-submit-btn');
-  err.textContent = '';
-  if (!number) { err.textContent = 'กรุณากรอกเลข'; return; }
-  if (!amount || Number(amount) <= 0) { err.textContent = 'กรุณากรอกจำนวนเงิน'; return; }
-  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
-  try {
-    const d = await aFetch('/agent/lottery/bet', {
-      method: 'POST',
-      body: JSON.stringify({
-        round_id:  _selectedRound.id,
-        bet_type:  _selectedBetType,
-        number:    number,
-        amount:    Number(amount),
-      })
-    });
-    // Update balance in memory
-    if (d.data?.balance !== undefined) _agentData.balance = d.data.balance;
-    document.getElementById('bet-modal')?.remove();
-
-    // Show success toast
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;bottom:30px;right:20px;background:#1a2a1a;border:1px solid var(--green);border-radius:12px;padding:14px 20px;color:var(--green);font-weight:700;font-size:14px;z-index:9999;animation:fadeIn .3s';
-    toast.textContent = '✅ ' + d.message;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.remove(), 3000);
-
-    loadLottery('buy');
-  } catch(e) {
-    err.style.color = 'var(--red)';
-    err.textContent = e.message;
-    btn.disabled = false; btn.textContent = '🎯 ยืนยันแทง';
-  }
 }
 
 async function loadLotteryHistory(page = 1) {
