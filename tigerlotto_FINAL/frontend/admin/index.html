@@ -244,6 +244,8 @@ select.fi option{background:var(--card2)}
     <div class="sb-sec">การเงิน</div>
     <div class="sb-item" onclick="nav('deposits')"><span class="ic">💰</span>ฝากเงิน<span class="badge" id="badge-dep">8</span></div>
     <div class="sb-item" onclick="nav('withdrawals')"><span class="ic">🏧</span>ถอนเงิน<span class="badge" id="badge-wd">3</span></div>
+    <div class="sb-item" onclick="nav('agentdeposits')"><span class="ic">🤝💰</span>ฝาก (เอเยนต์)<span class="badge" id="badge-adep" style="display:none">0</span></div>
+    <div class="sb-item" onclick="nav('agentwithdrawals')"><span class="ic">🤝🏧</span>ถอน (เอเยนต์)<span class="badge" id="badge-awd" style="display:none">0</span></div>
     <div class="sb-item" onclick="nav('winpay')"><span class="ic">🎁</span>จ่ายรางวัล</div>
     <div class="sb-item" onclick="nav('credits')"><span class="ic">💳</span>เพิ่ม/ลด เครดิต</div>
 
@@ -382,6 +384,8 @@ async function afterNav(page){
     else if(page==='autoresult') await loadAutoResult();
     else if(page==='api'){ await loadApiSettings(); await loadLotSources(); }
     else if(page==='reports') await loadReports();
+    else if(page==='agentdeposits') await loadAgentDeposits();
+    else if(page==='agentwithdrawals') await loadAgentWithdrawals();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -440,6 +444,20 @@ async function loadDashboard(){
     window._lotteryChart.data.datasets[0].data = s.bet_by_type.map(r => parseFloat(r.total||0));
     window._lotteryChart.update();
   }
+
+  // Agent wallet pending badges
+  try {
+    const [ad, aw] = await Promise.all([
+      API.AdminAPI.listAgentDeposits({ status:'pending', limit:1 }).catch(()=>({ data:[] })),
+      API.AdminAPI.listAgentWithdrawals({ status:'pending', limit:1 }).catch(()=>({ data:[] })),
+    ]);
+    const adCnt = (ad.total ?? (ad.data||[]).length);
+    const awCnt = (aw.total ?? (aw.data||[]).length);
+    const badgeAd = document.getElementById('badge-adep');
+    const badgeAw = document.getElementById('badge-awd');
+    if(badgeAd){ badgeAd.textContent = adCnt; badgeAd.style.display = adCnt > 0 ? '' : 'none'; }
+    if(badgeAw){ badgeAw.textContent = awCnt; badgeAw.style.display = awCnt > 0 ? '' : 'none'; }
+  } catch(e) { /* silent */ }
 }
 
 /* ── Members ── */
@@ -622,6 +640,137 @@ async function loadWithdrawals(){
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
     if(sumEl) sumEl.textContent = '';
   }
+}
+
+/* ── Agent Deposits ── */
+let _adepTimer = null;
+function debounceAgentDeposits(){ clearTimeout(_adepTimer); _adepTimer = setTimeout(()=>loadAgentDeposits(), 400); }
+
+async function loadAgentDeposits(){
+  const status = document.getElementById('adep-status-sel')?.value ?? 'pending';
+  const search = document.getElementById('adep-search')?.value?.trim() || '';
+  const tbody  = document.getElementById('adep-tbody');
+  const sumEl  = document.getElementById('adep-summary');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  try {
+    const params = { limit: 50, status };
+    if(search) params.search = search;
+    const d    = await API.AdminAPI.listAgentDeposits(params);
+    const rows = d.data || [];
+    const pendCnt = rows.filter(r=>r.status==='pending').length;
+    const total   = rows.reduce((s,r)=>s+parseFloat(r.amount||0), 0);
+    if(sumEl) sumEl.innerHTML = `รอตรวจ: <b style="color:var(--orange)">${pendCnt} รายการ</b> · รวม: <b style="color:var(--gold2)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+
+    // update badge
+    const badge = document.getElementById('badge-adep');
+    if(badge){ badge.textContent = pendCnt; badge.style.display = pendCnt > 0 ? '' : 'none'; }
+
+    const STS_LABEL = { pending:'รอตรวจ', approved:'อนุมัติ', rejected:'ปฏิเสธ' };
+    tbody.innerHTML = rows.length === 0
+      ? '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+      : rows.map(r=>`
+      <tr>
+        <td style="font-size:12px;color:var(--muted)">${r.id}</td>
+        <td style="font-weight:600">${r.agent_name||'-'}</td>
+        <td style="color:var(--muted);font-size:12px">${r.agent_phone||'-'}</td>
+        <td style="color:var(--gold2);font-weight:700">฿${Number(r.amount||0).toLocaleString('th-TH')}</td>
+        <td style="font-size:12px">${r.bank_code||'-'} ${r.bank_account||''}</td>
+        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(r.created_at)}</td>
+        <td><span class="badge ${r.status==='approved'?'badge-green':r.status==='rejected'?'badge-red':'badge-yellow'}">${STS_LABEL[r.status]||r.status}</span></td>
+        <td>
+          ${r.status==='pending'?`
+            <button class="act-btn act-green" onclick="approveAgentDeposit(${r.id})">อนุมัติ</button>
+            <button class="act-btn act-red"   onclick="rejectAgentDeposit(${r.id})">ปฏิเสธ</button>
+          `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
+    if(sumEl) sumEl.textContent = '';
+  }
+}
+
+function approveAgentDeposit(id){
+  if(!confirm(`อนุมัติการฝากเงิน #${id}?`)) return;
+  (async()=>{
+    try{ await API.AdminAPI.approveAgentDeposit(id,'อนุมัติโดย admin'); toast('สำเร็จ','อนุมัติฝากเงิน Agent แล้ว'); loadAgentDeposits(); }
+    catch(e){ toast('ผิดพลาด',e.message,'error'); }
+  })();
+}
+function rejectAgentDeposit(id){
+  const note = prompt('เหตุผลการปฏิเสธ:');
+  if(note === null) return;
+  (async()=>{
+    try{ await API.AdminAPI.rejectAgentDeposit(id, note||'ปฏิเสธโดย admin'); toast('สำเร็จ','ปฏิเสธรายการแล้ว'); loadAgentDeposits(); }
+    catch(e){ toast('ผิดพลาด',e.message,'error'); }
+  })();
+}
+
+/* ── Agent Withdrawals ── */
+let _awdTimer = null;
+function debounceAgentWithdrawals(){ clearTimeout(_awdTimer); _awdTimer = setTimeout(()=>loadAgentWithdrawals(), 400); }
+
+async function loadAgentWithdrawals(){
+  const status = document.getElementById('awd-status-sel')?.value ?? 'pending';
+  const search = document.getElementById('awd-search')?.value?.trim() || '';
+  const tbody  = document.getElementById('awd-tbody');
+  const sumEl  = document.getElementById('awd-summary');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  try {
+    const params = { limit: 50, status };
+    if(search) params.search = search;
+    const d    = await API.AdminAPI.listAgentWithdrawals(params);
+    const rows = d.data || [];
+    const pendCnt = rows.filter(r=>r.status==='pending').length;
+    const total   = rows.reduce((s,r)=>s+parseFloat(r.amount||0), 0);
+    if(sumEl) sumEl.innerHTML = `รอโอน: <b style="color:var(--red)">${pendCnt} รายการ</b> · รวม: <b style="color:var(--red)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+
+    const badge = document.getElementById('badge-awd');
+    if(badge){ badge.textContent = pendCnt; badge.style.display = pendCnt > 0 ? '' : 'none'; }
+
+    const STS_LABEL = { pending:'รอโอน', completed:'โอนแล้ว', approved:'โอนแล้ว', rejected:'ปฏิเสธ' };
+    const STS_BADGE = { pending:'badge-yellow', completed:'badge-green', approved:'badge-green', rejected:'badge-red' };
+    tbody.innerHTML = rows.length === 0
+      ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+      : rows.map(r=>`
+      <tr>
+        <td style="font-size:12px;color:var(--muted)">${r.id}</td>
+        <td style="font-weight:600">${r.agent_name||'-'}</td>
+        <td style="color:var(--muted);font-size:12px">${r.agent_phone||'-'}</td>
+        <td style="color:var(--red);font-weight:700">฿${Number(r.amount||0).toLocaleString('th-TH')}</td>
+        <td style="font-size:12px">${r.bank_code||'-'}</td>
+        <td style="font-size:12px">${r.bank_account||'-'}</td>
+        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(r.created_at)}</td>
+        <td><span class="badge ${STS_BADGE[r.status]||'badge-yellow'}">${STS_LABEL[r.status]||r.status}</span></td>
+        <td>
+          ${r.status==='pending'?`
+            <button class="act-btn act-green" onclick="approveAgentWithdrawal(${r.id})">โอนแล้ว</button>
+            <button class="act-btn act-red"   onclick="rejectAgentWithdrawal(${r.id})">ปฏิเสธ</button>
+          `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
+        </td>
+      </tr>`).join('');
+  } catch(e) {
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
+    if(sumEl) sumEl.textContent = '';
+  }
+}
+
+function approveAgentWithdrawal(id){
+  if(!confirm(`ยืนยันโอนเงินให้ Agent #${id}?`)) return;
+  (async()=>{
+    try{ await API.AdminAPI.approveAgentWithdrawal(id,'โอนแล้วโดย admin'); toast('สำเร็จ','บันทึกการถอนเงิน Agent แล้ว'); loadAgentWithdrawals(); }
+    catch(e){ toast('ผิดพลาด',e.message,'error'); }
+  })();
+}
+function rejectAgentWithdrawal(id){
+  const note = prompt('เหตุผลการปฏิเสธ:');
+  if(note === null) return;
+  (async()=>{
+    try{ await API.AdminAPI.rejectAgentWithdrawal(id, note||'ปฏิเสธโดย admin'); toast('สำเร็จ','ปฏิเสธรายการแล้ว'); loadAgentWithdrawals(); }
+    catch(e){ toast('ผิดพลาด',e.message,'error'); }
+  })();
 }
 
 /* ── Bets ── */
@@ -2620,6 +2769,50 @@ withdrawals:()=>`
     <table class="tbl">
       <thead><tr><th>#</th><th>สมาชิก</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
       <tbody id="withdrawals-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div>
+</div>`,
+
+agentdeposits:()=>`
+<div style="margin-bottom:10px">
+  <h2 style="font-size:18px;font-weight:700;color:var(--gold)">💰 ฝากเงิน — กระเป๋าเอเยนต์</h2>
+  <p style="font-size:13px;color:var(--muted);margin-top:4px">รายการฝากเงินเข้ากระเป๋าเงินของเอเยนต์</p>
+</div>
+<div class="filter-bar">
+  <input class="fi" id="adep-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1"
+    oninput="debounceAgentDeposits()" onkeydown="if(event.key==='Enter')loadAgentDeposits()">
+  <select class="fi fi-sm" id="adep-status-sel" onchange="loadAgentDeposits()">
+    <option value="pending">รอตรวจ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
+  </select>
+  <span id="adep-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
+</div>
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>เอเยนต์</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร / เลขบัญชี</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="adep-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div>
+</div>`,
+
+agentwithdrawals:()=>`
+<div style="margin-bottom:10px">
+  <h2 style="font-size:18px;font-weight:700;color:var(--gold)">🏧 ถอนเงิน — กระเป๋าเอเยนต์</h2>
+  <p style="font-size:13px;color:var(--muted);margin-top:4px">รายการถอนเงินออกจากกระเป๋าเงินของเอเยนต์</p>
+</div>
+<div class="filter-bar">
+  <input class="fi" id="awd-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1"
+    oninput="debounceAgentWithdrawals()" onkeydown="if(event.key==='Enter')loadAgentWithdrawals()">
+  <select class="fi fi-sm" id="awd-status-sel" onchange="loadAgentWithdrawals()">
+    <option value="pending">รอโอน</option><option value="completed">โอนแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
+  </select>
+  <span id="awd-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
+</div>
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>#</th><th>เอเยนต์</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร</th><th>เลขบัญชี</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="awd-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,

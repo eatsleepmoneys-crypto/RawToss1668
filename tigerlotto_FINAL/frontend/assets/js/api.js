@@ -275,6 +275,20 @@ const AdminAPI = {
   testScraperApiKey : (key) =>
     apiFetch('/settings/admin/scraper-key/test', { method: 'POST', body: JSON.stringify({ key }) }, 'admin'),
 
+  // Agent Deposits (wallet)
+  listAgentDeposits   : (params = {}) => apiFetch('/admin/agent-deposits?' + new URLSearchParams(params), {}, 'admin'),
+  approveAgentDeposit : (id, note) =>
+    apiFetch(`/admin/agent-deposits/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }, 'admin'),
+  rejectAgentDeposit  : (id, note) =>
+    apiFetch(`/admin/agent-deposits/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }, 'admin'),
+
+  // Agent Withdrawals (wallet)
+  listAgentWithdrawals   : (params = {}) => apiFetch('/admin/agent-withdrawals?' + new URLSearchParams(params), {}, 'admin'),
+  approveAgentWithdrawal : (id, note) =>
+    apiFetch(`/admin/agent-withdrawals/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }, 'admin'),
+  rejectAgentWithdrawal  : (id, note) =>
+    apiFetch(`/admin/agent-withdrawals/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) }, 'admin'),
+
   // Lottery API Sources
   getLotterySources   : () => apiFetch('/settings/admin/lottery-sources', {}, 'admin'),
   addLotterySource    : (payload) =>
