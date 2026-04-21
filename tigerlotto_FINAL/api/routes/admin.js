@@ -492,6 +492,61 @@ router.get('/auto-results/tnews-debug', authAdmin, rbac.requirePerm('results.ann
   }
 });
 
+// ─── POST /api/admin/auto-results/force-announce/:code — บันทึกผลตรงๆ ไม่ผ่าน transaction ─
+// ใช้ pool.query() แทน conn.execute() เพื่อหลีกเลี่ยง prepared-statement bug
+router.post('/auto-results/force-announce/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  const code = req.params.code.toUpperCase();
+  if (!['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(code))
+    return res.status(400).json({ success: false, message: `Invalid code: ${code}` });
+
+  try {
+    const { query, queryOne } = require('../config/db');
+    const { debugTNewsRaw } = require('../services/lotteryFetcher');
+
+    // 1. หา closed round
+    const round = await queryOne(
+      `SELECT lr.id, lr.round_name
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lr.lottery_id = lt.id
+       WHERE lt.code = ?
+         AND lr.status = 'closed'
+         AND NOT EXISTS (SELECT 1 FROM lottery_results res WHERE res.round_id = lr.id)
+       ORDER BY lr.close_at DESC LIMIT 1`,
+      [code]
+    );
+    if (!round) return res.status(404).json({ success: false, message: `${code}: ไม่พบงวดที่ปิดรับและยังไม่มีผล` });
+
+    // 2. ดึงผลจาก TNews (force clear cache)
+    const tnews = await debugTNewsRaw();
+    if (!tnews.parsedData || !tnews.parsedData[code])
+      return res.status(404).json({ success: false, message: `TNews: ไม่พบ section ${code}`, tnews });
+
+    const r = tnews.parsedData[code];
+    const { prize_1st, prize_last_2, prize_2bot, prize_front_3 = [], prize_last_3 = [] } = r;
+
+    // 3. Insert lottery_results
+    await query(
+      `INSERT INTO lottery_results
+         (round_id, prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
+      [round.id, prize_1st, prize_last_2, prize_2bot || null,
+       JSON.stringify(prize_front_3), JSON.stringify(prize_last_3)]
+    );
+
+    // 4. อัปเดต round status → announced
+    await query("UPDATE lottery_rounds SET status='announced' WHERE id=?", [round.id]);
+
+    res.json({
+      success: true,
+      message: `บันทึกผล ${code} สำเร็จ: ${prize_1st} (งวด: ${round.round_name})`,
+      prize_1st, prize_last_2, prize_2bot,
+      round_id: round.id, round_name: round.round_name,
+    });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── DELETE /api/admin/lottery-result/:id — ลบผลรางวัล + reset round (by result_id) ─
 router.delete('/lottery-result/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   const resultId = parseInt(req.params.id);
