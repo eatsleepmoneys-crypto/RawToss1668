@@ -419,7 +419,7 @@ router.get('/auto-results/status', authAdmin, rbac.requirePerm('reports.view'), 
     // ดึงงวดล่าสุดของแต่ละ type
     const rounds = await query(`
       SELECT lt.code, lr.id, lr.round_name, lr.status, lr.close_at,
-             res.prize_1st, res.prize_last_2, res.announced_at
+             res.prize_1st, res.prize_last_2, res.prize_2bot, res.announced_at
       FROM lottery_rounds lr
       JOIN lottery_types lt ON lr.lottery_id = lt.id
       LEFT JOIN lottery_results res ON lr.id = res.round_id

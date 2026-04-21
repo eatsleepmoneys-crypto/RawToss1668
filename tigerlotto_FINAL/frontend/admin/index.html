@@ -1824,7 +1824,11 @@ async function loadAutoResult(){
         <div style="background:rgba(255,215,0,.12);border-radius:8px;padding:10px;margin-bottom:10px;text-align:center">
           <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ผลล่าสุด: ${r.latest.round_name||''}</div>
           <div style="font-size:24px;font-weight:900;color:var(--gold);letter-spacing:4px">${r.latest.prize_1st||'—'}</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">ท้าย 2: <b>${r.latest.prize_last_2||'—'}</b></div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">
+            ${r.latest.prize_2bot
+              ? `2บน: <b>${r.latest.prize_last_2||'—'}</b> &nbsp;|&nbsp; 2ล่าง: <b style="color:var(--gold)">${r.latest.prize_2bot}</b>`
+              : `ท้าย 2: <b>${r.latest.prize_last_2||'—'}</b>`}
+          </div>
           <div style="font-size:11px;color:var(--muted)">${r.latest.announced_at?UI.formatDate(r.latest.announced_at):''}</div>
         </div>`:'<div style="text-align:center;color:var(--muted);padding:12px;font-size:13px">ยังไม่มีผลล่าสุด</div>'}
         <button class="btn btn-gold" style="width:100%" onclick="triggerAutoFetch('${r.code}',this)">⚡ Fetch ผลทันที</button>
@@ -2204,7 +2208,7 @@ async function testLotSource(id){
     const d = await API.AdminAPI.testLotterySource(id);
     const r = d.data;
     if (r.success){
-      toast('✅ Test สำเร็จ', `prize_1st: ${r.prize_1st} · last_2: ${r.prize_last_2}`, 4000);
+      toast('✅ Test สำเร็จ', `prize_1st: ${r.prize_1st} · 2บน: ${r.prize_last_2}${r.prize_2bot ? ' · 2ล่าง: '+r.prize_2bot : ''}`, 4000);
     } else {
       toast('❌ Test ล้มเหลว', r.error || 'ไม่ทราบสาเหตุ');
     }

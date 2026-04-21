@@ -298,21 +298,30 @@ function extractGdbG1(raw) {
  */
 async function fetchVNHanoi() {
   /**
-   * โครงสร้างรางวัล XSMB:
-   *   GDB (Giải Đặc Biệt) → prize_1st → 2 ตัวบน = GDB[-2:]
-   *   G1  (Giải Nhất)     → prize_2bot → 2 ตัวล่าง = G1[-2:]
+   * ฮานอยปกติ — ดึงจาก TNews ก่อน (section "ผลหวยฮานอยปกติ") ซึ่งตรงกับ
+   * หน้าเว็บ TNews ที่ผู้ใช้ตรวจสอบ
+   * Fallback: XSMB Vietnamese sources (RSS/HTML)
    */
   function vn(gdb, g1) {
     return {
       prize_1st:    gdb,
-      prize_last_2: gdb.slice(-2),            // 2 ตัวบน  (last 2 ของ GDB)
-      prize_2bot:   g1 ? g1.slice(-2) : null, // 2 ตัวล่าง (last 2 ของ G1)
+      prize_last_2: gdb.slice(-2),
+      prize_2bot:   g1 ? g1.slice(-2) : null,
       prize_front_3: [],
       prize_last_3:  [gdb.slice(-3)],
     };
   }
 
-  // Source 1: xskt.com.vn RSS feed (XML — most reliable from Railway US servers)
+  // Source 1: TNews.co.th (section ผลหวยฮานอยปกติ) — ตรงกับ TNews จริง ✅
+  try {
+    const result = await fetchTNewsVNHanoi('VN_HAN');
+    if (result) {
+      console.log('[FETCHER:VN_HAN] TNews ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] TNews error:', e.message); }
+
+  // Source 2: xskt.com.vn RSS feed (XML — fallback, XSMB 5-digit)
   try {
     const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss', 20000);
     const parsed = extractGdbG1(String(res.data));
