@@ -44,7 +44,7 @@ const PERMISSIONS = {
   'api.manage':            ['superadmin'],
   // System Settings
   'settings.view':         ['admin','superadmin'],
-  'settings.manage':       ['superadmin'],
+  'settings.manage':       ['admin','superadmin'],
   // Logs
   'logs.view':             ['admin','superadmin'],
 };

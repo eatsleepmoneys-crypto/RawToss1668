@@ -6,7 +6,7 @@ const rbac = require('../middleware/rbac');
 // GET /api/settings — public settings (non-sensitive)
 router.get('/', async (req, res) => {
   const rows = await query(
-    'SELECT `key`,`value`,`type` FROM settings WHERE `group` IN ("general","contact","finance") AND `key` NOT LIKE "%secret%" AND `key` NOT LIKE "%password%"');
+    'SELECT `key`,`value`,`type` FROM settings WHERE `group` IN ("general","contact","finance") AND `key` NOT LIKE "%secret%" AND `key` NOT LIKE "%password%" AND `key` NOT IN ("site_url","auto_approve_deposit","auto_approve_max")');
   const map = {};
   rows.forEach(r => {
     map[r.key] = r.type === 'boolean' ? r.value === 'true'
@@ -31,15 +31,23 @@ router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req,
   if (!updates || typeof updates !== 'object')
     return res.status(400).json({ success: false, message: 'Invalid body' });
 
-  const PROTECTED = ['site_name']; // keys that need superadmin
-  const ALLOWED_GROUPS = ['general','seo','finance','promo','security'];
+  // group mapping — ให้ key ถูก upsert ใน group ที่ถูกต้อง
+  const KEY_GROUP = {
+    site_name:'general', site_url:'general', site_tagline:'general',
+    site_logo_url:'general', seo_title:'general',
+    line_id:'contact', line_url:'contact', line_qr_url:'contact', contact_tel:'contact',
+    min_deposit:'finance', max_deposit:'finance', min_withdraw:'finance',
+    max_withdraw:'finance', auto_approve_max:'finance',
+    bonus_new_member:'promotion', cashback_percent:'promotion', referral_commission:'promotion',
+    session_expire:'security', pw_min_length:'security',
+  };
   for (const [key, value] of Object.entries(updates)) {
-    if (PROTECTED.includes(key) && req.admin.role !== 'superadmin') continue;
+    const grp = KEY_GROUP[key] || 'general';
     // Upsert: create if missing, update if exists
     await query(
       `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES (?,?,?,?)
        ON DUPLICATE KEY UPDATE value=?`,
-      [key, String(value), 'string', 'general', String(value)]
+      [key, String(value), 'string', grp, String(value)]
     );
   }
   await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',

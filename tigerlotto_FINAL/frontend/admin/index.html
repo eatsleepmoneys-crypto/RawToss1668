@@ -1413,13 +1413,22 @@ function removeQR(){
 async function saveBranding(){
   const name    = document.getElementById('br-site-name')?.value?.trim();
   const tagline = document.getElementById('br-site-tagline')?.value?.trim();
-  const logoUrl = document.getElementById('br-logo-url')?.value?.trim();
-  const qrUrl   = document.getElementById('br-qr-url')?.value?.trim();
+  const logoUrl = document.getElementById('br-logo-url')?.value?.trim() || '';
+  const qrUrl   = document.getElementById('br-qr-url')?.value?.trim()   || '';
   if(!name){ toast('ผิดพลาด','กรุณากรอกชื่อเว็บไซต์','error'); return; }
+  const btn = document.querySelector('#page-content .btn-gold[onclick="saveBranding()"]');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...'; }
   try{
-    await API.AdminAPI.updateSettings({ site_name: name, site_tagline: tagline, site_logo_url: logoUrl, line_qr_url: qrUrl });
+    const payload = { site_name: name, site_tagline: tagline||'OFFICIAL', site_logo_url: logoUrl, line_qr_url: qrUrl };
+    const res = await API.AdminAPI.updateSettings(payload);
+    if(res && res.success === false) throw new Error(res.message || 'API returned error');
     toast('สำเร็จ','🎨 บันทึก Branding แล้ว');
-  }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+  }catch(e){
+    console.error('saveBranding error:', e);
+    toast('ผิดพลาด', e.message || 'ไม่สามารถบันทึกได้', 'error');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='💾 บันทึก Branding ทั้งหมด'; }
+  }
 }
 function testLineUrl(){
   const url = document.getElementById('set-line-url')?.value?.trim();
