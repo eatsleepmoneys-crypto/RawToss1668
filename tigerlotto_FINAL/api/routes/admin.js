@@ -466,6 +466,21 @@ router.post('/auto-results/trigger/:code', authAdmin, rbac.requirePerm('results.
   }
 });
 
+// ─── POST /api/admin/auto-results/test/:code — dry-run scraper (ไม่บันทึก DB) ──────
+router.post('/auto-results/test/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  const code = req.params.code.toUpperCase();
+  if (!['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(code))
+    return res.status(400).json({ success: false, message: `Invalid code: ${code}` });
+  try {
+    const { testFetch } = require('../services/lotteryFetcher');
+    const result = await testFetch(code);
+    if (!result) return res.json({ success: false, message: 'scraper ไม่พบข้อมูล (ยังไม่ออกผล หรือ fetch ล้มเหลว)', data: null });
+    res.json({ success: true, message: `ดึงผลสำเร็จ (dry-run — ไม่บันทึก DB)`, data: result });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── DELETE /api/admin/lottery-result/:id — ลบผลรางวัล + reset round (by result_id) ─
 router.delete('/lottery-result/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   const resultId = parseInt(req.params.id);

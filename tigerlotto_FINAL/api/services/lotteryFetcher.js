@@ -1494,6 +1494,19 @@ async function triggerFetch(lotteryCode) {
   return runFetcher(lotteryCode, fn);
 }
 
+/**
+ * Dry-run — เรียก scraper โดยตรง ไม่ตรวจ DB ไม่บันทึก
+ * ใช้สำหรับทดสอบว่า scraper ดึงค่าอะไรได้บ้าง
+ */
+async function testFetch(lotteryCode) {
+  const fn = FETCH_FUNCS[lotteryCode];
+  if (!fn) throw new Error(`Unknown lottery code: ${lotteryCode}`);
+  // ล้าง TNews cache เพื่อ force re-fetch
+  _tnewsCache = { data: null, ts: 0 };
+  console.log(`[FETCHER:${lotteryCode}] 🧪 dry-run test...`);
+  return fn();
+}
+
 // ── Start cron jobs ────────────────────────────────────────────
 
 function startLotteryFetcher() {
@@ -1593,4 +1606,4 @@ function startLotteryFetcher() {
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testSource, clearScraperApiKeyCache };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache };
