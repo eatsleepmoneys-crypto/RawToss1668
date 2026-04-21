@@ -64,8 +64,10 @@ pool.getConnection()
   });
 
 // ─── Helpers ───
+// ใช้ pool.query() แทน pool.execute() เพื่อหลีกเลี่ยง prepared statement
+// metadata bug ใน mysql2 3.x กับ ENUM columns / SELECT * — คืน empty rows
 const query = async (sql, params = []) => {
-  const [rows] = await pool.execute(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows;
 };
 
@@ -86,7 +88,7 @@ const transaction = async (callback) => {
 
 // ─── queryOne — returns first row or null ───
 const queryOne = async (sql, params = []) => {
-  const [rows] = await pool.execute(sql, params);
+  const [rows] = await pool.query(sql, params);
   return rows[0] || null;
 };
 
