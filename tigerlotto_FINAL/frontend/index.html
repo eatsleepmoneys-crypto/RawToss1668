@@ -102,6 +102,7 @@ nav a:hover{color:var(--text);background:var(--card2)}
 .lot-group-hdr h3{font-size:15px;font-weight:700}
 .lot-group-hdr .cnt-badge{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--muted)}
 .lot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+@media(max-width:768px){.lot-main-3{grid-template-columns:1fr!important}}
 .lot-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;position:relative;overflow:hidden;transition:.3s;cursor:pointer}
 .lot-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 10px 36px rgba(212,160,23,.2)}
 .lot-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad)}
@@ -1477,72 +1478,80 @@ function _renderLotGroups(filterCode){
     const ia = GROUP_ORDER.indexOf(a); const ib = GROUP_ORDER.indexOf(b);
     return (ia===-1?999:ia) - (ib===-1?999:ib);
   });
-  container.innerHTML = sortedEntries.map(([code, list]) => {
-    const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
+  // ── helper: สร้าง card html สำหรับ 1 round ──
+  const safeEsc = s => String(s||'').replace(/'/g,'&apos;');
+  const _makeCard = (code, r) => {
+    const meta = LOT_TYPE_META[code] || { flag:'🎰' };
+    const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+    const isUpcoming = r.status === 'upcoming';
+    const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})"`;
+    const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
+    return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
+      <div class="lot-card-top">${_tagFor(code)}${_statusFor(r)}</div>
+      <div class="lot-name">${r.flag||meta.flag} ${r.lottery_name}</div>
+      <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
+      <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
+      ${isUpcoming ? `<div class="lot-meta">เปิดรับ: <span>${openStr}</span></div>`
+                   : `<div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>`}
+      <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
+      ${isUpcoming ? `<button class="lot-btn" disabled style="opacity:.45;cursor:not-allowed">🕐 ยังไม่เปิดรับ</button>`
+                   : `<button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">🎰 ซื้อเลย</button>`}
+    </div>`;
+  };
 
-    // ─── กรณีพิเศษ: ฮานอย → แสดง 1 card รวม กดเพื่อเลือกประเภท
-    if(code === 'VN_HANOI'){
-      // sub-groups by original code
-      const vnGroups = {};
-      list.forEach(r => {
-        if(!vnGroups[r.code]) vnGroups[r.code] = [];
-        vnGroups[r.code].push(r);
-      });
-      const vnOrder = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'];
-      const typesCount = Object.keys(vnGroups).length;
-      // หา close_at เร็วสุด เพื่อแสดงในการ์ด
-      const earliest = list.slice().sort((a,b)=>new Date(a.close_at)-new Date(b.close_at))[0];
-      const closeStr = new Date(earliest.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
-      const maxRate = Math.max(...list.map(r=>r.rate_3top||720));
-      return `<div class="lot-group">
-        <div class="lot-group-hdr">
-          <span style="font-size:18px">🇻🇳</span>
-          <h3>ฮานอย</h3>
-          <span class="cnt-badge">${typesCount} ประเภท</span>
-        </div>
-        <div class="lot-grid">
-          <div class="lot-card" onclick="openHanoiSelector()" style="cursor:pointer">
-            <div class="lot-card-top">
-              <span class="lot-tag">🇻🇳 ฮานอย</span>
-              <span class="lot-status open">● เปิดรับ</span>
-            </div>
-            <div class="lot-name">🇻🇳 หวยฮานอย</div>
-            <div class="lot-prize">฿${Number(maxRate).toLocaleString()}x</div>
-            <div class="lot-meta" style="color:var(--gold)">3 ประเภท: ปกติ · พิเศษ · VIP</div>
-            <div class="lot-meta">ปิดรับเร็วสุด: <span>${closeStr}</span></div>
-            <div class="lot-rate">กดเพื่อเลือกประเภทฮานอย</div>
-            <button class="lot-btn" onclick="event.stopPropagation();openHanoiSelector()">🇻🇳 เลือกฮานอย</button>
-          </div>
-        </div>
-      </div>`;
-    }
+  // ── helper: สร้าง card VN_HANOI ──
+  const _makeHanoiCard = (list) => {
+    const earliest = list.slice().sort((a,b)=>new Date(a.close_at)-new Date(b.close_at))[0];
+    const closeStr = new Date(earliest.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+    const maxRate = Math.max(...list.map(r=>r.rate_3top||720));
+    const typesCount = new Set(list.map(r=>r.code)).size;
+    return `<div class="lot-card" onclick="openHanoiSelector()" style="cursor:pointer">
+      <div class="lot-card-top"><span class="lot-tag">🇻🇳 ฮานอย</span><span class="lot-status open">● เปิดรับ</span></div>
+      <div class="lot-name">🇻🇳 หวยฮานอย</div>
+      <div class="lot-prize">฿${Number(maxRate).toLocaleString()}x</div>
+      <div class="lot-meta" style="color:var(--gold)">${typesCount} ประเภท: ปกติ · พิเศษ · VIP</div>
+      <div class="lot-meta">ปิดรับเร็วสุด: <span>${closeStr}</span></div>
+      <div class="lot-rate">กดเพื่อเลือกประเภทฮานอย</div>
+      <button class="lot-btn" onclick="event.stopPropagation();openHanoiSelector()">🇻🇳 เลือกฮานอย</button>
+    </div>`;
+  };
 
-    // ─── ปกติ
-    const safeEsc = s => String(s||'').replace(/'/g,'&apos;');
-    const cards = list.map(r => {
-      const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
-      const isUpcoming = r.status === 'upcoming';
-      const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})"`;
-      const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
-      return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
-        <div class="lot-card-top">
-          ${_tagFor(code)}
-          ${_statusFor(r)}
-        </div>
-        <div class="lot-name">${r.flag||meta.flag} ${r.lottery_name}</div>
-        <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
-        <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
-        ${isUpcoming
-          ? `<div class="lot-meta">เปิดรับ: <span>${openStr}</span></div>`
-          : `<div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>`
-        }
-        <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
-        ${isUpcoming
-          ? `<button class="lot-btn" disabled style="opacity:.45;cursor:not-allowed">🕐 ยังไม่เปิดรับ</button>`
-          : `<button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">🎰 ซื้อเลย</button>`
-        }
+  // ── แยก main-3 (แสดงเป็น 3 columns row) กับ other ──
+  const MAIN_3 = ['TH_GOV','LA_GOV','VN_HANOI'];
+  const mainEntries  = sortedEntries.filter(([c]) => MAIN_3.includes(c));
+  const otherEntries = sortedEntries.filter(([c]) => !MAIN_3.includes(c));
+
+  let html = '';
+
+  // ── Main 3-column row ──
+  if(mainEntries.length){
+    // สร้าง column สำหรับแต่ละประเภทหลัก ตามลำดับ MAIN_3
+    const mainMap = Object.fromEntries(mainEntries);
+    const cols = MAIN_3.filter(c => mainMap[c]).map(c => {
+      const meta = LOT_TYPE_META[c] || { label:c, flag:'🎰' };
+      const list = mainMap[c];
+      // header ของ column
+      const colHdr = `<div class="lot-group-hdr" style="margin-bottom:12px">
+        <span style="font-size:16px">${meta.flag}</span>
+        <h3 style="font-size:14px">${meta.label}</h3>
+        <span class="cnt-badge">${c==='VN_HANOI'? new Set(list.map(r=>r.code)).size+' ประเภท' : list.length+' งวด'}</span>
       </div>`;
+      const cards = c === 'VN_HANOI'
+        ? _makeHanoiCard(list)
+        : list.map(r => _makeCard(c, r)).join('');
+      return `<div style="display:flex;flex-direction:column">${colHdr}<div style="display:flex;flex-direction:column;gap:14px">${cards}</div></div>`;
     }).join('');
+    html += `<div class="lot-group">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">
+        ${cols}
+      </div>
+    </div>`;
+  }
+
+  // ── Other groups (แต่ละกลุ่มแยก) ──
+  html += otherEntries.map(([code, list]) => {
+    const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
+    const cards = list.map(r => _makeCard(code, r)).join('');
     return `<div class="lot-group">
       <div class="lot-group-hdr">
         <span style="font-size:18px">${meta.flag}</span>
@@ -1552,6 +1561,8 @@ function _renderLotGroups(filterCode){
       <div class="lot-grid">${cards}</div>
     </div>`;
   }).join('');
+
+  container.innerHTML = html;
 }
 
 /* ─── Hanoi Selector Modal ─── */
