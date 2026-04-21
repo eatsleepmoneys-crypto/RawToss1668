@@ -223,7 +223,7 @@ router.get('/admin/rounds', authAdmin, rbac.requirePerm('rounds.view'), async (r
   if (status)     { where.push('lr.status=?'); params.push(status); }
   if (lottery_id) { where.push('lr.lottery_id=?'); params.push(lottery_id); }
   const rows = await query(
-    `SELECT lr.*,lt.name as lottery_name,lt.flag
+    `SELECT lr.*,lt.name as lottery_name,lt.flag,lt.code
      FROM lottery_rounds lr JOIN lottery_types lt ON lr.lottery_id=lt.id
      ${where.length?'WHERE '+where.join(' AND '):''}
      ORDER BY lr.id DESC LIMIT 50`, params);

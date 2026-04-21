@@ -1015,15 +1015,15 @@ function _applyFormForCode(code){
   // 2ตัวบน label
   const t2lbl = document.getElementById('res-2top-lbl');
   if(t2lbl) t2lbl.textContent  = isTH?'2 ตัวบน (ถ้ามี)':'2 ตัวบน';
-  // 2ตัวล่าง label + readonly for LA
-  const b2lbl = document.getElementById('res-2bot-lbl');
-  const b2in  = document.getElementById('res-p2bot');
-  if(b2lbl) b2lbl.textContent  = isTH?'2 ตัวล่าง ✱':isLA?'2 ตัวล่าง (อัตโนมัติ)':'2 ตัวล่าง';
-  if(b2in){
-    b2in.readOnly    = isLA;
-    b2in.style.opacity = isLA?'0.55':'1';
-    b2in.placeholder = isLA?'auto':'00';
-  }
+  // 2ตัวล่าง — สำหรับ LA_GOV แสดงเป็น display-only (ซ่อน input, แสดง badge)
+  const b2lbl  = document.getElementById('res-2bot-lbl');
+  const b2in   = document.getElementById('res-p2bot');
+  const b2disp = document.getElementById('res-p2bot-auto');
+  const b2note = document.getElementById('res-p2bot-note');
+  if(b2lbl) b2lbl.textContent = isTH?'2 ตัวล่าง ✱':isLA?'2 ตัวล่าง':' 2 ตัวล่าง';
+  if(b2in)  { b2in.style.display   = isLA?'none':''; b2in.readOnly=false; }
+  if(b2disp){ b2disp.style.display = isLA?'':'none'; }
+  if(b2note){ b2note.style.display = isLA?'':'none'; }
 }
 
 function onMainNumInput(){
@@ -1060,9 +1060,15 @@ function onMainNumInput(){
     // Auto-fill 2ตัวบน
     const p2top = document.getElementById('res-p2top');
     if(p2top&&!p2top._manual) p2top.value=d2t;
-    // Auto-fill 2ตัวล่าง สำหรับ LA_GOV (auto-readonly)
-    const p2bot = document.getElementById('res-p2bot');
-    if(p2bot&&isLA) p2bot.value=d2b;
+    // Auto-fill / display 2ตัวล่าง
+    const p2bot  = document.getElementById('res-p2bot');
+    const p2disp = document.getElementById('res-p2bot-auto');
+    if(isLA){
+      if(p2disp) p2disp.textContent = d2b||'—';
+      if(p2bot)  p2bot.value = d2b; // เก็บค่าไว้ใน hidden input ด้วย
+    } else {
+      if(p2bot&&!p2bot._manual) p2bot.value=''; // ไม่ auto-fill สำหรับ TH/VN
+    }
   } else {
     if(panel) panel.style.display='none';
   }
@@ -3017,6 +3023,9 @@ results:()=>`
         <input id="res-p2bot" class="fi-full" placeholder="00" maxlength="2"
                style="text-align:center;font-size:30px;font-weight:900;letter-spacing:8px;color:var(--blue);padding:12px"
                inputmode="numeric" oninput="this._manual=true">
+        <!-- LA_GOV: แสดงค่า auto แทน input -->
+        <div id="res-p2bot-auto" style="display:none;text-align:center;font-size:30px;font-weight:900;letter-spacing:8px;color:var(--blue);padding:12px;background:var(--card2);border:1px solid var(--border);border-radius:8px">—</div>
+        <div id="res-p2bot-note" style="display:none;font-size:11px;color:var(--muted);text-align:center;margin-top:4px">auto จากหลักที่ 3-4 ของรางวัลที่ 1</div>
       </div>
     </div>
 
