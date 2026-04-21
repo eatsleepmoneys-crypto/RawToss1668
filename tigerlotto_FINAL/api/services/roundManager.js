@@ -401,18 +401,21 @@ function getLotteryFetcher() {
 // lottery codes ที่ออกผลจริง (ไม่สุ่ม, ไม่ใช่ยี่กี)
 const AUTO_FETCH_CODES = new Set(['TH_GOV', 'LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP']);
 
-// ป้องกัน trigger ซ้ำสำหรับ round เดิมภายในรอบ 10 นาที
-const _fetchTriggered = new Map(); // round_id → timestamp
+// ติดตามจำนวนครั้งที่ retry แต่ละ round  round_id → { count, lastTs }
+const _fetchRetry = new Map();
+
+// หวยออกหลัง close_at กี่นาที (ต้องรอก่อนเริ่ม fetch ครั้งแรก)
+const DRAW_DELAY_MIN = { TH_GOV: 30, LA_GOV: 30, VN_HAN: 30, VN_HAN_SP: 30, VN_HAN_VIP: 30 };
+const MAX_RETRY_MIN  = 90; // หยุด retry หลัง draw_time + 90 นาที (ป้องกัน loop ไม่สิ้นสุด)
 
 async function autoFetchResults() {
   const bkk = "DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)";
 
   // หางวดที่:
-  //  1. status='closed' (ปิดรับแล้ว)
-  //  2. lottery code อยู่ใน AUTO_FETCH_CODES (ไม่ใช่ยี่กี)
-  //  3. close_at + 45 นาที ผ่านไปแล้ว (= draw_at + 15 นาที)
+  //  1. status='closed'  2. lottery code จริง (ไม่ใช่ยี่กี/หุ้น)
+  //  3. draw_time ผ่านไปแล้ว (= close_at + DRAW_DELAY, ใช้ค่าต่ำสุด 30 นาที)
   //  4. ยังไม่มีผลใน lottery_results
-  //  5. ไม่เก่าเกิน 24 ชม. (ป้องกัน retry งวดเก่ามากๆ)
+  //  5. ไม่เกิน close_at + DRAW_DELAY + MAX_RETRY_MIN (หยุด retry เมื่อเกิน 90 นาทีหลังหวยออก)
   const pending = await query(`
     SELECT lr.id, lt.code, lr.close_at
     FROM   lottery_rounds lr
@@ -421,8 +424,8 @@ async function autoFetchResults() {
     WHERE  lr.status = 'closed'
       AND  lt.code IN ('TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP')
       AND  res.id IS NULL
-      AND  DATE_ADD(lr.close_at, INTERVAL 45 MINUTE) <= ${bkk}
-      AND  lr.close_at >= DATE_SUB(${bkk}, INTERVAL 24 HOUR)
+      AND  DATE_ADD(lr.close_at, INTERVAL 30 MINUTE) <= ${bkk}
+      AND  DATE_ADD(lr.close_at, INTERVAL ${30 + MAX_RETRY_MIN} MINUTE) >= ${bkk}
     ORDER  BY lr.close_at ASC
     LIMIT  5
   `);
@@ -431,27 +434,35 @@ async function autoFetchResults() {
 
   const now = Date.now();
   for (const row of pending) {
-    // ป้องกัน trigger ซ้ำภายใน 10 นาที
-    const lastTrig = _fetchTriggered.get(row.id);
-    if (lastTrig && (now - lastTrig) < 10 * 60 * 1000) continue;
+    const rec = _fetchRetry.get(row.id) || { count: 0, lastTs: 0 };
 
-    _fetchTriggered.set(row.id, now);
-    console.log(`[ROUND_MGR] 🔍 Auto-fetch: ${row.code} งวด #${row.id} (close_at: ${row.close_at})`);
+    // รอ 1 นาทีระหว่าง retry (cron ทำงานทุกนาทีอยู่แล้ว แต่ป้องกัน overlap)
+    if (now - rec.lastTs < 55 * 1000) continue;
+
+    rec.count++;
+    rec.lastTs = now;
+    _fetchRetry.set(row.id, rec);
+
+    console.log(`[ROUND_MGR] 🔍 Auto-fetch #${rec.count}: ${row.code} งวด #${row.id}`);
 
     try {
       const fetcher = getLotteryFetcher();
       await fetcher.triggerFetch(row.code);
-      console.log(`[ROUND_MGR] ✅ Auto-fetch สำเร็จ: ${row.code} #${row.id}`);
+      console.log(`[ROUND_MGR] ✅ Auto-fetch สำเร็จ: ${row.code} #${row.id} (ครั้งที่ ${rec.count})`);
+      // สำเร็จแล้ว → ล้าง retry counter (round จะไม่ถูก query อีกเพราะมี res.id แล้ว)
+      _fetchRetry.delete(row.id);
     } catch (e) {
-      console.error(`[ROUND_MGR] ❌ Auto-fetch ล้มเหลว: ${row.code} #${row.id} —`, e.message);
-      // ล้าง trigger cache เพื่อให้ retry รอบถัดไปได้
-      _fetchTriggered.delete(row.id);
+      console.warn(`[ROUND_MGR] ⚠️  Retry ${rec.count}: ${row.code} #${row.id} — ${e.message}`);
+      // ไม่ลบ rec → จะ retry รอบถัดไป (1 นาที)
     }
   }
 
-  // ล้าง cache เก่าเกิน 2 ชม.
-  for (const [id, ts] of _fetchTriggered.entries()) {
-    if (now - ts > 2 * 60 * 60 * 1000) _fetchTriggered.delete(id);
+  // ล้าง cache ของ round_id ที่ไม่มีใน pending แล้ว และค้างนานเกิน 3 ชม.
+  const pendingIds = new Set(pending.map(r => r.id));
+  for (const [id, rec] of _fetchRetry.entries()) {
+    if (!pendingIds.has(id) && now - rec.lastTs > 3 * 60 * 60 * 1000) {
+      _fetchRetry.delete(id);
+    }
   }
 }
 
@@ -505,7 +516,7 @@ function startRoundManager() {
   console.log('  createTodayRounds  → ทุกวันเที่ยงคืน (Asia/Bangkok)');
   console.log('  autoManageRounds   → ทุก 1 นาที');
   console.log('  yeekeeAutoAnnounce → ทุก 1 นาที');
-  console.log('  autoFetchResults   → ทุก 1 นาที (TH_GOV/LA_GOV/VN_HAN* หลัง close_at+45น)');
+  console.log('  autoFetchResults   → retry ทุก 1 นาที จนกว่าจะได้ผล (หยุดอัตโนมัติหลัง draw+90น)');
 }
 
 module.exports = { startRoundManager, createTodayRounds, autoManageRounds, yeekeeAutoAnnounce, autoFetchResults };
