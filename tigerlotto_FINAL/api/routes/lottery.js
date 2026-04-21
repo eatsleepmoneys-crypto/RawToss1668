@@ -150,17 +150,39 @@ router.post('/check', async (req, res) => {
   const n = number.trim();
   const prizes = [];
 
+  // ── รางวัลที่ 1 ──────────────────────────────────────────────────
   if (result.prize_1st === n) prizes.push({ name: 'รางวัลที่ 1', amount: 6000000 });
 
-  const last2 = n.slice(-2);
-  if (result.prize_last_2 === last2) prizes.push({ name: 'รางวัลเลขท้าย 2 ตัว', amount: 2000 });
+  // ── รางวัล 6 ตัวชั้นอื่น (TH_GOV: ใกล้เคียง, ที่2-5) ────────────
+  if (n.length === 6) {
+    const near1arr = safeArr(result.prize_near_1st);
+    if (near1arr.includes(n)) prizes.push({ name: 'รางวัลใกล้เคียงรางวัลที่ 1', amount: 100000 });
 
+    const p2arr = safeArr(result.prize_2nd);
+    if (p2arr.includes(n)) prizes.push({ name: 'รางวัลที่ 2', amount: 200000 });
+
+    const p3arr = safeArr(result.prize_3rd);
+    if (p3arr.includes(n)) prizes.push({ name: 'รางวัลที่ 3', amount: 80000 });
+
+    const p4arr = safeArr(result.prize_4th);
+    if (p4arr.includes(n)) prizes.push({ name: 'รางวัลที่ 4', amount: 40000 });
+
+    const p5arr = safeArr(result.prize_5th);
+    if (p5arr.includes(n)) prizes.push({ name: 'รางวัลที่ 5', amount: 20000 });
+  }
+
+  // ── รางวัลเลขหน้า 3 ตัว ─────────────────────────────────────────
+  const front3arr = safeArr(result.prize_front_3);
+  if (n.length >= 3 && front3arr.includes(n.slice(0, 3))) prizes.push({ name: 'รางวัลเลขหน้า 3 ตัว', amount: 4000 });
+
+  // ── รางวัลเลขท้าย 3 ตัว ─────────────────────────────────────────
   const last3 = n.slice(-3);
   const last3arr = safeArr(result.prize_last_3);
   if (n.length >= 3 && last3arr.includes(last3)) prizes.push({ name: 'รางวัลเลขท้าย 3 ตัว', amount: 4000 });
 
-  const front3arr = safeArr(result.prize_front_3);
-  if (n.length >= 3 && front3arr.includes(n.slice(0, 3))) prizes.push({ name: 'รางวัลเลขหน้า 3 ตัว', amount: 4000 });
+  // ── รางวัลเลขท้าย 2 ตัว ─────────────────────────────────────────
+  const last2 = n.slice(-2);
+  if (result.prize_last_2 === last2) prizes.push({ name: 'รางวัลเลขท้าย 2 ตัว', amount: 2000 });
 
   res.json({ success: true, data: { number: n, prizes, won: prizes.length > 0 } });
 });

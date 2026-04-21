@@ -222,9 +222,26 @@ function parseTNewsThaiSection(html) {
   const last3Matches = [...bodyText.matchAll(/(?:ท้าย\s*3\s*ตัว|3\s*ตัวท้าย|เลขท้าย\s*3)[^0-9]{0,30}(\d{3})/gi)];
   const prize_last_3 = last3Matches.map(m => m[1]).slice(0, 2);
 
+  // ─── รางวัลที่ 2-5 และใกล้เคียง (TNews อาจไม่มีครบ) ───────────
+  const near1Matches = [...bodyText.matchAll(/(?:ใกล้เคียง(?:รางวัล)?ที่\s*1|near\s*1)[^0-9]{0,40}(\d{6})/gi)];
+  const prize_near_1st = near1Matches.map(m => m[1]).slice(0, 2);
+
+  const p2Matches = [...bodyText.matchAll(/รางวัลที่\s*2[^0-9]{0,40}(\d{6})/gi)];
+  const prize_2nd = p2Matches.map(m => m[1]).slice(0, 5);
+
+  const p3Matches = [...bodyText.matchAll(/รางวัลที่\s*3[^0-9]{0,40}(\d{6})/gi)];
+  const prize_3rd = p3Matches.map(m => m[1]).slice(0, 10);
+
+  const p4Matches = [...bodyText.matchAll(/รางวัลที่\s*4[^0-9]{0,40}(\d{6})/gi)];
+  const prize_4th = p4Matches.map(m => m[1]).slice(0, 50);
+
+  const p5Matches = [...bodyText.matchAll(/รางวัลที่\s*5[^0-9]{0,40}(\d{6})/gi)];
+  const prize_5th = p5Matches.map(m => m[1]).slice(0, 100);
+
   if (!prize_1st) return null;
-  console.log(`[FETCHER:TNEWS_TH] prize_1st=${prize_1st} last2=${prize_last_2} front3=[${prize_front_3}] last3=[${prize_last_3}]`);
-  return { prize_1st, prize_last_2, prize_front_3, prize_last_3 };
+  console.log(`[FETCHER:TNEWS_TH] prize_1st=${prize_1st} last2=${prize_last_2} front3=[${prize_front_3}] last3=[${prize_last_3}] near=${prize_near_1st.length} p2=${prize_2nd.length} p3=${prize_3rd.length}`);
+  return { prize_1st, prize_last_2, prize_front_3, prize_last_3,
+           prize_near_1st, prize_2nd, prize_3rd, prize_4th, prize_5th };
 }
 
 async function fetchTNewsTHGov() {
@@ -259,6 +276,9 @@ async function fetchTHGov() {
     if (r) return r;
   } catch(e) { console.warn('[FETCHER:TH_GOV] TNews error:', e.message); }
 
+  // ── Helper: split delimited 6-digit prize list ────────────────
+  const split6 = (v) => String(v||'').split(/[\s,|\/]+/).map(s=>s.replace(/\D/g,'')).filter(s=>/^\d{6}$/.test(s));
+
   // Source 1: Longdo Money (JSON API — เชื่อถือได้)
   try {
     const res = await httpGetProxy('https://money.longdo.com/lotto/api');
@@ -266,11 +286,19 @@ async function fetchTHGov() {
     if (d && (d.first || d.prize1)) {
       const p1 = (d.first || d.prize1 || '').replace(/\D/g,'');
       if (/^\d{6}$/.test(p1)) {
-        const last2  = (d.last2  || p1.slice(-2)).replace(/\D/g,'');
-        const front3 = [(d.front3_1||''), (d.front3_2||'')].map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x));
-        const last3  = [(d.last3_1||''), (d.last3_2||'')].map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x));
+        const last2   = (d.last2   || p1.slice(-2)).replace(/\D/g,'');
+        const front3  = [(d.front3_1||''), (d.front3_2||'')].map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x));
+        const last3   = [(d.last3_1||''), (d.last3_2||'')].map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x));
+        // ลอง field ชื่อต่างๆ ที่ Longdo อาจใช้สำหรับ prize_2nd–5th และ near_1st
+        const near1   = split6(d.near1    || d.near_1   || d.near_first || '');
+        const p2nd    = split6(d.second   || d.prize2   || d.two        || '');
+        const p3rd    = split6(d.third    || d.prize3   || d.three      || '');
+        const p4th    = split6(d.fourth   || d.prize4   || d.four       || '');
+        const p5th    = split6(d.fifth    || d.prize5   || d.five       || '');
         console.log('[FETCHER:TH_GOV] Source: longdo');
-        return { prize_1st: p1, prize_last_2: last2 || p1.slice(-2), prize_front_3: front3, prize_last_3: last3 };
+        return { prize_1st: p1, prize_last_2: last2 || p1.slice(-2),
+                 prize_front_3: front3, prize_last_3: last3,
+                 prize_near_1st: near1, prize_2nd: p2nd, prize_3rd: p3rd, prize_4th: p4th, prize_5th: p5th };
       }
     }
   } catch(e) { console.warn('[FETCHER:TH_GOV] longdo error:', e.message); }
@@ -282,12 +310,18 @@ async function fetchTHGov() {
     if (d && d.prize1) {
       const p1 = d.prize1.replace(/\D/g,'');
       if (/^\d{6}$/.test(p1)) {
+        const near1 = split6(d.near1     || d.near_1    || '');
+        const p2nd  = split6(d.prize2    || d.second    || '');
+        const p3rd  = split6(d.prize3    || d.third     || '');
+        const p4th  = split6(d.prize4    || d.fourth    || '');
+        const p5th  = split6(d.prize5    || d.fifth     || '');
         console.log('[FETCHER:TH_GOV] Source: sanook API');
         return {
           prize_1st:     p1,
           prize_last_2:  (d.last2||p1.slice(-2)).replace(/\D/g,''),
           prize_front_3: [d.front3_1, d.front3_2].filter(Boolean).map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x)),
           prize_last_3:  [d.last3_1,  d.last3_2].filter(Boolean).map(x=>x.replace(/\D/g,'')).filter(x=>/^\d{3}$/.test(x)),
+          prize_near_1st: near1, prize_2nd: p2nd, prize_3rd: p3rd, prize_4th: p4th, prize_5th: p5th,
         };
       }
     }
@@ -309,7 +343,7 @@ async function fetchTHGov() {
     }
   } catch(e) { console.warn('[FETCHER:TH_GOV] manager scrape error:', e.message); }
 
-  // Source 4: GLO official XML/JSON endpoints
+  // Source 4: GLO official XML/JSON endpoints — parse all prize columns
   const gloUrls = [
     'https://www.glo.or.th/service/lottoXML',
     'https://openapi.glo.or.th/api/v1/lottery',
@@ -319,18 +353,44 @@ async function fetchTHGov() {
     try {
       const res = await httpGetProxy(gloUrl, 20000, 'th');
       const raw = typeof res.data === 'string' ? res.data : JSON.stringify(res.data);
-      const m6  = raw.match(/(?:prize1|รางวัลที่1|first)[^0-9]{0,20}(\d{6})/i)
-               || raw.match(/<Prize1[^>]*>(\d{6})<\/Prize1>/i)
-               || raw.match(/\b(\d{6})\b/);
-      if (m6) {
-        const p1 = m6[1];
-        const mL2 = raw.match(/(?:last2|ท้าย2|Last2)[^0-9]{0,10}(\d{2})/i);
-        const prize_last_2 = mL2?.[1] || p1.slice(-2);
-        const front3 = [...raw.matchAll(/(?:front3|หน้า3)[^0-9]{0,10}(\d{3})/gi)].map(m=>m[1]).slice(0,2);
-        const last3  = [...raw.matchAll(/(?:last3|ท้าย3)[^0-9]{0,10}(\d{3})/gi)].map(m=>m[1]).slice(0,2);
-        console.log('[FETCHER:TH_GOV] Source: GLO official', gloUrl);
-        return { prize_1st: p1, prize_last_2, prize_front_3: front3, prize_last_3: last3 };
-      }
+
+      // ── แยก 6-digit prize lists จาก XML/JSON ──────────────────
+      const xmlGet = (tag) => {
+        const m = raw.match(new RegExp(`<${tag}[^>]*>([^<]+)<\/${tag}>`, 'i'));
+        return m ? m[1].trim() : '';
+      };
+      const jsonGet = (...keys) => {
+        for (const k of keys) {
+          const m = raw.match(new RegExp(`"${k}"\\s*:\\s*"([^"]+)"`, 'i'));
+          if (m) return m[1];
+        }
+        return '';
+      };
+
+      // XML field names (GLO standard)
+      const p1raw   = xmlGet('Prize1')       || xmlGet('prizeNumOneFirst')  || jsonGet('prize1','first') || '';
+      const near1raw = xmlGet('PrizeNear1')  || xmlGet('prizeNumNearOne')    || jsonGet('near1','nearFirst') || '';
+      const p2raw   = xmlGet('Prize2')       || xmlGet('prizeNumTwo')        || jsonGet('prize2','second') || '';
+      const p3raw   = xmlGet('Prize3')       || xmlGet('prizeNumThree')      || jsonGet('prize3','third') || '';
+      const p4raw   = xmlGet('Prize4')       || xmlGet('prizeNumFour')       || jsonGet('prize4','fourth') || '';
+      const p5raw   = xmlGet('Prize5')       || xmlGet('prizeNumFive')       || jsonGet('prize5','fifth') || '';
+      const f3raw   = xmlGet('PrizeFront3')  || xmlGet('prizeNumFrontThree') || jsonGet('front3','frontThree') || '';
+      const l3raw   = xmlGet('PrizeLast3')   || xmlGet('prizeNumLastThree')  || jsonGet('last3','lastThree') || '';
+      const l2raw   = xmlGet('PrizeLast2')   || xmlGet('prizeNumLastTwo')    || jsonGet('last2','lastTwo') || '';
+
+      const p1 = p1raw.replace(/\D/g,'');
+      if (!/^\d{6}$/.test(p1)) continue; // ไม่มีรางวัลที่ 1 → ข้ามไป URL ถัดไป
+
+      const prize_last_2 = l2raw.replace(/\D/g,'').slice(-2) || p1.slice(-2);
+      const prize_front_3 = f3raw.split(/[\s,]+/).map(s=>s.replace(/\D/g,'')).filter(s=>/^\d{3}$/.test(s)).slice(0,2);
+      const prize_last_3  = l3raw.split(/[\s,]+/).map(s=>s.replace(/\D/g,'')).filter(s=>/^\d{3}$/.test(s)).slice(0,2);
+      console.log('[FETCHER:TH_GOV] Source: GLO official', gloUrl, 'p1=', p1);
+      return {
+        prize_1st: p1, prize_last_2, prize_front_3, prize_last_3,
+        prize_near_1st: split6(near1raw),
+        prize_2nd: split6(p2raw), prize_3rd: split6(p3raw),
+        prize_4th: split6(p4raw), prize_5th: split6(p5raw),
+      };
     } catch(e) { console.warn('[FETCHER:TH_GOV] GLO error (%s):', gloUrl, e.message); }
   }
 
@@ -1163,9 +1223,14 @@ async function announceResult(lotteryCode, result) {
   const {
     prize_1st,
     prize_last_2,
-    prize_front_3 = [],
-    prize_last_3  = [],
-    prize_2bot,           // ลาวพัฒนา เท่านั้น: 2bot = ตำแหน่ง 3-4
+    prize_front_3  = [],
+    prize_last_3   = [],
+    prize_2bot,                  // ลาวพัฒนา/VN: 2bot แยก
+    prize_near_1st = [],         // TH_GOV: รางวัลใกล้เคียงที่ 1 (6d × 2)
+    prize_2nd      = [],         // TH_GOV: รางวัลที่ 2 (6d × 5)
+    prize_3rd      = [],         // TH_GOV: รางวัลที่ 3 (6d × 10)
+    prize_4th      = [],         // TH_GOV: รางวัลที่ 4 (6d × 50)
+    prize_5th      = [],         // TH_GOV: รางวัลที่ 5 (6d × 100)
   } = result;
 
   // LA_GOV: 2bot = ตำแหน่ง 3-4, VN_*: 2bot = last 2 ของ Giải Nhất (G1)
@@ -1191,10 +1256,16 @@ async function announceResult(lotteryCode, result) {
     // 1. Insert ผลรางวัล
     await conn.query(
       `INSERT INTO lottery_results
-         (round_id, prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
-       VALUES (?, ?, ?, ?, ?, ?, NOW())`,
-      [round.id, prize_1st, prize_last_2, prize_2bot_store,
-       JSON.stringify(prize_front_3), JSON.stringify(prize_last_3)]
+         (round_id, prize_1st,
+          prize_near_1st, prize_2nd, prize_3rd, prize_4th, prize_5th,
+          prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [round.id, prize_1st,
+       JSON.stringify(prize_near_1st), JSON.stringify(prize_2nd),
+       JSON.stringify(prize_3rd),      JSON.stringify(prize_4th),
+       JSON.stringify(prize_5th),
+       prize_last_2, prize_2bot_store,
+       JSON.stringify(prize_front_3),  JSON.stringify(prize_last_3)]
     );
 
     // 2. อัปเดตงวด → announced
