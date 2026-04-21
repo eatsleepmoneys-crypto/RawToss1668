@@ -161,9 +161,10 @@ const MemberAPI = {
   updateProfile: (data) => apiFetch('/members/profile', { method: 'PATCH', body: JSON.stringify(data) }),
   changePassword: (current_password, new_password) =>
     apiFetch('/members/change-password', { method: 'PATCH', body: JSON.stringify({ current_password, new_password }) }),
-  getWallet       : () => apiFetch('/members/wallet'),
-  getNotifications: (params = {}) => apiFetch('/members/notifications?' + new URLSearchParams(params)),
-  getReferrals    : () => apiFetch('/members/referrals'),
+  getWallet            : () => apiFetch('/members/wallet'),
+  getNotifications     : (params = {}) => apiFetch('/members/notifications?' + new URLSearchParams(params)),
+  getReferrals         : () => apiFetch('/members/referrals'),
+  transferCommission   : (amount) => apiFetch('/members/commission/transfer', { method: 'POST', body: JSON.stringify({ amount }) }),
 };
 
 /* ─── Admin APIs ─── */

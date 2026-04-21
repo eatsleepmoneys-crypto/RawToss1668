@@ -98,18 +98,14 @@ router.post('/', authMember,
         const commAmount = parseFloat((totalAmount * globalCommRate / 100).toFixed(2));
         if (commAmount > 0) {
 
-          // ผู้แนะนำ = สมาชิก (ref_by)
+          // ผู้แนะนำ = สมาชิก (ref_by) — เข้า commission_balance (ไม่ใช่ balance หลัก)
           if (memberInfo?.ref_by) {
             const [[refMember]] = await conn.execute(
-              'SELECT balance FROM members WHERE id=? FOR UPDATE', [memberInfo.ref_by]
+              'SELECT commission_balance FROM members WHERE id=? FOR UPDATE', [memberInfo.ref_by]
             ).catch(() => [[null]]);
             if (refMember) {
-              const newRefBal = parseFloat(refMember.balance) + commAmount;
-              await conn.execute('UPDATE members SET balance=? WHERE id=?', [newRefBal, memberInfo.ref_by]);
-              await conn.execute(
-                'INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
-                [uuidv4(), memberInfo.ref_by, 'commission', commAmount, refMember.balance, newRefBal,
-                 `ค่าคอมแนะนำ ${globalCommRate}% จากยอดแทง ฿${totalAmount}`]);
+              const newCommBal = parseFloat(refMember.commission_balance || 0) + commAmount;
+              await conn.execute('UPDATE members SET commission_balance=? WHERE id=?', [newCommBal, memberInfo.ref_by]);
               await conn.execute(
                 'INSERT INTO commissions (uuid,earner_type,earner_id,from_member_id,bet_id,bet_amount,rate,amount,description) VALUES (?,?,?,?,?,?,?,?,?)',
                 [uuidv4(), 'member', memberInfo.ref_by, req.member.id, 0, totalAmount, globalCommRate, commAmount,
@@ -117,19 +113,15 @@ router.post('/', authMember,
             }
           }
 
-          // ผู้แนะนำ = agent (agent_id) — รับค่าคอมเฉพาะเมื่อสมาชิกสมัครผ่าน aff_code (ไม่มี ref_by)
+          // ผู้แนะนำ = agent (agent_id) — เข้า commission_balance (ไม่ใช่ balance หลัก)
           if (memberInfo?.agent_id && !memberInfo?.ref_by) {
             const [[refAgent]] = await conn.execute(
-              'SELECT balance FROM agents WHERE id=? FOR UPDATE', [memberInfo.agent_id]
+              'SELECT commission_balance FROM agents WHERE id=? FOR UPDATE', [memberInfo.agent_id]
             ).catch(() => [[null]]);
             if (refAgent) {
-              const newAgBal = parseFloat(refAgent.balance) + commAmount;
-              await conn.execute('UPDATE agents SET balance=?, total_commission=total_commission+? WHERE id=?',
-                [newAgBal, commAmount, memberInfo.agent_id]);
-              await conn.execute(
-                'INSERT INTO agent_transactions (uuid,agent_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
-                [uuidv4(), memberInfo.agent_id, 'commission', commAmount, refAgent.balance, newAgBal,
-                 `ค่าคอมแนะนำ ${globalCommRate}% จากยอดแทง ฿${totalAmount}`]);
+              const newAgCommBal = parseFloat(refAgent.commission_balance || 0) + commAmount;
+              await conn.execute('UPDATE agents SET commission_balance=?, total_commission=total_commission+? WHERE id=?',
+                [newAgCommBal, commAmount, memberInfo.agent_id]);
               await conn.execute(
                 'INSERT INTO commissions (uuid,earner_type,earner_id,from_member_id,bet_id,bet_amount,rate,amount,description) VALUES (?,?,?,?,?,?,?,?,?)',
                 [uuidv4(), 'agent', memberInfo.agent_id, req.member.id, 0, totalAmount, globalCommRate, commAmount,

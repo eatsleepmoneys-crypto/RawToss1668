@@ -131,6 +131,7 @@ router.get('/dashboard', authAgent, async (req, res) => {
     success: true,
     data: {
       balance:               parseFloat(req.agent.balance),
+      commission_balance:    parseFloat(req.agent.commission_balance || 0),
       total_commission:      parseFloat(req.agent.total_commission),
       commission_rate:       req.agent.commission_rate,   // ส่วนลดซื้อหวย (%)
       referral_rate:         dashGlobalRate,
@@ -238,7 +239,7 @@ router.get('/commissions', authAgent, async (req, res) => {
 // ── GET /api/agent/wallet ─────────────────────────────────────────
 router.get('/wallet', authAgent, async (req, res) => {
   const agentId = req.agent.id;
-  const [agent] = await query('SELECT balance FROM agents WHERE id=?', [agentId]);
+  const [agent] = await query('SELECT balance, commission_balance FROM agents WHERE id=?', [agentId]);
 
   const [pendDep] = await query(
     'SELECT COUNT(*) cnt, COALESCE(SUM(amount),0) total FROM agent_deposits WHERE agent_id=? AND status="pending"',
@@ -597,6 +598,37 @@ router.get('/lottery/bets', authAgent, async (req, res) => {
       pending:    Number(betStats.pending),
     }
   });
+});
+
+// ── POST /api/agent/commission/transfer — โอนค่าคอมเข้ากระเป๋าหลัก ──
+router.post('/commission/transfer', authAgent, async (req, res) => {
+  const amount = parseFloat(req.body.amount);
+  if (!amount || isNaN(amount) || amount <= 0)
+    return res.status(400).json({ success: false, message: 'ระบุจำนวนเงินที่ต้องการโอน' });
+
+  await transaction(async (conn) => {
+    const [[ag]] = await conn.execute(
+      'SELECT balance, commission_balance FROM agents WHERE id=? FOR UPDATE', [req.agent.id]
+    );
+    const commBal = parseFloat(ag.commission_balance || 0);
+    if (commBal < amount)
+      throw new Error(`ค่าคอมไม่เพียงพอ (มี ฿${commBal.toFixed(2)})`);
+
+    const newCommBal = parseFloat((commBal - amount).toFixed(2));
+    const newMainBal = parseFloat((parseFloat(ag.balance) + amount).toFixed(2));
+
+    await conn.execute(
+      'UPDATE agents SET commission_balance=?, balance=? WHERE id=?',
+      [newCommBal, newMainBal, req.agent.id]
+    );
+    await conn.execute(
+      'INSERT INTO agent_transactions (uuid,agent_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+      [uuidv4(), req.agent.id, 'commission_transfer', amount, ag.balance, newMainBal,
+       `โอนค่าคอมแนะนำเข้ากระเป๋าหลัก ฿${amount}`]
+    );
+  });
+
+  res.json({ success: true, message: `โอนค่าคอม ฿${amount} เข้ากระเป๋าหลักสำเร็จ` });
 });
 
 // ── POST /api/agent/change-password ──────────────────────────────

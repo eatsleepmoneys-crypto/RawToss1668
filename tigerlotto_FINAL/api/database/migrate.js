@@ -714,6 +714,10 @@ async function migrate() {
     `ALTER TABLE \`agents\` ADD COLUMN \`referral_rate\` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT 'ค่าคอมจากสมาชิกที่แนะนำต่อ (%)'`,
     // members: referral_rate — ค่าคอมจากสมาชิกที่แนะนำต่อ (%)
     `ALTER TABLE \`members\` ADD COLUMN \`referral_rate\` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT 'ค่าคอมจากสมาชิกที่แนะนำต่อ (%)'`,
+    // agents: commission_balance — กระเป๋าค่าคอม (แยกจากกระเป๋าหลัก)
+    `ALTER TABLE \`agents\` ADD COLUMN \`commission_balance\` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'กระเป๋าค่าคอมแนะนำ (ต้องกดโอนเข้ากระเป๋าหลัก)' AFTER \`balance\``,
+    // members: commission_balance — กระเป๋าค่าคอม (แยกจากกระเป๋าหลัก)
+    `ALTER TABLE \`members\` ADD COLUMN \`commission_balance\` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'กระเป๋าค่าคอมแนะนำ (ต้องกดโอนเข้ากระเป๋าหลัก)' AFTER \`bonus_balance\``,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

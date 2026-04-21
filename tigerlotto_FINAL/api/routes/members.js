@@ -51,11 +51,42 @@ router.patch('/change-password', authMember,
 
 // GET /api/members/wallet — balance + recent transactions
 router.get('/wallet', authMember, async (req, res) => {
-  const [m] = await query('SELECT balance, bonus_balance FROM members WHERE id=?', [req.member.id]);
+  const [m] = await query('SELECT balance, bonus_balance, commission_balance FROM members WHERE id=?', [req.member.id]);
   const txn = await query(
     'SELECT type,amount,balance_after,description,created_at FROM transactions WHERE member_id=? ORDER BY id DESC LIMIT 20',
     [req.member.id]);
   res.json({ success: true, data: { ...m, transactions: txn } });
+});
+
+// POST /api/members/commission/transfer — โอนค่าคอมเข้ากระเป๋าหลัก
+router.post('/commission/transfer', authMember, async (req, res) => {
+  const amount = parseFloat(req.body.amount);
+  if (!amount || isNaN(amount) || amount <= 0)
+    return res.status(400).json({ success: false, message: 'ระบุจำนวนเงินที่ต้องการโอน' });
+
+  await transaction(async (conn) => {
+    const [[m]] = await conn.execute(
+      'SELECT balance, commission_balance FROM members WHERE id=? FOR UPDATE', [req.member.id]
+    );
+    const commBal = parseFloat(m.commission_balance || 0);
+    if (commBal < amount)
+      throw new Error(`ค่าคอมไม่เพียงพอ (มี ฿${commBal.toFixed(2)})`);
+
+    const newCommBal  = parseFloat((commBal - amount).toFixed(2));
+    const newMainBal  = parseFloat((parseFloat(m.balance) + amount).toFixed(2));
+
+    await conn.execute(
+      'UPDATE members SET commission_balance=?, balance=? WHERE id=?',
+      [newCommBal, newMainBal, req.member.id]
+    );
+    await conn.execute(
+      'INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+      [uuidv4(), req.member.id, 'commission_transfer', amount, m.balance, newMainBal,
+       `โอนค่าคอมแนะนำเข้ากระเป๋าหลัก ฿${amount}`]
+    );
+  });
+
+  res.json({ success: true, message: `โอนค่าคอม ฿${amount} เข้ากระเป๋าหลักสำเร็จ` });
 });
 
 // GET /api/members/notifications
@@ -118,7 +149,7 @@ router.get('/referrals', authMember, async (req, res) => {
   `, [req.member.id]).catch(() => []);
 
   // ดึงข้อมูลสมาชิก + global referral rate จาก settings
-  const [me] = await query('SELECT member_code FROM members WHERE id=?', [req.member.id]);
+  const [me] = await query('SELECT member_code, commission_balance FROM members WHERE id=?', [req.member.id]);
   const [rateSetting] = await query(
     "SELECT value FROM settings WHERE `key`='referral_commission'"
   ).catch(() => [null]);
@@ -127,9 +158,10 @@ router.get('/referrals', authMember, async (req, res) => {
   res.json({
     success: true,
     data: {
-      member_code:   me?.member_code || '',
-      referral_rate: globalRate,
-      referrals:     refs,
+      member_code:        me?.member_code || '',
+      referral_rate:      globalRate,
+      commission_balance: parseFloat(me?.commission_balance || 0),
+      referrals:          refs,
       total_commission:       parseFloat(totals?.total_all || 0),
       commission_this_month:  parseFloat(totals?.total_month || 0),
       recent_commissions:     recent,

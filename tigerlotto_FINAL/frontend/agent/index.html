@@ -423,12 +423,16 @@ async function loadDashboard() {
       <div class="stat-card">
         <div class="stat-label">ยอดเงินคงเหลือ</div>
         <div class="stat-val gold">฿${fmt(s.balance)}</div>
-        <div class="stat-sub">ยอดเงินในบัญชีเอเยนต์</div>
+        <div class="stat-sub">กระเป๋าหลัก</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">ค่าคอมสะสม</div>
-        <div class="stat-val gold">฿${fmt(s.total_commission)}</div>
-        <div class="stat-sub">อัตราคอม ${s.referral_rate||0}% / ส่วนลด ${s.commission_rate}%</div>
+      <div class="stat-card" style="border:1px solid rgba(212,160,23,.4);position:relative">
+        <div class="stat-label">💰 กระเป๋าค่าคอม</div>
+        <div class="stat-val gold" id="ag-comm-bal">฿${fmt(s.commission_balance||0)}</div>
+        <div class="stat-sub">รอโอนเข้ากระเป๋าหลัก</div>
+        <button onclick="openAgCommTransfer()"
+          style="margin-top:8px;width:100%;padding:6px;background:var(--gold);border:none;border-radius:7px;color:#000;font-weight:800;font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          💸 โอนเข้ากระเป๋าหลัก
+        </button>
       </div>
       <div class="stat-card">
         <div class="stat-label">ค่าคอมเดือนนี้</div>
@@ -540,6 +544,20 @@ async function loadCommissions() {
         <div class="stat-label">🔗 ค่าคอมแนะนำสมาชิก</div>
         <div class="stat-val gold">${referralRate}%</div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px">จากยอดแทงของสมาชิกในเครือ</div>
+      </div>
+    </div>
+    <!-- กระเป๋าค่าคอม + ปุ่มโอน -->
+    <div class="card" style="border-color:rgba(212,160,23,.4);margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">💰 กระเป๋าค่าคอม (รอโอน)</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold)" id="ag-comm-bal2">฿${fmt(_agentData?.commission_balance||0)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">ค่าคอมสะสมที่ยังไม่ได้โอนเข้ากระเป๋าหลัก</div>
+        </div>
+        <button onclick="openAgCommTransfer()"
+          style="padding:10px 20px;background:var(--gold);border:none;border-radius:10px;color:#000;font-weight:800;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          💸 โอนเข้ากระเป๋าหลัก
+        </button>
       </div>
     </div>
     <!-- ยอดรวม -->
@@ -1428,6 +1446,67 @@ async function loadLotteryHistory(page = 1) {
 
 // ── Util ──────────────────────────────────────────────────────────
 function fmt(n) { return Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ── Commission Transfer Modal (Agent) ─────────────────────────────
+function openAgCommTransfer(){
+  let modal = document.getElementById('ag-comm-transfer-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'ag-comm-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:360px;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0;font-size:16px;color:var(--text)">💸 โอนค่าคอมเข้ากระเป๋าหลัก</h3>
+          <button onclick="document.getElementById('ag-comm-transfer-modal').remove()"
+            style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center">
+          <div style="font-size:11px;color:var(--muted)">ยอดค่าคอมที่มี</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold)" id="ag-ct-available">฿0.00</div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">จำนวนที่ต้องการโอน (บาท)</label>
+          <div style="display:flex;gap:8px">
+            <input id="ag-ct-amount" type="number" min="1" step="0.01" placeholder="ระบุจำนวน"
+              style="flex:1;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:'Sarabun',sans-serif">
+            <button onclick="document.getElementById('ag-ct-amount').value=document.getElementById('ag-ct-available').dataset.raw||0"
+              style="padding:10px 14px;background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.4);border-radius:8px;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;white-space:nowrap">ทั้งหมด</button>
+          </div>
+        </div>
+        <button onclick="doAgCommTransfer()"
+          style="width:100%;padding:12px;background:var(--gold);border:none;border-radius:10px;color:#000;font-weight:800;font-size:15px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          ✅ ยืนยันโอน
+        </button>
+        <div id="ag-ct-msg" style="margin-top:10px;text-align:center;font-size:13px;min-height:20px"></div>
+      </div>`;
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+  const commBal = parseFloat(_agentData?.commission_balance || 0);
+  const avEl = document.getElementById('ag-ct-available');
+  if(avEl){ avEl.textContent = '฿' + fmt(commBal); avEl.dataset.raw = commBal; }
+  document.getElementById('ag-comm-transfer-modal').style.display = 'flex';
+}
+
+async function doAgCommTransfer(){
+  const amount = parseFloat(document.getElementById('ag-ct-amount')?.value);
+  const msgEl  = document.getElementById('ag-ct-msg');
+  if(!amount || amount <= 0){ if(msgEl) msgEl.innerHTML = '<span style="color:var(--red)">ระบุจำนวนเงิน</span>'; return; }
+  if(msgEl) msgEl.innerHTML = '⏳ กำลังโอน...';
+  try{
+    const d = await aFetch('/agent/commission/transfer', { method:'POST', body: JSON.stringify({ amount }) });
+    if(!d.success) throw new Error(d.message);
+    if(msgEl) msgEl.innerHTML = `<span style="color:var(--green)">✅ ${d.message}</span>`;
+    if(_agentData) _agentData.commission_balance = Math.max(0, parseFloat(_agentData.commission_balance||0) - amount);
+    setTimeout(()=>{
+      document.getElementById('ag-comm-transfer-modal')?.remove();
+      loadTab(document.querySelector('.tab-item.active')?.dataset?.tab || 'dashboard');
+    }, 1200);
+  }catch(e){
+    if(msgEl) msgEl.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
 
 // ── Auto-login if token exists ────────────────────────────────────
 (async () => {
