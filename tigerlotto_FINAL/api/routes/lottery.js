@@ -34,6 +34,12 @@ router.get('/types/:id', async (req, res) => {
 
 // GET /api/lottery/rounds — open + upcoming rounds (for buying / display)
 router.get('/rounds', async (req, res) => {
+  // Auto-transition: upcoming → open เมื่อ open_at ถึงแล้ว
+  await query(
+    `UPDATE lottery_rounds SET status='open'
+     WHERE status='upcoming' AND open_at IS NOT NULL
+       AND open_at <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)`
+  ).catch(()=>{});
   const rows = await query(
     `SELECT lr.id,lr.uuid,lr.round_name,lr.draw_date,lr.open_at,lr.close_at,lr.status,lr.total_bet,lr.bet_count,
             lt.id as lottery_id,lt.name as lottery_name,lt.flag,lt.code,

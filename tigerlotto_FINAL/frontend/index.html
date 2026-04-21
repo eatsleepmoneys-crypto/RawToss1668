@@ -903,17 +903,54 @@ window.API_BASE = (location.hostname === 'localhost' || location.hostname === '1
 /* ─── State ─── */
 let curRate = 750, curBetType = '3top', curRoundId = null, otpTimer = null;
 
-/* ─── Countdown ─── */
+/* ─── Countdown + Live card status ─── */
 let _cdTarget = new Date(Date.now() + 7*24*60*60*1000); // placeholder until API loads
+let _nextBoundaryMs = Infinity;   // เวลาถัดไปที่ต้อง reload API (open_at / close_at ที่ใกล้สุด)
+let _liveReloading  = false;       // ป้องกัน reload ซ้อนกัน
+
 function setCountdownTarget(t){ _cdTarget = t instanceof Date ? t : new Date(t); }
+
+// คำนวณ boundary ที่ใกล้ที่สุดจาก _allRounds (open_at หรือ close_at)
+function _calcNextBoundary(){
+  const now = Date.now();
+  let next = Infinity;
+  (_allRounds || []).forEach(r => {
+    if(r.open_at){  const ms = new Date(r.open_at).getTime();  if(ms > now && ms < next) next = ms; }
+    if(r.close_at){ const ms = new Date(r.close_at).getTime(); if(ms > now && ms < next) next = ms; }
+  });
+  _nextBoundaryMs = next;
+}
+
+async function _liveReload(){
+  if(_liveReloading) return;
+  _liveReloading = true;
+  try { await loadLotteryCards(); } catch(_){}
+  _liveReloading = false;
+}
+
 function countdown(){
-  const n=new Date(),d=_cdTarget-n;
-  if(d<=0){['cd-d','cd-h','cd-m','cd-s'].forEach(i=>document.getElementById(i).textContent='00');return;}
-  const s=Math.floor(d/1e3),m=Math.floor(s/60),h=Math.floor(m/60),dy=Math.floor(h/24);
-  document.getElementById('cd-d').textContent=String(dy).padStart(2,'0');
-  document.getElementById('cd-h').textContent=String(h%24).padStart(2,'0');
-  document.getElementById('cd-m').textContent=String(m%60).padStart(2,'0');
-  document.getElementById('cd-s').textContent=String(s%60).padStart(2,'0');
+  const n=new Date(), now=n.getTime(), d=_cdTarget-n;
+  // ── อัพเดต countdown digits ──
+  if(d<=0){
+    ['cd-d','cd-h','cd-m','cd-s'].forEach(i=>{ const el=document.getElementById(i); if(el) el.textContent='00'; });
+    // countdown ถึง 0 → reload cards จาก API
+    if(!_liveReloading) _liveReload();
+  } else {
+    const s=Math.floor(d/1e3),m=Math.floor(s/60),h=Math.floor(m/60),dy=Math.floor(h/24);
+    const el_d=document.getElementById('cd-d'), el_h=document.getElementById('cd-h'),
+          el_m=document.getElementById('cd-m'), el_s=document.getElementById('cd-s');
+    if(el_d) el_d.textContent=String(dy).padStart(2,'0');
+    if(el_h) el_h.textContent=String(h%24).padStart(2,'0');
+    if(el_m) el_m.textContent=String(m%60).padStart(2,'0');
+    if(el_s) el_s.textContent=String(s%60).padStart(2,'0');
+  }
+  // ── re-render status badges ทุกวินาที (ใช้ _allRounds ใน memory ไม่ต้องยิง API) ──
+  if((_allRounds||[]).length) _renderLotGroups(_activeFilter);
+  // ── ตรวจ boundary: ถ้าเวลา open_at/close_at ของงวดไหนผ่านไปแล้ว → reload API ──
+  if(now >= _nextBoundaryMs && !_liveReloading){
+    _nextBoundaryMs = Infinity; // reset ก่อน เพื่อไม่ trigger ซ้ำ
+    _liveReload();
+  }
 }
 setInterval(countdown,1000);countdown();
 
@@ -1481,9 +1518,11 @@ function _statusFor(r){
 // Store all rounds globally for filter
 let _allRounds = [];
 
+let _activeFilter = 'ALL';
 function filterLotCards(el, code){
   document.querySelectorAll('.lot-ftab').forEach(b => b.classList.remove('on'));
   el.classList.add('on');
+  _activeFilter = code;
   _renderLotGroups(code);
 }
 
@@ -1690,7 +1729,8 @@ async function loadLotteryCards(){
       filterEl.innerHTML = `<button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
     }
 
-    _renderLotGroups('ALL');
+    _renderLotGroups(_activeFilter);
+    _calcNextBoundary();  // คำนวณเวลา boundary ถัดไปสำหรับ live reload
   }catch(e){
     if(container) container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ ไม่สามารถโหลดข้อมูลได้</div>';
   }
