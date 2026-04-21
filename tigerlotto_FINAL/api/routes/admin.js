@@ -481,6 +481,17 @@ router.post('/auto-results/test/:code', authAdmin, rbac.requirePerm('results.ann
   }
 });
 
+// ─── GET /api/admin/auto-results/tnews-debug — debug TNews article parse ──────
+router.get('/auto-results/tnews-debug', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  try {
+    const { debugTNewsRaw } = require('../services/lotteryFetcher');
+    const result = await debugTNewsRaw();
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── DELETE /api/admin/lottery-result/:id — ลบผลรางวัล + reset round (by result_id) ─
 router.delete('/lottery-result/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
   const resultId = parseInt(req.params.id);

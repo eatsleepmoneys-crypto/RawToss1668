@@ -1462,6 +1462,65 @@ async function testFetch(lotteryCode) {
   return fn();
 }
 
+/**
+ * Debug: ดึงบทความ TNews และ return raw info สำหรับ debug
+ * - articleUrl: URL ที่พบ
+ * - sectionsFound: keys ที่ parse ได้
+ * - rawChunks: 300 ตัวแรกของแต่ละ section header ที่พบ
+ * - parsedData: ผลที่ parse ได้
+ */
+async function debugTNewsRaw() {
+  _tnewsCache = { data: null, ts: 0 }; // force fresh fetch
+
+  const articleUrl = await findTNewsArticleUrl();
+  if (!articleUrl) return { error: 'ไม่พบ URL บทความ TNews', articleUrl: null };
+
+  let html;
+  try {
+    const res = await httpGetProxy(articleUrl, 25000, 'th');
+    html = res.data;
+  } catch(e) {
+    return { error: `Fetch article error: ${e.message}`, articleUrl };
+  }
+
+  // Extract body text (same logic as parseTNewsSections)
+  const $ = require('cheerio').load(html);
+  let bodyText = '';
+  for (const sel of ['article', '.content-body', '.post-content', '.article-content',
+                     '.entry-content', '#content-body', '#article-body', 'body']) {
+    const t = $(sel).first().text();
+    if (t && t.length > bodyText.length) bodyText = t;
+  }
+  if (!bodyText) bodyText = $.text();
+
+  const rawChunks = {};
+  for (const [lotteryType, headers] of Object.entries(TNEWS_SECTION_HEADERS)) {
+    for (const header of headers) {
+      const idx = bodyText.toLowerCase().indexOf(header.toLowerCase());
+      if (idx === -1) continue;
+      rawChunks[lotteryType] = {
+        header,
+        position: idx,
+        chunk: bodyText.slice(idx, idx + 300).replace(/\s+/g, ' ').trim(),
+      };
+      break;
+    }
+    if (!rawChunks[lotteryType]) {
+      rawChunks[lotteryType] = { header: null, position: -1, chunk: null };
+    }
+  }
+
+  const parsedData = parseTNewsSections(html);
+
+  return {
+    articleUrl,
+    bodyTextLength: bodyText.length,
+    sectionsFound: Object.keys(parsedData),
+    parsedData,
+    rawChunks,
+  };
+}
+
 // ── Start cron jobs ────────────────────────────────────────────
 
 function startLotteryFetcher() {
@@ -1561,4 +1620,4 @@ function startLotteryFetcher() {
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache, debugTNewsRaw };
