@@ -406,7 +406,7 @@ const _fetchRetry = new Map();
 
 // หวยออกหลัง close_at กี่นาที (ต้องรอก่อนเริ่ม fetch ครั้งแรก)
 const DRAW_DELAY_MIN = { TH_GOV: 30, LA_GOV: 30, VN_HAN: 30, VN_HAN_SP: 30, VN_HAN_VIP: 30 };
-const MAX_RETRY_MIN  = 90; // หยุด retry หลัง draw_time + 90 นาที (ป้องกัน loop ไม่สิ้นสุด)
+const MAX_RETRY_MIN  = 480; // หยุด retry หลัง draw_time + 8 ชั่วโมง (ครอบคลุม TNews ที่อาจ publish ช้า)
 
 async function autoFetchResults() {
   const bkk = "DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)";

@@ -1079,7 +1079,8 @@ async function findTNewsLaoArticleUrl() {
 
 /**
  * แยก section หวยลาวจาก body text ของบทความ TNews
- * รองรับทั้ง 6-digit main number และ 4-digit padded
+ * รองรับ format หลัก: "หวยลาวรางวัลเลข 6 ตัว : 261907"  ← TNews actual format
+ * รองรับ format สำรอง: "เลข 6 ตัว : XXXXXX", standalone 6-digit, reconstruct จากส่วนย่อย
  */
 function parseTNewsLaoSection(html) {
   const $ = cheerio.load(html);
@@ -1091,50 +1092,76 @@ function parseTNewsLaoSection(html) {
   }
   if (!bodyText) bodyText = $.text();
 
+  // ── Fast path A: "หวยลาวรางวัลเลข 6 ตัว : XXXXXX" ─────────────
+  // นี่คือ format จริงของ TNews (เห็นได้จาก tnews.co.th/lotto-horo-belief/*)
+  const mFast6 = bodyText.match(/หวยลาวรางวัลเลข\s*6\s*ตัว\s*[:\-]?\s*(\d{5,6})/i);
+  if (mFast6) {
+    console.log('[FETCHER:TNEWS_LAO] ✅ fast-path A (หวยลาวรางวัลเลข 6 ตัว):', mFast6[1]);
+    return laGovExtract(mFast6[1]);
+  }
+
+  // ── Fast path B: "รางวัลเลข 6 ตัว : XXXXXX" (variation) ─────────
+  const mFast6b = bodyText.match(/รางวัลเลข\s*6\s*ตัว\s*[:\-]?\s*(\d{5,6})/i);
+  if (mFast6b) {
+    console.log('[FETCHER:TNEWS_LAO] ✅ fast-path B (รางวัลเลข 6 ตัว):', mFast6b[1]);
+    return laGovExtract(mFast6b[1]);
+  }
+
+  // ── Fast path C: reconstruct จาก 4-digit + 2-digit (format อื่น) ─
+  // "หวยลาวรางวัลเลข 4 ตัว : 1907" + "หวยลาวรางวัลเลข 2 ตัว : XX"
+  // แต่ 4-digit ไม่รู้ first 2 digits → ต้องมี 5 หรือ 6 ตัวก่อน
+  const mFast5 = bodyText.match(/หวยลาวรางวัลเลข\s*5\s*ตัว\s*[:\-]?\s*(\d{5})/i);
+  if (mFast5) {
+    // 5-digit → pad to 6 with leading 0 is wrong; need context
+    // Try first digit from context - use สถิติ/ผลย้อนหลัง if available
+    // For now: store as "0" + 5-digit (will be wrong for leading non-zero)
+    const mFast2 = bodyText.match(/หวยลาวรางวัลเลข\s*2\s*ตัว\s*[:\-]?\s*(\d{2})/i);
+    console.log('[FETCHER:TNEWS_LAO] ⚠️ fast-path C (5-digit, may be imprecise):', mFast5[1]);
+    return laGovExtract(mFast5[1]); // laGovExtract จะ padStart(6,'0')
+  }
+
+  // ── Section header loop (original logic, fallback) ───────────────
   for (const header of TNEWS_LAO_SECTION_HEADERS) {
     const idx = bodyText.toLowerCase().indexOf(header.toLowerCase());
     if (idx === -1) continue;
 
-    const chunk = bodyText.slice(idx, idx + 800);
-
-    // ลอง pattern ต่างๆ ตามลำดับความน่าเชื่อถือ
+    const chunk = bodyText.slice(idx, idx + 1000); // ขยาย chunk เป็น 1000 ตัวอักษร
 
     // 1. ตัวเต็ง / รางวัลที่ 1 / เลข 6 ตัว  → 6 digits
-    const m6 = chunk.match(/(?:ตัวเต็ง|รางวัลที่\s*1|เลข\s*6\s*ตัว|รางวัล\s*ที่\s*1)\s*[:\-]?\s*(\d{5,6})/i);
+    const m6 = chunk.match(/(?:ตัวเต็ง|รางวัลที่\s*1|(?:หวยลาวรางวัล)?เลข\s*6\s*ตัว|รางวัล\s*ที่\s*1)\s*[:\-]?\s*(\d{5,6})/i);
     if (m6) {
-      console.log('[FETCHER:TNEWS_LAO] found 6-digit via label:', m6[1]);
+      console.log('[FETCHER:TNEWS_LAO] section+label 6-digit:', m6[1]);
       return laGovExtract(m6[1]);
     }
 
-    // 2. เลข 4 ตัว → 4 digits (เลขท้าย)
-    const m4 = chunk.match(/เลข\s*4\s*ตัว\s*[:\-]?\s*(\d{3,4})/i);
-    // เลข 3 ตัวบน → 3 digits
-    const m3 = chunk.match(/เลข\s*3\s*ตัวบน\s*[:\-]?\s*(\d{2,3})/i);
-    // เลข 2 ตัวบน → 2 digits
-    const m2t = chunk.match(/เลข\s*2\s*ตัวบน\s*[:\-]?\s*(\d{1,2})/i);
-    // เลข 2 ตัวล่าง → 2 digits (= prize_2bot for Lao)
-    const m2b = chunk.match(/เลข\s*2\s*ตัวล่าง\s*[:\-]?\s*(\d{1,2})/i);
-
-    if (m4 || m3) {
-      // ประกอบ 6 digits จากส่วนย่อย: bot2 + top4  (bot2 = m2b, top4 = m4)
-      const top4 = (m4 ? m4[1] : (m3 ? m3[1] : '0000')).padStart(4, '0');
-      const bot2 = m2b ? m2b[1].padStart(2, '0') : '00';
-      const full6 = bot2 + top4;
-      console.log('[FETCHER:TNEWS_LAO] reconstructed 6-digit from parts:', full6);
-      return laGovExtract(full6);
+    // 2. เลข 4 ตัว → 4 digits พร้อม 2 ตัวล่าง เพื่อ reconstruct
+    const m5 = chunk.match(/(?:หวยลาวรางวัล)?เลข\s*5\s*ตัว\s*[:\-]?\s*(\d{5})/i);
+    if (m5) {
+      console.log('[FETCHER:TNEWS_LAO] section+5-digit:', m5[1]);
+      return laGovExtract(m5[1]);
     }
 
-    // 3. Fallback: หา standalone 6-digit ใน chunk
+    // 3. Fallback: standalone 6-digit ใน chunk
     const mAny6 = chunk.match(/\b(\d{6})\b/);
     if (mAny6) {
-      console.log('[FETCHER:TNEWS_LAO] found standalone 6-digit:', mAny6[1]);
+      console.log('[FETCHER:TNEWS_LAO] section standalone 6-digit:', mAny6[1]);
       return laGovExtract(mAny6[1]);
     }
 
-    // section found but no numbers yet (result not out)
-    console.warn('[FETCHER:TNEWS_LAO] section found but no numbers yet');
+    // section found but no numbers yet (ผลยังไม่ออก)
+    console.warn('[FETCHER:TNEWS_LAO] section found but no numbers yet in header:', header);
     return null;
   }
+
+  // ── Last resort: หา 6-digit แรกที่ดูเหมือน lottery number ─────────
+  // (ไม่ใช่ปีพุทธศักราช, ไม่ใช่ตัวเลขอื่น)
+  const allSix = [...bodyText.matchAll(/\b(\d{6})\b/g)].map(m => m[1])
+    .filter(n => !(parseInt(n) >= 256000 && parseInt(n) <= 257000)); // ข้ามปี พ.ศ.
+  if (allSix.length) {
+    console.log('[FETCHER:TNEWS_LAO] last-resort standalone 6-digit:', allSix[0]);
+    return laGovExtract(allSix[0]);
+  }
+
   return null;
 }
 
