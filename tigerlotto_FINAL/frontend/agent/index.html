@@ -308,6 +308,19 @@ async function showApp() {
   switchTab('dashboard', document.querySelector('.nav-tab[data-tab="dashboard"]'));
 }
 
+// ── Generic error display ─────────────────────────────────────────
+function showTabError(msg, retryFn) {
+  const el = document.getElementById('tab-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="color:#ff6b81;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:24px;text-align:center;margin-top:20px">
+      <div style="font-size:28px;margin-bottom:8px">⚠️</div>
+      <div style="font-weight:600;margin-bottom:4px">โหลดข้อมูลไม่ได้</div>
+      <div style="color:#aaa;font-size:13px;margin-bottom:14px">${msg}</div>
+      ${retryFn ? `<button onclick="${retryFn}()" style="padding:8px 20px;background:#d4a017;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer">🔄 ลองใหม่</button>` : ''}
+    </div>`;
+}
+
 // ── Tab switching ─────────────────────────────────────────────────
 function switchTab(tab, el) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on'));
@@ -315,13 +328,10 @@ function switchTab(tab, el) {
   _membersPage = 1;
   const content = document.getElementById('tab-content');
   content.innerHTML = '<div class="loading">⏳ กำลังโหลด...</div>';
-  if      (tab === 'dashboard')   loadDashboard();
-  else if (tab === 'wallet')      loadWallet();
-  else if (tab === 'lottery')     loadLottery();
-  else if (tab === 'affiliate')   loadAffiliate();
-  else if (tab === 'members')     loadMembers();
-  else if (tab === 'commissions') loadCommissions();
-  else if (tab === 'profile')     loadProfile();
+  const fns = { dashboard:loadDashboard, wallet:loadWallet, lottery:loadLottery,
+                affiliate:loadAffiliate, members:loadMembers, commissions:loadCommissions, profile:loadProfile };
+  const fn = fns[tab];
+  if (fn) fn().catch(e => showTabError(e.message, tab+'Tab'));
 }
 
 // ── Affiliate ─────────────────────────────────────────────────────
@@ -414,6 +424,14 @@ async function regenAffLink() {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────
+// retry aliases (used by showTabError buttons)
+const dashboardTab    = () => loadDashboard().catch(e=>showTabError(e.message,'dashboardTab'));
+const walletTab       = () => loadWallet().catch(e=>showTabError(e.message,'walletTab'));
+const lotteryTab      = () => loadLottery().catch(e=>showTabError(e.message,'lotteryTab'));
+const affiliateTab    = () => loadAffiliate().catch(e=>showTabError(e.message,'affiliateTab'));
+const membersTab      = () => loadMembers().catch(e=>showTabError(e.message,'membersTab'));
+const commissionsTab  = () => loadCommissions().catch(e=>showTabError(e.message,'commissionsTab'));
+
 async function loadDashboard() {
   const [d, aff] = await Promise.all([aFetch('/agent/dashboard'), aFetch('/agent/affiliate')]);
   const s    = d.data;

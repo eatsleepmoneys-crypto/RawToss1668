@@ -113,13 +113,13 @@ router.get('/dashboard', authAgent, async (req, res) => {
 
   const commissionThisMonth = parseFloat(monthBet.total) * rate;
 
-  // ค่าคอมที่ได้รับจริงเดือนนี้ (จาก commissions table)
+  // ค่าคอมที่ได้รับจริงเดือนนี้ (จาก commissions table — with safe fallback)
   const [realCommRow] = await query(
     `SELECT COALESCE(SUM(amount),0) total FROM commissions
      WHERE earner_type='agent' AND earner_id=?
        AND YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW())`,
     [agentId]
-  );
+  ).catch(() => [null]);
 
   // global referral rate จาก settings
   const [dashRateSetting] = await query(
@@ -130,16 +130,16 @@ router.get('/dashboard', authAgent, async (req, res) => {
   res.json({
     success: true,
     data: {
-      balance:               parseFloat(req.agent.balance),
+      balance:               parseFloat(req.agent.balance || 0),
       commission_balance:    parseFloat(req.agent.commission_balance || 0),
-      total_commission:      parseFloat(req.agent.total_commission),
-      commission_rate:       req.agent.commission_rate,   // ส่วนลดซื้อหวย (%)
+      total_commission:      parseFloat(req.agent.total_commission || 0),
+      commission_rate:       req.agent.commission_rate || 0,
       referral_rate:         dashGlobalRate,
       member_count:          memberCount.cnt,
       new_members_today:     newToday.cnt,
       bets_today:            betStats.bet_count,
       bet_total_today:       parseFloat(betStats.bet_total),
-      commission_this_month: parseFloat(realCommRow?.total || commissionThisMonth),
+      commission_this_month: parseFloat(realCommRow?.total || commissionThisMonth || 0),
     },
   });
 });
