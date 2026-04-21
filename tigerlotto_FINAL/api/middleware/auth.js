@@ -61,6 +61,29 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
+// ─── Verify JWT (Agent) ───────────────────────────
+const authAgent = async (req, res, next) => {
+  try {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ success: false, message: 'กรุณาเข้าสู่ระบบ' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (decoded.type !== 'agent') return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้อง' });
+
+    const [agent] = await query(
+      'SELECT id, uuid, name, phone, email, commission_rate, balance, total_commission, status FROM agents WHERE id = ? AND status = "active"',
+      [decoded.id]
+    );
+    if (!agent) return res.status(401).json({ success: false, message: 'บัญชี Agent ไม่พบหรือถูกระงับ' });
+
+    req.agent = agent;
+    next();
+  } catch (err) {
+    if (err.name === 'TokenExpiredError') return res.status(401).json({ success: false, message: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
+    return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้อง' });
+  }
+};
+
 // ─── Generate tokens ──────────────────────────────
 const signMemberToken = (member) =>
   jwt.sign({ id: member.id, type: 'member' }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
@@ -68,10 +91,13 @@ const signMemberToken = (member) =>
 const signAdminToken = (admin) =>
   jwt.sign({ id: admin.id, type: 'admin', role: admin.role }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ADMIN_EXPIRE || '8h' });
 
+const signAgentToken = (agent) =>
+  jwt.sign({ id: agent.id, type: 'agent' }, process.env.JWT_SECRET, { expiresIn: '12h' });
+
 // ─── Helper ───────────────────────────────────────
 const extractToken = (req) => {
   if (req.headers.authorization?.startsWith('Bearer ')) return req.headers.authorization.split(' ')[1];
   return req.cookies?.token || null;
 };
 
-module.exports = { authMember, authAdmin, optionalAuth, signMemberToken, signAdminToken };
+module.exports = { authMember, authAdmin, authAgent, optionalAuth, signMemberToken, signAdminToken, signAgentToken };

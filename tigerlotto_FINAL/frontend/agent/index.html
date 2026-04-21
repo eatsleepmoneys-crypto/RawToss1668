@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TigerLotto — Agent Portal</title>
+<style>
+  :root{
+    --bg:#0a0a0a;--card:#111;--card2:#1a1a1a;--border:rgba(255,255,255,.08);
+    --gold:#d4a017;--gold2:#ffd700;--text:#f0f0f0;--muted:#888;
+    --green:#2ed573;--red:#ff4757;--blue:#1e90ff;
+    --grad:linear-gradient(135deg,#d4a017,#ffd700,#b8860b);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh}
+
+  /* ── Login ── */
+  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px 36px;width:100%;max-width:420px}
+  .login-logo{text-align:center;margin-bottom:28px}
+  .login-logo .tiger{font-size:48px}
+  .login-logo h1{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-top:8px}
+  .login-logo p{font-size:12px;color:var(--muted);margin-top:4px}
+  .fg{margin-bottom:16px}
+  .fg label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .fi{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:15px;outline:none;transition:.2s}
+  .fi:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,160,23,.15)}
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
+  .btn-gold{background:var(--grad);color:#000}
+  .btn-gold:hover{opacity:.9;transform:translateY(-1px)}
+  .btn-gold:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .err{color:var(--red);font-size:13px;text-align:center;margin-top:12px;min-height:20px}
+
+  /* ── Dashboard layout ── */
+  .app{display:none;flex-direction:column;min-height:100vh}
+  .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-logo{font-size:20px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .topbar-badge{background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.3);color:var(--gold);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  .agent-name{font-size:14px;font-weight:600}
+  .btn-sm{padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s}
+  .btn-sm:hover{background:var(--card2);color:var(--text)}
+
+  /* ── Nav tabs ── */
+  .nav-tabs{display:flex;gap:4px;background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto}
+  .nav-tab{padding:14px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.2s}
+  .nav-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+  .nav-tab:hover:not(.on){color:var(--text)}
+
+  /* ── Content ── */
+  .content{padding:24px 20px;max-width:1100px;margin:0 auto;width:100%}
+
+  /* ── Cards ── */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+  .stat-label{font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+  .stat-val{font-size:26px;font-weight:900}
+  .stat-val.gold{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .stat-val.green{color:var(--green)}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+  /* ── Table ── */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px}
+  .card h3{font-size:15px;font-weight:700;margin-bottom:16px;color:var(--gold)}
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:10px 12px;color:var(--muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-green{background:rgba(46,213,115,.12);color:var(--green);border:1px solid rgba(46,213,115,.3)}
+  .badge-red{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.3)}
+
+  /* ── Search / filter bar ── */
+  .filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .fi-sm{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none}
+  .fi-sm:focus{border-color:var(--gold)}
+
+  /* ── Commission chart ── */
+  .chart-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .chart-date{width:90px;font-size:11px;color:var(--muted);flex-shrink:0}
+  .chart-bar-bg{flex:1;height:20px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden}
+  .chart-bar-fill{height:100%;background:var(--grad);border-radius:4px;transition:.4s}
+  .chart-val{width:80px;font-size:12px;color:var(--gold2);text-align:right;flex-shrink:0}
+
+  /* ── Pagination ── */
+  .paging{display:flex;gap:6px;justify-content:center;margin-top:16px}
+  .page-btn{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s}
+  .page-btn.on{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700}
+  .page-btn:hover:not(.on){background:var(--card2)}
+
+  /* ── Profile ── */
+  .profile-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+  .profile-avatar{width:64px;height:64px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+  .profile-info h2{font-size:20px;font-weight:800}
+  .profile-info p{font-size:13px;color:var(--muted);margin-top:2px}
+
+  /* ── Empty / loading ── */
+  .empty{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+  .loading{text-align:center;padding:30px;color:var(--muted)}
+
+  @media(max-width:600px){
+    .stat-grid{grid-template-columns:1fr 1fr}
+    .content{padding:16px 12px}
+    .topbar{padding:0 12px}
+    .nav-tabs{padding:0 12px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div class="login-wrap" id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="tiger">🐯</div>
+      <h1>TigerLotto</h1>
+      <p>Agent Portal — เข้าสู่ระบบเอเยนต์</p>
+    </div>
+    <div class="fg">
+      <label>เบอร์โทรศัพท์</label>
+      <input class="fi" id="lg-phone" type="tel" placeholder="0812345678" autocomplete="username">
+    </div>
+    <div class="fg">
+      <label>รหัสผ่าน</label>
+      <input class="fi" id="lg-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-gold" id="lg-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="err" id="lg-err"></div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div class="app" id="app-page">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">🐯 TigerLotto</span>
+      <span class="topbar-badge">AGENT</span>
+    </div>
+    <div class="topbar-right">
+      <span class="agent-name" id="agent-name-hdr">—</span>
+      <button class="btn-sm" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-tabs">
+    <div class="nav-tab on" data-tab="dashboard" onclick="switchTab('dashboard',this)">📊 ภาพรวม</div>
+    <div class="nav-tab" data-tab="members" onclick="switchTab('members',this)">👥 สมาชิก</div>
+    <div class="nav-tab" data-tab="commissions" onclick="switchTab('commissions',this)">💰 ค่าคอมมิชชั่น</div>
+    <div class="nav-tab" data-tab="profile" onclick="switchTab('profile',this)">👤 ข้อมูลเอเยนต์</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="tab-content">
+    <div class="loading">⏳ กำลังโหลด...</div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api';
+let _agentToken = localStorage.getItem('agent_token');
+let _agentData  = null;
+let _membersPage = 1;
+
+// ── API helper ──────────────────────────────────────────────────
+async function aFetch(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (_agentToken) headers['Authorization'] = `Bearer ${_agentToken}`;
+  const res  = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── Login / Logout ──────────────────────────────────────────────
+async function doLogin() {
+  const phone = document.getElementById('lg-phone').value.trim();
+  const pass  = document.getElementById('lg-pass').value;
+  const btn   = document.getElementById('lg-btn');
+  const err   = document.getElementById('lg-err');
+  err.textContent = '';
+  if (!phone || !pass) { err.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+  try {
+    const d = await aFetch('/auth/agent/login', {
+      method: 'POST',
+      body: JSON.stringify({ phone, password: pass })
+    });
+    _agentToken = d.token;
+    _agentData  = d.agent;
+    localStorage.setItem('agent_token', _agentToken);
+    showApp();
+  } catch(e) {
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('agent_token');
+  _agentToken = null; _agentData = null;
+  document.getElementById('app-page').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('lg-pass').value = '';
+  document.getElementById('lg-err').textContent = '';
+  document.getElementById('lg-btn').disabled = false;
+  document.getElementById('lg-btn').textContent = 'เข้าสู่ระบบ';
+}
+
+// รองรับกด Enter
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-page').style.display !== 'none') doLogin();
+});
+
+// ── App init ──────────────────────────────────────────────────────
+async function showApp() {
+  try {
+    const me = await aFetch('/auth/agent/me');
+    _agentData = me.data;
+  } catch(_) { doLogout(); return; }
+
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app-page').style.display   = 'flex';
+  document.getElementById('app-page').style.flexDirection = 'column';
+  document.getElementById('agent-name-hdr').textContent = _agentData.name;
+  switchTab('dashboard', document.querySelector('.nav-tab[data-tab="dashboard"]'));
+}
+
+// ── Tab switching ─────────────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on'));
+  if (el) el.classList.add('on');
+  _membersPage = 1;
+  const content = document.getElementById('tab-content');
+  content.innerHTML = '<div class="loading">⏳ กำลังโหลด...</div>';
+  if (tab === 'dashboard')    loadDashboard();
+  else if (tab === 'members') loadMembers();
+  else if (tab === 'commissions') loadCommissions();
+  else if (tab === 'profile') loadProfile();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────
+async function loadDashboard() {
+  const d = await aFetch('/agent/dashboard');
+  const s = d.data;
+  document.getElementById('tab-content').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">ยอดเงินคงเหลือ</div>
+        <div class="stat-val gold">฿${fmt(s.balance)}</div>
+        <div class="stat-sub">ยอดเงินในบัญชีเอเยนต์</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมรวม (ทั้งหมด)</div>
+        <div class="stat-val gold">฿${fmt(s.total_commission)}</div>
+        <div class="stat-sub">อัตรา ${s.commission_rate}% ต่อยอดแทง</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมเดือนนี้</div>
+        <div class="stat-val green">฿${fmt(s.commission_this_month)}</div>
+        <div class="stat-sub">จากยอดแทงเดือนนี้</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">สมาชิกทั้งหมด</div>
+        <div class="stat-val">${s.member_count.toLocaleString()}</div>
+        <div class="stat-sub">ใหม่วันนี้ +${s.new_members_today}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ยอดแทงวันนี้</div>
+        <div class="stat-val">฿${fmt(s.bet_total_today)}</div>
+        <div class="stat-sub">${s.bets_today.toLocaleString()} รายการ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมวันนี้ (ประมาณ)</div>
+        <div class="stat-val green">฿${fmt(s.bet_total_today * s.commission_rate / 100)}</div>
+        <div class="stat-sub">จากยอดแทง ${s.commission_rate}%</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📢 วิธีชวนสมาชิก</h3>
+      <p style="font-size:13px;color:var(--muted);line-height:1.7">
+        แจ้งลิ้งค์ <b style="color:var(--gold)">${location.origin}</b> ให้สมาชิกสมัคร แล้วแจ้งรหัสเอเยนต์ของคุณ (ID: <b style="color:var(--gold2)">${_agentData.id}</b>)
+        ให้สมาชิกกรอกตอนสมัคร ระบบจะเชื่อมสมาชิกเข้าทีมของคุณอัตโนมัติ
+      </p>
+    </div>`;
+}
+
+// ── Members ───────────────────────────────────────────────────────
+let _memberSearch = '';
+async function loadMembers(page = 1) {
+  _membersPage = page;
+  const data = await aFetch(`/agent/members?page=${page}&limit=20&search=${encodeURIComponent(_memberSearch)}`);
+  const rows  = data.data || [];
+  const total = data.total || 0;
+  const pages = Math.ceil(total / 20);
+
+  const tableRows = rows.length === 0
+    ? '<tr><td colspan="7" class="empty">ยังไม่มีสมาชิก</td></tr>'
+    : rows.map(m => `
+      <tr>
+        <td style="color:var(--muted);font-size:11px">${m.id}</td>
+        <td style="font-weight:600">${m.name}</td>
+        <td style="color:var(--muted)">${m.phone}</td>
+        <td style="color:var(--gold2)">฿${fmt(m.balance)}</td>
+        <td style="color:var(--muted)">${m.bet_count} รายการ</td>
+        <td style="color:var(--gold)">฿${fmt(m.total_bet)}</td>
+        <td><span class="badge ${m.status==='active'?'badge-green':'badge-red'}">${m.status==='active'?'Active':'Banned'}</span></td>
+      </tr>`).join('');
+
+  const pagingBtns = pages > 1 ? Array.from({length:pages},(_,i)=>
+    `<button class="page-btn ${i+1===page?'on':''}" onclick="loadMembers(${i+1})">${i+1}</button>`
+  ).join('') : '';
+
+  document.getElementById('tab-content').innerHTML = `
+    <div class="filter-bar">
+      <input class="fi-sm" id="mem-search" placeholder="🔍 ชื่อ หรือ เบอร์โทร" value="${_memberSearch}"
+        oninput="_memberSearch=this.value" onkeydown="if(event.key==='Enter')loadMembers(1)">
+      <button class="btn-sm btn-gold" style="background:var(--grad);color:#000;border:none;border-radius:8px;font-weight:700;padding:8px 16px" onclick="loadMembers(1)">ค้นหา</button>
+      <span style="margin-left:auto;color:var(--muted);font-size:12px;align-self:center">ทั้งหมด ${total} คน</span>
+    </div>
+    <div class="card" style="padding:0">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>ชื่อ</th><th>เบอร์โทร</th><th>ยอดเงิน</th><th>จำนวนแทง</th><th>ยอดแทงรวม</th><th>สถานะ</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="paging">${pagingBtns}</div>`;
+}
+
+// ── Commissions ───────────────────────────────────────────────────
+async function loadCommissions() {
+  const data = await aFetch('/agent/commissions');
+  const rows = data.data || [];
+  const maxCom = Math.max(...rows.map(r => r.commission), 1);
+
+  const bars = rows.length === 0
+    ? '<div class="empty">ยังไม่มีข้อมูล</div>'
+    : rows.map(r => `
+      <div class="chart-bar-row">
+        <div class="chart-date">${new Date(r.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(r.commission/maxCom*100)}%"></div></div>
+        <div class="chart-val">฿${fmt(r.commission)}</div>
+      </div>`).join('');
+
+  const totalCom = rows.reduce((s,r) => s + r.commission, 0);
+  const totalBet = rows.reduce((s,r) => s + r.bet_total, 0);
+
+  document.getElementById('tab-content').innerHTML = `
+    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอม 30 วัน</div>
+        <div class="stat-val gold">฿${fmt(totalCom)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ยอดแทง 30 วัน</div>
+        <div class="stat-val">฿${fmt(totalBet)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">อัตราค่าคอม</div>
+        <div class="stat-val green">${_agentData.commission_rate}%</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>💰 ค่าคอมมิชชั่นรายวัน (30 วันล่าสุด)</h3>
+      ${bars}
+    </div>
+    <div class="card">
+      <h3>📋 ตารางรายวัน</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>วันที่</th><th>จำนวนรายการ</th><th>ยอดแทงรวม</th><th>ค่าคอม</th></tr></thead>
+          <tbody>
+            ${rows.length===0
+              ? '<tr><td colspan="4" class="empty">ยังไม่มีข้อมูล</td></tr>'
+              : rows.map(r=>`
+                <tr>
+                  <td>${new Date(r.date).toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'2-digit'})}</td>
+                  <td style="color:var(--muted)">${r.bet_count}</td>
+                  <td style="color:var(--text)">฿${fmt(r.bet_total)}</td>
+                  <td style="color:var(--gold2);font-weight:700">฿${fmt(r.commission)}</td>
+                </tr>`).join('')
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── Profile ───────────────────────────────────────────────────────
+function loadProfile() {
+  const a = _agentData;
+  document.getElementById('tab-content').innerHTML = `
+    <div class="card">
+      <div class="profile-row">
+        <div class="profile-avatar">🤝</div>
+        <div class="profile-info">
+          <h2>${a.name}</h2>
+          <p>${a.phone}${a.email ? ' · ' + a.email : ''}</p>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">รหัสเอเยนต์</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold2)">#${a.id}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">อัตราค่าคอมมิชชั่น</div>
+          <div style="font-size:20px;font-weight:800;color:var(--green)">${a.commission_rate}%</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ยอดเงินคงเหลือ</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">฿${fmt(a.balance)}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ค่าคอมสะสมรวม</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">฿${fmt(a.total_commission)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>🔒 เปลี่ยนรหัสผ่าน</h3>
+      <div class="fg"><label>รหัสผ่านปัจจุบัน</label><input class="fi" id="pw-old" type="password" placeholder="••••••••"></div>
+      <div class="fg"><label>รหัสผ่านใหม่</label><input class="fi" id="pw-new" type="password" placeholder="อย่างน้อย 8 ตัว"></div>
+      <div class="fg"><label>ยืนยันรหัสผ่านใหม่</label><input class="fi" id="pw-con" type="password" placeholder="••••••••"></div>
+      <button class="btn btn-gold" style="max-width:200px" id="pw-btn" onclick="changePassword()">บันทึกรหัสผ่าน</button>
+      <div class="err" id="pw-err"></div>
+    </div>`;
+}
+
+async function changePassword() {
+  const oldPw = document.getElementById('pw-old')?.value;
+  const newPw = document.getElementById('pw-new')?.value;
+  const conPw = document.getElementById('pw-con')?.value;
+  const err   = document.getElementById('pw-err');
+  const btn   = document.getElementById('pw-btn');
+  err.textContent = '';
+  if (!oldPw || !newPw || !conPw) { err.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }
+  if (newPw.length < 8)           { err.textContent = 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว'; return; }
+  if (newPw !== conPw)            { err.textContent = 'รหัสผ่านใหม่ไม่ตรงกัน'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
+  try {
+    await aFetch('/agent/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+    });
+    err.style.color = 'var(--green)';
+    err.textContent = '✅ เปลี่ยนรหัสผ่านสำเร็จ';
+    document.getElementById('pw-old').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-con').value = '';
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+  }
+  btn.disabled = false; btn.textContent = 'บันทึกรหัสผ่าน';
+}
+
+// ── Util ──────────────────────────────────────────────────────────
+function fmt(n) { return Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ── Auto-login if token exists ────────────────────────────────────
+(async () => {
+  if (_agentToken) {
+    try { await showApp(); }
+    catch(_) { localStorage.removeItem('agent_token'); }
+  }
+})();
+</script>
+</body>
+</html>

@@ -4,7 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { query, transaction } = require('../config/db');
-const { signMemberToken, signAdminToken, authMember, authAdmin } = require('../middleware/auth');
+const { signMemberToken, signAdminToken, signAgentToken, authMember, authAdmin, authAgent } = require('../middleware/auth');
 
 // ─── Rate limiters ───────────────────────────────
 const loginLimit = rateLimit({
@@ -243,5 +243,38 @@ router.post('/reset-password',
     res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ' });
   }
 );
+
+// ─── POST /api/auth/agent/login ───────────────────
+router.post('/agent/login', loginLimit,
+  body('phone').notEmpty().withMessage('กรุณากรอกเบอร์โทร'),
+  body('password').notEmpty().withMessage('กรุณากรอกรหัสผ่าน'),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, message: errors.array()[0].msg });
+
+    const phone = String(req.body.phone).replace(/[^0-9]/g, '');
+    const { password } = req.body;
+
+    const [agent] = await query(
+      'SELECT id, uuid, name, phone, email, password, commission_rate, balance, total_commission, status FROM agents WHERE phone = ?',
+      [phone]
+    );
+
+    if (!agent) return res.status(401).json({ success: false, message: 'เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง' });
+    if (agent.status !== 'active') return res.status(403).json({ success: false, message: 'บัญชีถูกระงับ กรุณาติดต่อ Admin' });
+
+    const valid = await bcrypt.compare(password, agent.password);
+    if (!valid) return res.status(401).json({ success: false, message: 'เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง' });
+
+    const token = signAgentToken(agent);
+    const { password: _pw, ...agentData } = agent;
+    res.json({ success: true, message: 'เข้าสู่ระบบสำเร็จ', token, agent: agentData });
+  }
+);
+
+// ─── GET /api/auth/agent/me ───────────────────────
+router.get('/agent/me', authAgent, (req, res) => {
+  res.json({ success: true, data: req.agent });
+});
 
 module.exports = router;

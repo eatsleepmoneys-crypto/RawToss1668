@@ -83,6 +83,7 @@ app.use('/api/bets',         require('./routes/bets'));
 app.use('/api/transactions', require('./routes/transactions'));
 app.use('/api/admin',        require('./routes/admin'));
 app.use('/api/settings',     require('./routes/settings'));
+app.use('/api/agent',        require('./routes/agent'));
 
 // ─── Health Check ─────────────────────────────────
 app.get('/api/health', (req, res) => {
