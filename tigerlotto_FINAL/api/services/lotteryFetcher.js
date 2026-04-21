@@ -423,22 +423,195 @@ async function fetchVNHanoi() {
 
 // ═══════════════════════════════════════════════════════════════════
 //  TNews scraper — tnews.co.th/lotto-horo-belief/...
-//  เว็บข่าวไทยที่รายงานผลหวยเวียดนามพร้อมตารางรางวัลทุกวัน
 //
-//  lotteryType: 'VN_HAN' | 'VN_HAN_SP' | 'VN_HAN_VIP'
+//  โครงสร้างจริงของ TNews บทความ (ยืนยันจากหน้าเว็บ 21/4/69):
+//  บทความ 1 URL มีผลทุกประเภทรวมกัน แบ่งเป็น section:
 //
-//  วิธีทำงาน:
-//  1. ดึงหน้า listing tnews.co.th/lotto-horo-belief เพื่อหา URL บทความวันนี้
-//  2. ดึงบทความนั้น และ scrape ตัวเลขรางวัล
-//  3. Match กับ keyword ของแต่ละ lottery type
+//    ผลหวยฮานอยเฉพาะกิจ          ← ไม่ใช่ประเภทเราใช้
+//    เลข 4 ตัว :  2860
+//    เลข 3 ตัวบน :  860
+//    เลข 2 ตัวบน :  60
+//    เลข 2 ตัวล่าง :  11
+//
+//    ผลหวยฮานอยพิเศษ             ← VN_HAN_SP
+//    เลข 4 ตัว :  9349
+//    เลข 3 ตัวบน :  349
+//    เลข 2 ตัวบน :  49
+//    เลข 2 ตัวล่าง :  74
+//
+//    ผลหวยฮานอยปกติ              ← VN_HAN
+//    เลข 4 ตัว :  (empty until announced)
+//    ...
+//
+//    ผลหวยฮานอย vip              ← VN_HAN_VIP
+//    เลข 4 ตัว :  (empty until announced)
+//    ...
+//
+//  KEY: ผลคือ 4 หลัก (ไม่ใช่ 5 หลักแบบเวียดนาม), ดึง section ตาม header
 // ═══════════════════════════════════════════════════════════════════
 
-// Keyword ใช้ match บทความในหน้า listing
-const TNEWS_KEYWORDS = {
-  VN_HAN:     ['ฮานอยปกติ', 'หวยฮานอยปกติ', 'ฮานอย', 'ผลหวยฮานอย'],
-  VN_HAN_SP:  ['ฮานอยพิเศษ', 'หวยฮานอยพิเศษ', 'พิเศษ'],
-  VN_HAN_VIP: ['ฮานอยวีไอพี', 'ฮานอย vip', 'วีไอพี', 'ฮานอยVIP'],
+// Section headers ในบทความ TNews สำหรับแต่ละ lottery type
+const TNEWS_SECTION_HEADERS = {
+  VN_HAN:     ['ผลหวยฮานอยปกติ', 'ฮานอยปกติ', 'hanoiปกติ'],
+  VN_HAN_SP:  ['ผลหวยฮานอยพิเศษ', 'ฮานอยพิเศษ', 'hanoi พิเศษ'],
+  VN_HAN_VIP: ['ผลหวยฮานอย vip', 'ฮานอย vip', 'ฮานอยวีไอพี', 'hanoi vip'],
 };
+
+// Cache บทความ TNews (5 นาที) — article ใช้ร่วมกันทุก type ใน 1 URL
+let _tnewsCache = { data: null, ts: 0 };
+const TNEWS_CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * หา URL บทความ TNews วันนี้ (broad keyword — ทุก type อยู่ article เดียว)
+ */
+async function findTNewsArticleUrl() {
+  const LISTING_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief',
+    'https://www.tnews.co.th/category/lotto-horo-belief',
+    'https://www.tnews.co.th/contents/lotto-horo-belief',
+    'https://www.tnews.co.th/tag/%E0%B8%AB%E0%B8%A7%E0%B8%A2%E0%B8%AE%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%A2',
+  ];
+  const BROAD_KW = ['ฮานอย', 'หวยฮานอย', 'hanoi'];
+
+  for (const listUrl of LISTING_URLS) {
+    try {
+      const listRes = await httpGetProxy(listUrl, 20000, 'th');
+      const $list   = cheerio.load(listRes.data);
+      let articleUrl = null;
+
+      // ลอง match broad keyword ก่อน
+      $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
+        if (articleUrl) return;
+        const href  = $list(el).attr('href') || '';
+        const text  = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
+        const hit   = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
+        if (hit && /\/lotto-horo-belief\/\d+/.test(href)) {
+          articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
+        }
+      });
+
+      // fallback: ลิ้งแรกในหน้า listing
+      if (!articleUrl) {
+        $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
+          if (articleUrl) return;
+          const href = $list(el).attr('href') || '';
+          if (/\/lotto-horo-belief\/\d+/.test(href)) {
+            articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
+          }
+        });
+      }
+
+      if (articleUrl) {
+        console.log('[FETCHER:TNEWS] listing OK →', articleUrl);
+        return articleUrl;
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS] listing error (%s):', listUrl, e.message);
+    }
+  }
+  return null;
+}
+
+/**
+ * แยก section ของ lottery type จาก body text ของบทความ TNews
+ * รูปแบบ: "เลข 4 ตัว : XXXX", "เลข 3 ตัวบน : XXX", "เลข 2 ตัวบน : XX", "เลข 2 ตัวล่าง : XX"
+ */
+function parseTNewsSections(html) {
+  const $ = cheerio.load(html);
+  // ดึง body text ให้ได้เยอะที่สุด
+  let bodyText = '';
+  for (const sel of ['article', '.content-body', '.post-content', '.article-content',
+                     '.entry-content', '#content-body', '#article-body', 'body']) {
+    const t = $(sel).first().text();
+    if (t && t.length > bodyText.length) bodyText = t;
+  }
+  if (!bodyText) bodyText = $.text();
+
+  const result = {};
+
+  for (const [lotteryType, headers] of Object.entries(TNEWS_SECTION_HEADERS)) {
+    for (const header of headers) {
+      const idx = bodyText.toLowerCase().indexOf(header.toLowerCase());
+      if (idx === -1) continue;
+
+      // ตัด chunk จาก header ไปถึง 500 ตัวอักษร (หรือจนถึง section ถัดไป)
+      const chunk = bodyText.slice(idx, idx + 500);
+
+      // เลข 4 ตัว : XXXX
+      const m4  = chunk.match(/เลข\s*4\s*ตัว\s*[:\-]?\s*(\d{3,5})/i);
+      // เลข 3 ตัวบน : XXX
+      const m3  = chunk.match(/เลข\s*3\s*ตัวบน\s*[:\-]?\s*(\d{2,4})/i);
+      // เลข 2 ตัวบน : XX
+      const m2t = chunk.match(/เลข\s*2\s*ตัวบน\s*[:\-]?\s*(\d{1,3})/i);
+      // เลข 2 ตัวล่าง : XX
+      const m2b = chunk.match(/เลข\s*2\s*ตัวล่าง\s*[:\-]?\s*(\d{1,3})/i);
+
+      if (!m4) break; // section พบแต่ยังไม่มีตัวเลข (ยังไม่ออก)
+
+      const main = m4[1].padStart(4, '0');
+      const top3 = m3  ? m3[1].padStart(3,  '0') : main.slice(-3);
+      const top2 = m2t ? m2t[1].padStart(2, '0') : main.slice(-2);
+      const bot2 = m2b ? m2b[1].padStart(2, '0') : null;
+
+      result[lotteryType] = {
+        prize_1st:     main,
+        prize_last_2:  top2,
+        prize_2bot:    bot2,
+        prize_front_3: [],
+        prize_last_3:  [top3],
+      };
+      break;
+    }
+  }
+  return result;
+}
+
+/**
+ * ดึงและ cache article TNews วันนี้ → return parsed sections object
+ * { VN_HAN: {...}, VN_HAN_SP: {...}, VN_HAN_VIP: {...} }
+ */
+async function getTNewsData() {
+  const now = Date.now();
+  if (_tnewsCache.data && (now - _tnewsCache.ts) < TNEWS_CACHE_TTL) {
+    return _tnewsCache.data;
+  }
+
+  const url = await findTNewsArticleUrl();
+  if (!url) {
+    console.warn('[FETCHER:TNEWS] ไม่พบ URL บทความ — ข้าม');
+    return null;
+  }
+
+  try {
+    const artRes = await httpGetProxy(url, 25000, 'th');
+    const parsed = parseTNewsSections(artRes.data);
+    const found  = Object.keys(parsed);
+    console.log('[FETCHER:TNEWS] ✅ article parsed, types found:', found.length ? found.join(', ') : 'ไม่พบ section');
+    _tnewsCache = { data: parsed, ts: now };
+    return parsed;
+  } catch(e) {
+    console.warn('[FETCHER:TNEWS] article fetch error:', e.message);
+    return null;
+  }
+}
+
+/**
+ * ดึงผล TNews สำหรับ lottery type ที่ระบุ
+ * @param {string} lotteryType  'VN_HAN' | 'VN_HAN_SP' | 'VN_HAN_VIP'
+ */
+async function fetchTNewsVNHanoi(lotteryType) {
+  const data = await getTNewsData();
+  if (!data) return null;
+
+  const r = data[lotteryType];
+  if (r) {
+    console.log(`[FETCHER:${lotteryType}] TNews ✅ main=${r.prize_1st} top2=${r.prize_last_2} bot2=${r.prize_2bot||'?'} top3=${(r.prize_last_3||[])[0]||'?'}`);
+    return r;
+  }
+
+  console.warn(`[FETCHER:${lotteryType}] TNews: section ไม่พบหรือยังไม่ออกผล`);
+  return null;
+}
 
 /**
  * ดึงผลหวยเวียดนามจาก TNews.co.th
@@ -1262,233 +1435,47 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
  * เป็นหวยเอกชนเวียดนาม (ไม่ใช่ XSMB รัฐบาล) ออกผลก่อน XSMB ปกติ
  */
 async function fetchVNHanoiSP() {
-  function vn(gdb, g1) {
-    return {
-      prize_1st:    gdb,
-      prize_last_2: gdb.slice(-2),
-      prize_2bot:   g1 ? g1.slice(-2) : null,
-      prize_front_3: [],
-      prize_last_3:  [gdb.slice(-3)],
-    };
-  }
+  // ฮานอยพิเศษ เป็น lottery ไทย (ไม่ใช่ Vietnam XSMBT) — Source หลักคือ TNews
 
-  // Source 1: xskt.com.vn — Miền Bắc thêm RSS (XSMBT)
-  try {
-    const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-them-xsmbt.rss', 20000);
-    const parsed = extractGdbG1(String(res.data));
-    if (parsed) {
-      console.log('[FETCHER:VN_HAN_SP] xskt.com.vn thêm RSS GDB=%s G1=%s', parsed.gdb, parsed.g1 || '?');
-      return vn(parsed.gdb, parsed.g1);
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] xskt thêm RSS error:', e.message); }
-
-  // Source 2: xoso.com.vn XSMBT (Miền Bắc thêm)
-  try {
-    const res = await httpGetProxy('https://xoso.com.vn/xsmbt.html', 30000, 'sg');
-    const $ = cheerio.load(res.data);
-    let gdb = '', g1 = '';
-    $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"],[class*="special"]').each((_, el) => {
-      const t = $(el).text().trim().replace(/\D/g, '');
-      if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5, '0');
-    });
-    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
-      const t = $(el).text().trim().replace(/\D/g, '');
-      if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5, '0');
-    });
-    if (!gdb || !g1) {
-      $('tr,li').each((_, el) => {
-        const rowText = $(el).text();
-        if (!gdb && /đặc biệt|dac biet|\bDB\b|\bĐB\b/i.test(rowText)) {
-          const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
-        }
-        if (!g1 && /nh[aấ]t|g\.?1\b/i.test(rowText)) {
-          const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
-        }
-      });
-    }
-    if (!gdb) {
-      const nums = [];
-      $('td,span,b,strong').each((_, el) => {
-        if ($(el).children().length > 0) return;
-        const t = $(el).text().trim().replace(/\D/g, '');
-        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
-      });
-      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
-    }
-    if (gdb) {
-      console.log('[FETCHER:VN_HAN_SP] xoso.com.vn GDB=%s G1=%s', gdb, g1 || '?');
-      return vn(gdb, g1 || null);
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] xoso.com.vn error:', e.message); }
-
-  // Source 3: ketqua.tv Miền Bắc thêm
-  try {
-    const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac-them.html', 30000, 'sg');
-    const $ = cheerio.load(res.data);
-    let gdb = '', g1 = '';
-    $('tr,li').each((_, el) => {
-      const rowText = $(el).text();
-      if (!gdb && /đặc biệt|dac biet/i.test(rowText)) {
-        const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
-      }
-      if (!g1 && /nh[aấ]t|g\.?1/i.test(rowText)) {
-        const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
-      }
-    });
-    if (!gdb) {
-      const parsed = extractGdbG1(String(res.data));
-      if (parsed) { gdb = parsed.gdb; g1 = parsed.g1 || ''; }
-    }
-    if (gdb) {
-      console.log('[FETCHER:VN_HAN_SP] ketqua.tv GDB=%s G1=%s', gdb, g1 || '?');
-      return vn(gdb, g1 || null);
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] ketqua.tv error:', e.message); }
-
-  // Source 4: xskt.com.vn — ลองดู RSS ทั่วไปของ XSMBT ในชื่อต่างๆ
-  const altRssUrls = [
-    'https://xskt.com.vn/rss-feed/mien-bac-them.rss',
-    'https://xskt.com.vn/rss-feed/xsmbt.rss',
-    'https://xsmb.vn/rss-them',
-  ];
-  for (const url of altRssUrls) {
-    try {
-      const res = await httpGet(url, 15000);
-      const parsed = extractGdbG1(String(res.data));
-      if (parsed) {
-        console.log('[FETCHER:VN_HAN_SP] alt RSS (%s) GDB=%s G1=%s', url, parsed.gdb, parsed.g1 || '?');
-        return vn(parsed.gdb, parsed.g1);
-      }
-    } catch(e) { /* continue */ }
-  }
-
-  // Source 5: TNews.co.th (ฮานอยพิเศษ)
+  // Source 1: TNews.co.th — ถูกต้อง 100% (section ผลหวยฮานอยพิเศษ)
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_SP');
-    if (result) {
-      console.log('[FETCHER:VN_HAN_SP] TNews GDB=%s G1=%s', result.prize_1st, result.prize_2bot || '?');
-      return result;
-    }
+    if (result) return result;
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] TNews error:', e.message); }
 
-  throw new Error('VN_HAN_SP: แหล่งข้อมูลทุกแหล่งล้มเหลว — กรุณา config DB sources ใน Admin Panel → API Sources');
+  // Source 2: DB sources (Admin-configured) — fallback
+  try {
+    const dbResult = await fetchFromDbSources('VN_HAN_SP');
+    if (dbResult) {
+      console.log('[FETCHER:VN_HAN_SP] DB source ✅');
+      return dbResult;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] DB source error:', e.message); }
+
+  throw new Error('VN_HAN_SP: ไม่พบผล — กรุณาตรวจสอบ TNews หรือ config DB sources ใน Admin Panel → API Sources');
 }
 
 /**
- * ฮานอย VIP (VN_HAN_VIP) — ออกผลทุกวัน ~17:00 น.
- * หวยเอกชนเวียดนาม (Hanoi VIP) ออกผลเร็วกว่า XSMB ปกติ
+ * ฮานอย VIP (VN_HAN_VIP) — ออกผลทุกวัน ~19:00 น.
+ * ข้อมูลจาก TNews (section "ผลหวยฮานอย vip")
  */
 async function fetchVNHanoiVIP() {
-  function vn(gdb, g1) {
-    return {
-      prize_1st:    gdb,
-      prize_last_2: gdb.slice(-2),
-      prize_2bot:   g1 ? g1.slice(-2) : null,
-      prize_front_3: [],
-      prize_last_3:  [gdb.slice(-3)],
-    };
-  }
-
-  // Source 1: xskt.com.vn — Hà Nội VIP RSS
-  try {
-    const res = await httpGet('https://xskt.com.vn/rss-feed/ha-noi-vip-xshnvip.rss', 20000);
-    const parsed = extractGdbG1(String(res.data));
-    if (parsed) {
-      console.log('[FETCHER:VN_HAN_VIP] xskt RSS GDB=%s G1=%s', parsed.gdb, parsed.g1 || '?');
-      return vn(parsed.gdb, parsed.g1);
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] xskt RSS error:', e.message); }
-
-  // Source 2: xoso.com.vn XSHNVIP
-  try {
-    const res = await httpGetProxy('https://xoso.com.vn/xshnvip.html', 30000, 'sg');
-    const $ = cheerio.load(res.data);
-    let gdb = '', g1 = '';
-    $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"],[class*="jackpot"]').each((_, el) => {
-      const t = $(el).text().trim().replace(/\D/g, '');
-      if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5, '0');
-    });
-    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
-      const t = $(el).text().trim().replace(/\D/g, '');
-      if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5, '0');
-    });
-    if (!gdb || !g1) {
-      $('tr,li').each((_, el) => {
-        const rowText = $(el).text();
-        if (!gdb && /đặc biệt|dac biet|\bDB\b|\bĐB\b/i.test(rowText)) {
-          const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
-        }
-        if (!g1 && /nh[aấ]t|g\.?1\b/i.test(rowText)) {
-          const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
-        }
-      });
-    }
-    if (!gdb) {
-      const nums = [];
-      $('td,span,b,strong').each((_, el) => {
-        if ($(el).children().length > 0) return;
-        const t = $(el).text().trim().replace(/\D/g, '');
-        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
-      });
-      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
-    }
-    if (gdb) {
-      console.log('[FETCHER:VN_HAN_VIP] xoso.com.vn GDB=%s G1=%s', gdb, g1 || '?');
-      return vn(gdb, g1 || null);
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] xoso.com.vn error:', e.message); }
-
-  // Source 3: ketqua.tv Hà Nội VIP
-  try {
-    const res = await httpGetProxy('https://ketqua.tv/xo-so-ha-noi-vip.html', 30000, 'sg');
-    const $ = cheerio.load(res.data);
-    let gdb = '', g1 = '';
-    $('tr,li').each((_, el) => {
-      const rowText = $(el).text();
-      if (!gdb && /đặc biệt|dac biet/i.test(rowText)) {
-        const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
-      }
-      if (!g1 && /nh[aấ]t|g\.?1/i.test(rowText)) {
-        const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
-      }
-    });
-    if (!gdb) {
-      const parsed = extractGdbG1(String(res.data));
-      if (parsed) { gdb = parsed.gdb; g1 = parsed.g1 || ''; }
-    }
-    if (gdb) {
-      console.log('[FETCHER:VN_HAN_VIP] ketqua.tv GDB=%s G1=%s', gdb, g1 || '?');
-      return vn(gdb, g1 || null);
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] ketqua.tv error:', e.message); }
-
-  // Source 4: ลอง RSS ในชื่อต่างๆ
-  const altRssUrls = [
-    'https://xskt.com.vn/rss-feed/ha-noi-vip.rss',
-    'https://xskt.com.vn/rss-feed/xshnvip.rss',
-    'https://xsmb.vn/rss-vip',
-  ];
-  for (const url of altRssUrls) {
-    try {
-      const res = await httpGet(url, 15000);
-      const parsed = extractGdbG1(String(res.data));
-      if (parsed) {
-        console.log('[FETCHER:VN_HAN_VIP] alt RSS (%s) GDB=%s G1=%s', url, parsed.gdb, parsed.g1 || '?');
-        return vn(parsed.gdb, parsed.g1);
-      }
-    } catch(e) { /* continue */ }
-  }
-
-  // Source 5: TNews.co.th (ฮานอย VIP)
+  // Source 1: TNews.co.th — ถูกต้อง 100% (section ผลหวยฮานอย vip)
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_VIP');
-    if (result) {
-      console.log('[FETCHER:VN_HAN_VIP] TNews GDB=%s G1=%s', result.prize_1st, result.prize_2bot || '?');
-      return result;
-    }
+    if (result) return result;
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] TNews error:', e.message); }
 
-  throw new Error('VN_HAN_VIP: แหล่งข้อมูลทุกแหล่งล้มเหลว — กรุณา config DB sources ใน Admin Panel → API Sources');
+  // Source 2: DB sources (Admin-configured) — fallback
+  try {
+    const dbResult = await fetchFromDbSources('VN_HAN_VIP');
+    if (dbResult) {
+      console.log('[FETCHER:VN_HAN_VIP] DB source ✅');
+      return dbResult;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] DB source error:', e.message); }
+
+  throw new Error('VN_HAN_VIP: ไม่พบผล — กรุณาตรวจสอบ TNews หรือ config DB sources ใน Admin Panel → API Sources');
 }
 
 // ── Export สำหรับ manual trigger ──────────────────────────────
