@@ -1862,39 +1862,101 @@ function mpTab(tab){
   if(tab==='notif' && !_mpLoaded.notif) loadNotifications();
 }
 
-/* ── Bet History ── */
+/* ── Bet History (Bill View) ── */
+function _groupBetsIntoBills(rows){
+  // group bets ที่ซื้อพร้อมกัน (lottery + round + ช่วงนาทีเดียวกัน) เป็น 1 บิล
+  const billMap = new Map();
+  rows.forEach(b => {
+    const minute = (b.created_at||'').slice(0,16); // yyyy-mm-dd hh:mm
+    const key = `${b.lottery_name||''}__${b.round_name||''}__${minute}`;
+    if(!billMap.has(key)) billMap.set(key, { key, bets:[], lottery_name:b.lottery_name, flag:b.flag||'', round_name:b.round_name, draw_date:b.draw_date, created_at:b.created_at });
+    billMap.get(key).bets.push(b);
+  });
+  return [...billMap.values()];
+}
+function _billStatus(bets){
+  if(bets.some(b=>b.status==='win'))       return 'win';
+  if(bets.every(b=>b.status==='lose'))     return 'lose';
+  if(bets.some(b=>b.status==='cancelled')) return 'cancelled';
+  return 'waiting';
+}
+let _expandedBills = new Set();
+function toggleBill(key){
+  if(_expandedBills.has(key)) _expandedBills.delete(key);
+  else _expandedBills.add(key);
+  const wrap = document.querySelector(`[data-bill="${CSS.escape(key)}"]`);
+  if(!wrap) return;
+  const detail = wrap.querySelector('.bill-detail');
+  const arrow  = wrap.querySelector('.bill-arrow');
+  if(detail){ detail.style.display = _expandedBills.has(key) ? 'block' : 'none'; }
+  if(arrow)  { arrow.textContent = _expandedBills.has(key) ? '▲' : '▼'; }
+}
+function _renderBills(bills){
+  return bills.map(bill => {
+    const status    = _billStatus(bill.bets);
+    const statusCls = BET_STATUS_CLS[status]||'bb-wait';
+    const statusTh  = BET_STATUS_TH[status]||status;
+    const totalAmt  = bill.bets.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+    const totalPay  = bill.bets.reduce((s,b)=>s+parseFloat(b.payout||0),0);
+    const totalWin  = bill.bets.filter(b=>b.status==='win').reduce((s,b)=>s+parseFloat(b.win_amount||0),0);
+    const dateStr   = UI.formatDateOnly(bill.draw_date||bill.created_at);
+    const timeStr   = (bill.created_at||'').slice(11,16);
+    const expanded  = _expandedBills.has(bill.key);
+    // detail rows
+    const detailRows = bill.bets.map(b=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div>
+          <span style="font-size:11px;color:var(--muted)">${BET_TYPE_TH[b.bet_type]||b.bet_type}</span>
+          <span style="font-size:15px;font-weight:800;color:var(--gold2);margin-left:6px">${b.number}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:600">฿${UI.formatMoney(b.amount)}</div>
+          ${b.status==='win'?`<div style="font-size:11px;color:#2ed573">+฿${UI.formatMoney(b.win_amount)}</div>`:
+            b.status==='waiting'?`<div style="font-size:11px;color:var(--gold)">อาจได้ ฿${UI.formatMoney(b.payout)}</div>`:''}
+        </div>
+      </div>`).join('');
+    return `<div class="bet-row" data-bill="${bill.key}" style="flex-direction:column;cursor:pointer" onclick="toggleBill('${bill.key.replace(/'/g,"\\'").replace(/\\/g,'\\\\').replace(/`/g,'\\`')}')">
+      <div style="display:flex;align-items:flex-start;width:100%">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="bet-badge ${statusCls}">${statusTh}</span>
+            <span style="font-size:12px;color:var(--dim)">${timeStr}</span>
+          </div>
+          <div style="font-size:14px;font-weight:700">${bill.flag}${bill.lottery_name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${bill.round_name||''} · ${dateStr}</div>
+          <div style="font-size:12px;color:var(--dim);margin-top:3px">${bill.bets.length} รายการ</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;padding-left:10px">
+          <div style="font-size:12px;color:var(--muted)">รวมแทง</div>
+          <div style="font-size:16px;font-weight:800">฿${UI.formatMoney(totalAmt)}</div>
+          ${status==='win' ? `<div style="font-size:13px;color:#2ed573;font-weight:700">+฿${UI.formatMoney(totalWin)}</div>`
+            : status==='waiting' ? `<div style="font-size:12px;color:var(--gold)">อาจได้ ฿${UI.formatMoney(totalPay)}</div>` : ''}
+          <div class="bill-arrow" style="font-size:10px;color:var(--dim);margin-top:4px">${expanded?'▲':'▼'}</div>
+        </div>
+      </div>
+      <div class="bill-detail" style="display:${expanded?'block':'none'};width:100%;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+        ${detailRows}
+      </div>
+    </div>`;
+  }).join('');
+}
+
 async function loadBetHistory(append=false){
   const el = document.getElementById('mps-bets');
   if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
   try{
-    const d    = await API.BetsAPI.history({ limit: MP_PAGE_SIZE, page: _mpBetsPage });
+    const d    = await API.BetsAPI.history({ limit: 100, page: _mpBetsPage });
     const rows = d.data || [];
     _mpLoaded.bets = true;
     if(!append && rows.length===0){
       el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">🎫</div>ยังไม่มีประวัติการแทง</div>';
       return;
     }
-    const html = rows.map(b=>`
-      <div class="bet-row">
-        <div style="flex:1;min-width:0">
-          <span class="bet-badge ${BET_STATUS_CLS[b.status]||'bb-wait'}">${BET_STATUS_TH[b.status]||b.status}</span>
-          <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.flag||''}${b.lottery_name||''}</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:2px">${BET_TYPE_TH[b.bet_type]||b.bet_type} · เลข <b style="color:var(--gold2);font-size:15px">${b.number}</b></div>
-          <div style="font-size:11px;color:var(--dim);margin-top:1px">${b.round_name||''} · ${UI.formatDateOnly(b.draw_date||b.created_at)}</div>
-        </div>
-        <div style="text-align:right;flex-shrink:0;padding-left:8px">
-          <div style="font-size:12px;color:var(--muted)">แทง</div>
-          <div style="font-size:15px;font-weight:700">฿${UI.formatMoney(b.amount)}</div>
-          ${b.status==='win'
-            ? `<div class="tx-pos">+฿${UI.formatMoney(b.win_amount)}</div>`
-            : b.status==='waiting'
-              ? `<div style="font-size:12px;color:var(--gold)">อาจได้ ฿${UI.formatMoney(b.payout)}</div>`
-              : ''}
-        </div>
-      </div>`).join('');
+    const bills = _groupBetsIntoBills(rows);
+    const html  = _renderBills(bills);
     if(!append) el.innerHTML = html;
     else el.querySelector('.mp-load-more')?.remove(), el.insertAdjacentHTML('beforeend', html);
-    if(rows.length === MP_PAGE_SIZE){
+    if(rows.length === 100){
       const btn = document.createElement('button');
       btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
       btn.onclick=()=>{ _mpBetsPage++; loadBetHistory(true); };
