@@ -842,9 +842,10 @@ select.fi option{background:var(--card2)}
     </div>
     <!-- Tabs -->
     <div class="mpanel-tabs">
-      <button class="mpanel-tab on" id="mpt-bets"  onclick="mpTab('bets')">🎫 ประวัติแทง</button>
-      <button class="mpanel-tab"    id="mpt-tx"    onclick="mpTab('tx')">💳 ฝาก-ถอน</button>
-      <button class="mpanel-tab"    id="mpt-notif" onclick="mpTab('notif')">🔔 แจ้งเตือน<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
+      <button class="mpanel-tab on" id="mpt-bets"   onclick="mpTab('bets')">🎫 ประวัติแทง</button>
+      <button class="mpanel-tab"    id="mpt-tx"     onclick="mpTab('tx')">💳 ฝาก-ถอน</button>
+      <button class="mpanel-tab"    id="mpt-refer"  onclick="mpTab('refer')">🔗 แนะนำ</button>
+      <button class="mpanel-tab"    id="mpt-notif"  onclick="mpTab('notif')">🔔<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
     </div>
     <!-- Body -->
     <div class="mpanel-body">
@@ -852,6 +853,9 @@ select.fi option{background:var(--card2)}
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
       </div>
       <div class="mpanel-sec" id="mps-tx">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-refer">
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
       </div>
       <div class="mpanel-sec" id="mps-notif">
@@ -979,7 +983,15 @@ function openAuth(tab){
   if(window.currentUser){ toast('แจ้งเตือน','คุณเข้าสู่ระบบแล้ว'); return; }
   document.getElementById('auth-ov').classList.add('on');
   mTab(tab);
-  if(tab === 'register') _showAffBanner();
+  if(tab === 'register'){
+    _showAffBanner();
+    // Pre-fill ref_code from URL or sessionStorage (member referral)
+    const savedRef = sessionStorage.getItem('ref_code');
+    if(savedRef){
+      const refInp = document.getElementById('r-ref');
+      if(refInp && !refInp.value) refInp.value = savedRef;
+    }
+  }
 }
 function closeM(id){document.getElementById(id).classList.remove('on');}
 function mTab(t){
@@ -1928,7 +1940,7 @@ function openMemberPanel(tab){
   document.getElementById('mpanel-ov').classList.add('on');
   document.body.style.overflow = 'hidden';
   // Reset load state so fresh data on each open
-  _mpLoaded = {bets:false, tx:false, notif:false};
+  _mpLoaded = {bets:false, tx:false, refer:false, notif:false};
   _mpBetsPage = 1; _mpTxPage = 1;
   mpTab(tab || _mpActive);
 }
@@ -1942,12 +1954,13 @@ function closeMPanel(){
 
 function mpTab(tab){
   _mpActive = tab;
-  ['bets','tx','notif'].forEach(t=>{
-    document.getElementById('mpt-'+t).classList.toggle('on', t===tab);
-    document.getElementById('mps-'+t).classList.toggle('on', t===tab);
+  ['bets','tx','refer','notif'].forEach(t=>{
+    document.getElementById('mpt-'+t)?.classList.toggle('on', t===tab);
+    document.getElementById('mps-'+t)?.classList.toggle('on', t===tab);
   });
   if(tab==='bets'  && !_mpLoaded.bets)  loadBetHistory();
   if(tab==='tx'    && !_mpLoaded.tx)    loadTxHistory();
+  if(tab==='refer' && !_mpLoaded.refer) loadReferralPanel();
   if(tab==='notif' && !_mpLoaded.notif) loadNotifications();
 }
 
@@ -2124,6 +2137,97 @@ async function loadNotifications(){
   }
 }
 
+/* ── Referral Panel ── */
+async function loadReferralPanel(){
+  const el = document.getElementById('mps-refer');
+  el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.MemberAPI.getReferrals();
+    const data = d.data || {};
+    _mpLoaded.refer = true;
+    const code        = data.member_code || '';
+    const rate        = parseFloat(data.referral_rate || 0);
+    const refs        = data.referrals || [];
+    const totalComm   = parseFloat(data.total_commission || 0);
+    const monthComm   = parseFloat(data.commission_this_month || 0);
+    const recent      = data.recent_commissions || [];
+    const refLink     = `${location.origin}/?ref=${encodeURIComponent(code)}`;
+
+    const recentRows = recent.length === 0
+      ? `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">ยังไม่มีค่าคอม</td></tr>`
+      : recent.map(c=>`<tr>
+          <td style="font-size:11px;color:var(--muted)">${(c.created_at||'').slice(5,16).replace('T',' ')}</td>
+          <td style="font-size:12px">${c.from_name||'#'+c.from_member_id}</td>
+          <td style="color:var(--text)">฿${UI.formatMoney(c.bet_amount)}</td>
+          <td style="color:var(--green);font-weight:700">+฿${UI.formatMoney(c.amount)}</td>
+        </tr>`).join('');
+
+    el.innerHTML = `
+      <!-- อัตราค่าคอม -->
+      ${rate > 0
+        ? `<div style="background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.25);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:700;color:var(--green)">🎉 คุณได้ค่าคอม ${rate}% ต่อยอดแทง</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">ทุกครั้งที่สมาชิกที่คุณชวนมาแทงหวย คุณจะได้รับค่าคอมทันที</div>
+           </div>`
+        : `<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:13px;color:var(--muted)">ยังไม่มีอัตราค่าคอม — ติดต่อ Admin เพื่อเปิดใช้งาน</div>
+           </div>`
+      }
+      <!-- สรุปยอด -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--card2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">ค่าคอมเดือนนี้</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold)">฿${UI.formatMoney(monthComm)}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">ค่าคอมสะสม</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold)">฿${UI.formatMoney(totalComm)}</div>
+        </div>
+      </div>
+      <!-- ลิ้งแนะนำ -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px">🔗 ลิ้งแนะนำของคุณ</div>
+        <div style="background:var(--card);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--gold2);word-break:break-all;margin-bottom:10px">${refLink}</div>
+        <button onclick="navigator.clipboard.writeText('${refLink}').then(()=>this.textContent='✅ คัดลอกแล้ว!').catch(()=>{});setTimeout(()=>this.textContent='📋 คัดลอกลิ้ง',2000)"
+          style="width:100%;padding:10px;background:rgba(212,160,23,.12);border:1px solid rgba(212,160,23,.4);border-radius:8px;color:var(--gold2);font-weight:700;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          📋 คัดลอกลิ้ง
+        </button>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">หรือแชร์รหัส <b style="color:var(--text)">${code}</b> ให้เพื่อนกรอกตอนสมัคร</div>
+      </div>
+      <!-- สมาชิกที่ชวนมา -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:10px">👥 สมาชิกที่ชวนมา (${refs.length} คน)</div>
+        ${refs.length === 0
+          ? `<div style="text-align:center;color:var(--muted);padding:16px 0;font-size:13px">ยังไม่มีสมาชิกที่แนะนำ</div>`
+          : `<div style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto">
+              ${refs.map(r=>`
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--card);border-radius:8px">
+                  <span style="font-size:13px;font-weight:600">${r.name}</span>
+                  <span style="font-size:11px;color:var(--muted)">${(r.created_at||'').slice(0,10)}</span>
+                </div>`).join('')}
+             </div>`
+        }
+      </div>
+      <!-- ค่าคอมล่าสุด -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:10px">💰 ค่าคอมล่าสุด</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="color:var(--muted);font-size:11px">
+              <th style="padding:4px 8px;text-align:left;white-space:nowrap">วันที่</th>
+              <th style="padding:4px 8px;text-align:left">สมาชิก</th>
+              <th style="padding:4px 8px;text-align:right">ยอดแทง</th>
+              <th style="padding:4px 8px;text-align:right">ได้รับ</th>
+            </tr></thead>
+            <tbody>${recentRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
 /* ── Close panel on backdrop click ── */
 document.getElementById('mpanel-ov')?.addEventListener('click', function(e){ if(e.target===this) closeMPanel(); });
 
@@ -2189,15 +2293,26 @@ async function init(){
 }
 
 function _initAffiliateTracking(){
-  // อ่าน ?aff= จาก URL หรือ sessionStorage
-  const urlParams = new URLSearchParams(window.location.search);
+  // อ่าน ?aff= และ ?ref= จาก URL หรือ sessionStorage
+  const urlParams  = new URLSearchParams(window.location.search);
   const affFromUrl = urlParams.get('aff');
+  const refFromUrl = urlParams.get('ref'); // member referral code
+
   if(affFromUrl){
     sessionStorage.setItem('aff_code', affFromUrl);
-    // ลบ ?aff= ออกจาก URL bar โดยไม่ reload
+    sessionStorage.removeItem('ref_code'); // aff takes priority
+  }
+  if(refFromUrl && !affFromUrl){
+    sessionStorage.setItem('ref_code', refFromUrl);
+    // pre-fill ช่องรหัสผู้แนะนำ
+    const refInp = document.getElementById('r-ref');
+    if(refInp) refInp.value = refFromUrl;
+  }
+  if(affFromUrl || refFromUrl){
     const cleanUrl = window.location.pathname + (window.location.hash || '');
     window.history.replaceState({}, '', cleanUrl);
   }
+
   const affCode = affFromUrl || sessionStorage.getItem('aff_code');
   if(!affCode) return;
   // ดึงชื่อ Agent แบบ async แล้ว inject ลงฟอร์ม

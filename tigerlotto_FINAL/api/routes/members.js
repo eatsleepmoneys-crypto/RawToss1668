@@ -91,15 +91,46 @@ router.get('/bet-history', authMember, async (req, res) => {
   res.json({ success: true, data: bets });
 });
 
-// GET /api/members/referrals
+// GET /api/members/referrals — ข้อมูลระบบแนะนำ + ค่าคอมจริงจาก commissions table
 router.get('/referrals', authMember, async (req, res) => {
+  // สมาชิกที่ตัวเองชวนมา
   const refs = await query(
-    'SELECT name, created_at FROM members WHERE ref_by=? ORDER BY id DESC',
+    'SELECT id, name, created_at FROM members WHERE ref_by=? ORDER BY id DESC LIMIT 50',
     [req.member.id]);
-  const commissions = await query(
-    'SELECT SUM(amount) as total FROM transactions WHERE member_id=? AND type="commission"',
-    [req.member.id]);
-  res.json({ success: true, data: { referrals: refs, total_commission: commissions[0]?.total || 0 } });
+
+  // สรุปยอดค่าคอม
+  const [totals] = await query(`
+    SELECT
+      COALESCE(SUM(amount),0)                                                   AS total_all,
+      COALESCE(SUM(CASE WHEN MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW()) THEN amount END),0) AS total_month
+    FROM commissions
+    WHERE earner_type='member' AND earner_id=?
+  `, [req.member.id]).catch(() => [{ total_all: 0, total_month: 0 }]);
+
+  // รายการค่าคอมล่าสุด
+  const recent = await query(`
+    SELECT c.from_member_id, m.name AS from_name,
+           c.bet_amount, c.rate, c.amount, c.created_at
+    FROM commissions c
+    LEFT JOIN members m ON c.from_member_id = m.id
+    WHERE c.earner_type='member' AND c.earner_id=?
+    ORDER BY c.id DESC LIMIT 30
+  `, [req.member.id]).catch(() => []);
+
+  // อัตรา referral_rate ของตัวเอง
+  const [me] = await query('SELECT member_code, referral_rate FROM members WHERE id=?', [req.member.id]);
+
+  res.json({
+    success: true,
+    data: {
+      member_code:   me?.member_code || '',
+      referral_rate: parseFloat(me?.referral_rate || 0),
+      referrals:     refs,
+      total_commission:       parseFloat(totals?.total_all || 0),
+      commission_this_month:  parseFloat(totals?.total_month || 0),
+      recent_commissions:     recent,
+    }
+  });
 });
 
 // ══════════════════════════════════════
