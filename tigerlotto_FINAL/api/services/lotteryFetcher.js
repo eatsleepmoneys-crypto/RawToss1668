@@ -733,8 +733,11 @@ async function announceResult(lotteryCode, result) {
     : prize_1st.slice(-3);
 
   await transaction(async (conn) => {
+    // ใช้ conn.query() แทน conn.execute() ทั้งหมด
+    // เพื่อหลีกเลี่ยง prepared-statement metadata bug ใน mysql2 3.x (ENUM/SELECT*)
+
     // 1. Insert ผลรางวัล
-    await conn.execute(
+    await conn.query(
       `INSERT INTO lottery_results
          (round_id, prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3, announced_at)
        VALUES (?, ?, ?, ?, ?, ?, NOW())`,
@@ -743,19 +746,20 @@ async function announceResult(lotteryCode, result) {
     );
 
     // 2. อัปเดตงวด → announced
-    await conn.execute(
+    await conn.query(
       "UPDATE lottery_rounds SET status='announced' WHERE id=?", [round.id]
     );
 
     // 3. ดึง rates ของ lottery type นี้
-    const [[lt]] = await conn.execute(
+    const [ltRows] = await conn.query(
       `SELECT rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot
        FROM lottery_types WHERE id=?`, [typeId]
     );
+    const lt = ltRows[0];
     if (!lt) return;
 
     // 4. ดึง bets ทั้งหมดที่รอผล
-    const [bets] = await conn.execute(
+    const [bets] = await conn.query(
       "SELECT * FROM bets WHERE round_id=? AND status='waiting'", [round.id]
     );
 
@@ -784,28 +788,29 @@ async function announceResult(lotteryCode, result) {
       else if (bet.bet_type === 'run_bot' && effective_2bot.includes(n))
         { won = true; winAmt = bet.amount * lt.rate_run_bot; }
 
-      await conn.execute(
+      await conn.query(
         'UPDATE bets SET status=?, win_amount=? WHERE id=?',
         [won ? 'win' : 'lose', winAmt, bet.id]
       );
 
       if (won && winAmt > 0) {
-        const [[m]] = await conn.execute(
+        const [mRows] = await conn.query(
           'SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]
         );
+        const m = mRows[0];
         const newBal = parseFloat(m.balance) + parseFloat(winAmt);
-        await conn.execute(
+        await conn.query(
           'UPDATE members SET balance=?, total_win=total_win+? WHERE id=?',
           [newBal, winAmt, bet.member_id]
         );
-        await conn.execute(
+        await conn.query(
           `INSERT INTO transactions
              (uuid, member_id, type, amount, balance_before, balance_after, description)
            VALUES (?, ?, 'win', ?, ?, ?, ?)`,
           [uuidv4(), bet.member_id, winAmt, m.balance, newBal,
            `ถูกรางวัล ${lotteryCode}: ${bet.number} (${bet.bet_type}) งวด ${round.round_name}`]
         );
-        await conn.execute(
+        await conn.query(
           'INSERT INTO notifications (member_id, title, body, type) VALUES (?, ?, ?, ?)',
           [bet.member_id,
            `🎉 ถูกรางวัล!`,
@@ -816,7 +821,7 @@ async function announceResult(lotteryCode, result) {
     }
 
     // 6. จ่ายรางวัลให้ agent_bets (เอเยนต์ที่แทงหวยเอง)
-    const [agentBets] = await conn.execute(
+    const [agentBets] = await conn.query(
       "SELECT * FROM agent_bets WHERE round_id=? AND status='waiting'", [round.id]
     ).catch(() => [[]]);
     for (const abet of agentBets) {
@@ -838,21 +843,22 @@ async function announceResult(lotteryCode, result) {
       else if (abet.bet_type === 'run_bot' && effective_2bot.includes(n))
         { won = true; winAmt = abet.amount * lt.rate_run_bot; }
 
-      await conn.execute(
+      await conn.query(
         'UPDATE agent_bets SET status=?, win_amount=? WHERE id=?',
         [won ? 'win' : 'lose', winAmt, abet.id]
       ).catch(() => {});
 
       if (won && winAmt > 0) {
-        const [[ag]] = await conn.execute(
+        const [agRows] = await conn.query(
           'SELECT balance FROM agents WHERE id=? FOR UPDATE', [abet.agent_id]
         ).catch(() => [[{ balance: 0 }]]);
+        const ag = agRows[0] || { balance: 0 };
         const newBal = parseFloat(ag.balance) + parseFloat(winAmt);
-        await conn.execute(
+        await conn.query(
           'UPDATE agents SET balance=?, total_commission=total_commission+? WHERE id=?',
           [newBal, winAmt, abet.agent_id]
         ).catch(() => {});
-        await conn.execute(
+        await conn.query(
           'INSERT INTO agent_transactions (uuid, agent_id, type, amount, balance_before, balance_after, description) VALUES (?,?,?,?,?,?,?)',
           [uuidv4(), abet.agent_id, 'win', winAmt, ag.balance, newBal,
            `ถูกรางวัล ${bet_type_label(abet.bet_type)} ${abet.number} งวด ${round.round_name}`]
@@ -861,17 +867,17 @@ async function announceResult(lotteryCode, result) {
     }
 
     // 7. อัปเดต total_win ของงวด
-    const [[ws]] = await conn.execute(
+    const [wsRows] = await conn.query(
       `SELECT COALESCE(SUM(win_amount),0) s FROM bets WHERE round_id=? AND status="win"`,
       [round.id]
     );
-    const [[agWs]] = await conn.execute(
+    const [agWsRows] = await conn.query(
       `SELECT COALESCE(SUM(win_amount),0) s FROM agent_bets WHERE round_id=? AND status="win"`,
       [round.id]
     ).catch(() => [[{ s: 0 }]]);
-    await conn.execute(
+    await conn.query(
       'UPDATE lottery_rounds SET total_win=? WHERE id=?',
-      [parseFloat(ws.s) + parseFloat(agWs.s), round.id]
+      [parseFloat((wsRows[0]||{s:0}).s) + parseFloat((agWsRows[0]||{s:0}).s), round.id]
     );
   });
 
