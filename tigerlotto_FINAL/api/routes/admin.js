@@ -580,4 +580,116 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
   }
 });
 
+// ═══════════════════════════════════════════════════════════════════
+//  AGENT WALLET MANAGEMENT — Admin จัดการฝาก/ถอนของ Agent
+// ═══════════════════════════════════════════════════════════════════
+
+// ── GET /api/admin/agent-deposits ────────────────────────────────
+router.get('/agent-deposits', authAdmin, rbac.requirePerm('finance.view'), async (req, res) => {
+  const { status, page = 1, limit = 20 } = req.query;
+  const offset = (Number(page) - 1) * Number(limit);
+  const where = status ? `WHERE ad.status = '${status}'` : '';
+  const rows = await query(`
+    SELECT ad.*, a.name AS agent_name, a.phone AS agent_phone
+    FROM agent_deposits ad
+    JOIN agents a ON ad.agent_id = a.id
+    ${where}
+    ORDER BY ad.id DESC LIMIT ? OFFSET ?`, [Number(limit), offset]
+  ).catch(() => []);
+  const [total] = await query(
+    `SELECT COUNT(*) cnt FROM agent_deposits ad ${where}`
+  ).catch(() => [{ cnt: 0 }]);
+  res.json({ success: true, data: rows, total: Number(total.cnt) });
+});
+
+// ── POST /api/admin/agent-deposits/:id/approve ───────────────────
+router.post('/agent-deposits/:id/approve', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
+  const depId = Number(req.params.id);
+  const [dep] = await query('SELECT * FROM agent_deposits WHERE id=? AND status="pending"', [depId]);
+  if (!dep) return res.status(404).json({ success: false, message: 'ไม่พบคำขอหรืออนุมัติแล้ว' });
+
+  await transaction(async (conn) => {
+    await conn.execute(
+      'UPDATE agent_deposits SET status="approved", approved_by=?, approved_at=NOW() WHERE id=?',
+      [req.admin.id, depId]
+    );
+    const [[agent]] = await conn.execute(
+      'SELECT balance FROM agents WHERE id=? FOR UPDATE', [dep.agent_id]
+    );
+    const newBal = parseFloat(agent.balance) + parseFloat(dep.amount);
+    await conn.execute('UPDATE agents SET balance=? WHERE id=?', [newBal, dep.agent_id]);
+    await conn.execute(
+      'INSERT INTO agent_transactions (uuid, agent_id, type, amount, balance_before, balance_after, description) VALUES (?,?,?,?,?,?,?)',
+      [require('uuid').v4(), dep.agent_id, 'deposit', dep.amount, agent.balance, newBal,
+       `Admin อนุมัติฝากเงิน #${dep.id}`]
+    );
+  });
+  res.json({ success: true, message: 'อนุมัติฝากเงินสำเร็จ' });
+});
+
+// ── POST /api/admin/agent-deposits/:id/reject ────────────────────
+router.post('/agent-deposits/:id/reject', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
+  const { note } = req.body;
+  await query(
+    'UPDATE agent_deposits SET status="rejected", reject_note=?, approved_by=?, approved_at=NOW() WHERE id=? AND status="pending"',
+    [note || null, req.admin.id, Number(req.params.id)]
+  );
+  res.json({ success: true, message: 'ปฏิเสธคำขอฝากเงินแล้ว' });
+});
+
+// ── GET /api/admin/agent-withdrawals ─────────────────────────────
+router.get('/agent-withdrawals', authAdmin, rbac.requirePerm('finance.view'), async (req, res) => {
+  const { status, page = 1, limit = 20 } = req.query;
+  const offset = (Number(page) - 1) * Number(limit);
+  const where = status ? `WHERE aw.status = '${status}'` : '';
+  const rows = await query(`
+    SELECT aw.*, a.name AS agent_name, a.phone AS agent_phone
+    FROM agent_withdrawals aw
+    JOIN agents a ON aw.agent_id = a.id
+    ${where}
+    ORDER BY aw.id DESC LIMIT ? OFFSET ?`, [Number(limit), offset]
+  ).catch(() => []);
+  const [total] = await query(
+    `SELECT COUNT(*) cnt FROM agent_withdrawals aw ${where}`
+  ).catch(() => [{ cnt: 0 }]);
+  res.json({ success: true, data: rows, total: Number(total.cnt) });
+});
+
+// ── POST /api/admin/agent-withdrawals/:id/approve ────────────────
+router.post('/agent-withdrawals/:id/approve', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
+  const wdId = Number(req.params.id);
+  const [wd] = await query('SELECT * FROM agent_withdrawals WHERE id=? AND status="pending"', [wdId]);
+  if (!wd) return res.status(404).json({ success: false, message: 'ไม่พบคำขอหรืออนุมัติแล้ว' });
+
+  await transaction(async (conn) => {
+    const [[agent]] = await conn.execute(
+      'SELECT balance FROM agents WHERE id=? FOR UPDATE', [wd.agent_id]
+    );
+    if (parseFloat(agent.balance) < parseFloat(wd.amount))
+      throw new Error('ยอดเงินไม่เพียงพอ');
+    const newBal = parseFloat(agent.balance) - parseFloat(wd.amount);
+    await conn.execute('UPDATE agents SET balance=? WHERE id=?', [newBal, wd.agent_id]);
+    await conn.execute(
+      'UPDATE agent_withdrawals SET status="completed", processed_by=?, processed_at=NOW() WHERE id=?',
+      [req.admin.id, wdId]
+    );
+    await conn.execute(
+      'INSERT INTO agent_transactions (uuid, agent_id, type, amount, balance_before, balance_after, description) VALUES (?,?,?,?,?,?,?)',
+      [require('uuid').v4(), wd.agent_id, 'withdraw', wd.amount, agent.balance, newBal,
+       `Admin อนุมัติถอนเงิน #${wd.id}`]
+    );
+  });
+  res.json({ success: true, message: 'อนุมัติถอนเงินสำเร็จ' });
+});
+
+// ── POST /api/admin/agent-withdrawals/:id/reject ─────────────────
+router.post('/agent-withdrawals/:id/reject', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
+  const { note } = req.body;
+  await query(
+    'UPDATE agent_withdrawals SET status="rejected", reject_note=?, processed_by=?, processed_at=NOW() WHERE id=? AND status="pending"',
+    [note || null, req.admin.id, Number(req.params.id)]
+  );
+  res.json({ success: true, message: 'ปฏิเสธคำขอถอนเงินแล้ว' });
+});
+
 module.exports = router;

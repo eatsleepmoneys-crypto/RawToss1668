@@ -557,18 +557,73 @@ async function announceResult(lotteryCode, result) {
       }
     }
 
-    // 6. อัปเดต total_win ของงวด
+    // 6. จ่ายรางวัลให้ agent_bets (เอเยนต์ที่แทงหวยเอง)
+    const [agentBets] = await conn.execute(
+      "SELECT * FROM agent_bets WHERE round_id=? AND status='waiting'", [round.id]
+    ).catch(() => [[]]);
+    for (const abet of agentBets) {
+      let won = false, winAmt = 0;
+      const n = abet.number;
+      if      (abet.bet_type === '3top' && effective_3top === n)
+        { won = true; winAmt = abet.amount * lt.rate_3top; }
+      else if (abet.bet_type === '3tod') {
+        const s = n.split('').sort().join('');
+        if (effective_3top.split('').sort().join('') === s)
+          { won = true; winAmt = abet.amount * lt.rate_3tod; }
+      }
+      else if (abet.bet_type === '2top' && prize_last_2 === n)
+        { won = true; winAmt = abet.amount * lt.rate_2top; }
+      else if (abet.bet_type === '2bot' && effective_2bot === n)
+        { won = true; winAmt = abet.amount * lt.rate_2bot; }
+      else if (abet.bet_type === 'run_top' && prize_1st.includes(n))
+        { won = true; winAmt = abet.amount * lt.rate_run_top; }
+      else if (abet.bet_type === 'run_bot' && effective_2bot.includes(n))
+        { won = true; winAmt = abet.amount * lt.rate_run_bot; }
+
+      await conn.execute(
+        'UPDATE agent_bets SET status=?, win_amount=? WHERE id=?',
+        [won ? 'win' : 'lose', winAmt, abet.id]
+      ).catch(() => {});
+
+      if (won && winAmt > 0) {
+        const [[ag]] = await conn.execute(
+          'SELECT balance FROM agents WHERE id=? FOR UPDATE', [abet.agent_id]
+        ).catch(() => [[{ balance: 0 }]]);
+        const newBal = parseFloat(ag.balance) + parseFloat(winAmt);
+        await conn.execute(
+          'UPDATE agents SET balance=?, total_commission=total_commission+? WHERE id=?',
+          [newBal, winAmt, abet.agent_id]
+        ).catch(() => {});
+        await conn.execute(
+          'INSERT INTO agent_transactions (uuid, agent_id, type, amount, balance_before, balance_after, description) VALUES (?,?,?,?,?,?,?)',
+          [uuidv4(), abet.agent_id, 'win', winAmt, ag.balance, newBal,
+           `ถูกรางวัล ${bet_type_label(abet.bet_type)} ${abet.number} งวด ${round.round_name}`]
+        ).catch(() => {});
+      }
+    }
+
+    // 7. อัปเดต total_win ของงวด
     const [[ws]] = await conn.execute(
-      'SELECT COALESCE(SUM(win_amount),0) s FROM bets WHERE round_id=? AND status="win"',
+      `SELECT COALESCE(SUM(win_amount),0) s FROM bets WHERE round_id=? AND status="win"`,
       [round.id]
     );
+    const [[agWs]] = await conn.execute(
+      `SELECT COALESCE(SUM(win_amount),0) s FROM agent_bets WHERE round_id=? AND status="win"`,
+      [round.id]
+    ).catch(() => [[{ s: 0 }]]);
     await conn.execute(
-      'UPDATE lottery_rounds SET total_win=? WHERE id=?', [ws.s, round.id]
+      'UPDATE lottery_rounds SET total_win=? WHERE id=?',
+      [parseFloat(ws.s) + parseFloat(agWs.s), round.id]
     );
   });
 
   console.log(`[FETCHER:${lotteryCode}] ✅ ออกผลสำเร็จ: งวด #${round.id} (${prize_1st})`);
   return round.id;
+}
+
+function bet_type_label(t) {
+  const m = { '3top':'3ตัวบน','3tod':'3ตัวโต','2top':'2ตัวบน','2bot':'2ตัวล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง' };
+  return m[t] || t;
 }
 
 // ── Simulated result fallback (for when external APIs are unreachable) ──────

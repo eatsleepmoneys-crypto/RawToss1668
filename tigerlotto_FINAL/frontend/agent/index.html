@@ -97,6 +97,51 @@
   .profile-info h2{font-size:20px;font-weight:800}
   .profile-info p{font-size:13px;color:var(--muted);margin-top:2px}
 
+  /* ── Wallet ── */
+  .wallet-hero{background:linear-gradient(135deg,#1a1a00,#2d2200);border:1px solid rgba(212,160,23,.4);border-radius:18px;padding:28px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .wallet-bal-label{font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px;text-transform:uppercase}
+  .wallet-bal-val{font-size:40px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+  .wallet-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn-action{padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.2s;white-space:nowrap}
+  .btn-deposit{background:var(--green);color:#000}
+  .btn-deposit:hover{opacity:.85}
+  .btn-withdraw{background:transparent;border:1px solid var(--border)!important;color:var(--text)}
+  .btn-withdraw:hover{background:var(--card2)}
+
+  /* ── Modal ── */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal-box{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto}
+  .modal-box h3{font-size:16px;font-weight:800;margin-bottom:20px;color:var(--gold)}
+  .modal-close{float:right;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;margin-top:-4px}
+
+  /* ── Lottery rounds ── */
+  .round-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:20px}
+  .round-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;cursor:pointer;transition:.2s}
+  .round-card:hover{border-color:var(--gold);background:rgba(212,160,23,.05)}
+  .round-flag{font-size:22px;margin-bottom:8px}
+  .round-name{font-size:13px;font-weight:700;color:var(--text)}
+  .round-type{font-size:11px;color:var(--muted);margin-bottom:8px}
+  .round-close{font-size:11px;color:var(--red);font-weight:600}
+  .round-rates{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+  .rate-chip{background:rgba(255,255,255,.06);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--muted)}
+  .rate-chip span{color:var(--gold2);font-weight:700}
+
+  /* ── Bet form ── */
+  .bet-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+  .bet-type-btn{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;font-weight:600;color:var(--muted)}
+  .bet-type-btn.sel{border-color:var(--gold);background:rgba(212,160,23,.12);color:var(--gold2)}
+  .bet-type-btn:hover:not(.sel){border-color:var(--border);background:rgba(255,255,255,.04)}
+  .bet-rate{font-size:18px;font-weight:900;color:var(--gold);margin-top:4px}
+
+  /* ── Tx badges ── */
+  .badge-deposit{background:rgba(46,213,115,.12);color:var(--green);border:1px solid rgba(46,213,115,.3)}
+  .badge-withdraw{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.3)}
+  .badge-bet{background:rgba(30,144,255,.1);color:var(--blue);border:1px solid rgba(30,144,255,.3)}
+  .badge-win{background:rgba(212,160,23,.15);color:var(--gold2);border:1px solid rgba(212,160,23,.4)}
+  .badge-pending{background:rgba(255,165,0,.1);color:orange;border:1px solid rgba(255,165,0,.3)}
+  .badge-wait{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}
+  .badge-lose{background:rgba(255,71,87,.06);color:#ff8e9a;border:1px solid rgba(255,71,87,.2)}
+
   /* ── Empty / loading ── */
   .empty{text-align:center;padding:40px;color:var(--muted);font-size:14px}
   .loading{text-align:center;padding:30px;color:var(--muted)}
@@ -106,6 +151,7 @@
     .content{padding:16px 12px}
     .topbar{padding:0 12px}
     .nav-tabs{padding:0 12px}
+    .bet-type-grid{grid-template-columns:repeat(2,1fr)}
   }
 </style>
 </head>
@@ -148,11 +194,13 @@
 
   <!-- Nav -->
   <div class="nav-tabs">
-    <div class="nav-tab on" data-tab="dashboard" onclick="switchTab('dashboard',this)">📊 ภาพรวม</div>
-    <div class="nav-tab" data-tab="affiliate" onclick="switchTab('affiliate',this)">🔗 ลิ้งแนะนำ</div>
-    <div class="nav-tab" data-tab="members" onclick="switchTab('members',this)">👥 สมาชิก</div>
-    <div class="nav-tab" data-tab="commissions" onclick="switchTab('commissions',this)">💰 ค่าคอมมิชชั่น</div>
-    <div class="nav-tab" data-tab="profile" onclick="switchTab('profile',this)">👤 ข้อมูลเอเยนต์</div>
+    <div class="nav-tab on" data-tab="dashboard"   onclick="switchTab('dashboard',this)">📊 ภาพรวม</div>
+    <div class="nav-tab" data-tab="wallet"         onclick="switchTab('wallet',this)">💳 กระเป๋าเงิน</div>
+    <div class="nav-tab" data-tab="lottery"        onclick="switchTab('lottery',this)">🎰 ซื้อหวย</div>
+    <div class="nav-tab" data-tab="affiliate"      onclick="switchTab('affiliate',this)">🔗 ลิ้งแนะนำ</div>
+    <div class="nav-tab" data-tab="members"        onclick="switchTab('members',this)">👥 สมาชิก</div>
+    <div class="nav-tab" data-tab="commissions"    onclick="switchTab('commissions',this)">💰 ค่าคอมมิชชั่น</div>
+    <div class="nav-tab" data-tab="profile"        onclick="switchTab('profile',this)">👤 ข้อมูลเอเยนต์</div>
   </div>
 
   <!-- Content -->
@@ -238,7 +286,9 @@ function switchTab(tab, el) {
   _membersPage = 1;
   const content = document.getElementById('tab-content');
   content.innerHTML = '<div class="loading">⏳ กำลังโหลด...</div>';
-  if (tab === 'dashboard')        loadDashboard();
+  if      (tab === 'dashboard')   loadDashboard();
+  else if (tab === 'wallet')      loadWallet();
+  else if (tab === 'lottery')     loadLottery();
   else if (tab === 'affiliate')   loadAffiliate();
   else if (tab === 'members')     loadMembers();
   else if (tab === 'commissions') loadCommissions();
@@ -555,6 +605,507 @@ async function changePassword() {
     err.textContent = e.message;
   }
   btn.disabled = false; btn.textContent = 'บันทึกรหัสผ่าน';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  WALLET — กระเป๋าเงิน
+// ═══════════════════════════════════════════════════════════════════
+
+const TX_LABEL = { deposit:'ฝากเงิน', withdraw:'ถอนเงิน', bet:'แทงหวย', win:'ถูกรางวัล', refund:'คืนเงิน', commission:'ค่าคอม' };
+const TX_BADGE = { deposit:'badge-deposit', withdraw:'badge-withdraw', bet:'badge-bet', win:'badge-win', refund:'badge-green', commission:'badge-win' };
+const DEP_LABEL = { pending:'รอดำเนินการ', approved:'อนุมัติแล้ว', rejected:'ปฏิเสธ' };
+
+async function loadWallet(subTab = 'overview') {
+  let walletData;
+  try {
+    walletData = await aFetch('/agent/wallet');
+    _agentData = { ..._agentData, balance: walletData.data.balance };
+    document.getElementById('agent-name-hdr').textContent = _agentData.name;
+  } catch(e) {
+    document.getElementById('tab-content').innerHTML = `<div class="empty">❌ โหลดข้อมูลไม่ได้: ${e.message}</div>`;
+    return;
+  }
+  const w = walletData.data;
+
+  document.getElementById('tab-content').innerHTML = `
+    <!-- Wallet hero -->
+    <div class="wallet-hero">
+      <div>
+        <div class="wallet-bal-label">ยอดเงินคงเหลือ</div>
+        <div class="wallet-bal-val">฿${fmt(w.balance)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px">
+          ${w.pending_deposit.count > 0 ? `<span style="color:orange">⏳ ฝากรอ ${w.pending_deposit.count} รายการ (฿${fmt(w.pending_deposit.total)})</span>` : ''}
+          ${w.pending_withdraw.count > 0 ? `<span style="color:var(--red);margin-left:8px">⏳ ถอนรอ ${w.pending_withdraw.count} รายการ (฿${fmt(w.pending_withdraw.total)})</span>` : ''}
+          ${w.pending_deposit.count === 0 && w.pending_withdraw.count === 0 ? '<span>ไม่มีรายการรอดำเนินการ</span>' : ''}
+        </div>
+      </div>
+      <div class="wallet-actions">
+        <button class="btn-action btn-deposit" onclick="openDepositModal()">💰 ฝากเงิน</button>
+        <button class="btn-action btn-withdraw" onclick="openWithdrawModal()">🏦 ถอนเงิน</button>
+      </div>
+    </div>
+
+    <!-- Sub tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <div id="w-tab-txn"   class="nav-tab ${subTab==='overview'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadWallet('overview')">📋 ประวัติทำรายการ</div>
+      <div id="w-tab-dep"   class="nav-tab ${subTab==='deposits'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadWallet('deposits')">⬇ ประวัติฝากเงิน</div>
+      <div id="w-tab-wd"    class="nav-tab ${subTab==='withdrawals'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadWallet('withdrawals')">⬆ ประวัติถอนเงิน</div>
+    </div>
+
+    <div id="wallet-sub-content">
+      <div class="loading">⏳ กำลังโหลด...</div>
+    </div>`;
+
+  if      (subTab === 'overview')    loadWalletTxns();
+  else if (subTab === 'deposits')    loadWalletDeposits();
+  else if (subTab === 'withdrawals') loadWalletWithdrawals();
+}
+
+async function loadWalletTxns(page = 1) {
+  const el = document.getElementById('wallet-sub-content');
+  if (!el) return;
+  try {
+    const data = await aFetch(`/agent/wallet/transactions?page=${page}&limit=20`);
+    const rows  = data.data || [];
+    const total = data.total || 0;
+    const pages = Math.ceil(total / 20);
+    el.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>ประเภท</th><th>รายการ</th><th>จำนวน</th><th>ยอดหลัง</th><th>เวลา</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีประวัติ</td></tr>' :
+              rows.map(t => `<tr>
+                <td style="color:var(--muted);font-size:11px">${t.id}</td>
+                <td><span class="badge ${TX_BADGE[t.type]||'badge-wait'}">${TX_LABEL[t.type]||t.type}</span></td>
+                <td style="font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||'—'}</td>
+                <td style="color:${t.type==='win'||t.type==='deposit'||t.type==='commission'?'var(--green)':'var(--red)'};font-weight:700">
+                  ${t.type==='win'||t.type==='deposit'||t.type==='commission'?'+':'-'}฿${fmt(t.amount)}</td>
+                <td style="color:var(--gold2)">฿${fmt(t.balance_after)}</td>
+                <td style="color:var(--muted);font-size:11px">${new Date(t.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadWalletTxns(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+async function loadWalletDeposits(page = 1) {
+  const el = document.getElementById('wallet-sub-content');
+  if (!el) return;
+  try {
+    const data = await aFetch(`/agent/wallet/deposits?page=${page}&limit=20`);
+    const rows  = data.data || [];
+    const pages = Math.ceil((data.total||0) / 20);
+    el.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>จำนวน</th><th>ธนาคาร</th><th>สถานะ</th><th>หมายเหตุ</th><th>เวลา</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีรายการ</td></tr>' :
+              rows.map(d => `<tr>
+                <td style="color:var(--muted);font-size:11px">${d.id}</td>
+                <td style="font-weight:700;color:var(--green)">฿${fmt(d.amount)}</td>
+                <td style="color:var(--muted)">${d.bank_code||'—'}</td>
+                <td><span class="badge ${d.status==='approved'?'badge-green':d.status==='pending'?'badge-pending':'badge-red'}">${DEP_LABEL[d.status]||d.status}</span></td>
+                <td style="font-size:12px;color:var(--muted)">${d.note||d.reject_note||'—'}</td>
+                <td style="font-size:11px;color:var(--muted)">${new Date(d.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadWalletDeposits(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+async function loadWalletWithdrawals(page = 1) {
+  const el = document.getElementById('wallet-sub-content');
+  if (!el) return;
+  try {
+    const data = await aFetch(`/agent/wallet/withdrawals?page=${page}&limit=20`);
+    const rows  = data.data || [];
+    const pages = Math.ceil((data.total||0) / 20);
+    el.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>จำนวน</th><th>บัญชี</th><th>สถานะ</th><th>หมายเหตุ</th><th>เวลา</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีรายการ</td></tr>' :
+              rows.map(w => `<tr>
+                <td style="color:var(--muted);font-size:11px">${w.id}</td>
+                <td style="font-weight:700;color:var(--red)">฿${fmt(w.amount)}</td>
+                <td style="font-size:12px;color:var(--muted)">${w.bank_code} ${w.bank_account||''}</td>
+                <td><span class="badge ${w.status==='completed'?'badge-green':w.status==='pending'?'badge-pending':'badge-red'}">${{pending:'รอดำเนินการ',processing:'กำลังดำเนินการ',completed:'สำเร็จ',rejected:'ปฏิเสธ'}[w.status]||w.status}</span></td>
+                <td style="font-size:12px;color:var(--muted)">${w.reject_note||w.note||'—'}</td>
+                <td style="font-size:11px;color:var(--muted)">${new Date(w.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadWalletWithdrawals(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+// ── Deposit Modal ─────────────────────────────────────────────────
+function openDepositModal() {
+  const banks = {SCB:'ไทยพาณิชย์',KTB:'กรุงไทย',BBL:'กรุงเทพ',BAY:'กรุงศรี',KBANK:'กสิกรไทย',TMB:'ทีทีบี',GSB:'ออมสิน',BAAC:'ธ.ก.ส.',KKP:'เกียรตินาคิน',CIMB:'ซีไอเอ็มบี',UOB:'ยูโอบี'};
+  const bankOpts = Object.entries(banks).map(([k,v]) => `<option value="${k}">${v} (${k})</option>`).join('');
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'dep-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('dep-modal').remove()">✕</button>
+      <h3>💰 แจ้งฝากเงิน</h3>
+      <div style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.7">
+        📌 กรุณาโอนเงินมาที่บัญชีของระบบก่อน แล้วแจ้งจำนวนเงินที่โอน Admin จะอนุมัติและเติมเครดิตให้ภายใน 10 นาที
+      </div>
+      <div class="fg"><label>จำนวนเงิน (บาท)</label>
+        <input class="fi" id="dep-amount" type="number" min="100" placeholder="ขั้นต่ำ 100 บาท">
+      </div>
+      <div class="fg"><label>ธนาคาร (ที่โอนจาก)</label>
+        <select class="fi" id="dep-bank"><option value="">— เลือกธนาคาร —</option>${bankOpts}</select>
+      </div>
+      <div class="fg"><label>หมายเหตุ (เลขอ้างอิง ฯลฯ)</label>
+        <input class="fi" id="dep-note" type="text" placeholder="เช่น ref xxxx ชำระ ${new Date().toLocaleDateString('th-TH')}">
+      </div>
+      <button class="btn btn-gold" id="dep-submit-btn" onclick="submitDeposit()">✅ ยืนยันแจ้งฝากเงิน</button>
+      <div class="err" id="dep-err"></div>
+    </div>`;
+  document.body.appendChild(bg);
+}
+
+async function submitDeposit() {
+  const amount   = document.getElementById('dep-amount')?.value;
+  const bank_code= document.getElementById('dep-bank')?.value;
+  const note     = document.getElementById('dep-note')?.value;
+  const err      = document.getElementById('dep-err');
+  const btn      = document.getElementById('dep-submit-btn');
+  err.textContent = '';
+  if (!amount || Number(amount) < 100) { err.textContent = 'กรุณากรอกจำนวนเงินขั้นต่ำ 100 บาท'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  try {
+    await aFetch('/agent/wallet/deposit', { method:'POST', body: JSON.stringify({ amount: Number(amount), bank_code, note }) });
+    document.getElementById('dep-modal')?.remove();
+    loadWallet('deposits');
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = '✅ ยืนยันแจ้งฝากเงิน';
+  }
+}
+
+// ── Withdraw Modal ────────────────────────────────────────────────
+function openWithdrawModal() {
+  const banks = {SCB:'ไทยพาณิชย์',KTB:'กรุงไทย',BBL:'กรุงเทพ',BAY:'กรุงศรี',KBANK:'กสิกรไทย',TMB:'ทีทีบี',GSB:'ออมสิน',BAAC:'ธ.ก.ส.',KKP:'เกียรตินาคิน',CIMB:'ซีไอเอ็มบี',UOB:'ยูโอบี'};
+  const bankOpts = Object.entries(banks).map(([k,v]) => `<option value="${k}">${v} (${k})</option>`).join('');
+  const bal = _agentData?.balance || 0;
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'wd-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('wd-modal').remove()">✕</button>
+      <h3>🏦 ถอนเงิน</h3>
+      <div style="background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;text-align:center">
+        <span style="color:var(--muted)">ยอดเงินคงเหลือ</span>
+        <span style="color:var(--gold2);font-weight:800;font-size:18px;margin-left:8px">฿${fmt(bal)}</span>
+      </div>
+      <div class="fg"><label>จำนวนเงิน (บาท)</label>
+        <input class="fi" id="wd-amount" type="number" min="100" max="${bal}" placeholder="ขั้นต่ำ 100 บาท">
+      </div>
+      <div class="fg"><label>ธนาคาร</label>
+        <select class="fi" id="wd-bank"><option value="">— เลือกธนาคาร —</option>${bankOpts}</select>
+      </div>
+      <div class="fg"><label>เลขบัญชี</label>
+        <input class="fi" id="wd-acc" type="text" placeholder="เช่น 1234567890">
+      </div>
+      <div class="fg"><label>ชื่อบัญชี</label>
+        <input class="fi" id="wd-name" type="text" placeholder="ชื่อ-นามสกุลผู้ถือบัญชี">
+      </div>
+      <div class="fg"><label>หมายเหตุ</label>
+        <input class="fi" id="wd-note" type="text" placeholder="ไม่บังคับ">
+      </div>
+      <button class="btn btn-gold" id="wd-submit-btn" onclick="submitWithdraw()">✅ ยืนยันถอนเงิน</button>
+      <div class="err" id="wd-err"></div>
+    </div>`;
+  document.body.appendChild(bg);
+}
+
+async function submitWithdraw() {
+  const amount       = document.getElementById('wd-amount')?.value;
+  const bank_code    = document.getElementById('wd-bank')?.value;
+  const bank_account = document.getElementById('wd-acc')?.value;
+  const bank_name    = document.getElementById('wd-name')?.value;
+  const note         = document.getElementById('wd-note')?.value;
+  const err          = document.getElementById('wd-err');
+  const btn          = document.getElementById('wd-submit-btn');
+  err.textContent = '';
+  if (!amount || Number(amount) < 100)      { err.textContent = 'กรุณากรอกจำนวนเงินขั้นต่ำ 100 บาท'; return; }
+  if (!bank_code)                            { err.textContent = 'กรุณาเลือกธนาคาร'; return; }
+  if (!bank_account)                         { err.textContent = 'กรุณากรอกเลขบัญชี'; return; }
+  if (!bank_name)                            { err.textContent = 'กรุณากรอกชื่อบัญชี'; return; }
+  if (Number(amount) > (_agentData?.balance||0)) { err.textContent = 'ยอดเงินไม่เพียงพอ'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  try {
+    await aFetch('/agent/wallet/withdraw', { method:'POST', body: JSON.stringify({ amount:Number(amount), bank_code, bank_account, bank_name, note }) });
+    document.getElementById('wd-modal')?.remove();
+    loadWallet('withdrawals');
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = '✅ ยืนยันถอนเงิน';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LOTTERY — ซื้อหวย
+// ═══════════════════════════════════════════════════════════════════
+
+let _lotterySubTab = 'buy';
+let _selectedRound = null;
+let _selectedBetType = null;
+
+const BET_LABEL  = {'3top':'3 ตัวบน','3tod':'3 ตัวโต','2top':'2 ตัวบน','2bot':'2 ตัวล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+const BET_STATUS = {'waiting':'รอผล','win':'ถูกรางวัล','lose':'ไม่ถูก','cancelled':'ยกเลิก','refunded':'คืนเงิน'};
+
+async function loadLottery(subTab = 'buy') {
+  _lotterySubTab = subTab;
+  const el = document.getElementById('tab-content');
+  el.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <div class="nav-tab ${subTab==='buy'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadLottery('buy')">🎯 แทงหวย</div>
+      <div class="nav-tab ${subTab==='history'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadLottery('history')">📋 ประวัติการแทง</div>
+    </div>
+    <div id="lottery-sub"></div>`;
+
+  if (subTab === 'buy') loadLotteryBuy();
+  else                  loadLotteryHistory();
+}
+
+async function loadLotteryBuy() {
+  const el = document.getElementById('lottery-sub');
+  if (!el) return;
+  try {
+    const data  = await aFetch('/agent/lottery/rounds');
+    const rounds = data.data || [];
+    if (rounds.length === 0) {
+      el.innerHTML = '<div class="empty">⏳ ยังไม่มีงวดที่เปิดรับแทง</div>';
+      return;
+    }
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:13px;color:var(--muted)">เลือกงวดที่ต้องการแทง</div>
+        <div style="font-size:12px;color:var(--gold2);font-weight:700">ยอดเงิน: ฿${fmt(_agentData?.balance||0)}</div>
+      </div>
+      <div class="round-grid">
+        ${rounds.map(r => {
+          const closeAt = new Date(r.close_at);
+          const nowTs   = Date.now();
+          const diff    = closeAt - nowTs;
+          const hrs     = Math.floor(diff/3600000);
+          const mins    = Math.floor((diff%3600000)/60000);
+          const timeStr = diff > 0 ? `ปิดรับใน ${hrs>0?hrs+'ชม. ':''}${mins}นาที` : 'หมดเวลา';
+          return `
+          <div class="round-card" onclick="openBetModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">
+            <div class="round-flag">${r.flag||'🎲'}</div>
+            <div class="round-name">${r.lottery_name}</div>
+            <div class="round-type">${r.round_name}</div>
+            <div class="round-close">⏰ ${timeStr}</div>
+            <div class="round-rates">
+              <div class="rate-chip">3บน <span>×${r.rate_3top}</span></div>
+              <div class="rate-chip">3โต <span>×${r.rate_3tod}</span></div>
+              <div class="rate-chip">2บน <span>×${r.rate_2top}</span></div>
+              <div class="rate-chip">2ล่าง <span>×${r.rate_2bot}</span></div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+function openBetModal(round) {
+  _selectedRound   = round;
+  _selectedBetType = '2bot';
+  const rates = { '3top': round.rate_3top, '3tod': round.rate_3tod, '2top': round.rate_2top,
+                  '2bot': round.rate_2bot, 'run_top': round.rate_run_top, 'run_bot': round.rate_run_bot };
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'bet-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('bet-modal').remove()">✕</button>
+      <h3>${round.flag||'🎲'} ${round.lottery_name}</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:18px">${round.round_name}</div>
+
+      <!-- Bet type selector -->
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">เลือกประเภทการแทง</div>
+      <div class="bet-type-grid" id="bet-type-grid">
+        ${Object.entries(BET_LABEL).map(([type,label]) => `
+          <div class="bet-type-btn ${type==='2bot'?'sel':''}" id="btype-${type}" onclick="selectBetType('${type}',${JSON.stringify(rates)})">
+            <div>${label}</div>
+            <div class="bet-rate">×${rates[type]}</div>
+          </div>`).join('')}
+      </div>
+
+      <!-- Number + amount -->
+      <div id="bet-num-wrap" style="display:flex;gap:10px;margin-bottom:12px">
+        <div class="fg" style="flex:1;margin:0">
+          <label>เลขที่แทง</label>
+          <input class="fi" id="bet-number" type="text" inputmode="numeric" maxlength="3" placeholder="XX" style="font-size:22px;font-weight:900;text-align:center;letter-spacing:6px">
+        </div>
+        <div class="fg" style="width:130px;margin:0">
+          <label>จำนวนเงิน (฿)</label>
+          <input class="fi" id="bet-amount" type="number" min="${round.min_bet}" max="${Math.min(round.max_bet,_agentData?.balance||0)}" placeholder="${round.min_bet}" value="${round.min_bet}">
+        </div>
+      </div>
+
+      <!-- Quick amounts -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px">
+        ${[10,20,50,100,200,500].map(n=>`<button onclick="document.getElementById('bet-amount').value=${n}"
+          style="background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;color:var(--muted)">฿${n}</button>`).join('')}
+      </div>
+
+      <!-- Payout preview -->
+      <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:12px 14px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:11px;color:var(--muted)">ถ้าถูก จะได้รับ</div>
+          <div id="payout-preview" style="font-size:20px;font-weight:900;color:var(--gold2)">฿0.00</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:11px;color:var(--muted)">ยอดเงินปัจจุบัน</div>
+          <div style="font-size:14px;font-weight:700;color:var(--text)">฿${fmt(_agentData?.balance||0)}</div>
+        </div>
+      </div>
+
+      <button class="btn btn-gold" id="bet-submit-btn" onclick="submitBet()">🎯 ยืนยันแทง</button>
+      <div class="err" id="bet-err" style="margin-top:10px"></div>
+    </div>`;
+  document.body.appendChild(bg);
+
+  // Live payout preview
+  const updatePreview = () => {
+    const amt  = parseFloat(document.getElementById('bet-amount')?.value || 0);
+    const rate = parseFloat(rates[_selectedBetType] || 0);
+    const preview = document.getElementById('payout-preview');
+    if (preview) preview.textContent = '฿' + fmt(amt * rate);
+  };
+  setTimeout(() => {
+    document.getElementById('bet-amount')?.addEventListener('input', updatePreview);
+    document.getElementById('bet-number')?.addEventListener('input', () => {
+      // Enforce correct digit count
+      const el = document.getElementById('bet-number');
+      if (el) {
+        const maxLen = { '3top':3,'3tod':3,'2top':2,'2bot':2,'run_top':1,'run_bot':1 };
+        el.maxLength = maxLen[_selectedBetType] || 3;
+        el.placeholder = '0'.repeat(maxLen[_selectedBetType] || 2);
+      }
+    });
+    // Set initial maxlength
+    const numInp = document.getElementById('bet-number');
+    if (numInp) { numInp.maxLength = 2; numInp.placeholder = 'XX'; }
+    updatePreview();
+  }, 50);
+}
+
+function selectBetType(type, rates) {
+  _selectedBetType = type;
+  document.querySelectorAll('.bet-type-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById(`btype-${type}`)?.classList.add('sel');
+  const maxLen = { '3top':3,'3tod':3,'2top':2,'2bot':2,'run_top':1,'run_bot':1 };
+  const numInp = document.getElementById('bet-number');
+  if (numInp) { numInp.maxLength = maxLen[type]; numInp.placeholder = '0'.repeat(maxLen[type]); numInp.value = ''; }
+  const amt   = parseFloat(document.getElementById('bet-amount')?.value || 0);
+  const preview = document.getElementById('payout-preview');
+  if (preview) preview.textContent = '฿' + fmt(amt * (rates[type]||0));
+}
+
+async function submitBet() {
+  const number = document.getElementById('bet-number')?.value?.trim();
+  const amount = document.getElementById('bet-amount')?.value;
+  const err    = document.getElementById('bet-err');
+  const btn    = document.getElementById('bet-submit-btn');
+  err.textContent = '';
+  if (!number) { err.textContent = 'กรุณากรอกเลข'; return; }
+  if (!amount || Number(amount) <= 0) { err.textContent = 'กรุณากรอกจำนวนเงิน'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  try {
+    const d = await aFetch('/agent/lottery/bet', {
+      method: 'POST',
+      body: JSON.stringify({
+        round_id:  _selectedRound.id,
+        bet_type:  _selectedBetType,
+        number:    number,
+        amount:    Number(amount),
+      })
+    });
+    // Update balance in memory
+    if (d.data?.balance !== undefined) _agentData.balance = d.data.balance;
+    document.getElementById('bet-modal')?.remove();
+
+    // Show success toast
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:30px;right:20px;background:#1a2a1a;border:1px solid var(--green);border-radius:12px;padding:14px 20px;color:var(--green);font-weight:700;font-size:14px;z-index:9999;animation:fadeIn .3s';
+    toast.textContent = '✅ ' + d.message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+
+    loadLottery('buy');
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = '🎯 ยืนยันแทง';
+  }
+}
+
+async function loadLotteryHistory(page = 1) {
+  const el = document.getElementById('lottery-sub');
+  if (!el) return;
+  try {
+    const data  = await aFetch(`/agent/lottery/bets?page=${page}&limit=20`);
+    const rows  = data.data  || [];
+    const total = data.total || 0;
+    const stats = data.stats || {};
+    const pages = Math.ceil(total / 20);
+    el.innerHTML = `
+      <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="stat-card"><div class="stat-label">ยอดแทงรวม</div><div class="stat-val" style="font-size:18px">฿${fmt(stats.total_bet)}</div></div>
+        <div class="stat-card"><div class="stat-label">รางวัลรวม</div><div class="stat-val green" style="font-size:18px">฿${fmt(stats.total_win)}</div></div>
+        <div class="stat-card"><div class="stat-label">ถูกรางวัล</div><div class="stat-val gold" style="font-size:18px">${stats.wins||0} ครั้ง</div></div>
+        <div class="stat-card"><div class="stat-label">รอผล</div><div class="stat-val" style="font-size:18px">${stats.pending||0} รายการ</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>งวด</th><th>ประเภท</th><th>เลข</th><th>ยอด</th><th>รางวัล</th><th>สถานะ</th><th>วันที่</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="8" class="empty">ยังไม่มีประวัติการแทง</td></tr>' :
+              rows.map(b => `<tr>
+                <td style="color:var(--muted);font-size:11px">${b.id}</td>
+                <td style="font-size:12px"><div>${b.flag||''} ${b.lottery_name}</div><div style="color:var(--muted);font-size:10px">${b.round_name}</div></td>
+                <td style="font-size:12px;font-weight:700">${BET_LABEL[b.bet_type]||b.bet_type}</td>
+                <td style="font-size:18px;font-weight:900;color:var(--gold2);letter-spacing:2px">${b.number}</td>
+                <td style="font-weight:700">฿${fmt(b.amount)}</td>
+                <td style="color:var(--green);font-weight:700">${b.win_amount > 0 ? '฿'+fmt(b.win_amount) : '—'}</td>
+                <td><span class="badge ${b.status==='win'?'badge-win':b.status==='waiting'?'badge-wait':'badge-lose'}">${BET_STATUS[b.status]||b.status}</span></td>
+                <td style="font-size:11px;color:var(--muted)">${new Date(b.created_at).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadLotteryHistory(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
 }
 
 // ── Util ──────────────────────────────────────────────────────────

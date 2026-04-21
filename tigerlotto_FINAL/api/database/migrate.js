@@ -347,6 +347,82 @@ const CREATES = [
     INDEX \`idx_code_enabled\` (\`lottery_code\`, \`enabled\`, \`sort_order\`),
     UNIQUE KEY \`uk_code_name\` (\`lottery_code\`, \`name\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // agent_transactions — ประวัติการเงินของ Agent
+  `CREATE TABLE IF NOT EXISTS \`agent_transactions\` (
+    \`id\`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`uuid\`           VARCHAR(36) NOT NULL UNIQUE,
+    \`agent_id\`       INT UNSIGNED NOT NULL,
+    \`type\`           ENUM('deposit','withdraw','bet','win','refund','commission') NOT NULL,
+    \`amount\`         DECIMAL(15,2) NOT NULL,
+    \`balance_before\` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    \`balance_after\`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    \`ref_id\`         INT UNSIGNED DEFAULT NULL,
+    \`description\`    VARCHAR(255) DEFAULT NULL,
+    \`created_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX \`idx_agent\`   (\`agent_id\`),
+    INDEX \`idx_type\`    (\`type\`),
+    INDEX \`idx_created\` (\`created_at\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // agent_deposits — คำขอฝากเงินของ Agent
+  `CREATE TABLE IF NOT EXISTS \`agent_deposits\` (
+    \`id\`          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`uuid\`        VARCHAR(36) NOT NULL UNIQUE,
+    \`agent_id\`    INT UNSIGNED NOT NULL,
+    \`amount\`      DECIMAL(15,2) NOT NULL,
+    \`bank_code\`   VARCHAR(20) DEFAULT NULL,
+    \`note\`        TEXT DEFAULT NULL,
+    \`status\`      ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    \`approved_by\` INT UNSIGNED DEFAULT NULL,
+    \`approved_at\` DATETIME DEFAULT NULL,
+    \`reject_note\` VARCHAR(255) DEFAULT NULL,
+    \`created_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_agent\`  (\`agent_id\`),
+    INDEX \`idx_status\` (\`status\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // agent_withdrawals — คำขอถอนเงินของ Agent
+  `CREATE TABLE IF NOT EXISTS \`agent_withdrawals\` (
+    \`id\`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`uuid\`         VARCHAR(36) NOT NULL UNIQUE,
+    \`agent_id\`     INT UNSIGNED NOT NULL,
+    \`amount\`       DECIMAL(15,2) NOT NULL,
+    \`bank_code\`    VARCHAR(20) NOT NULL DEFAULT '',
+    \`bank_account\` VARCHAR(20) NOT NULL DEFAULT '',
+    \`bank_name\`    VARCHAR(100) NOT NULL DEFAULT '',
+    \`note\`         TEXT DEFAULT NULL,
+    \`status\`       ENUM('pending','processing','completed','rejected') NOT NULL DEFAULT 'pending',
+    \`processed_by\` INT UNSIGNED DEFAULT NULL,
+    \`processed_at\` DATETIME DEFAULT NULL,
+    \`reject_note\`  VARCHAR(255) DEFAULT NULL,
+    \`created_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_agent\`  (\`agent_id\`),
+    INDEX \`idx_status\` (\`status\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // agent_bets — การแทงหวยของ Agent (จากกระเป๋าเงิน Agent)
+  `CREATE TABLE IF NOT EXISTS \`agent_bets\` (
+    \`id\`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`uuid\`       VARCHAR(36) NOT NULL UNIQUE,
+    \`agent_id\`   INT UNSIGNED NOT NULL,
+    \`round_id\`   INT UNSIGNED NOT NULL,
+    \`bet_type\`   ENUM('3top','3tod','2top','2bot','run_top','run_bot') NOT NULL,
+    \`number\`     VARCHAR(6) NOT NULL,
+    \`amount\`     DECIMAL(10,2) NOT NULL,
+    \`rate\`       DECIMAL(8,2) NOT NULL,
+    \`payout\`     DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    \`status\`     ENUM('waiting','win','lose','cancelled','refunded') NOT NULL DEFAULT 'waiting',
+    \`win_amount\` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+    \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_agent\`  (\`agent_id\`),
+    INDEX \`idx_round\`  (\`round_id\`),
+    INDEX \`idx_status\` (\`status\`),
+    INDEX \`idx_number\` (\`number\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 // ─── Seed data ───────────────────────────────────────────────────────────────
