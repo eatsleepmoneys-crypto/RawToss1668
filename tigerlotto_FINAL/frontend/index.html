@@ -1464,7 +1464,13 @@ function _renderLotGroups(filterCode){
     if(!groups[key]) groups[key] = [];
     groups[key].push(r);
   });
-  container.innerHTML = Object.entries(groups).map(([code, list]) => {
+  // ลำดับการแสดงกลุ่มหวย: รัฐบาล → ลาว → ฮานอย 3 ประเภท → หุ้นไทย → อื่นๆ
+  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','TH_STK'];
+  const sortedEntries = Object.entries(groups).sort(([a],[b]) => {
+    const ia = GROUP_ORDER.indexOf(a); const ib = GROUP_ORDER.indexOf(b);
+    return (ia===-1?999:ia) - (ib===-1?999:ib);
+  });
+  container.innerHTML = sortedEntries.map(([code, list]) => {
     const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
     const cards = list.map(r => {
       const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
@@ -1525,7 +1531,9 @@ async function loadLotteryCards(){
     // Build dynamic filter tabs
     const filterEl = document.getElementById('lot-filter');
     if(filterEl){
-      const codes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))];
+      const _TAB_ORDER = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','TH_STK'];
+      const codes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))]
+        .sort((a,b)=>{ const ia=_TAB_ORDER.indexOf(a),ib=_TAB_ORDER.indexOf(b); return (ia===-1?999:ia)-(ib===-1?999:ib); });
       const extraTabs = codes.map(code => {
         const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
         return `<button class="lot-ftab" data-code="${code}" onclick="filterLotCards(this,'${code}')">${meta.flag} ${meta.label}</button>`;
