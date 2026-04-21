@@ -986,8 +986,9 @@ function onRoundChange(){
   if(!round){ if(badge) badge.style.display='none'; return; }
   if(badge){
     badge.style.display='block';
-    badge.innerHTML=`${round.flag||''} <b>${round.lottery_name}</b> — ${UI.formatDateOnly(round.draw_date)}
-      <span style="background:rgba(255,71,87,.2);color:#ff6b81;border-radius:4px;padding:1px 8px;font-size:11px;margin-left:6px">${round.code||''}</span>`;
+    const rFlag = round.flag || codeFlag(round.code);
+    badge.innerHTML=`${rFlag} <b>${round.lottery_name}</b> — ${UI.formatDateOnly(round.draw_date)}
+      <span style="font-size:18px;margin-left:6px">${rFlag}</span>`;
   }
   // Clear manual flags & values
   ['res-p1','res-p3f1','res-p3f2','res-p3b1','res-p3b2','res-p2top','res-p2bot'].forEach(id=>{
@@ -1981,11 +1982,22 @@ async function loadResultsPage(){
 
 /* ── Win Pay Page ── */
 const BET_TYPE_LABEL = { '3top':'3 บน','3tod':'3 โต้ด','2top':'2 บน','2bot':'2 ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง' };
+/* ── Code → Flag map (ใช้ทั่วทั้งระบบ) ── */
+const CODE_TO_FLAG = {
+  TH_GOV:'🇹🇭', LA_GOV:'🇱🇦',
+  VN_HAN:'🇻🇳', VN_HAN_SP:'🇻🇳', VN_HAN_VIP:'🇻🇳',
+  YEEKEE:'🎲',
+};
+function codeFlag(code, fallback) {
+  return CODE_TO_FLAG[code] || fallback || code || '🎰';
+}
 /* ── Auto-Result Fetcher Monitor ── */
 const AR_META = {
   TH_GOV: { name:'หวยรัฐบาลไทย', flag:'🇹🇭', schedule:'วันที่ 1 และ 16 @ 15:30' },
   LA_GOV: { name:'หวยลาว',        flag:'🇱🇦', schedule:'ทุกวัน @ 20:45' },
   VN_HAN: { name:'หวยฮานอย',      flag:'🇻🇳', schedule:'ทุกวัน @ 18:45' },
+  VN_HAN_SP:  { name:'หวยฮานอยพิเศษ', flag:'🇻🇳', schedule:'ทุกวัน @ 17:30' },
+  VN_HAN_VIP: { name:'หวยฮานอย VIP',  flag:'🇻🇳', schedule:'ทุกวัน @ 17:00' },
 };
 async function loadAutoResult(){
   const container = document.getElementById('ar-cards');
@@ -1994,7 +2006,7 @@ async function loadAutoResult(){
     const d = await API.AdminAPI.getAutoResultStatus();
     const rows = d.data || [];
     container.innerHTML = rows.map(r=>{
-      const meta = AR_META[r.code] || { name:r.code, flag:'🎰', schedule:'-' };
+      const meta = AR_META[r.code] || { name:r.name||r.code, flag:codeFlag(r.code), schedule:'-' };
       const s    = r.fetcher || {};
       const ok   = !!s.lastSuccess && !s.lastError;
       const hasResult = r.latest && r.latest.prize_1st;
@@ -3949,7 +3961,7 @@ async function seedHistoryRounds(btn) {
     const d = await API.AdminAPI.seedHistory();
     const lines = (d.results || []).map(r => {
       const icon = r.status === 'ok' ? '✅' : r.status === 'skip' ? '⏩' : '❌';
-      return `${icon} ${r.code}: ${r.status === 'ok' ? r.round_name + ' ('+r.prize_1st+')' : (r.reason||r.status)}`;
+      return `${icon} ${codeFlag(r.code)} ${r.status === 'ok' ? r.round_name + ' ('+r.prize_1st+')' : (r.reason||r.status)}`;
     }).join('\n');
     toast(d.success ? 'สำเร็จ' : 'มีข้อผิดพลาด', d.message, d.success ? 'success' : 'warning', 6000);
     alert('ผลลัพธ์:\n\n' + lines);
