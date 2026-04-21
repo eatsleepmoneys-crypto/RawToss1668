@@ -114,6 +114,32 @@ const TNEWS_THAI_CACHE_TTL = 10 * 60 * 1000; // 10 min — Thai lottery doesn't 
 async function findTNewsThaiArticleUrl() {
   const BROAD_KW = ['สลาก', 'ตรวจหวย', 'หวยรัฐบาล', 'สลากกินแบ่ง'];
 
+  // Strategy 0: WordPress REST API (เร็วและเชื่อถือได้กว่า RSS)
+  const WP_THAI_URLS = [
+    'https://www.tnews.co.th/wp-json/wp/v2/posts?search=%E0%B8%AA%E0%B8%A5%E0%B8%B2%E0%B8%81%E0%B8%81%E0%B8%B4%E0%B8%99%E0%B9%81%E0%B8%9A%E0%B9%88%E0%B8%87&per_page=10&_fields=link,title,date',
+    'https://www.tnews.co.th/wp-json/wp/v2/posts?search=%E0%B8%95%E0%B8%A3%E0%B8%A7%E0%B8%88%E0%B8%AB%E0%B8%A7%E0%B8%A2&per_page=10&_fields=link,title,date',
+  ];
+  const nowBkk   = new Date(Date.now() + 7*3600*1000);
+  const todayStr = nowBkk.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const dayBefore = new Date(nowBkk - 86400000).toISOString().slice(0, 10);
+  for (const wpUrl of WP_THAI_URLS) {
+    try {
+      const wpRes  = await httpGet(wpUrl, 12000);
+      const posts  = Array.isArray(wpRes.data) ? wpRes.data : [];
+      // Filter by date — today or yesterday (Thai lottery published ~16:30)
+      const todayPosts = posts.filter(p => p.date && (p.date.startsWith(todayStr) || p.date.startsWith(dayBefore)));
+      const candidates = todayPosts.length ? todayPosts : posts;
+      for (const p of candidates) {
+        if (p.link && /lotto-horo-belief\/\d+/.test(p.link)) {
+          console.log('[FETCHER:TNEWS_TH] WP-API →', p.link);
+          return p.link;
+        }
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS_TH] WP-API error:', e.message);
+    }
+  }
+
   const RSS_URLS = [
     'https://www.tnews.co.th/lotto-horo-belief/feed',
     'https://www.tnews.co.th/category/lotto-horo-belief/feed',
@@ -1009,17 +1035,57 @@ let _tnewsLaoCache = { data: null, ts: 0 };
 const TNEWS_LAO_CACHE_TTL = 5 * 60 * 1000;
 
 /**
- * หา URL บทความ TNews สำหรับหวยลาว (ใช้ keyword "ลาว")
+ * หา URL บทความ TNews สำหรับหวยลาว
+ * Strategy 0: WordPress REST API (fastest, most reliable)
+ * Strategy 1: RSS feed
+ * Strategy 2: HTML listing
  */
 async function findTNewsLaoArticleUrl() {
   const BROAD_KW = ['ลาว', 'หวยลาว', 'ลาวพัฒนา'];
+  const todayStr = new Date(Date.now() + 7*3600*1000).toISOString().slice(0,10); // Bangkok date
+
+  // ── Strategy 0: WordPress REST API — เร็ว reliable และรองรับ search ──
+  const wpApiUrls = [
+    'https://www.tnews.co.th/wp-json/wp/v2/posts?search=%E0%B8%AB%E0%B8%A7%E0%B8%A2%E0%B8%A5%E0%B8%B2%E0%B8%A7&per_page=10&_fields=link,title,date',
+    // fallback: ลาวพัฒนา
+    'https://www.tnews.co.th/wp-json/wp/v2/posts?search=%E0%B8%A5%E0%B8%B2%E0%B8%A7%E0%B8%9E%E0%B8%B1%E0%B8%92%E0%B8%99%E0%B8%B2&per_page=10&_fields=link,title,date',
+  ];
+  for (const wpUrl of wpApiUrls) {
+    try {
+      const wpRes = await httpGetProxy(wpUrl, 15000, 'th');
+      const posts = Array.isArray(wpRes.data) ? wpRes.data : [];
+      for (const post of posts) {
+        const link  = String(post.link || '');
+        const title = String(post.title?.rendered || '').toLowerCase();
+        const date  = String(post.date || '').slice(0, 10); // 'YYYY-MM-DD' UTC
+        const isLao = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        // รับวันที่ตรงกับ BKK today หรือ ±1 วัน
+        const dateOk = Math.abs(new Date(date) - new Date(todayStr)) <= 86400*1000;
+        if (isLao && /lotto-horo-belief\/\d+/.test(link) && dateOk) {
+          console.log('[FETCHER:TNEWS_LAO] WP API →', link, '(date:', date, ')');
+          return link;
+        }
+      }
+      // ถ้าไม่ตรงวันก็เอา post แรกที่มี keyword ลาว
+      for (const post of posts) {
+        const link  = String(post.link || '');
+        const title = String(post.title?.rendered || '').toLowerCase();
+        const isLao = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        if (isLao && /lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS_LAO] WP API (any date) →', link);
+          return link;
+        }
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS_LAO] WP API error:', e.message);
+    }
+  }
 
   // ── Strategy 1: RSS feed ──────────────────────────────────────
   const RSS_URLS = [
     'https://www.tnews.co.th/lotto-horo-belief/feed',
     'https://www.tnews.co.th/category/lotto-horo-belief/feed',
     'https://www.tnews.co.th/feed?cat=lotto-horo-belief',
-    'https://www.tnews.co.th/feed',
   ];
 
   for (const rssUrl of RSS_URLS) {
@@ -1040,27 +1106,30 @@ async function findTNewsLaoArticleUrl() {
           return link;
         }
       }
+      console.log('[FETCHER:TNEWS_LAO] RSS scanned', items.length, 'items, no Lao article found');
     } catch(e) {
       console.warn('[FETCHER:TNEWS_LAO] RSS error (%s):', rssUrl, e.message);
     }
   }
 
-  // ── Strategy 2: HTML listing ───────────────────────────────────
+  // ── Strategy 2: HTML listing + broader search ─────────────────
   const LISTING_URLS = [
     'https://www.tnews.co.th/lotto-horo-belief',
     'https://www.tnews.co.th/category/lotto-horo-belief',
+    'https://www.tnews.co.th/?s=%E0%B8%AB%E0%B8%A7%E0%B8%A2%E0%B8%A5%E0%B8%B2%E0%B8%A7', // search ?s=หวยลาว
   ];
   for (const listUrl of LISTING_URLS) {
     try {
       const listRes = await httpGetProxy(listUrl, 20000, 'th');
       const $list   = cheerio.load(listRes.data);
       let articleUrl = null;
+      // ลองกว้างขึ้น: เอา link ใดก็ได้ใน lotto-horo-belief ที่ title มี keyword
       $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
         if (articleUrl) return;
-        const href = $list(el).attr('href') || '';
-        const text = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
-        const hit  = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
-        if (hit && /\/lotto-horo-belief\/\d+/.test(href)) {
+        const href  = $list(el).attr('href') || '';
+        const text  = ($list(el).text() + ' ' + ($list(el).attr('title') || '')).toLowerCase();
+        const isLao = BROAD_KW.some(kw => text.includes(kw.toLowerCase()));
+        if (isLao && /\/lotto-horo-belief\/\d+/.test(href)) {
           articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
         }
       });
@@ -1073,7 +1142,7 @@ async function findTNewsLaoArticleUrl() {
     }
   }
 
-  console.warn('[FETCHER:TNEWS_LAO] ไม่พบ URL บทความ');
+  console.warn('[FETCHER:TNEWS_LAO] ❌ ไม่พบ URL บทความ (WP API + RSS + listing ล้มเหลวทั้งหมด)');
   return null;
 }
 
