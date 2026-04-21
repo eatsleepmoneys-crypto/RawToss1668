@@ -958,20 +958,113 @@ async function loadRounds(){
 }
 
 // แยก function เพื่อใช้ได้ทั้งใน loadRounds() และ loadResultsPage()
+let _resRoundsData = []; // cache round list สำหรับ result form
 async function _refreshResultRoundSel(){
   const sel = document.getElementById('result-round-sel');
   if(!sel) return;
   try {
     const cd = await API.AdminAPI.listRoundsAdmin({ limit:50, status:'closed' });
     const closed = (cd.data || []);
+    _resRoundsData = closed;
     if(!closed.length){
       sel.innerHTML = '<option value="">— ไม่มีงวดที่รอออกผล —</option>';
       return;
     }
     sel.innerHTML = '<option value="">เลือกงวด</option>'
-      + closed.map(r=>`<option value="${r.id}">${r.flag||''} ${r.lottery_name} — ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
+      + closed.map(r=>`<option value="${r.id}" data-code="${r.code||''}">${r.flag||''} ${r.lottery_name} — ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
   } catch(e) {
     sel.innerHTML = `<option value="">❌ โหลดไม่ได้: ${e.message}</option>`;
+  }
+}
+
+// ── Smart Result Form helpers ─────────────────────────────────────
+function onRoundChange(){
+  const sel = document.getElementById('result-round-sel');
+  if(!sel) return;
+  const round = _resRoundsData.find(r=>String(r.id)===sel.value);
+  const badge = document.getElementById('res-badge');
+  if(!round){ if(badge) badge.style.display='none'; return; }
+  if(badge){
+    badge.style.display='block';
+    badge.innerHTML=`${round.flag||''} <b>${round.lottery_name}</b> — ${UI.formatDateOnly(round.draw_date)}
+      <span style="background:rgba(255,71,87,.2);color:#ff6b81;border-radius:4px;padding:1px 8px;font-size:11px;margin-left:6px">${round.code||''}</span>`;
+  }
+  // Clear manual flags & values
+  ['res-p1','res-p3f1','res-p3f2','res-p3b1','res-p3b2','res-p2top','res-p2bot'].forEach(id=>{
+    const el=document.getElementById(id); if(el){el.value='';el._manual=false;}
+  });
+  document.getElementById('res-derived-panel') && (document.getElementById('res-derived-panel').style.display='none');
+  _applyFormForCode(round.code||'');
+}
+
+function _applyFormForCode(code){
+  const isTH = code==='TH_GOV';
+  const isLA = code==='LA_GOV';
+  const isVN = code.startsWith('VN_');
+  // รางวัลที่ 1 label + maxlength
+  const p1lbl = document.getElementById('res-p1-lbl');
+  const p1in  = document.getElementById('res-p1');
+  if(p1lbl) p1lbl.textContent = isVN ? '5 หลัก' : '6 หลัก';
+  if(p1in)  p1in.maxLength    = isVN ? 5 : 6;
+  // หน้า 3 ตัว — TH_GOV เท่านั้น
+  const f3row = document.getElementById('res-front3-row');
+  if(f3row) f3row.style.display = isTH?'':'none';
+  // ท้าย 3 ตัว ชุดที่ 2 — TH_GOV เท่านั้น
+  const b32   = document.getElementById('res-back3-2');
+  if(b32)   b32.style.display  = isTH?'':'none';
+  // 2ตัวบน label
+  const t2lbl = document.getElementById('res-2top-lbl');
+  if(t2lbl) t2lbl.textContent  = isTH?'2 ตัวบน (ถ้ามี)':'2 ตัวบน';
+  // 2ตัวล่าง label + readonly for LA
+  const b2lbl = document.getElementById('res-2bot-lbl');
+  const b2in  = document.getElementById('res-p2bot');
+  if(b2lbl) b2lbl.textContent  = isTH?'2 ตัวล่าง ✱':isLA?'2 ตัวล่าง (อัตโนมัติ)':'2 ตัวล่าง';
+  if(b2in){
+    b2in.readOnly    = isLA;
+    b2in.style.opacity = isLA?'0.55':'1';
+    b2in.placeholder = isLA?'auto':'00';
+  }
+}
+
+function onMainNumInput(){
+  const p1el  = document.getElementById('res-p1');
+  const p1    = p1el?.value?.trim()||'';
+  const sel   = document.getElementById('result-round-sel');
+  const round = _resRoundsData.find(r=>String(r.id)===sel?.value);
+  const code  = round?.code||'';
+  const isTH  = code==='TH_GOV';
+  const isLA  = code==='LA_GOV';
+  const panel = document.getElementById('res-derived-panel');
+  const grid  = document.getElementById('res-derived-grid');
+  if(p1.length>=3){
+    const d3b  = p1.slice(-3);
+    const d2t  = p1.slice(-2);
+    const d4   = p1.length>=4 ? p1.slice(-4) : p1;
+    const d2b  = p1.length>=4 ? (p1.length===6 ? p1.slice(2,4) : p1.slice(0,2)) : '';
+    if(panel) panel.style.display='';
+    if(grid){
+      const items = [];
+      if(!isTH) items.push({l:'ท้าย 4 ตัว',v:d4,c:'var(--orange)'});
+      items.push({l:'ท้าย 3 ตัว',v:d3b,c:'var(--gold)'});
+      items.push({l:'2 ตัวบน',v:d2t,c:'var(--green)'});
+      if(!isTH&&d2b) items.push({l:'2 ตัวล่าง',v:d2b,c:'var(--blue)'});
+      grid.innerHTML = items.map(it=>`
+        <div style="background:rgba(255,255,255,.05);border-radius:8px;padding:10px 4px;text-align:center">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">${it.l}</div>
+          <div style="font-size:22px;font-weight:900;color:${it.c};letter-spacing:3px">${it.v}</div>
+        </div>`).join('');
+    }
+    // Auto-fill ท้าย 3 ตัว ชุดที่ 1
+    const p3b1 = document.getElementById('res-p3b1');
+    if(p3b1&&!p3b1._manual) p3b1.value=d3b;
+    // Auto-fill 2ตัวบน
+    const p2top = document.getElementById('res-p2top');
+    if(p2top&&!p2top._manual) p2top.value=d2t;
+    // Auto-fill 2ตัวล่าง สำหรับ LA_GOV (auto-readonly)
+    const p2bot = document.getElementById('res-p2bot');
+    if(p2bot&&isLA) p2bot.value=d2b;
+  } else {
+    if(panel) panel.style.display='none';
   }
 }
 function filterRounds(q){
@@ -1864,8 +1957,9 @@ async function loadResultsPage(){
       return;
     }
     list.innerHTML = closed.map(r=>`
-      <div style="padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border);cursor:pointer"
-           onclick="document.getElementById('result-round-sel').value='${r.id}'">
+      <div style="padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border);cursor:pointer;transition:.15s"
+           onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'"
+           onclick="document.getElementById('result-round-sel').value='${r.id}';onRoundChange()">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
           <span style="font-weight:600">${r.flag||''} ${r.lottery_name}</span>
           <span style="font-size:11px;background:rgba(255,71,87,.15);color:#ff6b81;border-radius:6px;padding:2px 8px">รอออกผล</span>
@@ -2459,41 +2553,68 @@ async function saveApiGroup(group){
   }catch(e){ toast('ผิดพลาด', e.message,'error'); }
 }
 
+let _pendingResult = null; // เก็บผลรอยืนยัน
 function submitResult(){
-  const roundId    = document.getElementById('result-round-sel')?.value;
-  const prize_1st  = document.getElementById('res-p1')?.value?.trim();
-  const prize_2bot = document.getElementById('res-p2bot')?.value?.trim();
-  const prize_3front1 = document.getElementById('res-p3f1')?.value?.trim();
-  const prize_3front2 = document.getElementById('res-p3f2')?.value?.trim();
-  const prize_3back1  = document.getElementById('res-p3b1')?.value?.trim();
-  const prize_3back2  = document.getElementById('res-p3b2')?.value?.trim();
+  const sel     = document.getElementById('result-round-sel');
+  const roundId = sel?.value;
+  const round   = _resRoundsData.find(r=>String(r.id)===roundId);
+  const code    = round?.code||'';
+  const isTH    = code==='TH_GOV';
+  const isLA    = code==='LA_GOV';
+  const isVN    = code.startsWith('VN_');
+
+  const prize_1st = (document.getElementById('res-p1')?.value||'').trim();
+  const p2top     = (document.getElementById('res-p2top')?.value||'').trim(); // 2ตัวบน
+  const p2bot     = (document.getElementById('res-p2bot')?.value||'').trim(); // 2ตัวล่าง (TH_GOV)
+  const p3f1      = (document.getElementById('res-p3f1')?.value||'').trim();
+  const p3f2      = (document.getElementById('res-p3f2')?.value||'').trim();
+  const p3b1      = (document.getElementById('res-p3b1')?.value||'').trim();
+  const p3b2      = (document.getElementById('res-p3b2')?.value||'').trim();
+
   if(!roundId){ toast('ผิดพลาด','กรุณาเลือกงวด','error'); return; }
-  if(!prize_1st||prize_1st.length!==6){ toast('ผิดพลาด','รางวัลที่ 1 ต้อง 6 หลัก','error'); return; }
+  const expLen = isVN ? 5 : 6;
+  if(!prize_1st||prize_1st.length!==expLen||!/^\d+$/.test(prize_1st)){ toast('ผิดพลาด',`รางวัลที่ 1 ต้องเป็นตัวเลข ${expLen} หลัก`,'error'); return; }
+  if(isTH&&(!p2bot||p2bot.length!==2)){ toast('ผิดพลาด','กรุณากรอก 2 ตัวล่าง (หวยไทย)','error'); return; }
+  if(!isTH&&(!p2top||p2top.length!==2)){ toast('ผิดพลาด','กรุณากรอก 2 ตัวบน','error'); return; }
+
+  // prize_last_2 = 2ตัวล่าง (TH) หรือ 2ตัวบน (Lao/VN)
+  const prize_last_2 = isTH ? p2bot : p2top;
+
+  _pendingResult = { roundId:parseInt(roundId), round, code, prize_1st, prize_last_2, p2top, p2bot,
+    prize_front_3:[p3f1,p3f2].filter(Boolean), prize_last_3:[p3b1,p3b2].filter(Boolean) };
+
   openModal(`<h3>📢 ยืนยันประกาศผล</h3>
-    <div style="background:rgba(255,215,0,.1);border:1px solid var(--gold);border-radius:8px;padding:12px;margin-bottom:12px;font-size:14px;line-height:1.8">
-      <div>🥇 รางวัลที่ 1: <b style="color:var(--gold)">${prize_1st}</b></div>
-      ${prize_2bot?`<div>🔢 เลขท้าย 2 ตัว: <b>${prize_2bot}</b></div>`:''}
-      ${prize_3front1?`<div>🔼 เลขหน้า 3 ตัว (1): <b>${prize_3front1}</b></div>`:''}
-      ${prize_3front2?`<div>🔼 เลขหน้า 3 ตัว (2): <b>${prize_3front2}</b></div>`:''}
-      ${prize_3back1?`<div>🔽 เลขท้าย 3 ตัว (1): <b>${prize_3back1}</b></div>`:''}
-      ${prize_3back2?`<div>🔽 เลขท้าย 3 ตัว (2): <b>${prize_3back2}</b></div>`:''}
+    <div style="background:rgba(255,215,0,.1);border:1px solid var(--gold);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">${round?.flag||''} ${round?.lottery_name||''} — ${UI.formatDateOnly(round?.draw_date)}</div>
+      <div style="font-size:14px;line-height:2">
+        <div>🥇 รางวัลที่ 1: <b style="font-size:20px;color:var(--gold2);letter-spacing:4px">${prize_1st}</b></div>
+        ${p3b1?`<div>🔽 ท้าย 3 ตัว: <b>${p3b1}${p3b2?' / '+p3b2:''}</b></div>`:''}
+        ${p3f1?`<div>🔼 หน้า 3 ตัว: <b>${p3f1}${p3f2?' / '+p3f2:''}</b></div>`:''}
+        ${!isTH&&p2top?`<div>🟢 2 ตัวบน: <b style="color:var(--green)">${p2top}</b></div>`:''}
+        ${isLA?`<div style="color:var(--muted);font-size:12px">2 ตัวล่าง (ลาว auto): <b>${prize_1st.slice(2,4)}</b></div>`:''}
+        ${isTH&&p2bot?`<div>🔵 2 ตัวล่าง: <b style="color:var(--blue)">${p2bot}</b></div>`:''}
+        ${isVN&&p2bot?`<div>🔵 2 ตัวล่าง: <b style="color:var(--blue)">${p2bot}</b></div>`:''}
+      </div>
     </div>
     <p style="color:var(--red);font-size:13px;margin-bottom:12px">⚠️ ไม่สามารถแก้ไขได้หลังจากประกาศแล้ว</p>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-gold" onclick="confirmSubmitResult(${roundId},'${prize_1st}','${prize_2bot||''}','${prize_3front1||''}','${prize_3front2||''}','${prize_3back1||''}','${prize_3back2||''}')">🎉 ยืนยันประกาศผล</button>
+      <button class="btn btn-gold" onclick="confirmSubmitResult()">🎉 ยืนยันประกาศผล</button>
     </div>`);
 }
-async function confirmSubmitResult(roundId,p1,p2bot,p3f1,p3f2,p3b1,p3b2){
+async function confirmSubmitResult(){
   closeModal();
+  if(!_pendingResult) return;
+  const { roundId, prize_1st, prize_last_2, prize_front_3, prize_last_3 } = _pendingResult;
   const btn = document.querySelector('#page-content .btn-gold');
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังประกาศ...'; }
   try{
-    await API.AdminAPI.announceResult({ round_id:parseInt(roundId), prize_1st:p1, prize_last_2:p2bot, prize_front_3:[p3f1,p3f2].filter(Boolean), prize_last_3:[p3b1,p3b2].filter(Boolean) });
+    await API.AdminAPI.announceResult({ round_id:roundId, prize_1st, prize_last_2, prize_front_3, prize_last_3 });
     toast('สำเร็จ','ออกผลรางวัลและจ่ายเงินอัตโนมัติเรียบร้อย 🎉');
+    _pendingResult = null;
     nav('results');
   }catch(e){
-    toast('ผิดพลาด', e.message);
+    toast('ผิดพลาด', e.message,'error');
     if(btn){ btn.disabled=false; btn.textContent='📢 ประกาศผลและจ่ายรางวัล'; }
   }
 }
@@ -2826,23 +2947,84 @@ results:()=>`
 <div class="g2">
   <div class="card card-gold">
     <h3>🏆 กรอกผลรางวัล</h3>
-    <div class="fg"><label>เลือกงวด (ที่ปิดรับแล้ว)</label>
-      <select id="result-round-sel" class="fi-full"><option value="">⏳ กำลังโหลด...</option></select>
+
+    <!-- เลือกงวด -->
+    <div class="fg">
+      <label>เลือกงวด (ที่ปิดรับแล้ว)</label>
+      <select id="result-round-sel" class="fi-full" onchange="onRoundChange()">
+        <option value="">⏳ กำลังโหลด...</option>
+      </select>
     </div>
-    <div class="fg"><label>รางวัลที่ 1 (6 หลัก)</label><input id="res-p1" class="fi-full" placeholder="000000" maxlength="6" style="font-size:22px;font-weight:700;letter-spacing:6px;text-align:center" inputmode="numeric"></div>
-    <div class="fi-row">
-      <div class="fg"><label>เลขหน้า 3 ตัว ชุดที่ 1</label><input id="res-p3f1" class="fi-full" placeholder="000" maxlength="3" style="text-align:center;font-size:18px;font-weight:700" inputmode="numeric"></div>
-      <div class="fg"><label>เลขหน้า 3 ตัว ชุดที่ 2</label><input id="res-p3f2" class="fi-full" placeholder="000" maxlength="3" style="text-align:center;font-size:18px;font-weight:700" inputmode="numeric"></div>
+
+    <!-- lottery badge -->
+    <div id="res-badge" style="display:none;padding:8px 12px;background:rgba(212,160,23,.1);border:1px solid rgba(212,160,23,.3);border-radius:8px;font-size:13px;color:var(--gold);margin-bottom:8px"></div>
+
+    <!-- รางวัลที่ 1 -->
+    <div class="fg">
+      <label>🥇 รางวัลที่ 1 — <span id="res-p1-lbl" style="color:var(--muted);font-weight:400">เลือกงวดก่อน</span></label>
+      <input id="res-p1" class="fi-full" placeholder="—" maxlength="6"
+             style="font-size:34px;font-weight:900;letter-spacing:10px;text-align:center;color:var(--gold2);padding:14px 8px"
+             inputmode="numeric" oninput="onMainNumInput()">
     </div>
-    <div class="fi-row">
-      <div class="fg"><label>เลขท้าย 3 ตัว ชุดที่ 1</label><input id="res-p3b1" class="fi-full" placeholder="000" maxlength="3" style="text-align:center;font-size:18px;font-weight:700" inputmode="numeric"></div>
-      <div class="fg"><label>เลขท้าย 3 ตัว ชุดที่ 2</label><input id="res-p3b2" class="fi-full" placeholder="000" maxlength="3" style="text-align:center;font-size:18px;font-weight:700" inputmode="numeric"></div>
+
+    <!-- Auto-derived panel -->
+    <div id="res-derived-panel" style="display:none;background:rgba(255,215,0,.06);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-bottom:8px">ตัวเลขที่ได้จากรางวัลที่ 1 (อัตโนมัติ)</div>
+      <div id="res-derived-grid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px"></div>
     </div>
-    <div class="fg"><label>เลขท้าย 2 ตัว (ล่าง)</label><input id="res-p2bot" class="fi-full" placeholder="00" maxlength="2" style="text-align:center;font-size:22px;font-weight:700;letter-spacing:4px" inputmode="numeric"></div>
-    <div style="display:flex;gap:10px">
-      <button class="btn btn-gold" style="flex:1;padding:12px" onclick="submitResult()">📢 ประกาศผลและจ่ายรางวัล</button>
+
+    <!-- หน้า 3 ตัว — TH_GOV only -->
+    <div id="res-front3-row" style="display:none;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px">เลขหน้า 3 ตัว</div>
+      <div class="fi-row">
+        <div class="fg"><label>ชุดที่ 1</label>
+          <input id="res-p3f1" class="fi-full" placeholder="000" maxlength="3"
+                 style="text-align:center;font-size:22px;font-weight:700;letter-spacing:5px" inputmode="numeric">
+        </div>
+        <div class="fg"><label>ชุดที่ 2</label>
+          <input id="res-p3f2" class="fi-full" placeholder="000" maxlength="3"
+                 style="text-align:center;font-size:22px;font-weight:700;letter-spacing:5px" inputmode="numeric">
+        </div>
+      </div>
     </div>
+
+    <!-- ท้าย 3 ตัว -->
+    <div style="margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted);font-weight:600;margin-bottom:6px">เลขท้าย 3 ตัว</div>
+      <div class="fi-row">
+        <div class="fg"><label>ชุดที่ 1 <span style="color:var(--gold);font-size:10px">(auto)</span></label>
+          <input id="res-p3b1" class="fi-full" placeholder="000" maxlength="3"
+                 style="text-align:center;font-size:22px;font-weight:700;letter-spacing:5px" inputmode="numeric"
+                 oninput="this._manual=true">
+        </div>
+        <div id="res-back3-2" class="fg" style="display:none"><label>ชุดที่ 2</label>
+          <input id="res-p3b2" class="fi-full" placeholder="000" maxlength="3"
+                 style="text-align:center;font-size:22px;font-weight:700;letter-spacing:5px" inputmode="numeric">
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ตัวบน / 2 ตัวล่าง -->
+    <div class="fi-row" style="margin-bottom:16px">
+      <div class="fg">
+        <label id="res-2top-lbl" style="font-weight:600">2 ตัวบน <span style="color:var(--gold);font-size:10px">(auto)</span></label>
+        <input id="res-p2top" class="fi-full" placeholder="00" maxlength="2"
+               style="text-align:center;font-size:30px;font-weight:900;letter-spacing:8px;color:var(--green);padding:12px"
+               inputmode="numeric" oninput="this._manual=true">
+      </div>
+      <div class="fg">
+        <label id="res-2bot-lbl" style="font-weight:600">2 ตัวล่าง ✱</label>
+        <input id="res-p2bot" class="fi-full" placeholder="00" maxlength="2"
+               style="text-align:center;font-size:30px;font-weight:900;letter-spacing:8px;color:var(--blue);padding:12px"
+               inputmode="numeric" oninput="this._manual=true">
+      </div>
+    </div>
+
+    <button class="btn btn-gold" style="width:100%;padding:14px;font-size:15px;font-weight:700" onclick="submitResult()">
+      📢 ประกาศผลและจ่ายรางวัล
+    </button>
   </div>
+
   <div class="card">
     <h3>📅 งวดที่ปิดรับแล้ว (รอออกผล)</h3>
     <div id="pending-rounds-list" style="display:flex;flex-direction:column;gap:10px">
