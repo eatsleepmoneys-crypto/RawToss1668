@@ -245,6 +245,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('deposits')"><span class="ic">💰</span>ฝากเงิน<span class="badge" id="badge-dep">8</span></div>
     <div class="sb-item" onclick="nav('withdrawals')"><span class="ic">🏧</span>ถอนเงิน<span class="badge" id="badge-wd">3</span></div>
     <div class="sb-item" onclick="nav('winpay')"><span class="ic">🎁</span>จ่ายรางวัล</div>
+    <div class="sb-item" onclick="nav('credits')"><span class="ic">💳</span>เพิ่ม/ลด เครดิต</div>
 
     <div class="sb-item" onclick="nav('promotions')"><span class="ic">🎁</span>โปรโมชั่น</div>
     <div class="sb-item" onclick="nav('hotnumbers')"><span class="ic">🔥</span>ตัวเลขฮอต</div>
@@ -338,7 +339,7 @@ function startClock(){
 const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
   lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',
-  deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',
+  deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',credits:'💳 เพิ่ม/ลด เครดิต',
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
   kyc:'🪪 ยืนยันตัวตน KYC',
@@ -374,6 +375,7 @@ async function afterNav(page){
     else if(page==='hotnumbers') await loadHotNumbers();
     else if(page==='kyc') await loadKYC();
     else if(page==='winpay') await loadWinPay();
+    else if(page==='credits') await loadCredits();
     else if(page==='yeekee') await loadYeeKee();
     else if(page==='autoresult') await loadAutoResult();
     else if(page==='api'){ await loadApiSettings(); await loadLotSources(); }
@@ -865,6 +867,110 @@ async function loadAdmins(){
         </div>
       </td>
     </tr>`).join('');
+}
+
+/* ── Credits Page ── */
+let _crTab = 'member';
+let _crData = [];
+
+function switchCreditTab(tab){
+  _crTab = tab;
+  ['member','agent','admin'].forEach(t => {
+    const btn = document.getElementById(`cr-tab-${t}`);
+    if(btn){ btn.className = t===tab ? 'btn btn-gold' : 'btn'; btn.style.background = t===tab ? '' : 'var(--card2)'; }
+  });
+  loadCreditTable();
+}
+
+async function loadCreditTable(){
+  const tbody = document.getElementById('cr-tbody');
+  const thead = document.getElementById('cr-thead');
+  if(!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  try{
+    let rows = [];
+    if(_crTab==='member'){
+      const d = await API.AdminAPI.listMembers({ limit:200 });
+      rows = (d.data||[]).map(m => ({ id:m.id, name:m.name, phone:m.phone, role:m.status, balance:m.balance }));
+      thead.innerHTML = '<tr><th>#</th><th>ชื่อ-นามสกุล</th><th>เบอร์โทร</th><th>สถานะ</th><th>เครดิต (฿)</th><th>จัดการ</th></tr>';
+    } else if(_crTab==='agent'){
+      const d = await API.AdminAPI.listAgents();
+      rows = (d.data||[]).map(a => ({ id:a.id, name:a.name, phone:a.phone, role:a.status, balance:a.balance }));
+      thead.innerHTML = '<tr><th>#</th><th>ชื่อ</th><th>เบอร์โทร</th><th>สถานะ</th><th>เครดิต (฿)</th><th>จัดการ</th></tr>';
+    } else {
+      const d = await API.AdminAPI.listAdmins();
+      rows = (d.data||[]).map(a => ({ id:a.id, name:a.name, phone:a.email, role:a.role, balance:a.balance||0 }));
+      thead.innerHTML = '<tr><th>#</th><th>ชื่อ</th><th>Email</th><th>Role</th><th>เครดิต (฿)</th><th>จัดการ</th></tr>';
+    }
+    _crData = rows;
+    renderCreditRows(rows);
+  } catch(e){ tbody.innerHTML = `<tr><td colspan="6" style="color:var(--red);padding:20px;text-align:center">${e.message}</td></tr>`; }
+}
+
+function renderCreditRows(rows){
+  const tbody = document.getElementById('cr-tbody');
+  if(!tbody) return;
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูล</td></tr>'
+    : rows.map(r => `<tr>
+        <td style="color:var(--muted);font-size:12px">${r.id}</td>
+        <td style="font-weight:600">${r.name}</td>
+        <td style="color:var(--muted)">${r.phone||'-'}</td>
+        <td><span class="badge ${r.role==='active'||r.role==='superadmin'||r.role==='admin'?'badge-green':'badge-gray'}">${r.role}</span></td>
+        <td style="color:var(--gold2);font-weight:700">฿${Number(r.balance||0).toLocaleString('th-TH',{minimumFractionDigits:2})}</td>
+        <td>
+          <button class="act-btn act-btn-gold" onclick="openCreditAdjust(${r.id},'${(r.name||'').replace(/'/g,"\\'")}')">💳 ปรับ</button>
+        </td>
+      </tr>`).join('');
+}
+
+function filterCreditTable(q){
+  const kw = q.toLowerCase();
+  renderCreditRows(_crData.filter(r =>
+    (r.name||'').toLowerCase().includes(kw) || (r.phone||'').includes(kw)
+  ));
+}
+
+function openCreditAdjust(id, name){
+  openModal(`<h3>💳 ปรับเครดิต — ${name}</h3>
+    <div class="fi-row">
+      <div class="fg"><label>ประเภท</label>
+        <select id="cadj-type" class="fi-full">
+          <option value="bonus">➕ เพิ่มเครดิต</option>
+          <option value="deduct">➖ หักเครดิต</option>
+        </select>
+      </div>
+      <div class="fg"><label>จำนวน (฿)</label>
+        <input id="cadj-amount" class="fi-full" type="number" min="1" step="1" placeholder="0">
+      </div>
+    </div>
+    <div class="fg"><label>หมายเหตุ</label>
+      <input id="cadj-note" class="fi-full" placeholder="ระบุเหตุผล...">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitCreditAdjust(${id})">✅ ยืนยัน</button>
+    </div>`);
+}
+
+async function submitCreditAdjust(id){
+  const amount = parseFloat(document.getElementById('cadj-amount')?.value);
+  const type   = document.getElementById('cadj-type')?.value;
+  const note   = document.getElementById('cadj-note')?.value?.trim() || '';
+  if(!amount || amount <= 0){ toast('ผิดพลาด','กรุณาระบุจำนวนเงิน','error'); return; }
+  try{
+    if(_crTab==='member')      await API.AdminAPI.adjustCredit(id, amount, type, note);
+    else if(_crTab==='agent')  await API.AdminAPI.adjustAgentCredit(id, amount, type, note);
+    else                       await API.AdminAPI.adjustAdminCredit(id, amount, type, note);
+    closeModal();
+    toast('สำเร็จ','ปรับเครดิตสำเร็จ ✅');
+    loadCreditTable();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function loadCredits(){
+  _crTab = 'member';
+  loadCreditTable();
 }
 
 /* ── Promotions ── */
@@ -2850,6 +2956,25 @@ logs:()=>`
       <tbody id="logs-body">
         <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>
       </tbody>
+    </table>
+  </div>
+</div>`,
+
+// ── เพิ่ม/ลด เครดิต ──
+credits:()=>`
+<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap">
+  <button class="btn btn-gold" id="cr-tab-member" onclick="switchCreditTab('member')">👥 สมาชิก</button>
+  <button class="btn" id="cr-tab-agent" onclick="switchCreditTab('agent')" style="background:var(--card2)">🤝 Agent</button>
+  <button class="btn" id="cr-tab-admin" onclick="switchCreditTab('admin')" style="background:var(--card2)">🛡️ Admin</button>
+</div>
+<div class="filter-bar" style="margin-bottom:14px">
+  <input class="fi" id="cr-search" placeholder="🔍 ค้นหาชื่อ / เบอร์..." style="flex:1" oninput="filterCreditTable(this.value)">
+</div>
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead id="cr-thead"></thead>
+      <tbody id="cr-tbody"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`

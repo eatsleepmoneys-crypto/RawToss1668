@@ -2,7 +2,7 @@ const router  = require('express').Router();
 const bcrypt  = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
-const { query } = require('../config/db');
+const { query, transaction } = require('../config/db');
 const { authAdmin } = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 
@@ -101,6 +101,26 @@ router.patch('/agents/:id', authAdmin, rbac.requirePerm('agents.manage'), async 
   res.json({ success: true, message: 'อัพเดทเอเยนต์แล้ว' });
 });
 
+// ── Agent Credit ──
+router.patch('/agents/:id/credit', authAdmin, rbac.requirePerm('members.credit'), async (req, res) => {
+  const { amount, type = 'bonus', note } = req.body;
+  if (!amount || isNaN(amount) || Number(amount) <= 0)
+    return res.status(400).json({ success: false, message: 'จำนวนเงินไม่ถูกต้อง' });
+  await transaction(async (conn) => {
+    const [[a]] = await conn.execute('SELECT balance FROM agents WHERE id=? FOR UPDATE', [req.params.id]);
+    if (!a) throw new Error('ไม่พบเอเยนต์');
+    const adj    = type === 'deduct' ? -Math.abs(Number(amount)) : Math.abs(Number(amount));
+    const newBal = parseFloat(a.balance) + adj;
+    if (newBal < 0) throw new Error('ยอดเงินไม่เพียงพอ');
+    await conn.execute('UPDATE agents SET balance=? WHERE id=?', [newBal, req.params.id]);
+    await conn.execute(
+      'INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+      [req.admin.id, 'agent.credit', 'agent', req.params.id, `${type}: ${amount} | ${note || ''}`, req.ip]
+    );
+  });
+  res.json({ success: true, message: 'ปรับยอดเงินสำเร็จ' });
+});
+
 // ══════════════════════════════════════
 //  ADMIN USERS (Multi-level)
 // ══════════════════════════════════════
@@ -134,6 +154,26 @@ router.patch('/admins/:id', authAdmin, rbac.requirePerm('admins.edit'), async (r
   await query('UPDATE admins SET name=COALESCE(?,name), role=COALESCE(?,role), is_active=COALESCE(?,is_active) WHERE id=?',
     [name, role, is_active, req.params.id]);
   res.json({ success: true, message: 'อัพเดท Admin แล้ว' });
+});
+
+// ── Admin Credit ──
+router.patch('/admins/:id/credit', authAdmin, rbac.requirePerm('members.credit'), async (req, res) => {
+  const { amount, type = 'bonus', note } = req.body;
+  if (!amount || isNaN(amount) || Number(amount) <= 0)
+    return res.status(400).json({ success: false, message: 'จำนวนเงินไม่ถูกต้อง' });
+  await transaction(async (conn) => {
+    const [[a]] = await conn.execute('SELECT balance FROM admins WHERE id=? FOR UPDATE', [req.params.id]);
+    if (!a) throw new Error('ไม่พบ Admin');
+    const adj    = type === 'deduct' ? -Math.abs(Number(amount)) : Math.abs(Number(amount));
+    const newBal = parseFloat(a.balance || 0) + adj;
+    if (newBal < 0) throw new Error('ยอดเงินไม่เพียงพอ');
+    await conn.execute('UPDATE admins SET balance=? WHERE id=?', [newBal, req.params.id]);
+    await conn.execute(
+      'INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+      [req.admin.id, 'admin.credit', 'admin', req.params.id, `${type}: ${amount} | ${note || ''}`, req.ip]
+    );
+  });
+  res.json({ success: true, message: 'ปรับยอดเงินสำเร็จ' });
 });
 
 router.delete('/admins/:id', authAdmin, rbac.requirePerm('admins.delete'), async (req, res) => {

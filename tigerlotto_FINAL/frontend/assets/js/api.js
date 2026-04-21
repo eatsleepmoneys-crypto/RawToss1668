@@ -178,14 +178,18 @@ const AdminAPI = {
     apiFetch('/members/admin/create', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
 
   // Agents
-  listAgents  : (params = {}) => apiFetch('/admin/agents?' + new URLSearchParams(params), {}, 'admin'),
-  createAgent : (data) => apiFetch('/admin/agents', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
-  updateAgent : (id, data) => apiFetch(`/admin/agents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  listAgents       : (params = {}) => apiFetch('/admin/agents?' + new URLSearchParams(params), {}, 'admin'),
+  createAgent      : (data) => apiFetch('/admin/agents', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
+  updateAgent      : (id, data) => apiFetch(`/admin/agents/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  adjustAgentCredit: (id, amount, type, note) =>
+    apiFetch(`/admin/agents/${id}/credit`, { method: 'PATCH', body: JSON.stringify({ amount, type, note }) }, 'admin'),
 
   // Admins
   listAdmins          : () => apiFetch('/admin/admins', {}, 'admin'),
   createAdmin         : (data) => apiFetch('/admin/admins', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
   updateAdmin         : (id, data) => apiFetch(`/admin/admins/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  adjustAdminCredit   : (id, amount, type, note) =>
+    apiFetch(`/admin/admins/${id}/credit`, { method: 'PATCH', body: JSON.stringify({ amount, type, note }) }, 'admin'),
   deleteAdmin         : (id) => apiFetch(`/admin/admins/${id}`, { method: 'DELETE' }, 'admin'),
   resetAdminPassword  : (id, new_password) =>
     apiFetch(`/admin/admins/${id}/reset-password`, { method: 'PATCH', body: JSON.stringify({ new_password }) }, 'admin'),
