@@ -3287,14 +3287,14 @@ async function confirmResetAdminPw(id, name){
 // viewMember, openCreditModal, submitCredit, openAddMember, submitNewMember,
 // approveDeposit, rejectDeposit, confirmResult — all defined above (real API)
 function openAddAgent(){openModal(`<h3>➕ เพิ่มเอเยนต์ใหม่</h3>
-  <div class="fg"><label>ชื่อเอเยนต์</label><input id="new-ag-name" class="fi-full" placeholder="ชื่อ-นามสกุล"></div>
-  <div class="fg"><label>เบอร์โทร</label><input id="new-ag-phone" class="fi-full" placeholder="08X-XXX-XXXX"></div>
+  <div class="fg"><label>ชื่อเอเยนต์ <span style="color:#e74c3c">*</span></label><input id="new-ag-name" class="fi-full" placeholder="ชื่อ-นามสกุล"></div>
+  <div class="fg"><label>เบอร์โทร <span style="color:#e74c3c">*</span></label><input id="new-ag-phone" class="fi-full" type="tel" placeholder="0812345678"></div>
   <div class="fg"><label>Email (ไม่บังคับ)</label><input id="new-ag-email" class="fi-full" type="email" placeholder="agent@example.com"></div>
-  <div class="fg"><label>รหัสผ่าน</label><input id="new-ag-pass" class="fi-full" type="password" placeholder="••••••••"></div>
+  <div class="fg"><label>รหัสผ่าน <span style="color:#e74c3c">*</span></label><input id="new-ag-pass" class="fi-full" type="password" placeholder="อย่างน้อย 8 ตัว"></div>
   <div class="fg"><label>ค่าคอมมิชชั่น (%)</label><input id="new-ag-com" class="fi-full" type="number" value="3" step="0.5" min="0" max="20"></div>
   <div class="modal-footer">
     <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-    <button class="btn btn-gold" onclick="submitNewAgent()">เพิ่มเอเยนต์</button>
+    <button class="btn btn-gold" id="btn-add-agent" onclick="submitNewAgent()">เพิ่มเอเยนต์</button>
   </div>`);}
 async function submitNewAgent(){
   const name     = document.getElementById('new-ag-name')?.value?.trim();
@@ -3302,14 +3302,20 @@ async function submitNewAgent(){
   const email    = document.getElementById('new-ag-email')?.value?.trim() || null;
   const password = document.getElementById('new-ag-pass')?.value;
   const commission_rate = parseFloat(document.getElementById('new-ag-com')?.value) || 3;
-  if(!name||!phone||!password){ toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบ','error'); return; }
-  if(password.length < 8){ toast('ผิดพลาด','รหัสผ่านต้องมีอย่างน้อย 8 ตัว','error'); return; }
+  if(!name){ toast('ผิดพลาด','กรุณากรอกชื่อเอเยนต์','error'); return; }
+  if(!phone){ toast('ผิดพลาด','กรุณากรอกเบอร์โทร','error'); return; }
+  if(!password || password.length < 8){ toast('ผิดพลาด','รหัสผ่านต้องมีอย่างน้อย 8 ตัว','error'); return; }
+  const btn = document.getElementById('btn-add-agent');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ กำลังเพิ่ม...'; }
   try{
     await API.AdminAPI.createAgent({ name, phone, email, password, commission_rate });
     closeModal();
     toast('สำเร็จ','เพิ่มเอเยนต์สำเร็จ');
     loadAgents();
-  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+  } catch(e){
+    toast('ผิดพลาด', e.message || 'เพิ่มเอเยนต์ไม่สำเร็จ', 'error');
+    if(btn){ btn.disabled = false; btn.textContent = 'เพิ่มเอเยนต์'; }
+  }
 }
 function openAddAdmin(){openModal(`<h3>➕ เพิ่ม Admin ใหม่</h3>
   <div class="fg"><label>ชื่อ</label><input id="new-adm-name" class="fi-full" placeholder="ชื่อ Admin"></div>

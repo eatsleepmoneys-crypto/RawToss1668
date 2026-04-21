@@ -82,15 +82,27 @@ router.get('/agents', authAdmin, rbac.requirePerm('agents.view'), async (req, re
 });
 
 router.post('/agents', authAdmin, rbac.requirePerm('agents.manage'),
-  body('name').notEmpty(), body('phone').matches(/^0[0-9]{8,9}$/), body('password').isLength({min:8}),
+  body('name').notEmpty().withMessage('กรุณากรอกชื่อ'),
+  body('phone').notEmpty().withMessage('กรุณากรอกเบอร์โทร'),
+  body('password').isLength({min:8}).withMessage('รหัสผ่านต้องมีอย่างน้อย 8 ตัว'),
   async (req, res) => {
     const err = validationResult(req);
-    if (!err.isEmpty()) return res.status(400).json({ success:false, errors: err.array() });
-    const { name, phone, email, password, commission_rate=3 } = req.body;
-    const hashed = await bcrypt.hash(password, 12);
-    await query('INSERT INTO agents (uuid,name,phone,email,password,commission_rate) VALUES (?,?,?,?,?,?)',
-      [uuidv4(), name, phone, email||null, hashed, commission_rate]);
-    res.status(201).json({ success: true, message: 'เพิ่มเอเยนต์สำเร็จ' });
+    if (!err.isEmpty()) return res.status(400).json({ success:false, message: err.array().map(e=>e.msg).join(', ') });
+    const { name, email, password, commission_rate=3 } = req.body;
+    // strip non-digits from phone for storage
+    const phone = String(req.body.phone).replace(/[^0-9]/g, '');
+    if (phone.length < 9) return res.status(400).json({ success:false, message: 'เบอร์โทรไม่ถูกต้อง (ต้องมีอย่างน้อย 9 หลัก)' });
+    try {
+      const hashed = await bcrypt.hash(password, 12);
+      await query('INSERT INTO agents (uuid,name,phone,email,password,commission_rate) VALUES (?,?,?,?,?,?)',
+        [uuidv4(), name, phone, email||null, hashed, commission_rate]);
+      await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+        [req.admin.id, 'agent.create', `${name} (${phone})`, req.ip]);
+      res.status(201).json({ success: true, message: 'เพิ่มเอเยนต์สำเร็จ' });
+    } catch(e) {
+      if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ success:false, message: 'เบอร์โทรนี้มีในระบบแล้ว' });
+      res.status(500).json({ success:false, message: e.message });
+    }
   }
 );
 
