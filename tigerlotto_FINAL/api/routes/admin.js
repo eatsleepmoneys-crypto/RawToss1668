@@ -602,19 +602,25 @@ router.post('/seed-history', authAdmin, rbac.requirePerm('settings.manage'), asy
 // ── GET /api/admin/agent-deposits ────────────────────────────────
 router.get('/agent-deposits', authAdmin, rbac.requirePerm('finance.view'), async (req, res) => {
   const { status, page = 1, limit = 20 } = req.query;
-  const offset = (Number(page) - 1) * Number(limit);
-  const where = status ? `WHERE ad.status = '${status}'` : '';
-  const rows = await query(`
-    SELECT ad.*, a.name AS agent_name, a.phone AS agent_phone
-    FROM agent_deposits ad
-    LEFT JOIN agents a ON ad.agent_id = a.id
-    ${where}
-    ORDER BY ad.id DESC LIMIT ? OFFSET ?`, [Number(limit), offset]
-  ).catch((e) => { console.error('[agent-deposits] query error:', e.message); return []; });
-  const [total] = await query(
-    `SELECT COUNT(*) cnt FROM agent_deposits ad ${where}`
-  ).catch(() => [{ cnt: 0 }]);
-  res.json({ success: true, data: rows, total: Number(total.cnt) });
+  const lim = Number(limit);
+  const offset = (Number(page) - 1) * lim;
+  const where = status ? `WHERE ad.status = ?` : '';
+  const params = status ? [status, lim, offset] : [lim, offset];
+
+  const { pool } = require('../config/db');
+  const [rows] = await pool.query(
+    `SELECT ad.*, COALESCE(a.name,'(unknown)') AS agent_name, a.phone AS agent_phone
+     FROM agent_deposits ad
+     LEFT JOIN agents a ON ad.agent_id = a.id
+     ${where}
+     ORDER BY ad.id DESC LIMIT ? OFFSET ?`,
+    params
+  );
+  const [[totalRow]] = await pool.query(
+    `SELECT COUNT(*) cnt FROM agent_deposits ad ${where}`,
+    status ? [status] : []
+  );
+  res.json({ success: true, data: rows, total: Number(totalRow.cnt) });
 });
 
 // ── POST /api/admin/agent-deposits/:id/approve ───────────────────
@@ -655,19 +661,26 @@ router.post('/agent-deposits/:id/reject', authAdmin, rbac.requirePerm('finance.m
 // ── GET /api/admin/agent-withdrawals ─────────────────────────────
 router.get('/agent-withdrawals', authAdmin, rbac.requirePerm('finance.view'), async (req, res) => {
   const { status, page = 1, limit = 20 } = req.query;
-  const offset = (Number(page) - 1) * Number(limit);
-  const where = status ? `WHERE aw.status = '${status}'` : '';
-  const rows = await query(`
-    SELECT aw.*, a.name AS agent_name, a.phone AS agent_phone
-    FROM agent_withdrawals aw
-    LEFT JOIN agents a ON aw.agent_id = a.id
-    ${where}
-    ORDER BY aw.id DESC LIMIT ? OFFSET ?`, [Number(limit), offset]
-  ).catch((e) => { console.error('[agent-withdrawals] query error:', e.message); return []; });
-  const [total] = await query(
-    `SELECT COUNT(*) cnt FROM agent_withdrawals aw ${where}`
-  ).catch(() => [{ cnt: 0 }]);
-  res.json({ success: true, data: rows, total: Number(total.cnt) });
+  const lim = Number(limit);
+  const offset = (Number(page) - 1) * lim;
+  const where = status ? `WHERE aw.status = ?` : '';
+  const params = status ? [status, lim, offset] : [lim, offset];
+
+  // ใช้ pool.query (ไม่ใช่ execute) เพื่อหลีกเลี่ยงปัญหา prepared statement กับ SELECT *
+  const { pool } = require('../config/db');
+  const [rows] = await pool.query(
+    `SELECT aw.*, COALESCE(a.name,'(unknown)') AS agent_name, a.phone AS agent_phone
+     FROM agent_withdrawals aw
+     LEFT JOIN agents a ON aw.agent_id = a.id
+     ${where}
+     ORDER BY aw.id DESC LIMIT ? OFFSET ?`,
+    params
+  );
+  const [[totalRow]] = await pool.query(
+    `SELECT COUNT(*) cnt FROM agent_withdrawals aw ${where}`,
+    status ? [status] : []
+  );
+  res.json({ success: true, data: rows, total: Number(totalRow.cnt) });
 });
 
 // ── POST /api/admin/agent-withdrawals/:id/approve ────────────────
