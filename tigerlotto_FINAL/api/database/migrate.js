@@ -492,10 +492,13 @@ const SEEDS = [
     ('VN_HAN','ketqua.tv (HTML)','https://ketqua.tv/xo-so-mien-bac.html','html_vn_han',1,0),
     ('VN_HAN','xosomiennam.net (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-bac','html_vn_han',1,1),
     ('VN_HAN','xskt RSS (XML)','https://xskt.com.vn/rss-feed/mien-bac-xsmb.rss','rss_vn',1,2),
+    ('VN_HAN','TNews ฮานอยปกติ (HTML)','https://www.tnews.co.th/lotto-horo-belief','html_vn_han',1,3),
     ('VN_HAN_SP','xskt RSS SP XSMT (XML)','https://xskt.com.vn/rss-feed/mien-trung-xsmt.rss','rss_vn',1,0),
     ('VN_HAN_SP','xosomiennam SP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-trung','html_vn_han',1,1),
+    ('VN_HAN_SP','TNews ฮานอยพิเศษ (HTML)','https://www.tnews.co.th/lotto-horo-belief','html_vn_han',1,2),
     ('VN_HAN_VIP','xskt RSS VIP XSMN (XML)','https://xskt.com.vn/rss-feed/mien-nam-xsmn.rss','rss_vn',1,0),
-    ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-nam','html_vn_han',1,1)`,
+    ('VN_HAN_VIP','xosomiennam VIP (HTML)','https://xosomiennam.net/ket-qua-xo-so-mien-nam','html_vn_han',1,1),
+    ('VN_HAN_VIP','TNews ฮานอย VIP (HTML)','https://www.tnews.co.th/lotto-horo-belief','html_vn_han',1,2)`,
 
   // ─── Force correct sort_order for LA_GOV (INSERT IGNORE keeps old values) ───
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1

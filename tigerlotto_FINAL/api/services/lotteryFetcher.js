@@ -409,7 +409,179 @@ async function fetchVNHanoi() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] xsmb.vn RSS error:', e.message); }
 
+  // Source 5: TNews.co.th (Thai news site — tnews.co.th/lotto-horo-belief/...)
+  try {
+    const result = await fetchTNewsVNHanoi('VN_HAN');
+    if (result) {
+      console.log('[FETCHER:VN_HAN] TNews GDB=%s G1=%s', result.prize_1st, result.prize_2bot || '?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] TNews error:', e.message); }
+
   throw new Error('VN_HAN: แหล่งข้อมูลทุกแหล่งล้มเหลว');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TNews scraper — tnews.co.th/lotto-horo-belief/...
+//  เว็บข่าวไทยที่รายงานผลหวยเวียดนามพร้อมตารางรางวัลทุกวัน
+//
+//  lotteryType: 'VN_HAN' | 'VN_HAN_SP' | 'VN_HAN_VIP'
+//
+//  วิธีทำงาน:
+//  1. ดึงหน้า listing tnews.co.th/lotto-horo-belief เพื่อหา URL บทความวันนี้
+//  2. ดึงบทความนั้น และ scrape ตัวเลขรางวัล
+//  3. Match กับ keyword ของแต่ละ lottery type
+// ═══════════════════════════════════════════════════════════════════
+
+// Keyword ใช้ match บทความในหน้า listing
+const TNEWS_KEYWORDS = {
+  VN_HAN:     ['ฮานอยปกติ', 'หวยฮานอยปกติ', 'ฮานอย', 'ผลหวยฮานอย'],
+  VN_HAN_SP:  ['ฮานอยพิเศษ', 'หวยฮานอยพิเศษ', 'พิเศษ'],
+  VN_HAN_VIP: ['ฮานอยวีไอพี', 'ฮานอย vip', 'วีไอพี', 'ฮานอยVIP'],
+};
+
+/**
+ * ดึงผลหวยเวียดนามจาก TNews.co.th
+ * @param {string} lotteryType  'VN_HAN' | 'VN_HAN_SP' | 'VN_HAN_VIP'
+ * @returns {{ prize_1st, prize_last_2, prize_2bot, prize_front_3, prize_last_3 }} หรือ null
+ */
+async function fetchTNewsVNHanoi(lotteryType) {
+  const vn = (gdb, g1) => ({
+    prize_1st:    gdb,
+    prize_last_2: gdb.slice(-2),
+    prize_2bot:   g1 ? g1.slice(-2) : null,
+    prize_front_3: [],
+    prize_last_3:  [gdb.slice(-3)],
+  });
+
+  // ── Step 1: ดึง listing page เพื่อหา URL บทความล่าสุดวันนี้ ──
+  const todayStr = (() => {
+    const d = new Date(Date.now() + 7 * 3600 * 1000); // UTC+7
+    return d.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  })();
+
+  const LISTING_URLS = [
+    'https://www.tnews.co.th/lotto-horo-belief',
+    'https://www.tnews.co.th/category/lotto-horo-belief',
+    'https://www.tnews.co.th/contents/lotto-horo-belief',
+    'https://www.tnews.co.th/tag/%E0%B8%AB%E0%B8%A7%E0%B8%A2%E0%B8%AE%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%A2', // tag/หวยฮานอย
+  ];
+
+  let articleUrl = null;
+  const keywords = TNEWS_KEYWORDS[lotteryType] || TNEWS_KEYWORDS.VN_HAN;
+
+  for (const listUrl of LISTING_URLS) {
+    try {
+      const listRes = await httpGetProxy(listUrl, 20000, 'th');
+      const $list   = cheerio.load(listRes.data);
+
+      // หา <a> ที่มี href ประกอบด้วย /lotto-horo-belief/ และมี keyword ของ lotteryType
+      $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
+        if (articleUrl) return;
+        const href = $list(el).attr('href') || '';
+        const text = $list(el).text().toLowerCase();
+        const titleAttr = ($list(el).attr('title') || '').toLowerCase();
+        const combined  = text + ' ' + titleAttr;
+        const keyMatch  = keywords.some(kw => combined.includes(kw.toLowerCase()));
+        if (keyMatch && /\/lotto-horo-belief\/\d+/.test(href)) {
+          articleUrl = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
+        }
+      });
+
+      // ถ้ายังไม่เจอ keyword match — ลองเอา URL ล่าสุดในหน้าก่อน (อาจเป็นบทความวันนี้)
+      if (!articleUrl) {
+        const allLinks = [];
+        $list('a[href*="lotto-horo-belief/"]').each((_, el) => {
+          const href = $list(el).attr('href') || '';
+          if (/\/lotto-horo-belief\/\d+/.test(href)) {
+            const full = href.startsWith('http') ? href : 'https://www.tnews.co.th' + href;
+            if (!allLinks.includes(full)) allLinks.push(full);
+          }
+        });
+        if (allLinks.length > 0) articleUrl = allLinks[0]; // ลิ้งแรก = ล่าสุด
+      }
+
+      if (articleUrl) {
+        console.log(`[FETCHER:${lotteryType}] TNews listing OK → ${articleUrl}`);
+        break;
+      }
+    } catch(e) {
+      console.warn(`[FETCHER:${lotteryType}] TNews listing (${listUrl}) error: ${e.message}`);
+    }
+  }
+
+  // ถ้าหาใน listing ไม่ได้ → ลองดึง URL ที่รู้อยู่แล้ว (admin อาจ config ไว้ใน DB sources)
+  if (!articleUrl) {
+    console.log(`[FETCHER:${lotteryType}] TNews: ไม่พบบทความใน listing — ข้าม`);
+    return null;
+  }
+
+  // ── Step 2: ดึงบทความและ scrape ตัวเลข ──────────────────────
+  const artRes = await httpGetProxy(articleUrl, 25000, 'th');
+  const $art   = cheerio.load(artRes.data);
+
+  let gdb = '', g1 = '';
+
+  // ── Pass A: ตาราง/rows ที่มี label ภาษาไทยหรือเวียดนาม ──────
+  const GDB_PATTERNS = /รางวัลพิเศษ|đặc biệt|dac biet|giải đặc biệt|ĐB|GDB|รางวัลที่ 1 พิเศษ|prize.*special/i;
+  const G1_PATTERNS  = /รางวัลที่ ?1[^0-9]|giải nhất|giải 1|nh[aấ]t|G\.?1\b/i;
+
+  // Scan ทุก <tr>, <li>, <p>, <div> ที่อาจมีรางวัล
+  $art('tr, li, p, div').each((_, el) => {
+    const rowText = $art(el).text();
+    if (!gdb && GDB_PATTERNS.test(rowText)) {
+      // หาตัวเลข 5 หลักใน row นี้
+      const m = rowText.match(/\b(\d{5})\b/);
+      if (m) gdb = m[1];
+    }
+    if (!g1 && G1_PATTERNS.test(rowText)) {
+      const m = rowText.match(/\b(\d{5})\b/);
+      if (m) g1 = m[1];
+    }
+  });
+
+  // ── Pass B: label-based regex scan บน raw HTML ──────────────
+  if (!gdb) {
+    const parsed = extractGdbG1(String(artRes.data));
+    if (parsed) { gdb = parsed.gdb; if (!g1) g1 = parsed.g1 || ''; }
+  }
+
+  // ── Pass C: เฉพาะกรณีบทความตัวหนา — ค้น <strong>/<b> ที่มี 5 หลัก ──
+  if (!gdb) {
+    const boldNums = [];
+    $art('strong, b, h2, h3, h4, span[style*="color"], span[style*="font"]').each((_, el) => {
+      if ($art(el).children().length > 0) return;
+      const t = $art(el).text().trim().replace(/\D/g,'');
+      if (/^\d{5}$/.test(t) && !boldNums.includes(t)) boldNums.push(t);
+    });
+    if (boldNums.length >= 1) { gdb = boldNums[0]; }
+    if (boldNums.length >= 2 && !g1) { g1 = boldNums[1]; }
+  }
+
+  // ── Pass D: positional fallback — ตัวเลข 5 หลักชุดแรกในเนื้อหา ──
+  if (!gdb) {
+    const allNums = [];
+    $art('td, span, div, p').each((_, el) => {
+      if ($art(el).children().length > 0) return;
+      const t = $art(el).text().trim().replace(/\D/g,'');
+      if (/^\d{5}$/.test(t) && !allNums.includes(t) && allNums.length < 5) allNums.push(t);
+    });
+    // กรอง: ไม่เอาปี ค.ศ. หรือ พ.ศ. (2500–2600, 1990–2100)
+    const filtered = allNums.filter(n => {
+      const num = parseInt(n);
+      return !(num >= 19900 && num <= 21000) && !(num >= 25000 && num <= 26000);
+    });
+    if (filtered.length >= 1) gdb = filtered[0];
+    if (filtered.length >= 2 && !g1) g1 = filtered[1];
+  }
+
+  if (!gdb) {
+    console.warn(`[FETCHER:${lotteryType}] TNews: scrape ไม่พบตัวเลขใน ${articleUrl}`);
+    return null;
+  }
+
+  console.log(`[FETCHER:${lotteryType}] TNews ✅ GDB=${gdb} G1=${g1||'?'} (${articleUrl})`);
+  return vn(gdb, g1 || null);
 }
 
 // ── บันทึกผลลง DB ───────────────────────────────────────────────
@@ -1190,6 +1362,15 @@ async function fetchVNHanoiSP() {
     } catch(e) { /* continue */ }
   }
 
+  // Source 5: TNews.co.th (ฮานอยพิเศษ)
+  try {
+    const result = await fetchTNewsVNHanoi('VN_HAN_SP');
+    if (result) {
+      console.log('[FETCHER:VN_HAN_SP] TNews GDB=%s G1=%s', result.prize_1st, result.prize_2bot || '?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] TNews error:', e.message); }
+
   throw new Error('VN_HAN_SP: แหล่งข้อมูลทุกแหล่งล้มเหลว — กรุณา config DB sources ใน Admin Panel → API Sources');
 }
 
@@ -1297,6 +1478,15 @@ async function fetchVNHanoiVIP() {
       }
     } catch(e) { /* continue */ }
   }
+
+  // Source 5: TNews.co.th (ฮานอย VIP)
+  try {
+    const result = await fetchTNewsVNHanoi('VN_HAN_VIP');
+    if (result) {
+      console.log('[FETCHER:VN_HAN_VIP] TNews GDB=%s G1=%s', result.prize_1st, result.prize_2bot || '?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] TNews error:', e.message); }
 
   throw new Error('VN_HAN_VIP: แหล่งข้อมูลทุกแหล่งล้มเหลว — กรุณา config DB sources ใน Admin Panel → API Sources');
 }
