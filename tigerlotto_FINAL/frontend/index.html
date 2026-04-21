@@ -676,13 +676,8 @@ select.fi option{background:var(--card2)}
     <div id="mf-reg" style="display:none">
       <div id="reg-step1">
         <div class="fg"><label>ชื่อ-นามสกุล</label><input type="text" id="r-name" class="fi" placeholder="ชื่อ นามสกุล"></div>
-        <div class="fg" style="display:flex;gap:8px;align-items:flex-end">
-          <div style="flex:1"><label>เบอร์โทรศัพท์</label><input type="tel" id="r-phone" class="fi" placeholder="08X-XXX-XXXX" inputmode="numeric"></div>
-          <button class="btn btn-ghost" id="btn-otp" style="padding:10px 14px;font-size:13px;white-space:nowrap" onclick="sendOtp()">ส่ง OTP</button>
-        </div>
-        <div class="fg" id="otp-row" style="display:none">
-          <label>รหัส OTP (6 หลัก) <span id="otp-timer" style="color:var(--gold);font-size:12px"></span></label>
-          <input type="text" id="r-otp" class="fi" placeholder="XXXXXX" maxlength="6" inputmode="numeric">
+        <div class="fg">
+          <label>เบอร์โทรศัพท์</label><input type="tel" id="r-phone" class="fi" placeholder="08X-XXX-XXXX" inputmode="numeric">
         </div>
         <div class="fi-row fg">
           <div><label>ธนาคาร</label>
@@ -1002,15 +997,7 @@ async function doLogin(){
 
 /* ─── Register ─── */
 async function doRegister(){
-  const otp   = document.getElementById('r-otp').value.trim();
-  if(!otp || otp.length!==6){ toast('ข้อผิดพลาด','กรุณากรอก OTP 6 หลักก่อน'); return; }
   const phone = document.getElementById('r-phone').value.trim();
-  try{
-    // verify OTP ก่อน
-    await API.AuthAPI.verifyOtp(phone, otp);
-  }catch(e){
-    toast('OTP ไม่ถูกต้อง', e.message); return;
-  }
   const payload = {
     name        : document.getElementById('r-name').value.trim(),
     phone,
