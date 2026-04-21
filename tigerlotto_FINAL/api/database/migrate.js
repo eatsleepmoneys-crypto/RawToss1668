@@ -531,16 +531,19 @@ const SEEDS = [
   `UPDATE \`lottery_api_sources\` SET \`enabled\`=0
    WHERE \`lottery_code\`='LA_GOV' AND \`source_url\` LIKE '%lotto.com.la%'`,
 
-  // ─── Force correct sort_order for VN_HAN (xskt RSS first — works reliably from Railway US) ───
+  // ─── Force correct sort_order for VN_HAN (TNews first — ตรงกับผล TNews จริง) ───
+  // TNews source ต้องเป็น sort_order=0 (ก่อนสุด) — xskt/ketqua/xosomiennam ส่งผลเวียดนาม 5 หลักซึ่งผิด
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=0, \`enabled\`=1
-   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xskt RSS (XML)'`,
-  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=1, \`enabled\`=1
-   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='ketqua.tv (HTML)'`,
-  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=2, \`enabled\`=1
-   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xosomiennam.net (HTML)'`,
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='TNews ฮานอยปกติ (HTML)'`,
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=10, \`enabled\`=0
-   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xoso.com.vn (HTML)'`,
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xskt RSS (XML)'`,
   `UPDATE \`lottery_api_sources\` SET \`sort_order\`=11, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='ketqua.tv (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=12, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xosomiennam.net (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=13, \`enabled\`=0
+   WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xoso.com.vn (HTML)'`,
+  `UPDATE \`lottery_api_sources\` SET \`sort_order\`=14, \`enabled\`=0
    WHERE \`lottery_code\`='VN_HAN' AND \`name\`='xskt.com.vn (JSON)'`,
 
   // ─── Force correct sort_order + URL for VN_HAN_SP (XSMT = ภาคกลาง) ───
