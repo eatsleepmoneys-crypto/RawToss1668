@@ -936,7 +936,8 @@ async function toggleLotteryStatus(id, open, el){
 /* ── Rounds ── */
 let _allRounds = [];
 async function loadRounds(){
-  const d = await API.AdminAPI.listRoundsAdmin({ limit:100 });
+  // ดึง 300 งวดล่าสุด (ยี่กีวันเดียว ~90 งวด × 3 วัน + หวยประเภทอื่น)
+  const d = await API.AdminAPI.listRoundsAdmin({ limit:300 });
   _allRounds = d.data || [];
 
   // Populate lottery type filter dropdown
@@ -952,11 +953,25 @@ async function loadRounds(){
 
   renderRounds(_allRounds);
 
-  // Populate result round select (closed rounds only)
+  // Populate result round select — ดึงเฉพาะ closed (แยก call เพื่อไม่ให้ยี่กีกลบ)
+  await _refreshResultRoundSel();
+}
+
+// แยก function เพื่อใช้ได้ทั้งใน loadRounds() และ loadResultsPage()
+async function _refreshResultRoundSel(){
   const sel = document.getElementById('result-round-sel');
-  if(sel){
-    const closed = _allRounds.filter(r=>r.status==='closed');
-    sel.innerHTML = '<option value="">เลือกงวด</option>' + closed.map(r=>`<option value="${r.id}">${r.flag||''} ${r.lottery_name} — ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
+  if(!sel) return;
+  try {
+    const cd = await API.AdminAPI.listRoundsAdmin({ limit:50, status:'closed' });
+    const closed = (cd.data || []);
+    if(!closed.length){
+      sel.innerHTML = '<option value="">— ไม่มีงวดที่รอออกผล —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">เลือกงวด</option>'
+      + closed.map(r=>`<option value="${r.id}">${r.flag||''} ${r.lottery_name} — ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
+  } catch(e) {
+    sel.innerHTML = `<option value="">❌ โหลดไม่ได้: ${e.message}</option>`;
   }
 }
 function filterRounds(q){
@@ -1834,23 +1849,31 @@ async function confirmAnnounce(roundId){
 }
 /* ── Results Page ── */
 async function loadResultsPage(){
-  const d = await API.AdminAPI.listRoundsAdmin({ limit:50 });
-  const rounds = d.data || [];
-  const closed = rounds.filter(r=>r.status==='closed');
-  // populate select
-  const sel = document.getElementById('result-round-sel');
-  if(sel) sel.innerHTML = '<option value="">เลือกงวด</option>' + closed.map(r=>`<option value="${r.id}">${r.lottery_name} ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
-  // pending rounds list
+  // ดึง closed rounds โดยตรง (ไม่ถูกยี่กีกลบ เพราะใช้ status filter)
+  const d = await API.AdminAPI.listRoundsAdmin({ limit:50, status:'closed' });
+  const closed = d.data || [];
+
+  // populate select dropdown
+  await _refreshResultRoundSel();
+
+  // pending rounds list (right panel)
   const list = document.getElementById('pending-rounds-list');
   if(list){
-    if(closed.length===0){ list.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">ไม่มีงวดที่รอออกผล</div>'; return; }
+    if(!closed.length){
+      list.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">ไม่มีงวดที่รอออกผล</div>';
+      return;
+    }
     list.innerHTML = closed.map(r=>`
-      <div style="padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border)">
-        <div style="font-weight:600;margin-bottom:4px">${r.lottery_name}</div>
-        <div style="font-size:12px;color:var(--muted)">งวด ${UI.formatDateOnly(r.draw_date)} | ปิด ${UI.formatDate(r.close_time)}</div>
+      <div style="padding:14px;background:var(--card2);border-radius:10px;border:1px solid var(--border);cursor:pointer"
+           onclick="document.getElementById('result-round-sel').value='${r.id}'">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+          <span style="font-weight:600">${r.flag||''} ${r.lottery_name}</span>
+          <span style="font-size:11px;background:rgba(255,71,87,.15);color:#ff6b81;border-radius:6px;padding:2px 8px">รอออกผล</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted)">งวด ${UI.formatDateOnly(r.draw_date)} | ปิด ${UI.formatDate(r.close_at)}</div>
         <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:13px">
           <span>บิล: <b style="color:var(--gold2)">${Number(r.bet_count||0).toLocaleString()}</b></span>
-          <span>฿<b style="color:var(--gold2)">${Number(r.total_bets||0).toLocaleString()}</b></span>
+          <span>฿<b style="color:var(--gold2)">${Number(r.total_bet||0).toLocaleString()}</b></span>
         </div>
       </div>`).join('');
   }
@@ -1971,8 +1994,8 @@ async function loadWinPay(){
     // load announced rounds into selector (first call only when empty)
     const sel = document.getElementById('wp-round-sel');
     if(sel && sel.options.length <= 1){
-      const rd = await API.AdminAPI.listRoundsAdmin({ limit:100 });
-      const announced = (rd.data||[]).filter(r=>r.status==='announced');
+      const rd = await API.AdminAPI.listRoundsAdmin({ limit:200, status:'announced' });
+      const announced = (rd.data||[]);
       sel.innerHTML = '<option value="">ทุกงวด</option>' + announced.map(r=>`<option value="${r.id}">${r.lottery_name} ${UI.formatDateOnly(r.draw_date)}</option>`).join('');
     }
 
