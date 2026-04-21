@@ -387,6 +387,7 @@ const SEEDS = [
     ('site_logo_url','','string','general'),
     ('line_id','@tigerlotto','string','contact'),
     ('line_url','https://line.me/R/ti/p/@tigerlotto','string','contact'),
+    ('line_qr_url','','string','contact'),
     ('contact_tel','02-xxx-xxxx','string','contact'),
     ('sms_enabled','false','boolean','sms'),
     ('line_enabled','false','boolean','line'),

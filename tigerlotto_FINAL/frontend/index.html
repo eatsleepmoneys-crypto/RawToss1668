@@ -225,7 +225,10 @@ select.fi option{background:var(--card2)}
 .wallet-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid rgba(212,160,23,.3);padding:12px 24px;z-index:800;align-items:center;justify-content:space-between}
 .wallet-bar.on{display:flex}
 /* ── LINE widget (compact, always visible) ── */
-.line-widget{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:900;width:148px;background:rgba(14,14,14,.93);border:1px solid rgba(6,199,85,.35);border-left:none;border-radius:0 12px 12px 0;padding:10px 12px 10px 10px;box-shadow:3px 0 16px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
+.line-widget{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:900;width:160px;background:rgba(14,14,14,.95);border:1px solid rgba(6,199,85,.35);border-left:none;border-radius:0 14px 14px 0;padding:10px 12px 10px 10px;box-shadow:3px 0 16px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
+.line-qr-wrap{display:none;margin:8px 0 6px;text-align:center}
+.line-qr-wrap img{width:116px;height:116px;border-radius:8px;border:2px solid rgba(6,199,85,.4);object-fit:cover;display:block;margin:0 auto}
+.line-qr-label{font-size:9px;color:var(--muted);margin-top:4px;text-align:center}
 .line-widget-hdr{display:flex;align-items:center;gap:7px;margin-bottom:7px}
 .line-widget-dot{width:7px;height:7px;border-radius:50%;background:#06c755;flex-shrink:0;animation:linePulse 2s infinite}
 @keyframes linePulse{0%,100%{opacity:1}50%{opacity:.4}}
@@ -874,6 +877,11 @@ select.fi option{background:var(--card2)}
   </div>
   <div class="line-widget-sub">LINE Official Account</div>
   <div id="line-id-display" class="line-widget-id">@tigerlotto</div>
+  <!-- QR Code -->
+  <div class="line-qr-wrap" id="line-qr-wrap">
+    <img id="line-qr-img" src="" alt="QR LINE">
+    <div class="line-qr-label">สแกน QR เพิ่มเพื่อน</div>
+  </div>
   <a id="line-link-btn" href="https://line.me/R/ti/p/@tigerlotto" target="_blank" rel="noopener" class="line-add-btn">
     <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff"><path d="M12 2C6.48 2 2 6.21 2 11.39c0 3.17 1.58 5.98 4.05 7.79-.17.63-.64 2.29-.74 2.65-.12.44.16.43.34.31.14-.09 2.2-1.49 3.09-2.1.38.05.77.08 1.17.08 5.52 0 10-4.21 10-9.39C21.91 6.21 17.52 2 12 2z"/></svg>
     เพิ่มเพื่อน LINE @
@@ -2076,10 +2084,18 @@ async function loadLineContact(){
     // LINE widget
     const lineId  = s.line_id  || '@tigerlotto';
     const lineUrl = s.line_url || `https://line.me/R/ti/p/${lineId}`;
+    const lineQr  = s.line_qr_url || '';
     const idEl  = document.getElementById('line-id-display');
     const btnEl = document.getElementById('line-link-btn');
     if(idEl)  idEl.textContent = lineId;
     if(btnEl) btnEl.href = lineUrl;
+    // QR code
+    const qrWrap = document.getElementById('line-qr-wrap');
+    const qrImg  = document.getElementById('line-qr-img');
+    if(qrWrap && qrImg){
+      if(lineQr){ qrImg.src = lineQr; qrWrap.style.display = 'block'; }
+      else { qrWrap.style.display = 'none'; }
+    }
     // Branding
     applySiteSettings(s);
   }catch(e){}

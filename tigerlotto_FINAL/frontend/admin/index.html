@@ -1351,8 +1351,9 @@ async function loadBranding(){
     set('br-site-name',    s.site_name    || 'TigerLotto');
     set('br-site-tagline', s.site_tagline || 'OFFICIAL');
     set('br-logo-url',     s.site_logo_url|| '');
-    // show current logo preview
+    set('br-qr-url',       s.line_qr_url  || '');
     updateBrandPreview();
+    updateQRPreview();
   }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
 function updateBrandPreview(){
@@ -1373,30 +1374,50 @@ function updateBrandPreview(){
       </div>
     </div>`;
 }
+function updateQRPreview(){
+  const qrUrl  = document.getElementById('br-qr-url')?.value || '';
+  const prev   = document.getElementById('qr-preview');
+  if(!prev) return;
+  if(qrUrl){
+    prev.innerHTML = `<img src="${qrUrl}" style="width:130px;height:130px;border-radius:10px;border:2px solid rgba(6,199,85,.4);object-fit:cover;display:block"><div style="font-size:11px;color:#888;margin-top:6px;text-align:center">ตัวอย่าง QR Code</div>`;
+  } else {
+    prev.innerHTML = `<div style="width:130px;height:130px;border-radius:10px;border:2px dashed #444;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px"><span style="font-size:32px">📷</span><span style="font-size:11px;color:#666">ยังไม่มี QR</span></div>`;
+  }
+}
 function handleLogoUpload(input){
   const file = input.files[0];
   if(!file) return;
   if(file.size > 500*1024){ toast('ไฟล์ใหญ่เกิน','กรุณาใช้ภาพขนาดไม่เกิน 500KB','error'); return; }
   const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('br-logo-url').value = e.target.result;
-    updateBrandPreview();
-  };
+  reader.onload = e => { document.getElementById('br-logo-url').value = e.target.result; updateBrandPreview(); };
   reader.readAsDataURL(file);
 }
 function removeLogo(){
   document.getElementById('br-logo-url').value = '';
-  const fileInput = document.getElementById('br-logo-file');
-  if(fileInput) fileInput.value = '';
+  const f = document.getElementById('br-logo-file'); if(f) f.value = '';
   updateBrandPreview();
+}
+function handleQRUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  if(file.size > 1024*1024){ toast('ไฟล์ใหญ่เกิน','กรุณาใช้ภาพขนาดไม่เกิน 1MB','error'); return; }
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('br-qr-url').value = e.target.result; updateQRPreview(); };
+  reader.readAsDataURL(file);
+}
+function removeQR(){
+  document.getElementById('br-qr-url').value = '';
+  const f = document.getElementById('br-qr-file'); if(f) f.value = '';
+  updateQRPreview();
 }
 async function saveBranding(){
   const name    = document.getElementById('br-site-name')?.value?.trim();
   const tagline = document.getElementById('br-site-tagline')?.value?.trim();
   const logoUrl = document.getElementById('br-logo-url')?.value?.trim();
+  const qrUrl   = document.getElementById('br-qr-url')?.value?.trim();
   if(!name){ toast('ผิดพลาด','กรุณากรอกชื่อเว็บไซต์','error'); return; }
   try{
-    await API.AdminAPI.updateSettings({ site_name: name, site_tagline: tagline, site_logo_url: logoUrl });
+    await API.AdminAPI.updateSettings({ site_name: name, site_tagline: tagline, site_logo_url: logoUrl, line_qr_url: qrUrl });
     toast('สำเร็จ','🎨 บันทึก Branding แล้ว');
   }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
@@ -2941,8 +2962,8 @@ reports:()=>`
 </div>`,
 
 branding:()=>`
-<div class="g2" style="max-width:860px">
-  <!-- Preview Card -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;max-width:940px">
+  <!-- Preview Card — full width -->
   <div class="card" style="grid-column:1/-1">
     <h3 style="margin-bottom:12px">👁️ ตัวอย่าง Logo & ชื่อเว็บ</h3>
     <div id="brand-preview" style="min-height:90px;display:flex;align-items:center"></div>
@@ -2952,7 +2973,7 @@ branding:()=>`
   <div class="card">
     <h3>🖼️ Logo เว็บไซต์</h3>
     <div class="fg">
-      <label>อัปโหลดรูป Logo <span style="font-size:11px;color:#888">(PNG/JPG ไม่เกิน 500KB)</span></label>
+      <label>อัปโหลดรูป Logo <span style="font-size:11px;color:#888">(ไม่เกิน 500KB)</span></label>
       <input type="file" id="br-logo-file" accept="image/png,image/jpeg,image/gif,image/svg+xml,image/webp"
         class="fi-full" style="padding:8px" onchange="handleLogoUpload(this)">
     </div>
@@ -2960,25 +2981,51 @@ branding:()=>`
       <label>หรือวาง URL รูปภาพ</label>
       <div style="display:flex;gap:8px">
         <input id="br-logo-url" class="fi-full" placeholder="https://..." style="flex:1" oninput="updateBrandPreview()">
-        <button class="btn" style="padding:9px 12px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff6b81;border-radius:8px;font-size:12px;white-space:nowrap" onclick="removeLogo()">🗑️ ลบ Logo</button>
+        <button class="btn" style="padding:9px 12px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff6b81;border-radius:8px;font-size:12px;white-space:nowrap" onclick="removeLogo()">🗑️ ลบ</button>
       </div>
       <div style="font-size:11px;color:#888;margin-top:4px">เว้นว่างไว้ = ใช้ Logo Tiger เดิม</div>
     </div>
   </div>
 
-  <!-- Name & Tagline -->
+  <!-- QR Code LINE -->
   <div class="card">
-    <h3>✏️ ชื่อ & ข้อความ</h3>
-    <div class="fg">
-      <label>ชื่อเว็บไซต์ (แสดงที่ header)</label>
-      <input id="br-site-name" class="fi-full" placeholder="TigerLotto" oninput="updateBrandPreview()">
+    <h3>📷 QR Code LINE @</h3>
+    <div style="display:flex;gap:16px;align-items:flex-start;margin-bottom:14px">
+      <div id="qr-preview" style="flex-shrink:0"></div>
+      <div style="flex:1;font-size:12px;color:#888;line-height:1.6">
+        อัปโหลด QR Code LINE Official<br>จะแสดงใน widget ด้านซ้ายของเว็บ<br>
+        <span style="color:#06c755">ผู้ใช้สแกนเพื่อเพิ่มเพื่อนได้ทันที</span>
+      </div>
     </div>
     <div class="fg">
-      <label>ข้อความใต้ชื่อ (badge)</label>
-      <input id="br-site-tagline" class="fi-full" placeholder="OFFICIAL" oninput="updateBrandPreview()">
-      <div style="font-size:11px;color:#888;margin-top:4px">เช่น OFFICIAL · BETA · v2.0 · ชื่อบริษัท</div>
+      <label>อัปโหลด QR Code <span style="font-size:11px;color:#888">(PNG/JPG ไม่เกิน 1MB)</span></label>
+      <input type="file" id="br-qr-file" accept="image/png,image/jpeg,image/webp"
+        class="fi-full" style="padding:8px" onchange="handleQRUpload(this)">
     </div>
-    <button class="btn btn-gold" style="margin-top:8px" onclick="saveBranding()">💾 บันทึก Branding</button>
+    <div class="fg">
+      <label>หรือวาง URL รูป QR</label>
+      <div style="display:flex;gap:8px">
+        <input id="br-qr-url" class="fi-full" placeholder="https://..." style="flex:1" oninput="updateQRPreview()">
+        <button class="btn" style="padding:9px 12px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff6b81;border-radius:8px;font-size:12px;white-space:nowrap" onclick="removeQR()">🗑️ ลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Name & Tagline -->
+  <div class="card" style="grid-column:1/-1">
+    <h3>✏️ ชื่อเว็บ & ข้อความ Badge</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="fg" style="margin:0">
+        <label>ชื่อเว็บไซต์ (แสดงที่ header & footer)</label>
+        <input id="br-site-name" class="fi-full" placeholder="TigerLotto" oninput="updateBrandPreview()">
+      </div>
+      <div class="fg" style="margin:0">
+        <label>ข้อความ Badge ใต้ชื่อ</label>
+        <input id="br-site-tagline" class="fi-full" placeholder="OFFICIAL" oninput="updateBrandPreview()">
+        <div style="font-size:11px;color:#888;margin-top:4px">เช่น OFFICIAL · BETA · v2.0</div>
+      </div>
+    </div>
+    <button class="btn btn-gold" style="margin-top:16px;padding:12px 28px;font-size:15px" onclick="saveBranding()">💾 บันทึก Branding ทั้งหมด</button>
   </div>
 </div>`,
 
