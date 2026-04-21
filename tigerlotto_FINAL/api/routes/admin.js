@@ -77,7 +77,7 @@ router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req
 //  AGENTS
 // ══════════════════════════════════════
 router.get('/agents', authAdmin, rbac.requirePerm('agents.view'), async (req, res) => {
-  const rows = await query('SELECT id,uuid,name,phone,commission_rate,balance,total_commission,status,created_at FROM agents ORDER BY id DESC');
+  const rows = await query('SELECT id,uuid,name,phone,commission_rate,referral_rate,balance,total_commission,status,created_at FROM agents ORDER BY id DESC');
   res.json({ success: true, data: rows });
 });
 
@@ -88,14 +88,14 @@ router.post('/agents', authAdmin, rbac.requirePerm('agents.manage'),
   async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) return res.status(400).json({ success:false, message: err.array().map(e=>e.msg).join(', ') });
-    const { name, email, password, commission_rate=3 } = req.body;
+    const { name, email, password, commission_rate=3, referral_rate=0 } = req.body;
     // strip non-digits from phone for storage
     const phone = String(req.body.phone).replace(/[^0-9]/g, '');
     if (phone.length < 9) return res.status(400).json({ success:false, message: 'เบอร์โทรไม่ถูกต้อง (ต้องมีอย่างน้อย 9 หลัก)' });
     try {
       const hashed = await bcrypt.hash(password, 12);
-      await query('INSERT INTO agents (uuid,name,phone,email,password,commission_rate) VALUES (?,?,?,?,?,?)',
-        [uuidv4(), name, phone, email||null, hashed, commission_rate]);
+      await query('INSERT INTO agents (uuid,name,phone,email,password,commission_rate,referral_rate) VALUES (?,?,?,?,?,?,?)',
+        [uuidv4(), name, phone, email||null, hashed, commission_rate, referral_rate]);
       await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
         [req.admin.id, 'agent.create', `${name} (${phone})`, req.ip]);
       res.status(201).json({ success: true, message: 'เพิ่มเอเยนต์สำเร็จ' });
@@ -107,9 +107,11 @@ router.post('/agents', authAdmin, rbac.requirePerm('agents.manage'),
 );
 
 router.patch('/agents/:id', authAdmin, rbac.requirePerm('agents.manage'), async (req, res) => {
-  const { commission_rate, status } = req.body;
-  await query('UPDATE agents SET commission_rate=COALESCE(?,commission_rate), status=COALESCE(?,status) WHERE id=?',
-    [commission_rate, status, req.params.id]);
+  const { commission_rate, referral_rate, status } = req.body;
+  await query(
+    'UPDATE agents SET commission_rate=COALESCE(?,commission_rate), referral_rate=COALESCE(?,referral_rate), status=COALESCE(?,status) WHERE id=?',
+    [commission_rate ?? null, referral_rate ?? null, status ?? null, req.params.id]
+  );
   res.json({ success: true, message: 'อัพเดทเอเยนต์แล้ว' });
 });
 

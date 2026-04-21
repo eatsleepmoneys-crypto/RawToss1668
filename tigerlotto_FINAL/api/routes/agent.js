@@ -113,17 +113,26 @@ router.get('/dashboard', authAgent, async (req, res) => {
 
   const commissionThisMonth = parseFloat(monthBet.total) * rate;
 
+  // ค่าคอมที่ได้รับจริงเดือนนี้ (จาก commissions table)
+  const [realCommRow] = await query(
+    `SELECT COALESCE(SUM(amount),0) total FROM commissions
+     WHERE earner_type='agent' AND earner_id=?
+       AND YEAR(created_at)=YEAR(NOW()) AND MONTH(created_at)=MONTH(NOW())`,
+    [agentId]
+  );
+
   res.json({
     success: true,
     data: {
-      balance:              parseFloat(req.agent.balance),
-      total_commission:     parseFloat(req.agent.total_commission),
-      commission_rate:      req.agent.commission_rate,
-      member_count:         memberCount.cnt,
-      new_members_today:    newToday.cnt,
-      bets_today:           betStats.bet_count,
-      bet_total_today:      parseFloat(betStats.bet_total),
-      commission_this_month: commissionThisMonth,
+      balance:               parseFloat(req.agent.balance),
+      total_commission:      parseFloat(req.agent.total_commission),
+      commission_rate:       req.agent.commission_rate,   // ส่วนลดซื้อหวย (%)
+      referral_rate:         parseFloat(req.agent.referral_rate || 0),
+      member_count:          memberCount.cnt,
+      new_members_today:     newToday.cnt,
+      bets_today:            betStats.bet_count,
+      bet_total_today:       parseFloat(betStats.bet_total),
+      commission_this_month: parseFloat(realCommRow?.total || commissionThisMonth),
     },
   });
 });
@@ -162,33 +171,52 @@ router.get('/members', authAgent, async (req, res) => {
 });
 
 // ── GET /api/agent/commissions ────────────────────────────────────
-// ประวัติค่าคอมฯ รายวัน (30 วันล่าสุด)
+// ประวัติค่าคอมฯ ที่ได้รับจริงจาก commissions table (30 วันล่าสุด)
 router.get('/commissions', authAgent, async (req, res) => {
   const agentId = req.agent.id;
-  const rate    = req.agent.commission_rate / 100;
 
-  const rows = await query(`
-    SELECT
-      DATE(b.created_at)        AS date,
-      COUNT(b.id)               AS bet_count,
-      COALESCE(SUM(b.amount),0) AS bet_total
-    FROM bets b
-    JOIN members m ON b.member_id = m.id
-    WHERE m.agent_id = ?
-      AND b.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-    GROUP BY DATE(b.created_at)
+  // รายวัน (จาก commissions table จริง)
+  const daily = await query(`
+    SELECT DATE(c.created_at) AS date,
+           COUNT(*)           AS count,
+           SUM(c.bet_amount)  AS bet_total,
+           SUM(c.amount)      AS commission
+    FROM commissions c
+    WHERE c.earner_type='agent' AND c.earner_id=?
+      AND c.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+    GROUP BY DATE(c.created_at)
     ORDER BY date DESC
     LIMIT 30
-  `, [agentId]);
+  `, [agentId]).catch(() => []);
 
-  const data = rows.map(r => ({
-    date:       r.date,
-    bet_count:  r.bet_count,
-    bet_total:  parseFloat(r.bet_total),
-    commission: parseFloat(r.bet_total) * rate,
-  }));
+  // รายการล่าสุด
+  const recent = await query(`
+    SELECT c.id, c.from_member_id, m.name AS from_member_name,
+           c.bet_amount, c.rate, c.amount, c.description, c.created_at
+    FROM commissions c
+    LEFT JOIN members m ON c.from_member_id = m.id
+    WHERE c.earner_type='agent' AND c.earner_id=?
+    ORDER BY c.id DESC LIMIT 50
+  `, [agentId]).catch(() => []);
 
-  res.json({ success: true, data });
+  // สรุปยอดรวม
+  const [totals] = await query(`
+    SELECT COALESCE(SUM(amount),0) total_all,
+           COALESCE(SUM(CASE WHEN MONTH(created_at)=MONTH(NOW()) AND YEAR(created_at)=YEAR(NOW()) THEN amount END),0) total_month
+    FROM commissions WHERE earner_type='agent' AND earner_id=?
+  `, [agentId]).catch(() => [{ total_all: 0, total_month: 0 }]);
+
+  res.json({
+    success: true,
+    daily,
+    recent,
+    summary: {
+      total_all:   parseFloat(totals?.total_all || 0),
+      total_month: parseFloat(totals?.total_month || 0),
+      referral_rate: parseFloat(req.agent.referral_rate || 0),
+      discount_rate: parseFloat(req.agent.commission_rate || 0),
+    }
+  });
 });
 
 // ═══════════════════════════════════════════════════════════════════
@@ -409,6 +437,106 @@ router.post('/lottery/bet', authAgent, async (req, res) => {
       success: true,
       message: `แทง ${bet_type.toUpperCase()} ${numStr} สำเร็จ! ฿${betAmount.toLocaleString()}`,
       data: { balance: parseFloat(updated.balance) }
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// ── POST /api/agent/lottery/bets-batch — ส่งโพยหลายใบพร้อมกัน ────
+router.post('/lottery/bets-batch', authAgent, async (req, res) => {
+  const { round_id, bets } = req.body;
+  if (!round_id || !Array.isArray(bets) || bets.length === 0)
+    return res.status(400).json({ success: false, message: 'ข้อมูลไม่ครบถ้วน' });
+  if (bets.length > 200)
+    return res.status(400).json({ success: false, message: 'ส่งได้ไม่เกิน 200 ใบต่อครั้ง' });
+
+  // Validate each bet
+  for (const b of bets) {
+    const { bet_type, number, amount } = b;
+    if (!BET_NUM_LEN[bet_type])
+      return res.status(400).json({ success: false, message: `ประเภท "${bet_type}" ไม่ถูกต้อง` });
+    const numStr = String(number||'').trim();
+    if (!/^\d+$/.test(numStr) || numStr.length !== BET_NUM_LEN[bet_type])
+      return res.status(400).json({ success: false, message: `เลข ${bet_type} "${numStr}" ต้องเป็น ${BET_NUM_LEN[bet_type]} หลัก` });
+    if (parseFloat(amount) <= 0)
+      return res.status(400).json({ success: false, message: 'จำนวนเงินต้องมากกว่า 0' });
+  }
+
+  // Load round + rates
+  const [round] = await query(
+    `SELECT lr.*, lt.min_bet, lt.max_bet, lt.code AS lottery_code,
+            lt.rate_3top, lt.rate_3tod, lt.rate_2top, lt.rate_2bot, lt.rate_run_top, lt.rate_run_bot
+     FROM lottery_rounds lr
+     JOIN lottery_types lt ON lr.lottery_id = lt.id
+     WHERE lr.id = ? AND lr.status = 'open'
+       AND lr.close_at > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)`,
+    [round_id]
+  );
+  if (!round) return res.status(400).json({ success: false, message: 'งวดนี้ปิดรับแล้วหรือไม่พบ' });
+
+  const rateMap = {
+    '3top': round.rate_3top, '3tod': round.rate_3tod,
+    '2top': round.rate_2top, '2bot': round.rate_2bot,
+    'run_top': round.rate_run_top, 'run_bot': round.rate_run_bot,
+  };
+
+  const totalFaceAmount = bets.reduce((s, b) => s + parseFloat(b.amount), 0);
+
+  // ── คำนวณส่วนลด (commission_rate = ส่วนลดเมื่อ Agent ซื้อหวย) ──
+  const discountRate   = parseFloat(req.agent.commission_rate || 0);
+  const discountAmount = parseFloat((totalFaceAmount * discountRate / 100).toFixed(2));
+  const totalAmount    = parseFloat((totalFaceAmount - discountAmount).toFixed(2)); // ยอดที่ตัดจริง
+
+  try {
+    await transaction(async (conn) => {
+      const [agRows] = await conn.query(
+        'SELECT balance FROM agents WHERE id=? FOR UPDATE', [req.agent.id]
+      );
+      const agent = agRows[0];
+      const balBefore = parseFloat(agent.balance);
+      if (balBefore < totalAmount) throw new Error(`ยอดเงินไม่เพียงพอ (ต้องการ ฿${totalAmount.toLocaleString()} มีอยู่ ฿${balBefore.toLocaleString()})`);
+
+      const balAfter = parseFloat((balBefore - totalAmount).toFixed(2));
+      await conn.query('UPDATE agents SET balance=? WHERE id=?', [balAfter, req.agent.id]);
+
+      for (const b of bets) {
+        const numStr  = String(b.number).trim();
+        const betAmt  = parseFloat(b.amount);
+        const rate    = parseFloat(rateMap[b.bet_type]);
+        const payout  = betAmt * rate;
+        await conn.query(
+          'INSERT INTO agent_bets (uuid, agent_id, round_id, bet_type, number, amount, rate, payout, status) VALUES (?,?,?,?,?,?,?,?,?)',
+          [uuidv4(), req.agent.id, round_id, b.bet_type, numStr, betAmt, rate, payout, 'waiting']
+        );
+      }
+
+      // Transaction log (บันทึกทั้งยอดเต็มและส่วนลด)
+      const discountNote = discountAmount > 0 ? ` (ส่วนลด ${discountRate}% = ฿${discountAmount.toLocaleString()})` : '';
+      await conn.query(
+        'INSERT INTO agent_transactions (uuid, agent_id, type, amount, balance_before, balance_after, description) VALUES (?,?,?,?,?,?,?)',
+        [uuidv4(), req.agent.id, 'bet', totalAmount, balBefore, balAfter,
+         `แทงหวย ${bets.length} ใบ — ${round.round_name}${discountNote}`]
+      );
+
+      await conn.query(
+        'UPDATE lottery_rounds SET total_bet=total_bet+?, bet_count=bet_count+? WHERE id=?',
+        [totalFaceAmount, bets.length, round_id]
+      );
+    });
+
+    const [updated] = await query('SELECT balance FROM agents WHERE id=?', [req.agent.id]);
+    const discountMsg = discountAmount > 0 ? ` (ประหยัด ฿${discountAmount.toLocaleString()})` : '';
+    res.json({
+      success: true,
+      message: `แทงสำเร็จ ${bets.length} ใบ รวม ฿${totalFaceAmount.toLocaleString()}${discountMsg}`,
+      data: {
+        balance:         parseFloat(updated.balance),
+        count:           bets.length,
+        face_amount:     totalFaceAmount,
+        discount_amount: discountAmount,
+        charged_amount:  totalAmount,
+      }
     });
   } catch (e) {
     res.status(400).json({ success: false, message: e.message });

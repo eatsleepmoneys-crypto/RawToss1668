@@ -71,7 +71,7 @@ const authAgent = async (req, res, next) => {
     if (decoded.type !== 'agent') return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้อง' });
 
     const [agent] = await query(
-      'SELECT id, uuid, name, phone, email, commission_rate, balance, total_commission, status FROM agents WHERE id = ? AND status = "active"',
+      'SELECT id, uuid, name, phone, email, commission_rate, referral_rate, balance, total_commission, status FROM agents WHERE id = ? AND status = "active"',
       [decoded.id]
     );
     if (!agent) return res.status(401).json({ success: false, message: 'บัญชี Agent ไม่พบหรือถูกระงับ' });

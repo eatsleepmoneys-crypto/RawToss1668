@@ -385,7 +385,7 @@ async function loadAffiliate() {
         2. ส่งให้ลูกค้าผ่าน LINE, Facebook หรือช่องทางอื่น<br>
         3. เมื่อลูกค้ากดลิ้งและสมัครสมาชิก ระบบเชื่อมเข้าทีมคุณอัตโนมัติ<br>
         4. ลูกค้า<b style="color:var(--gold)">ไม่ต้องกรอก</b>รหัสใดๆ ทั้งสิ้น<br>
-        5. คุณจะได้รับค่าคอม <b style="color:var(--green)">${_agentData.commission_rate}%</b> จากทุกการแทงของลูกค้า
+        5. คุณจะได้รับค่าคอม <b style="color:var(--green)">${_agentData.referral_rate||0}%</b> จากทุกการแทงของสมาชิก + ส่วนลด <b style="color:var(--gold)">${_agentData.commission_rate}%</b> เมื่อซื้อเอง
       </div>
     </div>`;
 }
@@ -426,14 +426,14 @@ async function loadDashboard() {
         <div class="stat-sub">ยอดเงินในบัญชีเอเยนต์</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">ค่าคอมรวม (ทั้งหมด)</div>
+        <div class="stat-label">ค่าคอมสะสม</div>
         <div class="stat-val gold">฿${fmt(s.total_commission)}</div>
-        <div class="stat-sub">อัตรา ${s.commission_rate}% ต่อยอดแทง</div>
+        <div class="stat-sub">อัตราคอม ${s.referral_rate||0}% / ส่วนลด ${s.commission_rate}%</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">ค่าคอมเดือนนี้</div>
         <div class="stat-val green">฿${fmt(s.commission_this_month)}</div>
-        <div class="stat-sub">จากยอดแทงเดือนนี้</div>
+        <div class="stat-sub">จากยอดแทงสมาชิกในเครือ</div>
       </div>
       <div class="stat-card">
         <div class="stat-label">สมาชิกทั้งหมด</div>
@@ -446,9 +446,9 @@ async function loadDashboard() {
         <div class="stat-sub">${s.bets_today.toLocaleString()} รายการ</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">ค่าคอมวันนี้ (ประมาณ)</div>
-        <div class="stat-val green">฿${fmt(s.bet_total_today * s.commission_rate / 100)}</div>
-        <div class="stat-sub">จากยอดแทง ${s.commission_rate}%</div>
+        <div class="stat-label">ค่าคอมวันนี้</div>
+        <div class="stat-val green">฿${fmt(s.bet_total_today * (s.referral_rate||0) / 100)}</div>
+        <div class="stat-sub">คอม ${s.referral_rate||0}% จากยอดแทงวันนี้</div>
       </div>
     </div>
     <!-- Quick affiliate box -->
@@ -510,55 +510,70 @@ async function loadMembers(page = 1) {
 
 // ── Commissions ───────────────────────────────────────────────────
 async function loadCommissions() {
-  const data = await aFetch('/agent/commissions');
-  const rows = data.data || [];
-  const maxCom = Math.max(...rows.map(r => r.commission), 1);
+  const data    = await aFetch('/agent/commissions');
+  const daily   = data.daily   || [];
+  const recent  = data.recent  || [];
+  const summary = data.summary || {};
 
-  const bars = rows.length === 0
+  const discountRate  = parseFloat(_agentData?.commission_rate || 0);
+  const referralRate  = parseFloat(summary.referral_rate || 0);
+
+  const maxCom = Math.max(...daily.map(r => parseFloat(r.commission||0)), 1);
+  const bars = daily.length === 0
     ? '<div class="empty">ยังไม่มีข้อมูล</div>'
-    : rows.map(r => `
+    : daily.map(r => `
       <div class="chart-bar-row">
         <div class="chart-date">${new Date(r.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}</div>
-        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(r.commission/maxCom*100)}%"></div></div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(parseFloat(r.commission||0)/maxCom*100)}%"></div></div>
         <div class="chart-val">฿${fmt(r.commission)}</div>
       </div>`).join('');
 
-  const totalCom = rows.reduce((s,r) => s + r.commission, 0);
-  const totalBet = rows.reduce((s,r) => s + r.bet_total, 0);
-
   document.getElementById('tab-content').innerHTML = `
-    <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
-      <div class="stat-card">
-        <div class="stat-label">ค่าคอม 30 วัน</div>
-        <div class="stat-val gold">฿${fmt(totalCom)}</div>
+    <!-- สรุปอัตรา -->
+    <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+      <div class="stat-card" style="border:1px solid rgba(46,213,115,.3)">
+        <div class="stat-label">🏷️ ส่วนลดซื้อหวย</div>
+        <div class="stat-val green">${discountRate}%</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">ลดต้นทุนซื้อหวยทุกครั้ง</div>
       </div>
-      <div class="stat-card">
-        <div class="stat-label">ยอดแทง 30 วัน</div>
-        <div class="stat-val">฿${fmt(totalBet)}</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">อัตราค่าคอม</div>
-        <div class="stat-val green">${_agentData.commission_rate}%</div>
+      <div class="stat-card" style="border:1px solid rgba(212,160,23,.3)">
+        <div class="stat-label">🔗 ค่าคอมแนะนำสมาชิก</div>
+        <div class="stat-val gold">${referralRate}%</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">จากยอดแทงของสมาชิกในเครือ</div>
       </div>
     </div>
+    <!-- ยอดรวม -->
+    <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมเดือนนี้</div>
+        <div class="stat-val gold">฿${fmt(summary.total_month)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมสะสมทั้งหมด</div>
+        <div class="stat-val gold">฿${fmt(summary.total_all)}</div>
+      </div>
+    </div>
+    <!-- กราฟรายวัน -->
     <div class="card">
-      <h3>💰 ค่าคอมมิชชั่นรายวัน (30 วันล่าสุด)</h3>
+      <h3>💰 ค่าคอมรายวัน (30 วันล่าสุด)</h3>
       ${bars}
     </div>
+    <!-- รายการล่าสุด -->
     <div class="card">
-      <h3>📋 ตารางรายวัน</h3>
+      <h3>📋 รายการค่าคอมล่าสุด</h3>
       <div class="tbl-wrap">
         <table>
-          <thead><tr><th>วันที่</th><th>จำนวนรายการ</th><th>ยอดแทงรวม</th><th>ค่าคอม</th></tr></thead>
+          <thead><tr><th>วันที่</th><th>สมาชิกที่แทง</th><th>ยอดแทง</th><th>อัตรา</th><th>ได้รับ</th></tr></thead>
           <tbody>
-            ${rows.length===0
-              ? '<tr><td colspan="4" class="empty">ยังไม่มีข้อมูล</td></tr>'
-              : rows.map(r=>`
+            ${recent.length===0
+              ? '<tr><td colspan="5" class="empty">ยังไม่มีข้อมูล</td></tr>'
+              : recent.map(r=>`
                 <tr>
-                  <td>${new Date(r.date).toLocaleDateString('th-TH',{year:'numeric',month:'short',day:'2-digit'})}</td>
-                  <td style="color:var(--muted)">${r.bet_count}</td>
-                  <td style="color:var(--text)">฿${fmt(r.bet_total)}</td>
-                  <td style="color:var(--gold2);font-weight:700">฿${fmt(r.commission)}</td>
+                  <td style="font-size:11px;color:var(--muted)">${new Date(r.created_at).toLocaleDateString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+                  <td style="font-size:12px">${r.from_member_name||'#'+r.from_member_id}</td>
+                  <td style="color:var(--text)">฿${fmt(r.bet_amount)}</td>
+                  <td style="color:var(--muted)">${r.rate}%</td>
+                  <td style="color:var(--green);font-weight:700">+฿${fmt(r.amount)}</td>
                 </tr>`).join('')
             }
           </tbody>
@@ -585,8 +600,12 @@ function loadProfile() {
           <div style="font-size:20px;font-weight:800;color:var(--gold2)">#${a.id}</div>
         </div>
         <div style="background:var(--card2);border-radius:10px;padding:14px">
-          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">อัตราค่าคอมมิชชั่น</div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ส่วนลดซื้อหวย</div>
           <div style="font-size:20px;font-weight:800;color:var(--green)">${a.commission_rate}%</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ค่าคอมแนะนำสมาชิก</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">${a.referral_rate||0}%</div>
         </div>
         <div style="background:var(--card2);border-radius:10px;padding:14px">
           <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ยอดเงินคงเหลือ</div>
@@ -1093,9 +1112,20 @@ function openBetModal(round) {
       <div id="ag-cart-wrap" style="display:none">
         <div class="buy-grp-label" style="margin-top:0">🛒 รายการที่เลือก</div>
         <div id="ag-cart-list" style="max-height:180px;overflow-y:auto;margin-bottom:12px"></div>
-        <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;margin-bottom:12px">
-          <span style="color:var(--gold);font-size:13px;font-weight:700">ยอดแทงรวม</span>
-          <span id="ag-cart-total" style="font-size:13px;font-weight:900;color:var(--gold2)">฿0</span>
+        <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:10px 14px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--muted);font-size:12px">ยอดหน้าโพย</span>
+            <span id="ag-cart-total" style="font-size:13px;font-weight:700;color:var(--muted)">฿0</span>
+          </div>
+          ${parseFloat(_agentData?.commission_rate||0) > 0 ? `
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--green);font-size:12px">ส่วนลด ${_agentData.commission_rate}%</span>
+            <span id="ag-cart-discount" style="font-size:12px;color:var(--green)">-฿0</span>
+          </div>` : ''}
+          <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(212,160,23,.2);padding-top:6px;margin-top:2px">
+            <span style="color:var(--gold);font-size:13px;font-weight:700">ชำระจริง</span>
+            <span id="ag-cart-charged" style="font-size:14px;font-weight:900;color:var(--gold2)">฿0</span>
+          </div>
         </div>
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px;padding:0 2px">
           <span>ยอดเงินปัจจุบัน: <b style="color:var(--text)">฿${fmt(_agentData?.balance||0)}</b></span>
@@ -1248,12 +1278,20 @@ function agRenderCart() {
     html += `</div>`;
   }
   list.innerHTML = html;
-  const totalBets = _buyCart.reduce((s,c) => s+c.bets.length, 0);
-  const totalAmt  = _buyCart.reduce((s,c) => s+c.amount, 0);
-  const tc = document.getElementById('ag-cart-total');
-  const bc = document.getElementById('ag-buy-count');
-  if (tc) tc.textContent = '฿' + totalAmt.toLocaleString();
-  if (bc) bc.textContent = totalBets;
+  const totalBets      = _buyCart.reduce((s,c) => s+c.bets.length, 0);
+  const totalFaceAmt   = _buyCart.reduce((s,c) => s+c.amount, 0);
+  const discountRate   = parseFloat(_agentData?.commission_rate || 0);
+  const discountAmt    = parseFloat((totalFaceAmt * discountRate / 100).toFixed(2));
+  const chargedAmt     = parseFloat((totalFaceAmt - discountAmt).toFixed(2));
+
+  const tc  = document.getElementById('ag-cart-total');
+  const tdc = document.getElementById('ag-cart-discount');
+  const tch = document.getElementById('ag-cart-charged');
+  const bc  = document.getElementById('ag-buy-count');
+  if (tc)  tc.textContent  = '฿' + totalFaceAmt.toLocaleString();
+  if (tdc) tdc.textContent = '-฿' + discountAmt.toLocaleString();
+  if (tch) tch.textContent = '฿' + chargedAmt.toLocaleString();
+  if (bc)  bc.textContent  = totalBets;
 }
 
 function agRemoveCart(idx) {

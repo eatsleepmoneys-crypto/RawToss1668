@@ -152,6 +152,17 @@ router.get('/admin/:id', authAdmin, rbac.requirePerm('members.view'), async (req
   res.json({ success: true, data: { ...m, transactions: txn } });
 });
 
+// PATCH /api/members/admin/:id/referral-rate — ตั้งค่า referral_rate
+router.patch('/admin/:id/referral-rate', authAdmin, rbac.requirePerm('members.view'), async (req, res) => {
+  const rate = parseFloat(req.body.referral_rate);
+  if (isNaN(rate) || rate < 0 || rate > 50)
+    return res.status(400).json({ success: false, message: 'referral_rate ต้องอยู่ระหว่าง 0–50' });
+  await query('UPDATE members SET referral_rate=? WHERE id=?', [rate, req.params.id]);
+  await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+    [req.admin.id, 'member.referral_rate', 'member', req.params.id, `rate=${rate}%`, req.ip]);
+  res.json({ success: true, message: `ตั้งค่าคอมแนะนำ ${rate}% แล้ว` });
+});
+
 // PATCH /api/members/admin/:id/status — ban/unban
 router.patch('/admin/:id/status', authAdmin, rbac.requirePerm('members.ban'), async (req, res) => {
   const { status, note } = req.body;

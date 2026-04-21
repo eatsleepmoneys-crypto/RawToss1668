@@ -403,6 +403,24 @@ const CREATES = [
     INDEX \`idx_status\` (\`status\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 
+  // commissions — บันทึกค่าคอมที่จ่ายออกจริง (ทั้ง agent และ member referrer)
+  `CREATE TABLE IF NOT EXISTS \`commissions\` (
+    \`id\`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`uuid\`           VARCHAR(36)  NOT NULL UNIQUE,
+    \`earner_type\`    ENUM('agent','member') NOT NULL COMMENT 'ผู้รับค่าคอม',
+    \`earner_id\`      INT UNSIGNED NOT NULL,
+    \`from_member_id\` INT UNSIGNED NOT NULL COMMENT 'สมาชิกที่แทง',
+    \`bet_id\`         INT UNSIGNED NOT NULL DEFAULT 0,
+    \`bet_amount\`     DECIMAL(12,2) NOT NULL,
+    \`rate\`           DECIMAL(5,2)  NOT NULL,
+    \`amount\`         DECIMAL(12,2) NOT NULL,
+    \`description\`    VARCHAR(255),
+    \`created_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    INDEX \`idx_earner\`      (\`earner_type\`, \`earner_id\`),
+    INDEX \`idx_from_member\` (\`from_member_id\`),
+    INDEX \`idx_created\`     (\`created_at\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   // agent_bets — การแทงหวยของ Agent (จากกระเป๋าเงิน Agent)
   `CREATE TABLE IF NOT EXISTS \`agent_bets\` (
     \`id\`         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -692,6 +710,10 @@ async function migrate() {
     `ALTER TABLE \`settings\` MODIFY COLUMN \`value\` MEDIUMTEXT DEFAULT NULL`,
     // agents: เพิ่ม aff_code สำหรับ Affiliate link
     `ALTER TABLE \`agents\` ADD COLUMN \`aff_code\` VARCHAR(20) DEFAULT NULL UNIQUE AFTER \`uuid\``,
+    // agents: referral_rate — ค่าคอมจากสมาชิกที่แนะนำต่อ (%)
+    `ALTER TABLE \`agents\` ADD COLUMN \`referral_rate\` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT 'ค่าคอมจากสมาชิกที่แนะนำต่อ (%)'`,
+    // members: referral_rate — ค่าคอมจากสมาชิกที่แนะนำต่อ (%)
+    `ALTER TABLE \`members\` ADD COLUMN \`referral_rate\` DECIMAL(5,2) NOT NULL DEFAULT 0.00 COMMENT 'ค่าคอมจากสมาชิกที่แนะนำต่อ (%)'`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
