@@ -32,7 +32,11 @@ async function apiFetch(path, options = {}, tokenType = 'member') {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
-    const err = new Error(data.message || data.error || `HTTP ${res.status}`);
+    // รองรับทั้ง data.message, data.error และ data.errors[] จาก express-validator
+    const msg = data.message || data.error
+      || (Array.isArray(data.errors) && data.errors.length ? data.errors.map(e=>e.msg).join(', ') : null)
+      || `HTTP ${res.status}`;
+    const err = new Error(msg);
     err.status = res.status;
     err.data = data;
     throw err;

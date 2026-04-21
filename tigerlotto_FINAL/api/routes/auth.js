@@ -21,8 +21,7 @@ const otpLimit = rateLimit({ windowMs: 60 * 1000, max: 1,
 const validateRegister = [
   body('name').trim().notEmpty().withMessage('กรุณากรอกชื่อ-นามสกุล').isLength({ min:2, max:100 }),
   body('phone').matches(/^0[0-9]{8,9}$/).withMessage('เบอร์โทรศัพท์ไม่ถูกต้อง'),
-  body('password').isLength({ min: 8 }).withMessage('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร')
-    .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/).withMessage('รหัสผ่านต้องมีตัวพิมพ์เล็ก พิมพ์ใหญ่ และตัวเลข'),
+  body('password').isLength({ min: 6 }).withMessage('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'),
   body('bank_code').notEmpty().withMessage('กรุณาเลือกธนาคาร'),
   body('bank_account').notEmpty().withMessage('กรุณากรอกเลขบัญชี'),
   body('bank_name').notEmpty().withMessage('กรุณากรอกชื่อบัญชี'),
