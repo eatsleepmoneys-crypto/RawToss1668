@@ -382,6 +382,79 @@ async function announceYeeKeeRound(round_id, typeId) {
 
 // ── เพิ่ม API route สำหรับดูสถานะงวดยี่กีวันนี้ (optional) ────────
 
+// ── Auto-fetch ผลหวยจริง (ไม่รวมยี่กี) ──────────────────────────────
+//
+// Logic:
+//   draw_at ≈ close_at + 30 นาที (ทุกประเภท — หวยออกหลังปิดรับ ~30 นาที)
+//   fetch_at = draw_at + 15 = close_at + 45 นาที
+//
+// ทำงานทุก 1 นาที: หางวดที่ close_at + 45 นาที ผ่านไปแล้ว
+// แต่ยังไม่มีผลใน lottery_results → trigger fetch ทันที
+// ─────────────────────────────────────────────────────────────────
+
+// รอดึง lotteryFetcher แบบ lazy เพื่อหลีกเลี่ยง circular require
+let _fetcher = null;
+function getLotteryFetcher() {
+  return _fetcher || (_fetcher = require('./lotteryFetcher'));
+}
+
+// lottery codes ที่ออกผลจริง (ไม่สุ่ม, ไม่ใช่ยี่กี)
+const AUTO_FETCH_CODES = new Set(['TH_GOV', 'LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP']);
+
+// ป้องกัน trigger ซ้ำสำหรับ round เดิมภายในรอบ 10 นาที
+const _fetchTriggered = new Map(); // round_id → timestamp
+
+async function autoFetchResults() {
+  const bkk = "DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)";
+
+  // หางวดที่:
+  //  1. status='closed' (ปิดรับแล้ว)
+  //  2. lottery code อยู่ใน AUTO_FETCH_CODES (ไม่ใช่ยี่กี)
+  //  3. close_at + 45 นาที ผ่านไปแล้ว (= draw_at + 15 นาที)
+  //  4. ยังไม่มีผลใน lottery_results
+  //  5. ไม่เก่าเกิน 24 ชม. (ป้องกัน retry งวดเก่ามากๆ)
+  const pending = await query(`
+    SELECT lr.id, lt.code, lr.close_at
+    FROM   lottery_rounds lr
+    JOIN   lottery_types  lt  ON lr.lottery_id = lt.id
+    LEFT JOIN lottery_results res ON lr.id = res.round_id
+    WHERE  lr.status = 'closed'
+      AND  lt.code IN ('TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP')
+      AND  res.id IS NULL
+      AND  DATE_ADD(lr.close_at, INTERVAL 45 MINUTE) <= ${bkk}
+      AND  lr.close_at >= DATE_SUB(${bkk}, INTERVAL 24 HOUR)
+    ORDER  BY lr.close_at ASC
+    LIMIT  5
+  `);
+
+  if (!pending.length) return;
+
+  const now = Date.now();
+  for (const row of pending) {
+    // ป้องกัน trigger ซ้ำภายใน 10 นาที
+    const lastTrig = _fetchTriggered.get(row.id);
+    if (lastTrig && (now - lastTrig) < 10 * 60 * 1000) continue;
+
+    _fetchTriggered.set(row.id, now);
+    console.log(`[ROUND_MGR] 🔍 Auto-fetch: ${row.code} งวด #${row.id} (close_at: ${row.close_at})`);
+
+    try {
+      const fetcher = getLotteryFetcher();
+      await fetcher.triggerFetch(row.code);
+      console.log(`[ROUND_MGR] ✅ Auto-fetch สำเร็จ: ${row.code} #${row.id}`);
+    } catch (e) {
+      console.error(`[ROUND_MGR] ❌ Auto-fetch ล้มเหลว: ${row.code} #${row.id} —`, e.message);
+      // ล้าง trigger cache เพื่อให้ retry รอบถัดไปได้
+      _fetchTriggered.delete(row.id);
+    }
+  }
+
+  // ล้าง cache เก่าเกิน 2 ชม.
+  for (const [id, ts] of _fetchTriggered.entries()) {
+    if (now - ts > 2 * 60 * 60 * 1000) _fetchTriggered.delete(id);
+  }
+}
+
 // ── Start ─────────────────────────────────────────────────────────
 
 function startRoundManager() {
@@ -401,6 +474,10 @@ function startRoundManager() {
     yeekeeAutoAnnounce().catch(e =>
       console.error('[ROUND_MGR] backfill yeekeeAutoAnnounce error:', e.message)
     );
+    // Backfill: fetch ผลงวดที่ถึงเวลาแต่ยังไม่มีผล (เผื่อ server restart)
+    autoFetchResults().catch(e =>
+      console.error('[ROUND_MGR] backfill autoFetchResults error:', e.message)
+    );
   }, 5000); // รอ 5 วิให้ DB connection พร้อม
 
   // เที่ยงคืน: สร้างงวดของวันถัดไป
@@ -411,7 +488,7 @@ function startRoundManager() {
     );
   }, { timezone: TIMEZONE });
 
-  // ทุก 1 นาที: ปิดงวดที่หมดเวลา + ออกผลยี่กีที่ยังค้าง
+  // ทุก 1 นาที: ปิดงวดที่หมดเวลา + ออกผลยี่กีที่ยังค้าง + fetch ผลหวยจริง
   cron.schedule('* * * * *', () => {
     autoManageRounds().catch(e =>
       console.error('[ROUND_MGR] autoManageRounds error:', e.message)
@@ -419,12 +496,16 @@ function startRoundManager() {
     yeekeeAutoAnnounce().catch(e =>
       console.error('[ROUND_MGR] yeekeeAutoAnnounce error:', e.message)
     );
+    autoFetchResults().catch(e =>
+      console.error('[ROUND_MGR] autoFetchResults error:', e.message)
+    );
   }, { timezone: TIMEZONE });
 
   console.log('[ROUND_MGR] Crons ลงทะเบียนแล้ว:');
   console.log('  createTodayRounds  → ทุกวันเที่ยงคืน (Asia/Bangkok)');
   console.log('  autoManageRounds   → ทุก 1 นาที');
   console.log('  yeekeeAutoAnnounce → ทุก 1 นาที');
+  console.log('  autoFetchResults   → ทุก 1 นาที (TH_GOV/LA_GOV/VN_HAN* หลัง close_at+45น)');
 }
 
-module.exports = { startRoundManager, createTodayRounds, autoManageRounds, yeekeeAutoAnnounce };
+module.exports = { startRoundManager, createTodayRounds, autoManageRounds, yeekeeAutoAnnounce, autoFetchResults };
