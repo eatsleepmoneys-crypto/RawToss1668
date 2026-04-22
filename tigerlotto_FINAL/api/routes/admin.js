@@ -527,6 +527,18 @@ router.get('/auto-results/tnews-debug', authAdmin, rbac.requirePerm('results.ann
   }
 });
 
+// ─── GET /api/admin/debug/bets-schema — show actual bets table columns ───────
+router.get('/debug/bets-schema', authAdmin, async (req, res) => {
+  try {
+    const { query } = require('../config/db');
+    const cols = await query('SHOW COLUMNS FROM bets');
+    const indexes = await query('SHOW INDEX FROM bets');
+    res.json({ success: true, columns: cols, indexes });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── GET /api/admin/auto-results/press-debug — debug press.in.th parse ──────
 router.get('/auto-results/press-debug', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
   try {
