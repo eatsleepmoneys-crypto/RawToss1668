@@ -846,6 +846,9 @@ async function migrate() {
       ('line_group_id','','string','line'),
       ('line_notify_deposit','true','boolean','line'),
       ('line_notify_withdraw','true','boolean','line')`,
+    // bets: uuid column (VARCHAR 36) — เพิ่มถ้ายังไม่มี
+    `ALTER TABLE \`bets\` ADD COLUMN \`uuid\` VARCHAR(36) NOT NULL DEFAULT '' AFTER \`id\``,
+    `ALTER TABLE \`bets\` ADD UNIQUE KEY \`uq_bets_uuid\` (\`uuid\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
