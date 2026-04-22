@@ -522,6 +522,7 @@ function startAutoRefresh(page) {
 function stopAutoRefresh() {
   if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
   _autoRefreshPage = null;
+  stopNlAutoRefresh();
 }
 
 function updateRefreshIndicator(sec, page) {
@@ -623,6 +624,7 @@ function nav(page){
   initPageCharts(page);
   afterNav(page); // ← load real API data
   if(['deposits','withdrawals','agentdeposits','agentwithdrawals'].includes(page)) startAutoRefresh(page);
+  if(page === 'numlimits') startNlAutoRefresh();
 }
 
 // ═══ REAL API LOADER per page ═══
@@ -5150,6 +5152,10 @@ PAGES.numlimits = () => `
   <button class="btn-g" onclick="openNumLimitModal()">➕ เพิ่มอั้นหวย</button>
   <button class="btn-sec" onclick="openBulkNumLimitModal()">📋 เพิ่มหลายเลข</button>
   <button class="btn-sec" style="background:rgba(61,139,205,.15);color:#5dade2;border-color:#3d8bcd" onclick="openAutoSpreadModal()">🔀 Auto-Spread</button>
+  <span id="nl-refresh-indicator" style="margin-left:auto;font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px">
+    <span id="nl-refresh-dot" style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green)"></span>
+    <span id="nl-refresh-text">Live</span>
+  </span>
 </div>
 
 <div class="card" style="margin-bottom:16px">
@@ -5186,7 +5192,36 @@ PAGES.numlimits = () => `
 `;
 
 let _nlPage = 1;
-async function loadNumLimits(page) {
+let _nlRefreshTimer = null;
+let _nlRefreshSec = 10;
+
+function startNlAutoRefresh() {
+  stopNlAutoRefresh();
+  _nlRefreshSec = 10;
+  _nlRefreshTimer = setInterval(async () => {
+    _nlRefreshSec--;
+    const txt = document.getElementById('nl-refresh-text');
+    const dot = document.getElementById('nl-refresh-dot');
+    if (_nlRefreshSec <= 0) {
+      _nlRefreshSec = 10;
+      if (dot) { dot.style.background = 'var(--orange)'; }
+      if (txt) txt.textContent = '⏳ กำลังอัปเดต...';
+      await loadNumLimits(null, true); // silent=true
+      const now = new Date().toLocaleTimeString('th-TH', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      if (txt) txt.textContent = `อัปเดต ${now}`;
+      if (dot) { dot.style.background = 'var(--green)'; }
+    } else {
+      if (txt) txt.textContent = `Live  (${_nlRefreshSec}s)`;
+      if (dot) { dot.style.background = _nlRefreshSec <= 3 ? 'var(--orange)' : 'var(--green)'; }
+    }
+  }, 1000);
+}
+
+function stopNlAutoRefresh() {
+  if (_nlRefreshTimer) { clearInterval(_nlRefreshTimer); _nlRefreshTimer = null; }
+}
+
+async function loadNumLimits(page, silent) {
   if (page) _nlPage = page;
   const ltSel   = document.getElementById('nl-lt-sel');
   const roundSel= document.getElementById('nl-round-sel');
@@ -5232,7 +5267,7 @@ async function loadNumLimits(page) {
 
   const tbody = document.getElementById('nl-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--muted)">⏳ กำลังโหลด...</td></tr>';
+  if (!silent) tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:20px;color:var(--muted)">⏳ กำลังโหลด...</td></tr>';
 
   try {
     const r = await apiFetch('/number-limits?' + params.toString(), {}, 'admin');
