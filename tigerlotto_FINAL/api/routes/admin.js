@@ -539,6 +539,20 @@ router.get('/debug/bets-schema', authAdmin, async (req, res) => {
   }
 });
 
+// ─── GET /api/admin/debug/table-schema/:table — show any table columns ────────
+router.get('/debug/table-schema/:table', authAdmin, async (req, res) => {
+  const allowed = ['bets','transactions','members','commissions','deposits','withdrawals','lottery_rounds','lottery_types','number_limits'];
+  const tbl = req.params.table;
+  if (!allowed.includes(tbl)) return res.status(400).json({ success: false, message: 'Table not allowed' });
+  try {
+    const { query } = require('../config/db');
+    const cols = await query(`SHOW COLUMNS FROM \`${tbl}\``);
+    res.json({ success: true, table: tbl, columns: cols.map(c => c.Field) });
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── GET /api/admin/auto-results/press-debug — debug press.in.th parse ──────
 router.get('/auto-results/press-debug', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
   try {

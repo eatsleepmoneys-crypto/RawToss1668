@@ -849,6 +849,12 @@ async function migrate() {
     // bets: uuid column (VARCHAR 36) — เพิ่มถ้ายังไม่มี
     `ALTER TABLE \`bets\` ADD COLUMN \`uuid\` VARCHAR(36) NOT NULL DEFAULT '' AFTER \`id\``,
     `ALTER TABLE \`bets\` ADD UNIQUE KEY \`uq_bets_uuid\` (\`uuid\`)`,
+    // transactions: uuid column — เพิ่มถ้า table สร้างก่อน schema มี uuid
+    `ALTER TABLE \`transactions\` ADD COLUMN \`uuid\` VARCHAR(36) NOT NULL DEFAULT '' AFTER \`id\``,
+    `ALTER TABLE \`transactions\` ADD UNIQUE KEY \`uq_transactions_uuid\` (\`uuid\`)`,
+    // commissions: uuid column — เพิ่มถ้า table สร้างก่อน schema มี uuid
+    `ALTER TABLE \`commissions\` ADD COLUMN \`uuid\` VARCHAR(36) NOT NULL DEFAULT '' AFTER \`id\``,
+    `ALTER TABLE \`commissions\` ADD UNIQUE KEY \`uq_commissions_uuid\` (\`uuid\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
