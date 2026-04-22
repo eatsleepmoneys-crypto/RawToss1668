@@ -503,6 +503,19 @@ const SEEDS = [
     ('VN_HAN_SP','ฮานอยพิเศษ','🇻🇳',9,720,115,90,85,3.0,4.0,3000),
     ('VN_HAN_VIP','ฮานอย VIP','🇻🇳',10,720,115,90,85,3.0,4.0,3000)`,
 
+  // admin_bank_accounts — บัญชีธนาคารของร้าน (รับฝาก)
+  `CREATE TABLE IF NOT EXISTS \`admin_bank_accounts\` (
+    \`id\`           INT AUTO_INCREMENT PRIMARY KEY,
+    \`bank_code\`    VARCHAR(20)  NOT NULL,
+    \`bank_account\` VARCHAR(30)  NOT NULL,
+    \`account_name\` VARCHAR(100) NOT NULL,
+    \`promptpay\`    VARCHAR(20)  DEFAULT NULL,
+    \`note\`         TEXT         DEFAULT NULL,
+    \`sort_order\`   INT          DEFAULT 0,
+    \`is_active\`    TINYINT      DEFAULT 1,
+    \`created_at\`   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
   // member_levels seed (ข้อมูลเริ่มต้น — INSERT IGNORE ถ้ามีแล้วจะข้าม)
   `INSERT IGNORE INTO \`member_levels\` (level_num,name,min_total_bet,color,icon,benefits) VALUES
     (1,'Bronze',      0,       '#cd7f32','🥉','เข้าร่วมสมาชิกทั่วไป'),

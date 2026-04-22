@@ -902,4 +902,67 @@ router.delete('/member-levels/:id', authAdmin, async (req, res) => {
   res.json({ success: true, message: 'ลบแล้ว' });
 });
 
+// ═══════════════════════════════════════════════════════════════════
+//  ADMIN BANK ACCOUNTS — บัญชีธนาคารของร้าน (รับฝากเงิน)
+// ═══════════════════════════════════════════════════════════════════
+
+// GET /api/admin/bank-accounts/public — no auth, for deposit modal
+router.get('/bank-accounts/public', async (req, res) => {
+  try {
+    const rows = await query(
+      'SELECT id, bank_code, bank_account, account_name, promptpay, note FROM admin_bank_accounts WHERE is_active=1 ORDER BY sort_order ASC, id ASC'
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.json({ success: true, data: [] });
+  }
+});
+
+// GET /api/admin/bank-accounts
+router.get('/bank-accounts', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const rows = await query('SELECT * FROM admin_bank_accounts ORDER BY sort_order ASC, id ASC');
+  res.json({ success: true, data: rows });
+});
+
+// POST /api/admin/bank-accounts
+router.post('/bank-accounts', authAdmin, rbac.requirePerm('settings.manage'),
+  body('bank_code').notEmpty(), body('bank_account').notEmpty(), body('account_name').notEmpty(),
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(422).json({ success: false, message: errors.array()[0].msg });
+    const { bank_code, bank_account, account_name, promptpay = null, note = null, sort_order = 0, is_active = 1 } = req.body;
+    await query(
+      'INSERT INTO admin_bank_accounts (bank_code, bank_account, account_name, promptpay, note, sort_order, is_active) VALUES (?,?,?,?,?,?,?)',
+      [bank_code, bank_account, account_name, promptpay || null, note || null, parseInt(sort_order) || 0, is_active ? 1 : 0]
+    );
+    await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+      [req.admin.id, 'bank_account.add', `${bank_code} ${bank_account} (${account_name})`, req.ip]);
+    res.status(201).json({ success: true, message: 'เพิ่มบัญชีธนาคารแล้ว' });
+  }
+);
+
+// PATCH /api/admin/bank-accounts/:id
+router.patch('/bank-accounts/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const allowed = ['bank_code', 'bank_account', 'account_name', 'promptpay', 'note', 'sort_order', 'is_active'];
+  const sets = []; const params = [];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      sets.push(`\`${key}\`=?`);
+      params.push(req.body[key] === '' ? null : req.body[key]);
+    }
+  }
+  if (!sets.length) return res.status(400).json({ success: false, message: 'ไม่มีข้อมูลที่จะอัพเดท' });
+  params.push(req.params.id);
+  await query(`UPDATE admin_bank_accounts SET ${sets.join(',')} WHERE id=?`, params);
+  await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+    [req.admin.id, 'bank_account.update', `id=${req.params.id}`, req.ip]);
+  res.json({ success: true, message: 'อัพเดทบัญชีธนาคารแล้ว' });
+});
+
+// DELETE /api/admin/bank-accounts/:id
+router.delete('/bank-accounts/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  await query('DELETE FROM admin_bank_accounts WHERE id=?', [parseInt(req.params.id)]);
+  res.json({ success: true, message: 'ลบบัญชีธนาคารแล้ว' });
+});
+
 module.exports = router;

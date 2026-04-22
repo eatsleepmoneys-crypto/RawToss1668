@@ -244,6 +244,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('memberlevels')"><span class="ic">🏅</span>ระดับสมาชิก</div>
 
     <div class="sb-sec">การเงิน</div>
+    <div class="sb-item" onclick="nav('bankaccounts')"><span class="ic">🏦</span>บัญชีรับเงิน</div>
     <div class="sb-item" onclick="nav('deposits')"><span class="ic">💰</span>ฝากเงิน<span class="badge" id="badge-dep">8</span></div>
     <div class="sb-item" onclick="nav('withdrawals')"><span class="ic">🏧</span>ถอนเงิน<span class="badge" id="badge-wd">3</span></div>
     <div class="sb-item" onclick="nav('agentdeposits')"><span class="ic">🤝💰</span>ฝาก (เอเยนต์)<span class="badge" id="badge-adep" style="display:none">0</span></div>
@@ -345,6 +346,7 @@ function startClock(){
 const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
   lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',numlimits:'🚦 อั้นหวย',memberlevels:'🏅 ระดับสมาชิก',
+  bankaccounts:'🏦 บัญชีรับเงิน',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',credits:'💳 เพิ่ม/ลด เครดิต',
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
@@ -393,6 +395,7 @@ async function afterNav(page){
     else if(page==='referral') await loadReferralAdmin();
     else if(page==='numlimits')    await loadNumLimits();
     else if(page==='memberlevels') await loadMemberLevels();
+    else if(page==='bankaccounts') await loadBankAccounts();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -4325,6 +4328,149 @@ async function deleteMemberLevel(id, name){
     await apiFetch(`/admin/member-levels/${id}`, { method:'DELETE' }, 'admin');
     toast('ลบแล้ว', `ลบระดับ ${name} เรียบร้อย`);
     loadMemberLevels();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+// ═══ BANK ACCOUNTS ═══
+const BANK_NAMES = {
+  'SCB':'ไทยพาณิชย์','KBANK':'กสิกรไทย','BBL':'กรุงเทพ','KTB':'กรุงไทย',
+  'BAY':'กรุงศรี','TMB':'ทีเอ็มบีธนชาต','GSB':'ออมสิน','BAAC':'ธกส',
+  'CIMB':'ซีไอเอ็มบี','TBANK':'ธนชาต','UOB':'ยูโอบี','LH':'แลนด์แอนด์เฮ้าส์','TISCO':'ทิสโก้'
+};
+
+PAGES.bankaccounts = () => `
+<div style="max-width:720px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <div>
+      <h3 style="margin:0;font-size:16px">🏦 บัญชีธนาคารรับเงิน</h3>
+      <p style="margin:4px 0 0;font-size:12px;color:#888">บัญชีที่แสดงในหน้าฝากเงินของสมาชิก — เพิ่ม/แก้ไข/ลบได้</p>
+    </div>
+    <button class="btn-g" onclick="openAddBankModal()">+ เพิ่มบัญชี</button>
+  </div>
+  <div id="bank-table-wrap">⏳ กำลังโหลด...</div>
+</div>`;
+
+async function loadBankAccounts(){
+  document.getElementById('page-content').innerHTML = PAGES.bankaccounts();
+  try {
+    const r = await apiFetch('/admin/bank-accounts', {}, 'admin');
+    renderBankTable(r.data || []);
+  } catch(e){ document.getElementById('bank-table-wrap').innerHTML = `<p style="color:#e74c3c">${e.message}</p>`; }
+}
+
+function renderBankTable(rows){
+  const wrap = document.getElementById('bank-table-wrap');
+  if(!rows.length){
+    wrap.innerHTML = '<p style="color:#888;text-align:center;padding:30px">ยังไม่มีบัญชี — กดเพิ่มบัญชี</p>';
+    return;
+  }
+  wrap.innerHTML = `
+  <table class="tbl" style="width:100%">
+    <thead><tr>
+      <th>ธนาคาร</th>
+      <th>เลขบัญชี</th>
+      <th>ชื่อบัญชี</th>
+      <th>PromptPay</th>
+      <th style="width:70px">ลำดับ</th>
+      <th style="width:80px">สถานะ</th>
+      <th style="width:90px">จัดการ</th>
+    </tr></thead>
+    <tbody>
+    ${rows.map(b => `
+      <tr style="${!b.is_active?'opacity:.5':''}">
+        <td style="font-weight:700">${BANK_NAMES[b.bank_code]||b.bank_code}</td>
+        <td style="font-weight:800;letter-spacing:1px;font-size:14px">${b.bank_account}</td>
+        <td>${b.account_name}</td>
+        <td style="color:#aaa">${b.promptpay||'-'}</td>
+        <td style="text-align:center">${b.sort_order}</td>
+        <td style="text-align:center">
+          <span style="font-size:12px;padding:2px 8px;border-radius:20px;background:${b.is_active?'#1a5c2a':'#5c1a1a'};color:${b.is_active?'#5cdb5c':'#db5c5c'}">
+            ${b.is_active?'เปิด':'ปิด'}
+          </span>
+        </td>
+        <td>
+          <button class="btn-sm btn-edit" onclick="openEditBankModal(${JSON.stringify(b).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="btn-sm btn-del" onclick="deleteBankAccount(${b.id},'${(b.bank_code+' '+b.bank_account).replace(/'/g,"\\'")}')">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function _bankFormHtml(b){
+  const bankOpts = Object.entries(BANK_NAMES).map(([code,name]) =>
+    `<option value="${code}"${b&&b.bank_code===code?' selected':''}>${name} (${code})</option>`).join('');
+  return `
+  <div class="fg"><label>ธนาคาร</label>
+    <select id="ba-bank" class="fi">
+      <option value="">-- เลือกธนาคาร --</option>
+      ${bankOpts}
+    </select></div>
+  <div class="fg"><label>เลขบัญชี</label>
+    <input id="ba-account" class="fi" placeholder="xxx-x-xxxxx-x" value="${b?b.bank_account:''}"></div>
+  <div class="fg"><label>ชื่อบัญชี</label>
+    <input id="ba-name" class="fi" placeholder="ชื่อ-นามสกุล หรือ ชื่อกิจการ" value="${b?b.account_name:''}"></div>
+  <div class="fg"><label>PromptPay (ถ้ามี)</label>
+    <input id="ba-promptpay" class="fi" placeholder="เบอร์โทรหรือเลขประชาชน" value="${b&&b.promptpay?b.promptpay:''}"></div>
+  <div class="fg"><label>หมายเหตุ (ถ้ามี)</label>
+    <input id="ba-note" class="fi" placeholder="เช่น รับ SCB เท่านั้น" value="${b&&b.note?b.note:''}"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="fg"><label>ลำดับแสดง</label>
+      <input id="ba-sort" class="fi" type="number" min="0" value="${b?b.sort_order:0}"></div>
+    <div class="fg"><label>สถานะ</label>
+      <select id="ba-active" class="fi">
+        <option value="1"${!b||b.is_active?' selected':''}>เปิดใช้งาน</option>
+        <option value="0"${b&&!b.is_active?' selected':''}>ปิดใช้งาน</option>
+      </select></div>
+  </div>`;
+}
+
+function openAddBankModal(){
+  openModal(`
+  <h3 style="margin:0 0 16px">🏦 เพิ่มบัญชีธนาคาร</h3>
+  ${_bankFormHtml(null)}
+  <button class="btn-g" style="width:100%;margin-top:8px" onclick="saveBankAccount()">💾 บันทึก</button>
+  `);
+}
+
+function openEditBankModal(b){
+  openModal(`
+  <h3 style="margin:0 0 16px">✏️ แก้ไขบัญชี — ${BANK_NAMES[b.bank_code]||b.bank_code}</h3>
+  <input type="hidden" id="ba-id" value="${b.id}">
+  ${_bankFormHtml(b)}
+  <button class="btn-g" style="width:100%;margin-top:8px" onclick="saveBankAccount(${b.id})">💾 บันทึก</button>
+  `);
+}
+
+async function saveBankAccount(id){
+  const payload = {
+    bank_code    : document.getElementById('ba-bank').value,
+    bank_account : document.getElementById('ba-account').value.trim(),
+    account_name : document.getElementById('ba-name').value.trim(),
+    promptpay    : document.getElementById('ba-promptpay').value.trim()||null,
+    note         : document.getElementById('ba-note').value.trim()||null,
+    sort_order   : parseInt(document.getElementById('ba-sort').value)||0,
+    is_active    : parseInt(document.getElementById('ba-active').value),
+  };
+  if(!payload.bank_code || !payload.bank_account || !payload.account_name)
+    return toast('ผิดพลาด','กรุณาเลือกธนาคาร และกรอกเลขบัญชี/ชื่อบัญชี','error');
+  try {
+    if(id){
+      await apiFetch(`/admin/bank-accounts/${id}`, { method:'PATCH', body:JSON.stringify(payload) }, 'admin');
+    } else {
+      await apiFetch('/admin/bank-accounts', { method:'POST', body:JSON.stringify(payload) }, 'admin');
+    }
+    toast('สำเร็จ','บันทึกบัญชีธนาคารแล้ว');
+    closeModal(); loadBankAccounts();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function deleteBankAccount(id, label){
+  if(!confirm(`ลบบัญชี "${label}" ใช่ไหม?`)) return;
+  try {
+    await apiFetch(`/admin/bank-accounts/${id}`, { method:'DELETE' }, 'admin');
+    toast('ลบแล้ว', `ลบบัญชี ${label} เรียบร้อย`);
+    loadBankAccounts();
   } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
 
