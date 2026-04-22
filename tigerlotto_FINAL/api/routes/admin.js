@@ -527,6 +527,17 @@ router.get('/auto-results/tnews-debug', authAdmin, rbac.requirePerm('results.ann
   }
 });
 
+// ─── GET /api/admin/auto-results/press-debug — debug press.in.th parse ──────
+router.get('/auto-results/press-debug', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  try {
+    const { debugPressInTh } = require('../services/lotteryFetcher');
+    const result = await debugPressInTh();
+    res.json(result);
+  } catch(e) {
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
 // ─── POST /api/admin/auto-results/force-announce/:code — บันทึกผลตรงๆ ไม่ผ่าน transaction ─
 // ใช้ pool.query() แทน conn.execute() เพื่อหลีกเลี่ยง prepared-statement bug
 router.post('/auto-results/force-announce/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {

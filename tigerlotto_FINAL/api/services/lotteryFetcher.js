@@ -635,14 +635,136 @@ function extractGdbG1(raw) {
   return null;
 }
 
+// ── press.in.th Hanoi scraper ─────────────────────────────────────
+// URL: https://www.press.in.th/hanoi-lotto/
+// Structure: h2 heading → next table → first data row
+//   cells[0]=date(DD/MM/YY), cells[1]=4ตัว, cells[2]=3ตัว, cells[3]=2ตัวบน, cells[4]=2ตัวล่าง
+// "รอผล" = not yet announced
+// ─────────────────────────────────────────────────────────────────
+
+let _pressInThCache = { data: null, ts: 0 };
+const PRESS_CACHE_TTL = 3 * 60 * 1000; // 3 นาที
+
+const PRESS_HEADING_MAP = {
+  VN_HAN_SP:  ['ฮานอยพิเศษ', 'hanoi พิเศษ', 'hanoiพิเศษ', 'ฮานอย พิเศษ'],
+  VN_HAN:     ['ฮานอยปกติ', 'หวยฮานอยปกติ', 'hanoi ปกติ', 'hanoiปกติ'],
+  VN_HAN_VIP: ['ฮานอยvip', 'ฮานอย vip', 'hanoivip', 'hanoi vip', 'ฮานอยวีไอพี'],
+};
+
+/**
+ * Scrape https://www.press.in.th/hanoi-lotto/ and return all available types.
+ * Returns: { VN_HAN_SP: {...}, VN_HAN: {...}, VN_HAN_VIP: {...} }
+ * Caches the page for PRESS_CACHE_TTL to avoid repeated HTTP calls.
+ */
+async function getPressInThData() {
+  const now = Date.now();
+  if (_pressInThCache.data && (now - _pressInThCache.ts) < PRESS_CACHE_TTL) {
+    return _pressInThCache.data;
+  }
+
+  let html;
+  try {
+    const res = await httpGetProxy('https://www.press.in.th/hanoi-lotto/', 20000, 'th');
+    html = res.data;
+  } catch(e) {
+    console.warn('[FETCHER:PRESS] fetch error:', e.message);
+    return null;
+  }
+
+  const $ = cheerio.load(html);
+
+  // Bangkok date today for validation: DD/MM/YY format
+  const nowBkk   = new Date(Date.now() + 7 * 3600 * 1000);
+  const dd  = String(nowBkk.getUTCDate()).padStart(2, '0');
+  const mm  = String(nowBkk.getUTCMonth() + 1).padStart(2, '0');
+  const yy  = String(nowBkk.getUTCFullYear()).slice(-2);
+  const todayDDMMYY = `${dd}/${mm}/${yy}`;
+
+  const result = {};
+
+  // Find all h2/h3 headings, then look at the table that follows
+  $('h2, h3, h4').each((_, headingEl) => {
+    const headingText = $(headingEl).text().toLowerCase().replace(/\s+/g, ' ').trim();
+
+    let matchedType = null;
+    for (const [lotteryType, keywords] of Object.entries(PRESS_HEADING_MAP)) {
+      if (keywords.some(kw => headingText.includes(kw.toLowerCase()))) {
+        matchedType = lotteryType;
+        break;
+      }
+    }
+    if (!matchedType) return; // not a heading we care about
+
+    // Find the next table after this heading
+    const table = $(headingEl).nextAll('table').first();
+    if (!table.length) return;
+
+    // First data row (skip thead if any)
+    const firstRow = table.find('tbody tr, tr').filter((_, tr) => {
+      // Skip header rows
+      const cells = $(tr).find('td');
+      return cells.length >= 2;
+    }).first();
+    if (!firstRow.length) return;
+
+    const cells = firstRow.find('td');
+    if (cells.length < 2) return;
+
+    const dateCell  = $(cells[0]).text().trim();
+    const mainCell  = $(cells[1]).text().trim();
+    const top3Cell  = cells.length > 2 ? $(cells[2]).text().trim() : '';
+    const top2Cell  = cells.length > 3 ? $(cells[3]).text().trim() : '';
+    const bot2Cell  = cells.length > 4 ? $(cells[4]).text().trim() : '';
+
+    // Skip if not yet announced
+    if (!mainCell || mainCell.includes('รอผล') || mainCell === '-') return;
+
+    // Validate date matches today
+    if (dateCell && dateCell !== todayDDMMYY) {
+      console.warn(`[FETCHER:PRESS] ${matchedType} date mismatch: page=${dateCell}, today=${todayDDMMYY}`);
+      return;
+    }
+
+    const main  = mainCell.replace(/\D/g, '').padStart(4, '0');
+    if (!main || main.length < 4) return;
+
+    const top3  = top3Cell.replace(/\D/g, '').padStart(3, '0') || main.slice(-3);
+    const top2  = top2Cell.replace(/\D/g, '').padStart(2, '0') || main.slice(-2);
+    const bot2  = bot2Cell.replace(/\D/g, '') || null;
+
+    result[matchedType] = {
+      prize_1st:     main,
+      prize_last_2:  top2,
+      prize_2bot:    bot2 || null,
+      prize_front_3: [],
+      prize_last_3:  [top3],
+    };
+    console.log(`[FETCHER:PRESS] ✅ ${matchedType} main=${main} top2=${top2} bot2=${bot2||'?'} top3=${top3} (date=${dateCell})`);
+  });
+
+  if (Object.keys(result).length > 0) {
+    _pressInThCache = { data: result, ts: now };
+  }
+  return Object.keys(result).length ? result : null;
+}
+
+/**
+ * ดึงผล press.in.th สำหรับ lottery type ที่ระบุ
+ * @param {string} lotteryType  'VN_HAN' | 'VN_HAN_SP' | 'VN_HAN_VIP'
+ */
+async function fetchPressInThHanoi(lotteryType) {
+  const data = await getPressInThData();
+  if (!data) return null;
+  return data[lotteryType] || null;
+}
+
 /**
  * หวยฮานอย (Xổ số Miền Bắc) — ออกผลทุกวัน ~18:30 น.
  * รางวัลที่ 1 (Giải nhất) = 5 หลัก
  */
 async function fetchVNHanoi() {
   /**
-   * ฮานอยปกติ — ดึงจาก TNews ก่อน (section "ผลหวยฮานอยปกติ") ซึ่งตรงกับ
-   * หน้าเว็บ TNews ที่ผู้ใช้ตรวจสอบ
+   * ฮานอยปกติ — ดึงจาก press.in.th ก่อน (primary) → TNews (secondary)
    * Fallback: XSMB Vietnamese sources (RSS/HTML)
    */
   function vn(gdb, g1) {
@@ -655,7 +777,16 @@ async function fetchVNHanoi() {
     };
   }
 
-  // Source 1: TNews.co.th (section ผลหวยฮานอยปกติ) — ตรงกับ TNews จริง ✅
+  // Source 1: press.in.th — primary ✅
+  try {
+    const result = await fetchPressInThHanoi('VN_HAN');
+    if (result) {
+      console.log('[FETCHER:VN_HAN] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] press.in.th error:', e.message); }
+
+  // Source 2: TNews.co.th (section ผลหวยฮานอยปกติ) — secondary
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN');
     if (result) {
@@ -2104,15 +2235,25 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
  * เป็นหวยเอกชนเวียดนาม (ไม่ใช่ XSMB รัฐบาล) ออกผลก่อน XSMB ปกติ
  */
 async function fetchVNHanoiSP() {
-  // ฮานอยพิเศษ เป็น lottery ไทย (ไม่ใช่ Vietnam XSMBT) — Source หลักคือ TNews
+  // Source 1: press.in.th — primary ✅
+  try {
+    const result = await fetchPressInThHanoi('VN_HAN_SP');
+    if (result) {
+      console.log('[FETCHER:VN_HAN_SP] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] press.in.th error:', e.message); }
 
-  // Source 1: TNews.co.th — ถูกต้อง 100% (section ผลหวยฮานอยพิเศษ)
+  // Source 2: TNews.co.th — secondary (section ผลหวยฮานอยพิเศษ)
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_SP');
-    if (result) return result;
+    if (result) {
+      console.log('[FETCHER:VN_HAN_SP] TNews ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] TNews error:', e.message); }
 
-  // Source 2: DB sources (Admin-configured) — fallback
+  // Source 3: DB sources (Admin-configured) — fallback
   try {
     const dbResult = await fetchFromDbSources('VN_HAN_SP');
     if (dbResult) {
@@ -2121,21 +2262,32 @@ async function fetchVNHanoiSP() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] DB source error:', e.message); }
 
-  throw new Error('VN_HAN_SP: ไม่พบผล — กรุณาตรวจสอบ TNews หรือ config DB sources ใน Admin Panel → API Sources');
+  throw new Error('VN_HAN_SP: ไม่พบผล — กรุณาตรวจสอบ press.in.th / TNews หรือ config DB sources ใน Admin Panel → API Sources');
 }
 
 /**
  * ฮานอย VIP (VN_HAN_VIP) — ออกผลทุกวัน ~19:00 น.
- * ข้อมูลจาก TNews (section "ผลหวยฮานอย vip")
  */
 async function fetchVNHanoiVIP() {
-  // Source 1: TNews.co.th — ถูกต้อง 100% (section ผลหวยฮานอย vip)
+  // Source 1: press.in.th — primary ✅
+  try {
+    const result = await fetchPressInThHanoi('VN_HAN_VIP');
+    if (result) {
+      console.log('[FETCHER:VN_HAN_VIP] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] press.in.th error:', e.message); }
+
+  // Source 2: TNews.co.th — secondary (section ผลหวยฮานอย vip)
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_VIP');
-    if (result) return result;
+    if (result) {
+      console.log('[FETCHER:VN_HAN_VIP] TNews ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] TNews error:', e.message); }
 
-  // Source 2: DB sources (Admin-configured) — fallback
+  // Source 3: DB sources (Admin-configured) — fallback
   try {
     const dbResult = await fetchFromDbSources('VN_HAN_VIP');
     if (dbResult) {
@@ -2144,7 +2296,7 @@ async function fetchVNHanoiVIP() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] DB source error:', e.message); }
 
-  throw new Error('VN_HAN_VIP: ไม่พบผล — กรุณาตรวจสอบ TNews หรือ config DB sources ใน Admin Panel → API Sources');
+  throw new Error('VN_HAN_VIP: ไม่พบผล — กรุณาตรวจสอบ press.in.th / TNews หรือ config DB sources ใน Admin Panel → API Sources');
 }
 
 // ── Export สำหรับ manual trigger ──────────────────────────────
@@ -2170,10 +2322,47 @@ async function triggerFetch(lotteryCode) {
 async function testFetch(lotteryCode) {
   const fn = FETCH_FUNCS[lotteryCode];
   if (!fn) throw new Error(`Unknown lottery code: ${lotteryCode}`);
-  // ล้าง TNews cache เพื่อ force re-fetch
-  _tnewsCache = { data: null, ts: 0 };
+  // ล้าง cache เพื่อ force re-fetch
+  _tnewsCache     = { data: null, ts: 0 };
+  _pressInThCache = { data: null, ts: 0 };
   console.log(`[FETCHER:${lotteryCode}] 🧪 dry-run test...`);
   return fn();
+}
+
+/**
+ * Debug: ดึงข้อมูล press.in.th และ return raw info สำหรับ debug
+ */
+async function debugPressInTh() {
+  _pressInThCache = { data: null, ts: 0 }; // force fresh fetch
+  let html;
+  try {
+    const res = await httpGetProxy('https://www.press.in.th/hanoi-lotto/', 20000, 'th');
+    html = res.data;
+  } catch(e) {
+    return { error: `Fetch error: ${e.message}` };
+  }
+  const $ = cheerio.load(html);
+  const nowBkk = new Date(Date.now() + 7 * 3600 * 1000);
+  const dd = String(nowBkk.getUTCDate()).padStart(2, '0');
+  const mm = String(nowBkk.getUTCMonth() + 1).padStart(2, '0');
+  const yy = String(nowBkk.getUTCFullYear()).slice(-2);
+  const todayDDMMYY = `${dd}/${mm}/${yy}`;
+
+  const tables = [];
+  $('h2, h3, h4').each((_, headingEl) => {
+    const headingText = $(headingEl).text().trim();
+    const table = $(headingEl).nextAll('table').first();
+    if (!table.length) return;
+    const rows = [];
+    table.find('tr').each((_, tr) => {
+      const cells = $(tr).find('td,th').map((_, td) => $(td).text().trim()).get();
+      if (cells.length) rows.push(cells);
+    });
+    tables.push({ heading: headingText, rows: rows.slice(0, 5) });
+  });
+
+  const parsedData = await getPressInThData();
+  return { url: 'https://www.press.in.th/hanoi-lotto/', todayDDMMYY, tables, parsedData };
 }
 
 /**
@@ -2342,4 +2531,4 @@ function startLotteryFetcher() {
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache, debugTNewsRaw };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache, debugTNewsRaw, debugPressInTh };

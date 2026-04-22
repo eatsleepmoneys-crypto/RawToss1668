@@ -2673,6 +2673,76 @@ async function runTNewsDebug(btn){
   }
 }
 
+async function runPressDebug(btn){
+  const out = document.getElementById('press-debug-out');
+  if(!out) return;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง Debug...'; }
+  out.style.display='block';
+  out.innerHTML='<div class="card"><div style="color:var(--muted);padding:12px">⏳ กำลังดึงข้อมูลจาก press.in.th...</div></div>';
+  try{
+    const r = await fetch('/api/admin/auto-results/press-debug', { headers: {'Authorization':'Bearer '+getToken()} });
+    const d = await r.json();
+    if(d.error){
+      out.innerHTML=`<div class="card"><div style="color:var(--error,#e74c3c);padding:12px">❌ ${d.error}</div></div>`;
+      return;
+    }
+
+    // Build parsed results table
+    const TYPES = ['VN_HAN_SP','VN_HAN','VN_HAN_VIP'];
+    const LABELS = { VN_HAN_SP:'ฮานอยพิเศษ', VN_HAN:'ฮานอยปกติ', VN_HAN_VIP:'ฮานอย VIP' };
+    let parsedHtml = `<table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="background:var(--card-bg2,#1a1a2e)">
+        <th style="padding:8px;text-align:left">ประเภท</th>
+        <th style="padding:8px;text-align:center">4ตัว</th>
+        <th style="padding:8px;text-align:center">3ตัว</th>
+        <th style="padding:8px;text-align:center">2บน</th>
+        <th style="padding:8px;text-align:center">2ล่าง</th>
+        <th style="padding:8px;text-align:center">สถานะ</th>
+      </tr></thead><tbody>`;
+    for(const t of TYPES){
+      const p = d.parsedData && d.parsedData[t];
+      const ok = p && p.prize_1st;
+      parsedHtml += `<tr style="border-top:1px solid var(--border,#333)">
+        <td style="padding:8px"><strong>${LABELS[t]||t}</strong></td>
+        <td style="padding:8px;text-align:center;font-family:monospace">${p?.prize_1st||'—'}</td>
+        <td style="padding:8px;text-align:center;font-family:monospace">${(p?.prize_last_3||[])[0]||'—'}</td>
+        <td style="padding:8px;text-align:center;font-family:monospace">${p?.prize_last_2||'—'}</td>
+        <td style="padding:8px;text-align:center;font-family:monospace">${p?.prize_2bot||'—'}</td>
+        <td style="padding:8px;text-align:center">${ok?'✅ พบผล':'⚠️ รอผล'}</td>
+      </tr>`;
+    }
+    parsedHtml += '</tbody></table>';
+
+    // Build raw tables section
+    let tablesHtml = '';
+    if(d.tables && d.tables.length){
+      for(const tbl of d.tables){
+        tablesHtml += `<div style="margin-bottom:12px">
+          <div style="font-weight:600;margin-bottom:6px;color:var(--accent,#f39c12)">${tbl.heading}</div>
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">`;
+        for(const row of tbl.rows){
+          tablesHtml += '<tr>' + row.map(c=>`<td style="padding:4px 8px;border:1px solid var(--border,#333)">${c||'—'}</td>`).join('') + '</tr>';
+        }
+        tablesHtml += '</table></div>';
+      }
+    }
+
+    out.innerHTML=`<div class="card" style="padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <strong>🔍 press.in.th Debug</strong>
+        <span style="font-size:12px;color:var(--muted)">วันนี้: ${d.todayDDMMYY||'?'} | <a href="${d.url}" target="_blank" style="color:var(--accent,#f39c12)">เปิดหน้าเว็บ</a></span>
+      </div>
+      <div style="margin-bottom:12px"><strong>ผลที่ parse ได้:</strong></div>
+      ${parsedHtml}
+      ${tablesHtml ? `<div style="margin-top:16px"><strong>ตารางจากหน้าเว็บ (5 แถวแรก):</strong></div><div style="margin-top:8px">${tablesHtml}</div>` : ''}
+    </div>`;
+  }catch(e){
+    out.innerHTML=`<div class="card"><div style="color:var(--error,#e74c3c);padding:12px">❌ ${e.message}</div></div>`;
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='🔍 Debug press.in.th'; }
+  }
+}
+
 /* ── Yeekee Auto ── */
 async function loadYeeKee(){
   try{
@@ -4276,8 +4346,10 @@ autoresult:()=>`
 </div>
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
   <button class="btn btn-outline" onclick="loadAutoResult()">🔄 รีเฟรช</button>
+  <button class="btn btn-outline" id="press-dbg-btn" onclick="runPressDebug(this)">🔍 Debug press.in.th</button>
   <button class="btn btn-outline" id="tnews-dbg-btn" onclick="runTNewsDebug(this)">🔍 Debug TNews Article</button>
 </div>
+<div id="press-debug-out" style="display:none;margin-bottom:16px"></div>
 <div id="tnews-debug-out" style="display:none;margin-bottom:16px"></div>`,
 
 promotions:()=>`
