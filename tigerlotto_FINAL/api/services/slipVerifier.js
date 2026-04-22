@@ -125,14 +125,19 @@ function verifySenderAccount(slipData, memberInfo) {
 async function verifySlip(filePath, expectedAmount, memberInfo = null) {
   const creds = await getSlipOKCredentials();
 
+  console.log(`[SlipOK] verify start | file:${filePath} | amount:${expectedAmount} | enabled:${creds.enabled} | hasKey:${!!creds.apiKey} | branchId:${creds.branchId||'(empty)'}`);
+
   if (!creds.enabled) {
+    console.log('[SlipOK] SKIP — NOT_ENABLED');
     return { valid: false, reason: 'NOT_ENABLED', skip: true };
   }
   if (!creds.apiKey || !creds.branchId) {
+    console.log('[SlipOK] SKIP — NO_CREDENTIALS (apiKey empty or branchId empty)');
     return { valid: false, reason: 'NO_CREDENTIALS', skip: true };
   }
 
   try {
+    console.log(`[SlipOK] calling API branchId=${creds.branchId}`);
     const form = new FormData();
     form.append('files', fs.createReadStream(filePath));
     form.append('amount', String(parseFloat(expectedAmount)));
@@ -151,11 +156,13 @@ async function verifySlip(filePath, expectedAmount, memberInfo = null) {
     );
 
     const body = response.data;
+    console.log(`[SlipOK] response success:${body?.success} code:${body?.code||'-'}`);
 
     // SlipOK อาจ return success:false พร้อม code
     if (!body?.success) {
       const code = body?.code || '';
       const msg  = body?.message || body?.msg || 'SLIP_INVALID';
+      console.log(`[SlipOK] FAIL — code:${code} msg:${msg}`);
       // code DUPE = duplicate
       if (code === 'DUPE' || String(msg).toUpperCase().includes('DUPLI')) {
         return { valid: false, reason: 'DUPLICATE_SLIP', data: body };
@@ -214,11 +221,13 @@ async function verifySlip(filePath, expectedAmount, memberInfo = null) {
       } catch { /* ถ้า query ล้มเหลว ข้ามตรวจผู้โอน */ }
     }
 
+    console.log(`[SlipOK] VERIFIED ✅ amount:${slipData.amount} ref:${transRef}`);
     return { valid: true, reason: 'OK', data: slipData, transRef };
 
   } catch (err) {
     const status = err.response?.status;
     const errData = err.response?.data;
+    console.error(`[SlipOK] ERROR status:${status||'N/A'} code:${err.code||'-'} msg:${err.message}`);
 
     // 401 = wrong api key
     if (status === 401) return { valid: false, reason: 'BAD_API_KEY', error: 'API Key ไม่ถูกต้อง', skip: true };
