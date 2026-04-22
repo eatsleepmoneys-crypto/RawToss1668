@@ -1292,9 +1292,15 @@ async function loadBets(page){
       } else if(pager) pager.innerHTML = '';
     }
 
-    // Populate lottery dropdown (only once if empty)
+    // Populate lottery dropdown — fetch if _allLotteryTypes not loaded yet
     const sel = document.getElementById('bets-lottery-sel');
-    if(sel && sel.options.length <= 1 && _allLotteryTypes.length){
+    if(sel && sel.options.length <= 1){
+      if(!_allLotteryTypes.length){
+        try {
+          const ld = await API.AdminAPI.getLotteryTypes();
+          _allLotteryTypes = ld.data || [];
+        } catch(_){}
+      }
       _allLotteryTypes.forEach(lt => {
         const o = document.createElement('option');
         o.value = lt.code; o.textContent = (lt.flag||'') + ' ' + lt.name;
