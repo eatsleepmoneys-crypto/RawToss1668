@@ -164,6 +164,54 @@ router.post('/rate-check-batch', async (req, res) => {
   res.json({ success: true, results });
 });
 
+// ─── GET /api/number-limits/active-limits ─────────────────────────────────────
+// Public — คืนเลขที่อั้น/ปิด (tier != '1') สำหรับแสดงในหน้าซื้อ
+router.get('/active-limits', async (req, res) => {
+  const { lottery_id, round_id } = req.query;
+  if (!lottery_id) return res.json({ success: true, data: [], base_rates: {} });
+
+  // base rates ของ lottery นี้
+  const ltRows = await query(
+    'SELECT rate_3top,rate_3tod,rate_2top,rate_2bot,rate_run_top,rate_run_bot FROM lottery_types WHERE id=?',
+    [parseInt(lottery_id)]
+  );
+  const lt = ltRows[0] || {};
+  const BASE_RATE = {
+    '3top': lt.rate_3top || 750, '3tod': lt.rate_3tod || 120,
+    '2top': lt.rate_2top || 95,  '2bot': lt.rate_2bot || 90,
+    'run_top': lt.rate_run_top || 3.2, 'run_bot': lt.rate_run_bot || 4.2,
+  };
+
+  // ดึงเฉพาะ tier != '1' (อั้น/ปิด)
+  const rows = await query(
+    `SELECT number, bet_type, current_tier,
+            tier2_rate, tier2_1_rate, tier2_2_rate, tier2_3_rate,
+            tier1_used, tier2_used, tier1_limit, tier2_limit
+     FROM number_limits
+     WHERE lottery_id=? AND current_tier != '1'
+       AND (round_id=? OR round_id IS NULL)
+     ORDER BY bet_type, (current_tier='3') DESC, number ASC`,
+    [parseInt(lottery_id), round_id ? parseInt(round_id) : null]
+  );
+
+  // คำนวณ effective_rate ต่อ row
+  const data = rows.map(r => {
+    const base = BASE_RATE[r.bet_type] || 0;
+    let rate_pct = null;
+    const t = r.current_tier;
+    if (t === '2')   rate_pct = parseFloat(r.tier2_rate)   || 100;
+    if (t === '2.1') rate_pct = parseFloat(r.tier2_1_rate) || null;
+    if (t === '2.2') rate_pct = parseFloat(r.tier2_2_rate) || null;
+    if (t === '2.3') rate_pct = parseFloat(r.tier2_3_rate) || null;
+    if (t === '3')   rate_pct = 0;
+    const closed = t === '3' || rate_pct === 0;
+    const effective_rate = closed ? 0 : (rate_pct !== null ? Math.round(base * rate_pct / 100 * 100) / 100 : base);
+    return { ...r, rate_pct, effective_rate, closed, base_rate: base };
+  });
+
+  res.json({ success: true, data, base_rates: BASE_RATE });
+});
+
 // ─── GET /api/number-limits/lottery-types ─────────────────────────────────────
 // Helper: list lottery types for dropdowns
 router.get('/lottery-types', authAdmin, async (req, res) => {
