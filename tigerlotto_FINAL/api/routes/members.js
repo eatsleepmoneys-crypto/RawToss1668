@@ -202,7 +202,7 @@ router.get('/admin/list', authAdmin, rbac.requirePerm('members.view'), async (re
   if (search) { where.push('(name LIKE ? OR phone LIKE ? OR member_code LIKE ?)'); params.push(`%${search}%`,`%${search}%`,`%${search}%`); }
   if (status) { where.push('status=?'); params.push(status); }
   const whereStr = where.length ? 'WHERE ' + where.join(' AND ') : '';
-  const sql = `SELECT id,uuid,name,phone,bank_code,balance,status,level,member_code,created_at,last_login_at
+  const sql = `SELECT id,uuid,name,phone,bank_code,bank_account,bank_name,balance,status,level,member_code,created_at,last_login_at
                FROM members ${whereStr}
                ORDER BY id DESC LIMIT ${lim} OFFSET ${off}`;
   const rows = await query(sql, params);
