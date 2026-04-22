@@ -815,11 +815,49 @@ const TNEWS_CACHE_TTL = 5 * 60 * 1000;
 
 /**
  * หา URL บทความ TNews วันนี้
+ * Strategy 0: WordPress REST API (เร็ว + รองรับ date filter)
  * Strategy 1: RSS/Atom feed (server-rendered XML — ไม่ต้องการ JS)
  * Strategy 2: HTML listing page (fallback)
  */
 async function findTNewsArticleUrl() {
   const BROAD_KW = ['ฮานอย', 'หวยฮานอย', 'hanoi'];
+  const todayStr = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 10); // Bangkok date YYYY-MM-DD
+
+  // ── Strategy 0: WordPress REST API ─────────────────────────────────────────
+  const WP_API_URLS = [
+    'https://www.tnews.co.th/wp-json/wp/v2/posts?search=%E0%B8%AB%E0%B8%A7%E0%B8%A2%E0%B8%AE%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%A2&per_page=10&_fields=link,title,date',
+    'https://www.tnews.co.th/wp-json/wp/v2/posts?search=%E0%B8%AE%E0%B8%B2%E0%B8%99%E0%B8%AD%E0%B8%A2&per_page=10&_fields=link,title,date',
+  ];
+  for (const wpUrl of WP_API_URLS) {
+    try {
+      const wpRes = await httpGetProxy(wpUrl, 15000, 'th');
+      const posts = Array.isArray(wpRes.data) ? wpRes.data : [];
+      // 1st pass: prefer today's article
+      for (const post of posts) {
+        const link  = String(post.link || '');
+        const title = String(post.title?.rendered || '').toLowerCase();
+        const date  = String(post.date || '').slice(0, 10);
+        const isHanoi  = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        const isToday  = Math.abs(new Date(date) - new Date(todayStr)) <= 86400 * 1000;
+        if (isHanoi && isToday && /lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS] WP API today →', link, '(date:', date, ')');
+          return link;
+        }
+      }
+      // 2nd pass: most recent Hanoi article (any date)
+      for (const post of posts) {
+        const link  = String(post.link || '');
+        const title = String(post.title?.rendered || '').toLowerCase();
+        const isHanoi = BROAD_KW.some(kw => title.includes(kw.toLowerCase()));
+        if (isHanoi && /lotto-horo-belief\/\d+/.test(link)) {
+          console.log('[FETCHER:TNEWS] WP API (latest) →', link);
+          return link;
+        }
+      }
+    } catch(e) {
+      console.warn('[FETCHER:TNEWS] WP API error (%s):', wpUrl, e.message);
+    }
+  }
 
   // ── Strategy 1: WordPress RSS feed (เร็วกว่า, ไม่ต้องการ JS) ──────
   const RSS_URLS = [
@@ -912,6 +950,12 @@ async function findTNewsArticleUrl() {
 /**
  * แยก section ของ lottery type จาก body text ของบทความ TNews
  * รูปแบบ: "เลข 4 ตัว : XXXX", "เลข 3 ตัวบน : XXX", "เลข 2 ตัวบน : XX", "เลข 2 ตัวล่าง : XX"
+ *
+ * v2: section-boundary splitting
+ *   - รวม header ทุกประเภท (รวม เฉพาะกิจ เป็น boundary marker) เพื่อคำนวณขอบเขต chunk
+ *   - ทุก occurrence ของ header แต่ละประเภทจะถูกตรวจ; ใช้ boundary ถัดไปเป็น chunk end
+ *   - ถ้า chunk ไม่มีเลข (ยังไม่ออกผล) → ข้ามไป occurrence ถัดไป
+ *   - ป้องกัน false-positive จาก title/intro ที่มีชื่อ section ปะปน
  */
 function parseTNewsSections(html) {
   const $ = cheerio.load(html);
@@ -924,40 +968,85 @@ function parseTNewsSections(html) {
   }
   if (!bodyText) bodyText = $.text();
 
+  const bodyLower = bodyText.toLowerCase();
+
+  // headers ทุกประเภท — รวม เฉพาะกิจ เพื่อใช้เป็น boundary marker
+  const ALL_SECTION_HEADERS = {
+    VN_HAN_EKKA: ['ผลหวยฮานอยเฉพาะกิจ', 'ฮานอยเฉพาะกิจ'],   // boundary only
+    VN_HAN:      ['ผลหวยฮานอยปกติ', 'ฮานอยปกติ', 'hanoiปกติ'],
+    VN_HAN_SP:   ['ผลหวยฮานอยพิเศษ', 'ฮานอยพิเศษ', 'hanoi พิเศษ'],
+    VN_HAN_VIP:  ['ผลหวยฮานอย vip', 'ฮานอย vip', 'ฮานอยวีไอพี', 'hanoi vip'],
+  };
+
+  // รวบรวม position ทุกจุดที่พบ header ใด ๆ → ใช้เป็น boundary set
+  const allBoundaryPos = new Set();
+  for (const hdrs of Object.values(ALL_SECTION_HEADERS)) {
+    for (const hdr of hdrs) {
+      const hdrLow = hdr.toLowerCase();
+      let p = 0;
+      while (true) {
+        const idx = bodyLower.indexOf(hdrLow, p);
+        if (idx === -1) break;
+        allBoundaryPos.add(idx);
+        p = idx + 1;
+      }
+    }
+  }
+  const boundaries = [...allBoundaryPos].sort((a, b) => a - b);
+
+  /** หา boundary ถัดไปหลัง position idx (หรือ idx+800 ถ้าไม่มี) */
+  function nextBoundary(idx) {
+    for (const b of boundaries) {
+      if (b > idx) return b;
+    }
+    return idx + 800;
+  }
+
+  const TARGET_TYPES = new Set(['VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP']);
   const result = {};
 
-  for (const [lotteryType, headers] of Object.entries(TNEWS_SECTION_HEADERS)) {
+  for (const [lotteryType, headers] of Object.entries(ALL_SECTION_HEADERS)) {
+    if (!TARGET_TYPES.has(lotteryType)) continue;
+
+    let found = false;
     for (const header of headers) {
-      const idx = bodyText.toLowerCase().indexOf(header.toLowerCase());
-      if (idx === -1) continue;
+      if (found) break;
+      const hdrLow = header.toLowerCase();
+      let p = 0;
+      while (!found) {
+        const idx = bodyLower.indexOf(hdrLow, p);
+        if (idx === -1) break;
+        p = idx + 1;
 
-      // ตัด chunk จาก header ไปถึง 500 ตัวอักษร (หรือจนถึง section ถัดไป)
-      const chunk = bodyText.slice(idx, idx + 500);
+        // chunk ถูกกำหนดโดย boundary ถัดไป (ไม่ใช่ fixed 500 chars)
+        const chunkEnd = nextBoundary(idx);
+        const chunk = bodyText.slice(idx, chunkEnd);
 
-      // เลข 4 ตัว : XXXX
-      const m4  = chunk.match(/เลข\s*4\s*ตัว\s*[:\-]?\s*(\d{3,5})/i);
-      // เลข 3 ตัวบน : XXX
-      const m3  = chunk.match(/เลข\s*3\s*ตัวบน\s*[:\-]?\s*(\d{2,4})/i);
-      // เลข 2 ตัวบน : XX
-      const m2t = chunk.match(/เลข\s*2\s*ตัวบน\s*[:\-]?\s*(\d{1,3})/i);
-      // เลข 2 ตัวล่าง : XX
-      const m2b = chunk.match(/เลข\s*2\s*ตัวล่าง\s*[:\-]?\s*(\d{1,3})/i);
+        // เลข 4 ตัว : XXXX
+        const m4  = chunk.match(/เลข\s*4\s*ตัว\s*[:\-]?\s*(\d{3,5})/i);
+        if (!m4) continue; // occurrence นี้ไม่มีเลข → ลอง occurrence ถัดไป
 
-      if (!m4) break; // section พบแต่ยังไม่มีตัวเลข (ยังไม่ออก)
+        // เลข 3 ตัวบน : XXX
+        const m3  = chunk.match(/เลข\s*3\s*ตัวบน\s*[:\-]?\s*(\d{2,4})/i);
+        // เลข 2 ตัวบน : XX
+        const m2t = chunk.match(/เลข\s*2\s*ตัวบน\s*[:\-]?\s*(\d{1,3})/i);
+        // เลข 2 ตัวล่าง : XX
+        const m2b = chunk.match(/เลข\s*2\s*ตัวล่าง\s*[:\-]?\s*(\d{1,3})/i);
 
-      const main = m4[1].padStart(4, '0');
-      const top3 = m3  ? m3[1].padStart(3,  '0') : main.slice(-3);
-      const top2 = m2t ? m2t[1].padStart(2, '0') : main.slice(-2);
-      const bot2 = m2b ? m2b[1].padStart(2, '0') : null;
+        const main = m4[1].padStart(4, '0');
+        const top3 = m3  ? m3[1].padStart(3, '0') : main.slice(-3);
+        const top2 = m2t ? m2t[1].padStart(2, '0') : main.slice(-2);
+        const bot2 = m2b ? m2b[1].padStart(2, '0') : null;
 
-      result[lotteryType] = {
-        prize_1st:     main,
-        prize_last_2:  top2,
-        prize_2bot:    bot2,
-        prize_front_3: [],
-        prize_last_3:  [top3],
-      };
-      break;
+        result[lotteryType] = {
+          prize_1st:     main,
+          prize_last_2:  top2,
+          prize_2bot:    bot2,
+          prize_front_3: [],
+          prize_last_3:  [top3],
+        };
+        found = true;
+      }
     }
   }
   return result;
@@ -2118,21 +2207,29 @@ async function debugTNewsRaw() {
   }
   if (!bodyText) bodyText = $.text();
 
+  // Show all occurrences of each header for debugging (incl. เฉพาะกิจ boundary)
+  const DEBUG_HEADERS = {
+    VN_HAN_EKKA: ['ผลหวยฮานอยเฉพาะกิจ', 'ฮานอยเฉพาะกิจ'],
+    VN_HAN:      ['ผลหวยฮานอยปกติ', 'ฮานอยปกติ'],
+    VN_HAN_SP:   ['ผลหวยฮานอยพิเศษ', 'ฮานอยพิเศษ'],
+    VN_HAN_VIP:  ['ผลหวยฮานอย vip', 'ฮานอย vip', 'ฮานอยวีไอพี'],
+  };
   const rawChunks = {};
-  for (const [lotteryType, headers] of Object.entries(TNEWS_SECTION_HEADERS)) {
+  const bodyLower2 = bodyText.toLowerCase();
+  for (const [lotteryType, headers] of Object.entries(DEBUG_HEADERS)) {
+    const occurrences = [];
     for (const header of headers) {
-      const idx = bodyText.toLowerCase().indexOf(header.toLowerCase());
-      if (idx === -1) continue;
-      rawChunks[lotteryType] = {
-        header,
-        position: idx,
-        chunk: bodyText.slice(idx, idx + 300).replace(/\s+/g, ' ').trim(),
-      };
-      break;
+      const hdrLow = header.toLowerCase();
+      let p = 0;
+      while (true) {
+        const idx = bodyLower2.indexOf(hdrLow, p);
+        if (idx === -1) break;
+        occurrences.push({ header, position: idx, chunk: bodyText.slice(idx, idx + 300).replace(/\s+/g, ' ').trim() });
+        p = idx + 1;
+      }
     }
-    if (!rawChunks[lotteryType]) {
-      rawChunks[lotteryType] = { header: null, position: -1, chunk: null };
-    }
+    occurrences.sort((a, b) => a.position - b.position);
+    rawChunks[lotteryType] = occurrences.length ? occurrences : [{ header: null, position: -1, chunk: null }];
   }
 
   const parsedData = parseTNewsSections(html);
