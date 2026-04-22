@@ -139,8 +139,9 @@ async function notify(message) {
  */
 async function sendDepositNotif(info) {
   const creds = await getLineCredentials();
-  if (!creds.notifyDeposit) return;
-  if (!creds.notifyEnabled && !creds.botEnabled) return;
+  console.log(`[LINE] sendDepositNotif — notifyEnabled=${creds.notifyEnabled} botEnabled=${creds.botEnabled} notifyDeposit=${creds.notifyDeposit} notifyToken=${creds.notifyToken?'set':'(empty)'} groupId=${creds.groupId?'set':'(empty)'}`);
+  if (!creds.notifyDeposit) { console.log('[LINE] skip: notifyDeposit=false'); return; }
+  if (!creds.notifyEnabled && !creds.botEnabled) { console.log('[LINE] skip: no channel enabled'); return; }
 
   const statusTH = info.status === 'approved' ? '✅ อนุมัติแล้ว'
                  : info.status === 'rejected'  ? '❌ ปฏิเสธ'

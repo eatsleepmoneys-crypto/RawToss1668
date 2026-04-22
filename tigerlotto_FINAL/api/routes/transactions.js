@@ -126,16 +126,14 @@ router.post('/deposit', authMember, upload.single('slip'),
 
     // ── LINE Notification helper (fire-and-forget) ────────────────
     const _lineNotifyDep = (status, slipVerified) => {
-      try {
-        require('../services/lineService').sendDepositNotif({
-          name        : req.member.name || '-',
-          phone       : req.member.phone || '-',
-          amount,
-          bank_code   : bank_code || member?.bank_code || '-',
-          status,
-          slipVerified,
-        });
-      } catch {}
+      require('../services/lineService').sendDepositNotif({
+        name        : req.member.name || '-',
+        phone       : req.member.phone || '-',
+        amount,
+        bank_code   : bank_code || member?.bank_code || '-',
+        status,
+        slipVerified,
+      }).catch(e => console.error('[LINE] sendDepositNotif error:', e.message));
     };
 
     // ── Auto-approve ─────────────────────────────────────────────
@@ -252,17 +250,15 @@ router.post('/withdraw', authMember,
 
     // ── LINE Notification helper for withdrawal (fire-and-forget) ──────────
     const _lineNotifyWd = (method) => {
-      try {
-        require('../services/lineService').sendWithdrawNotif({
-          name        : req.member.name  || '-',
-          phone       : req.member.phone || '-',
-          amount,
-          bank_code   : m.bank_code    || '-',
-          bank_account: m.bank_account || '-',
-          bank_name   : m.bank_name    || '-',
-          method,
-        });
-      } catch {}
+      require('../services/lineService').sendWithdrawNotif({
+        name        : req.member.name  || '-',
+        phone       : req.member.phone || '-',
+        amount,
+        bank_code   : m.bank_code    || '-',
+        bank_account: m.bank_account || '-',
+        bank_name   : m.bank_name    || '-',
+        method,
+      }).catch(e => console.error('[LINE] sendWithdrawNotif error:', e.message));
     };
 
     // ── KBank API Transfer ─────────────────────────────────────────────────
@@ -386,7 +382,7 @@ router.patch('/admin/deposits/:id/approve', authAdmin, rbac.requirePerm('deposit
   await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
     [req.admin.id, 'deposit.approve', 'deposit', dep.id, `฿${dep.amount}`, req.ip]);
   // LINE notification
-  try { require('../services/lineService').sendDepositNotif({ name: dep.name, phone: dep.phone, amount: dep.amount, bank_code: dep.bank_code, status: 'approved', adminName: req.admin.name }); } catch {}
+  require('../services/lineService').sendDepositNotif({ name: dep.name, phone: dep.phone, amount: dep.amount, bank_code: dep.bank_code, status: 'approved', adminName: req.admin.name }).catch(e => console.error('[LINE] deposit approve notif error:', e.message));
   res.json({ success: true, message: `อนุมัติฝากเงิน ฿${dep.amount} แล้ว` });
 });
 
@@ -400,7 +396,7 @@ router.patch('/admin/deposits/:id/reject', authAdmin, rbac.requirePerm('deposits
   await query('INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
     [dep.member_id, '❌ ฝากเงินไม่สำเร็จ', `รายการฝาก ฿${dep.amount} ถูกปฏิเสธ: ${note||'กรุณาติดต่อ Admin'}`, 'deposit']);
   // LINE notification
-  try { require('../services/lineService').sendDepositNotif({ name: dep.name, phone: dep.phone, amount: dep.amount, bank_code: dep.bank_code, status: 'rejected', note, adminName: req.admin.name }); } catch {}
+  require('../services/lineService').sendDepositNotif({ name: dep.name, phone: dep.phone, amount: dep.amount, bank_code: dep.bank_code, status: 'rejected', note, adminName: req.admin.name }).catch(e => console.error('[LINE] deposit reject notif error:', e.message));
   res.json({ success: true, message: 'ปฏิเสธรายการแล้ว' });
 });
 
@@ -442,7 +438,7 @@ router.patch('/admin/withdrawals/:id/process', authAdmin, rbac.requirePerm('with
   await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
     [req.admin.id, 'withdraw.complete', 'withdrawal', wd.id, `฿${wd.amount} ref:${ref_no}`, req.ip]);
   // LINE notification
-  try { require('../services/lineService').sendWithdrawNotif({ name: wd.name, phone: wd.phone, amount: wd.amount, bank_code: wd.bank_code, bank_account: wd.bank_account, bank_name: wd.bank_name, method: 'approved', refNo: ref_no, adminName: req.admin.name }); } catch {}
+  require('../services/lineService').sendWithdrawNotif({ name: wd.name, phone: wd.phone, amount: wd.amount, bank_code: wd.bank_code, bank_account: wd.bank_account, bank_name: wd.bank_name, method: 'approved', refNo: ref_no, adminName: req.admin.name }).catch(e => console.error('[LINE] withdraw approve notif error:', e.message));
   res.json({ success: true, message: `โอนเงิน ฿${wd.amount} สำเร็จ` });
 });
 
@@ -464,7 +460,7 @@ router.patch('/admin/withdrawals/:id/reject', authAdmin, rbac.requirePerm('withd
       [wd.member_id, '❌ ถอนเงินไม่สำเร็จ', `รายการถอน ฿${wd.amount} ถูกปฏิเสธ เงินได้คืนในกระเป๋าแล้ว`, 'withdraw']);
   });
   // LINE notification
-  try { require('../services/lineService').sendWithdrawNotif({ name: wd.name, phone: wd.phone, amount: wd.amount, bank_code: wd.bank_code, bank_account: wd.bank_account, bank_name: wd.bank_name, method: 'rejected', note, adminName: req.admin.name }); } catch {}
+  require('../services/lineService').sendWithdrawNotif({ name: wd.name, phone: wd.phone, amount: wd.amount, bank_code: wd.bank_code, bank_account: wd.bank_account, bank_name: wd.bank_name, method: 'rejected', note, adminName: req.admin.name }).catch(e => console.error('[LINE] withdraw reject notif error:', e.message));
   res.json({ success: true, message: 'ปฏิเสธและคืนเงินแล้ว' });
 });
 

@@ -732,7 +732,7 @@ router.post('/agent-deposits/:id/approve', authAdmin, rbac.requirePerm('finance.
     );
   });
   // LINE notification
-  try { require('../services/lineService').sendAgentDepositNotif({ agentName: dep.agent_name, phone: dep.agent_phone, amount: dep.amount, bank_code: dep.a_bank_code || dep.bank_code, status: 'approved', adminName: req.admin.name }); } catch {}
+  require('../services/lineService').sendAgentDepositNotif({ agentName: dep.agent_name, phone: dep.agent_phone, amount: dep.amount, bank_code: dep.a_bank_code || dep.bank_code, status: 'approved', adminName: req.admin.name }).catch(e => console.error('[LINE] agent deposit approve notif error:', e.message));
   res.json({ success: true, message: 'อนุมัติฝากเงินสำเร็จ' });
 });
 
@@ -749,7 +749,7 @@ router.post('/agent-deposits/:id/reject', authAdmin, rbac.requirePerm('finance.m
     [note || null, req.admin.id, depId]
   );
   // LINE notification
-  if (dep) try { require('../services/lineService').sendAgentDepositNotif({ agentName: dep?.agent_name, phone: dep?.agent_phone, amount: dep?.amount, status: 'rejected', note, adminName: req.admin.name }); } catch {}
+  if (dep) require('../services/lineService').sendAgentDepositNotif({ agentName: dep.agent_name, phone: dep.agent_phone, amount: dep.amount, status: 'rejected', note, adminName: req.admin.name }).catch(e => console.error('[LINE] agent deposit reject notif error:', e.message));
   res.json({ success: true, message: 'ปฏิเสธคำขอฝากเงินแล้ว' });
 });
 
@@ -809,18 +809,16 @@ router.post('/agent-withdrawals/:id/approve', authAdmin, rbac.requirePerm('finan
     );
   });
 
-  try {
-    require('../services/lineService').sendAgentWithdrawNotif({
-      agentName  : wd.agent_name,
-      phone      : wd.agent_phone,
-      amount     : wd.amount,
-      bank_code  : wd.bank_code,
-      bank_account: wd.bank_account,
-      bank_name  : wd.bank_name,
-      status     : 'approved',
-      adminName  : req.admin.name,
-    });
-  } catch {}
+  require('../services/lineService').sendAgentWithdrawNotif({
+    agentName  : wd.agent_name,
+    phone      : wd.agent_phone,
+    amount     : wd.amount,
+    bank_code  : wd.bank_code,
+    bank_account: wd.bank_account,
+    bank_name  : wd.bank_name,
+    status     : 'approved',
+    adminName  : req.admin.name,
+  }).catch(e => console.error('[LINE] agent withdraw approve notif error:', e.message));
 
   res.json({ success: true, message: 'อนุมัติถอนเงินสำเร็จ' });
 });
@@ -843,19 +841,17 @@ router.post('/agent-withdrawals/:id/reject', authAdmin, rbac.requirePerm('financ
     [note || null, req.admin.id, wdId]
   );
 
-  if (wd) try {
-    require('../services/lineService').sendAgentWithdrawNotif({
-      agentName  : wd.agent_name,
-      phone      : wd.agent_phone,
-      amount     : wd.amount,
-      bank_code  : wd.bank_code,
-      bank_account: wd.bank_account,
-      bank_name  : wd.bank_name,
-      status     : 'rejected',
-      note,
-      adminName  : req.admin.name,
-    });
-  } catch {}
+  if (wd) require('../services/lineService').sendAgentWithdrawNotif({
+    agentName  : wd.agent_name,
+    phone      : wd.agent_phone,
+    amount     : wd.amount,
+    bank_code  : wd.bank_code,
+    bank_account: wd.bank_account,
+    bank_name  : wd.bank_name,
+    status     : 'rejected',
+    note,
+    adminName  : req.admin.name,
+  }).catch(e => console.error('[LINE] agent withdraw reject notif error:', e.message));
 
   res.json({ success: true, message: 'ปฏิเสธคำขอถอนเงินแล้ว' });
 });
