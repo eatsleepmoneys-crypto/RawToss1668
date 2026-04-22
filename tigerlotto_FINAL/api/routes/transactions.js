@@ -115,11 +115,11 @@ router.post('/deposit', authMember, upload.single('slip'),
     }
 
     // Insert deposit record
-    const [result] = await query(
+    const result = await query(
       `INSERT INTO deposits
          (uuid,member_id,amount,bank_code,slip_image,transfer_at,status,slip_verify_status,slip_verify_data,slip_ref_id,note)
        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
-      [uuidv4(), req.member.id, amount, bank_code, slipImage,
+      [uuidv4(), req.member.id, amount, bank_code || null, slipImage,
        transfer_at || new Date(), 'pending',
        verifyStatus, verifyData, transRef, depositNote]
     );
