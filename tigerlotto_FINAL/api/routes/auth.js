@@ -117,7 +117,7 @@ router.post('/register', validateRegister, async (req, res) => {
       await conn.execute('SELECT value FROM settings WHERE `key`="referral_commission"').catch(()=>{});
     }
 
-    const [newMember] = await conn.execute('SELECT id,uuid,name,phone,member_code,balance FROM members WHERE id=?', [newId]);
+    const [newMember] = await conn.execute('SELECT id,uuid,name,phone,member_code,balance,bonus_balance,level,bank_code,bank_account,bank_name FROM members WHERE id=?', [newId]);
     return newMember[0];
   });
 
@@ -161,7 +161,12 @@ router.post('/login', loginLimit,
       success: true, message: 'เข้าสู่ระบบสำเร็จ',
       data: {
         token,
-        member: { id: member.id, uuid: member.uuid, name: member.name, phone: member.phone, balance: member.balance, level: member.level }
+        member: {
+          id: member.id, uuid: member.uuid, name: member.name, phone: member.phone,
+          balance: member.balance, bonus_balance: member.bonus_balance,
+          level: member.level, member_code: member.member_code,
+          bank_code: member.bank_code, bank_account: member.bank_account, bank_name: member.bank_name,
+        }
       }
     });
   }
