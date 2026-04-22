@@ -85,6 +85,7 @@ app.use('/api/admin',        require('./routes/admin'));
 app.use('/api/settings',     require('./routes/settings'));
 app.use('/api/agent',         require('./routes/agent'));
 app.use('/api/number-limits', require('./routes/numberLimits'));
+app.use('/api/webhooks/line', require('./routes/lineWebhook'));
 
 // ─── Health Check ─────────────────────────────────
 app.get('/api/health', (req, res) => {

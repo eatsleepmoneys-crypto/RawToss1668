@@ -333,6 +333,22 @@ router.put('/admin/line-notify', authAdmin, rbac.requirePerm('settings.manage'),
   res.json({ success: true, message: 'บันทึกการตั้งค่า LINE แล้ว' });
 });
 
+// GET /api/settings/admin/line-notify/webhook-log — ดู Group ID ที่ตรวจเจอ
+router.get('/admin/line-notify/webhook-log', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const rows = await query(
+    "SELECT `key`, value FROM settings WHERE `key` IN ('line_group_id','line_webhook_log')"
+  );
+  const map = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  let lastEvent = null;
+  try { lastEvent = JSON.parse(map['line_webhook_log'] || 'null'); } catch {}
+  res.json({
+    success   : true,
+    group_id  : map['line_group_id'] || '',
+    last_event: lastEvent,
+  });
+});
+
 // POST /api/settings/admin/line-notify/test
 router.post('/admin/line-notify/test', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
   try {

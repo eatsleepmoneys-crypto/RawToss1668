@@ -2779,10 +2779,58 @@ async function testKBankConnection(){
 }
 
 // ── LINE Notification Settings ────────────────────────────────────────────
+// ── LINE Webhook URL helper ────────────────────────────────────────────────
+let _detectedGroupId = '';
+
+function getLineWebhookUrl() {
+  // ดึง base URL จาก window.location หรือ API_BASE
+  const base = (typeof API_BASE !== 'undefined' ? API_BASE : window.location.origin + '/api')
+    .replace(/\/api$/, '');
+  return `${base}/api/webhooks/line`;
+}
+
+function copyLineWebhookUrl() {
+  const url = getLineWebhookUrl();
+  navigator.clipboard.writeText(url).then(() => toast('คัดลอกแล้ว', url));
+}
+
+async function refreshLineGroupId() {
+  const el = document.getElementById('line-group-detected');
+  if(el) el.innerHTML = '⏳ กำลังตรวจสอบ...';
+  try {
+    const d = await apiFetch('/settings/admin/line-notify/webhook-log', {}, 'admin');
+    const gid = d.group_id || '';
+    const ev  = d.last_event;
+    _detectedGroupId = gid;
+    const btnUse = document.getElementById('btn-use-group-id');
+    if(gid) {
+      if(el) el.innerHTML =
+        `<span style="color:#06c755">✅ พบ Group ID: <b>${gid}</b></span>` +
+        (ev ? `<br><span style="color:#888;font-size:11px">Event: ${ev.type} | เวลา: ${ev.at?.slice(0,19)||'-'}</span>` : '');
+      if(btnUse) { btnUse.style.display='inline-block'; }
+    } else {
+      if(el) el.innerHTML = '<span style="color:#888">— ยังไม่พบ Group ID · เพิ่ม Bot เข้ากลุ่มและพิมพ์ข้อความก่อน</span>';
+      if(btnUse) btnUse.style.display='none';
+    }
+  } catch(e) {
+    if(el) el.innerHTML = `<span style="color:#db5c5c">❌ ${e.message}</span>`;
+  }
+}
+
+function useDetectedGroupId() {
+  if(!_detectedGroupId) return;
+  const el = document.getElementById('line-group-id');
+  if(el) { el.value = _detectedGroupId; }
+  toast('สำเร็จ', `ใส่ Group ID: ${_detectedGroupId} แล้ว — กด "บันทึก" เพื่อบันทึก`);
+}
+
 async function loadLineSettings(){
   try {
     const d = await apiFetch('/settings/admin/line-notify', {}, 'admin');
     const s = d.data || {};
+    // แสดง Webhook URL
+    const wuEl = document.getElementById('line-webhook-url');
+    if(wuEl) wuEl.textContent = getLineWebhookUrl();
     const setChk = (id, v) => { const el=document.getElementById(id); if(el) el.checked=!!v; };
     const setVal = (id, v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
     setChk('line-notify-enabled',  s.notify_enabled);
@@ -4286,7 +4334,26 @@ api:()=>`
       </div>
     </div>
     <div style="font-size:11px;color:#888;line-height:1.8;margin-top:8px">
-      วิธีหา Group ID: เพิ่ม Bot เข้ากลุ่ม LINE → Bot จะรับ Webhook event ที่มี <code>source.groupId</code> → คัดลอกมาใส่
+      วิธีหา Group ID: เพิ่ม Bot เข้ากลุ่ม LINE → ตั้ง Webhook URL ด้านล่าง → พิมพ์อะไรก็ได้ในกลุ่ม → ระบบจะจับ Group ID ให้อัตโนมัติ
+    </div>
+  </div>
+
+  <!-- Webhook helper -->
+  <div style="background:#0d1a0d;border:1px solid #06c75533;border-radius:10px;padding:14px;margin-bottom:14px">
+    <b style="font-size:13px;color:#06c755">🔍 ตรวจจับ Group ID อัตโนมัติ</b>
+    <div style="margin-top:8px;font-size:12px;color:#aaa">
+      ตั้งค่า Webhook URL ใน <a href="https://developers.line.biz" target="_blank" style="color:#06c755">LINE Developers Console</a>:
+    </div>
+    <div style="margin-top:6px;display:flex;align-items:center;gap:8px">
+      <code id="line-webhook-url" style="flex:1;background:#111;padding:8px 12px;border-radius:6px;font-size:12px;color:#06c755;word-break:break-all">⏳ กำลังโหลด...</code>
+      <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;white-space:nowrap" onclick="copyLineWebhookUrl()">📋 คัดลอก</button>
+    </div>
+    <div id="line-group-detected" style="margin-top:10px;padding:10px;background:#111;border-radius:8px;font-size:12px;color:#555">
+      — พิมพ์อะไรก็ได้ในกลุ่ม LINE แล้วกด "รีเฟรช Group ID"
+    </div>
+    <div style="margin-top:8px;display:flex;gap:8px">
+      <button class="btn btn-outline" style="font-size:12px" onclick="refreshLineGroupId()">🔄 รีเฟรช Group ID</button>
+      <button class="btn btn-outline" style="font-size:12px;color:#06c755;border-color:#06c75544" id="btn-use-group-id" style="display:none" onclick="useDetectedGroupId()">✅ ใช้ Group ID นี้</button>
     </div>
   </div>
 
