@@ -281,6 +281,70 @@ router.post('/admin/kbank/test', authAdmin, rbac.requirePerm('settings.view'), a
 });
 
 // ═══════════════════════════════════════════════════════════
+//  LINE NOTIFICATION SETTINGS
+// ═══════════════════════════════════════════════════════════
+
+// GET /api/settings/admin/line-notify
+router.get('/admin/line-notify', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const rows = await query("SELECT `key`, value FROM settings WHERE `group`='line'");
+  const map = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  // Mask tokens
+  const maskToken = (t) => t && t.length > 6 ? t.slice(0, 4) + '•'.repeat(Math.min(t.length - 6, 16)) + t.slice(-4) : (t ? '••••' : '');
+  res.json({
+    success: true,
+    data: {
+      notify_enabled  : map['line_notify_enabled']  === 'true',
+      notify_token    : maskToken(map['line_notify_token'] || ''),
+      has_notify_token: (map['line_notify_token'] || '').length > 0,
+      bot_enabled     : map['line_bot_enabled']     === 'true',
+      bot_token       : maskToken(map['line_bot_token'] || ''),
+      has_bot_token   : (map['line_bot_token'] || '').length > 0,
+      group_id        : map['line_group_id']        || '',
+      notify_deposit  : map['line_notify_deposit']  !== 'false',
+      notify_withdraw : map['line_notify_withdraw'] !== 'false',
+    }
+  });
+});
+
+// PUT /api/settings/admin/line-notify
+router.put('/admin/line-notify', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const { notify_enabled, notify_token, bot_enabled, bot_token, group_id, notify_deposit, notify_withdraw } = req.body;
+  const updates = {};
+  if (typeof notify_enabled  !== 'undefined') updates['line_notify_enabled']  = String(notify_enabled);
+  if (typeof bot_enabled     !== 'undefined') updates['line_bot_enabled']     = String(bot_enabled);
+  if (group_id               !== undefined)   updates['line_group_id']        = group_id;
+  if (typeof notify_deposit  !== 'undefined') updates['line_notify_deposit']  = String(notify_deposit);
+  if (typeof notify_withdraw !== 'undefined') updates['line_notify_withdraw'] = String(notify_withdraw);
+  // Only update tokens if real value (not masked)
+  if (notify_token && !notify_token.includes('•')) updates['line_notify_token'] = notify_token;
+  if (bot_token    && !bot_token.includes('•'))    updates['line_bot_token']    = bot_token;
+
+  const BOOL_KEYS = ['line_notify_enabled','line_bot_enabled','line_notify_deposit','line_notify_withdraw'];
+  for (const [key, value] of Object.entries(updates)) {
+    await query(
+      `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES (?,?,?,?)
+       ON DUPLICATE KEY UPDATE value=?`,
+      [key, value, BOOL_KEYS.includes(key) ? 'boolean' : 'string', 'line', value]
+    );
+  }
+  await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+    [req.admin.id, 'settings.line', JSON.stringify(Object.keys(updates)), req.ip]);
+  res.json({ success: true, message: 'บันทึกการตั้งค่า LINE แล้ว' });
+});
+
+// POST /api/settings/admin/line-notify/test
+router.post('/admin/line-notify/test', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  try {
+    const { testNotify } = require('../services/lineService');
+    const result = await testNotify();
+    res.json(result);
+  } catch (err) {
+    res.json({ success: false, message: `⚠️ ทดสอบล้มเหลว: ${err.message}` });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 //  SCRAPERAPI PROXY KEY
 // ═══════════════════════════════════════════════════════════
 const axios = require('axios');

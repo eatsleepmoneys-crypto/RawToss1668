@@ -546,6 +546,13 @@ const SEEDS = [
     ('kbank_client_secret','','string','kbank'),
     ('kbank_account_no','','string','kbank'),
     ('kbank_account_name','','string','kbank'),
+    ('line_notify_enabled','false','boolean','line'),
+    ('line_notify_token','','string','line'),
+    ('line_bot_enabled','false','boolean','line'),
+    ('line_bot_token','','string','line'),
+    ('line_group_id','','string','line'),
+    ('line_notify_deposit','true','boolean','line'),
+    ('line_notify_withdraw','true','boolean','line'),
     ('bonus_new_member','50','number','promotion'),
     ('cashback_percent','5','number','promotion'),
     ('referral_commission','3','number','promotion'),
@@ -830,6 +837,15 @@ async function migrate() {
       ('kbank_client_secret','','string','kbank'),
       ('kbank_account_no','','string','kbank'),
       ('kbank_account_name','','string','kbank')`,
+    // line notification settings — insert if not exist
+    `INSERT IGNORE INTO \`settings\` (\`key\`,value,type,\`group\`) VALUES
+      ('line_notify_enabled','false','boolean','line'),
+      ('line_notify_token','','string','line'),
+      ('line_bot_enabled','false','boolean','line'),
+      ('line_bot_token','','string','line'),
+      ('line_group_id','','string','line'),
+      ('line_notify_deposit','true','boolean','line'),
+      ('line_notify_withdraw','true','boolean','line')`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

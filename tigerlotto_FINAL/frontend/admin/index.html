@@ -2778,12 +2778,65 @@ async function testKBankConnection(){
   }
 }
 
+// ── LINE Notification Settings ────────────────────────────────────────────
+async function loadLineSettings(){
+  try {
+    const d = await apiFetch('/settings/admin/line-notify', {}, 'admin');
+    const s = d.data || {};
+    const setChk = (id, v) => { const el=document.getElementById(id); if(el) el.checked=!!v; };
+    const setVal = (id, v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
+    setChk('line-notify-enabled',  s.notify_enabled);
+    setChk('line-bot-enabled',     s.bot_enabled);
+    setChk('line-notify-deposit',  s.notify_deposit !== false);
+    setChk('line-notify-withdraw', s.notify_withdraw !== false);
+    setVal('line-group-id', s.group_id);
+    // Show masked hint for tokens
+    if(s.has_notify_token){ const el=document.getElementById('line-notify-token'); if(el) el.placeholder=s.notify_token+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
+    if(s.has_bot_token)   { const el=document.getElementById('line-bot-token');    if(el) el.placeholder=s.bot_token+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
+  } catch(e) { console.warn('loadLineSettings', e.message); }
+}
+
+async function saveLineSettings(){
+  const payload = {
+    notify_enabled  : document.getElementById('line-notify-enabled')?.checked  ?? false,
+    notify_token    : document.getElementById('line-notify-token')?.value?.trim()  || '',
+    bot_enabled     : document.getElementById('line-bot-enabled')?.checked     ?? false,
+    bot_token       : document.getElementById('line-bot-token')?.value?.trim()    || '',
+    group_id        : document.getElementById('line-group-id')?.value?.trim()     || '',
+    notify_deposit  : document.getElementById('line-notify-deposit')?.checked  ?? true,
+    notify_withdraw : document.getElementById('line-notify-withdraw')?.checked ?? true,
+  };
+  try {
+    await apiFetch('/settings/admin/line-notify', { method:'PUT', body: JSON.stringify(payload) }, 'admin');
+    toast('สำเร็จ', 'บันทึกการตั้งค่า LINE แล้ว');
+    document.getElementById('line-notify-token').value = '';
+    document.getElementById('line-bot-token').value    = '';
+    await loadLineSettings();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function testLineNotify(){
+  const statusEl = document.getElementById('line-status');
+  if(statusEl) statusEl.innerHTML = '⏳ กำลังส่งข้อความทดสอบ...';
+  try {
+    const d = await apiFetch('/settings/admin/line-notify/test', { method:'POST' }, 'admin');
+    if(statusEl){
+      statusEl.innerHTML = d.success
+        ? `<span style="color:#06c755">${d.message}</span>`
+        : `<span style="color:#db5c5c">${d.message}</span>`;
+    }
+  } catch(e){
+    if(statusEl) statusEl.innerHTML = `<span style="color:#db5c5c">❌ ${e.message}</span>`;
+  }
+}
+
 // ── Patch loadApiSettings to also load SlipOK + KBank ─────────────────────
 const _origLoadApiSettings = loadApiSettings;
 loadApiSettings = async function(){
   await _origLoadApiSettings();
   await loadSlipOKSettings();
   await loadKBankSettings();
+  await loadLineSettings();
   // Wire checkbox label update
   const cb = document.getElementById('slipok-enabled');
   if(cb) cb.addEventListener('change', ()=>{
@@ -4181,6 +4234,82 @@ api:()=>`
     1) ไป <a href="https://apiportal.kasikornbank.com" target="_blank" style="color:#1dbe72">apiportal.kasikornbank.com</a>
     → 2) สมัคร + เลือก Product "Fund Transfer" → 3) รับ Consumer Key + Secret → 4) ใส่ข้างบน → 5) ทดสอบ Sandbox ก่อน<br>
     <span style="color:#888">เมื่อเปิด KBank API: ระบบจะโอนเงินจริงทันทีเมื่อสมาชิกถอน (ต้องเปิด "ถอนอัตโนมัติ" ในการตั้งค่าการเงินด้วย)</span>
+  </div>
+</div>
+
+<div class="api-card" style="margin-top:10px;border-color:#06c75544">
+  <div class="api-card-hdr">
+    <div class="api-card-title"><span class="ico">💬</span>LINE แจ้งเตือนกลุ่ม — ฝาก/ถอนเงิน</div>
+  </div>
+  <div class="alert" style="background:#071a0f;border:1px solid #06c75544;color:#a9dfbf;margin-bottom:14px;font-size:12px">
+    แจ้งเตือนกลุ่ม LINE อัตโนมัติเมื่อมีคำขอ<b>ฝาก</b>หรือ<b>ถอนเงิน</b><br>
+    รองรับ 2 วิธี: <b>LINE Notify</b> (ง่าย ฟรี) หรือ <b>LINE Messaging API</b> (Bot)
+  </div>
+
+  <!-- LINE Notify -->
+  <div style="background:#0d1f14;border:1px solid #06c75522;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <b style="font-size:13px;color:#06c755">📢 วิธีที่ 1 — LINE Notify (แนะนำ)</b>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+        <input type="checkbox" id="line-notify-enabled" style="width:16px;height:16px">
+        เปิดใช้งาน
+      </label>
+    </div>
+    <div class="fg" style="margin-bottom:8px">
+      <label style="font-size:12px">LINE Notify Token</label>
+      <input id="line-notify-token" class="fi-full" type="password" placeholder="ใส่ Token จาก notify-bot.line.me (ว่าง = คงเดิม)">
+    </div>
+    <div style="font-size:11px;color:#888;line-height:1.8">
+      วิธีรับ Token:
+      <b style="color:#06c755">1)</b> ไป <a href="https://notify-bot.line.me" target="_blank" style="color:#06c755">notify-bot.line.me</a>
+      → <b style="color:#06c755">2)</b> Login → <b style="color:#06c755">3)</b> "Generate Token" → <b style="color:#06c755">4)</b> เลือกกลุ่ม LINE → <b style="color:#06c755">5)</b> คัดลอก Token มาใส่
+    </div>
+  </div>
+
+  <!-- LINE Messaging API (Bot) -->
+  <div style="background:#0d1f14;border:1px solid #06c75522;border-radius:10px;padding:14px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <b style="font-size:13px;color:#06c755">🤖 วิธีที่ 2 — LINE Messaging API (Bot)</b>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px">
+        <input type="checkbox" id="line-bot-enabled" style="width:16px;height:16px">
+        เปิดใช้งาน
+      </label>
+    </div>
+    <div class="fi-row">
+      <div class="fg">
+        <label style="font-size:12px">Channel Access Token (Long-lived)</label>
+        <input id="line-bot-token" class="fi-full" type="password" placeholder="ใส่ Channel Access Token (ว่าง = คงเดิม)">
+      </div>
+      <div class="fg">
+        <label style="font-size:12px">Group ID (C... หรือ R...)</label>
+        <input id="line-group-id" class="fi-full" placeholder="เช่น C1234567890abcdef...">
+      </div>
+    </div>
+    <div style="font-size:11px;color:#888;line-height:1.8;margin-top:8px">
+      วิธีหา Group ID: เพิ่ม Bot เข้ากลุ่ม LINE → Bot จะรับ Webhook event ที่มี <code>source.groupId</code> → คัดลอกมาใส่
+    </div>
+  </div>
+
+  <!-- Notification toggles -->
+  <div class="fi-row" style="margin-bottom:14px">
+    <div class="fg">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px;font-size:13px">
+        <input type="checkbox" id="line-notify-deposit" style="width:16px;height:16px" checked>
+        แจ้งเตือนคำขอ <b>ฝากเงิน</b> 💰
+      </label>
+    </div>
+    <div class="fg">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px;font-size:13px">
+        <input type="checkbox" id="line-notify-withdraw" style="width:16px;height:16px" checked>
+        แจ้งเตือนคำขอ <b>ถอนเงิน</b> 🏧
+      </label>
+    </div>
+  </div>
+
+  <div id="line-status" style="padding:10px;background:#111;border-radius:8px;font-size:12px;color:#555;margin-bottom:10px">— ยังไม่ได้ทดสอบ</div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-gold" onclick="saveLineSettings()">💾 บันทึก</button>
+    <button class="btn btn-outline" onclick="testLineNotify()">🧪 ส่งข้อความทดสอบ</button>
   </div>
 </div>
 </div><!-- end api-security-tab -->
