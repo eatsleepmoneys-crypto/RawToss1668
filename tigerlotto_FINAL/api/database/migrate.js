@@ -551,7 +551,10 @@ const SEEDS = [
     ('line_enabled','false','boolean','line'),
     ('session_expire','60','number','security'),
     ('login_max_attempt','5','number','security'),
-    ('require_2fa_admin','true','boolean','security')`,
+    ('require_2fa_admin','true','boolean','security'),
+    ('slipok_enabled','false','boolean','slipok'),
+    ('slipok_api_key','','string','slipok'),
+    ('slipok_branch_id','','string','slipok')`,
 
   // Promotions (INSERT IGNORE)
   `INSERT IGNORE INTO \`promotions\` (\`code\`,\`name\`,\`type\`,\`value\`,\`is_percent\`,\`is_active\`) VALUES
@@ -786,6 +789,11 @@ async function migrate() {
     `ALTER TABLE \`bets\` ADD COLUMN \`rate_override\` DECIMAL(5,2) NULL DEFAULT NULL COMMENT 'null=full rate, 75=75% (tier2), 0=tier3' AFTER \`rate\``,
     // number_limits: unique key backup (in case table existed without it)
     `ALTER TABLE \`number_limits\` ADD UNIQUE KEY \`uq_nl\` (\`lottery_id\`, \`round_id\`, \`number\`, \`bet_type\`)`,
+    // deposits: เพิ่มคอลัมน์ SlipOK verification
+    `ALTER TABLE \`deposits\` ADD COLUMN \`slip_verify_status\` VARCHAR(20) NOT NULL DEFAULT 'skipped' COMMENT 'verified|failed|skipped|error' AFTER \`slip_image\``,
+    `ALTER TABLE \`deposits\` ADD COLUMN \`slip_verify_data\` JSON DEFAULT NULL AFTER \`slip_verify_status\``,
+    `ALTER TABLE \`deposits\` ADD COLUMN \`slip_ref_id\` VARCHAR(64) DEFAULT NULL COMMENT 'transRef จาก SlipOK ใช้ตรวจซ้ำ' AFTER \`slip_verify_data\``,
+    `ALTER TABLE \`deposits\` ADD INDEX \`idx_slip_ref\` (\`slip_ref_id\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

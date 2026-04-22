@@ -559,7 +559,7 @@ async function loadDeposits(){
   const tbody  = document.getElementById('deposits-tbody');
   const sumEl  = document.getElementById('dep-summary');
   if(!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
 
   try {
     const params = { limit: 50 };
@@ -575,8 +575,14 @@ async function loadDeposits(){
     }
 
     const DEP_STATUS = { pending:'รอตรวจ', approved:'อนุมัติ', rejected:'ปฏิเสธ' };
+    const SLIP_VERIFY_BADGE = {
+      verified : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#1a5c2a;color:#5cdb5c">✅ ผ่าน</span>',
+      failed   : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#5c1a1a;color:#db5c5c">❌ ไม่ผ่าน</span>',
+      skipped  : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#2a2a1a;color:#aaa">⏭ ข้าม</span>',
+      error    : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#3a1a2a;color:#f0a;color:#db9">⚠️ Error</span>',
+    };
     tbody.innerHTML = rows.length === 0
-      ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+      ? '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
       : rows.map(dep=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${dep.id}</td>
@@ -586,6 +592,7 @@ async function loadDeposits(){
         <td>${dep.bank_code||'-'}</td>
         <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
         <td>${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}</td>
+        <td>${SLIP_VERIFY_BADGE[dep.slip_verify_status] || SLIP_VERIFY_BADGE['skipped']}</td>
         <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${DEP_STATUS[dep.status]||dep.status}</span></td>
         <td>
           ${dep.status==='pending'?`
@@ -595,7 +602,7 @@ async function loadDeposits(){
         </td>
       </tr>`).join('');
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
     if(sumEl) sumEl.textContent = '';
   }
 }
@@ -2338,6 +2345,67 @@ async function loadApiSettings(){
   }catch(e){ console.warn('loadApiSettings:', e.message); }
 }
 
+// ── SlipOK Settings ───────────────────────────────────────────────────────
+
+async function loadSlipOKSettings(){
+  try {
+    const d = await apiFetch('/settings/admin/slipok', {}, 'admin');
+    if(!d.data) return;
+    const enabledEl = document.getElementById('slipok-enabled');
+    const labelEl   = document.getElementById('slipok-enabled-label');
+    const branchEl  = document.getElementById('slipok-branch-id');
+    if(enabledEl){ enabledEl.checked = d.data.enabled; if(labelEl) labelEl.textContent = d.data.enabled ? 'เปิดอยู่' : 'ปิดอยู่'; }
+    if(branchEl)  branchEl.value = d.data.branch_id || '';
+    const statusEl = document.getElementById('slipok-status');
+    if(statusEl && d.data.has_key) statusEl.innerHTML = '<span style="color:#5cdb5c">✅ มี API Key บันทึกอยู่แล้ว</span>';
+  } catch(e) { console.warn('loadSlipOKSettings', e.message); }
+}
+
+async function saveSlipOKSettings(){
+  const apiKey   = document.getElementById('slipok-api-key')?.value?.trim() || '';
+  const branchId = document.getElementById('slipok-branch-id')?.value?.trim() || '';
+  const enabled  = document.getElementById('slipok-enabled')?.checked ?? false;
+  try {
+    await apiFetch('/settings/admin/slipok', {
+      method: 'PUT',
+      body: JSON.stringify({ api_key: apiKey || undefined, branch_id: branchId, enabled })
+    }, 'admin');
+    toast('สำเร็จ', 'บันทึกการตั้งค่า SlipOK แล้ว');
+    document.getElementById('slipok-api-key').value = '';
+    const labelEl = document.getElementById('slipok-enabled-label');
+    if(labelEl) labelEl.textContent = enabled ? 'เปิดอยู่' : 'ปิดอยู่';
+    loadSlipOKSettings();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function testSlipOKConnection(){
+  const statusEl = document.getElementById('slipok-status');
+  if(statusEl) statusEl.innerHTML = '⏳ กำลังทดสอบ...';
+  try {
+    const d = await apiFetch('/settings/admin/slipok/test', { method:'POST' }, 'admin');
+    if(statusEl){
+      statusEl.innerHTML = d.success
+        ? `<span style="color:#5cdb5c">${d.message}</span>`
+        : `<span style="color:#db5c5c">${d.message}</span>`;
+    }
+  } catch(e){
+    if(statusEl) statusEl.innerHTML = `<span style="color:#db5c5c">❌ ${e.message}</span>`;
+  }
+}
+
+// ── Patch loadApiSettings to also load SlipOK ─────────────────────────────
+const _origLoadApiSettings = loadApiSettings;
+loadApiSettings = async function(){
+  await _origLoadApiSettings();
+  await loadSlipOKSettings();
+  // Wire checkbox label update
+  const cb = document.getElementById('slipok-enabled');
+  if(cb) cb.addEventListener('change', ()=>{
+    const lbl = document.getElementById('slipok-enabled-label');
+    if(lbl) lbl.textContent = cb.checked ? 'เปิดอยู่' : 'ปิดอยู่';
+  });
+};
+
 // GROUP → keys mapping
 const API_GROUP_KEYS = {
   line       : ['line_token','line_secret','line_channel_id','line_enabled'],
@@ -3075,8 +3143,8 @@ deposits:()=>`
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>#</th><th>สมาชิก</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร</th><th>เวลา</th><th>สลิป</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody id="deposits-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+      <thead><tr><th>#</th><th>สมาชิก</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร</th><th>เวลา</th><th>สลิป</th><th>SlipOK</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="deposits-tbody"><tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,
@@ -3480,6 +3548,50 @@ api:()=>`
     <button class="btn btn-outline" onclick="testScraperApiKey()">🧪 ทดสอบการเชื่อมต่อ</button>
   </div>
 </div>
+</div>
+</div><!-- end api-security-tab -->
+
+<div class="api-card" style="margin-top:10px;border-color:#00d4ff44">
+  <div class="api-card-hdr">
+    <div class="api-card-title"><span class="ico">🧾</span>SlipOK — ตรวจสลิปอัตโนมัติ</div>
+  </div>
+  <div class="alert" style="background:#0a2030;border:1px solid #00d4ff44;color:#aed6f1;margin-bottom:12px;font-size:12px">
+    ตรวจสลิปธนาคารอัตโนมัติ — หากสลิปถูกต้องระบบจะ<b>อนุมัติฝากเงินทันที</b> ไม่ต้องรอ Admin<br>
+    สมัคร/ดู Key ได้ที่ <a href="https://slipok.com" target="_blank" style="color:#00d4ff">slipok.com</a>
+    · ค่าบริการ ~฿0.30/สลิป
+  </div>
+  <div class="fi-row" style="margin-bottom:12px">
+    <div class="fg">
+      <label>เปิดใช้งาน SlipOK</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px">
+        <input type="checkbox" id="slipok-enabled" style="width:18px;height:18px;cursor:pointer">
+        <span style="font-size:13px" id="slipok-enabled-label">ปิดอยู่</span>
+      </label>
+    </div>
+    <div class="fg">
+      <label>สถานะการเชื่อมต่อ</label>
+      <div id="slipok-status" style="padding:10px;background:#111;border-radius:8px;font-size:12px;color:#555">— ยังไม่ได้ทดสอบ</div>
+    </div>
+  </div>
+  <div class="fi-row">
+    <div class="fg">
+      <label>x-authorization API Key</label>
+      <input id="slipok-api-key" class="fi-full" type="password" placeholder="ใส่ API Key จาก slipok.com Dashboard">
+    </div>
+    <div class="fg">
+      <label>Branch ID</label>
+      <input id="slipok-branch-id" class="fi-full" placeholder="เช่น 12345">
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="btn btn-gold" onclick="saveSlipOKSettings()">💾 บันทึก</button>
+    <button class="btn btn-outline" onclick="testSlipOKConnection()">🧪 ทดสอบการเชื่อมต่อ</button>
+  </div>
+  <div style="margin-top:12px;padding:10px;background:#0a1a0a;border-radius:8px;font-size:12px;color:#aaa">
+    <b style="color:#5cdb5c">ขั้นตอน:</b>
+    1) สมัครที่ slipok.com → 2) สร้าง Branch → 3) คัดลอก API Key + Branch ID → 4) วางด้านบน → 5) บันทึก → 6) ทดสอบ<br>
+    <span style="color:#888">เมื่อเปิดใช้งาน สลิปที่ผ่านการตรวจจะอนุมัติอัตโนมัติ สลิปที่ไม่ผ่านจะรอ Admin ตรวจสอบ</span>
+  </div>
 </div>
 </div><!-- end api-security-tab -->
 `,

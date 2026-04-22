@@ -44,11 +44,65 @@ router.post('/deposit', authMember, upload.single('slip'),
     if (amount > max) return res.status(400).json({ success: false, message: `ฝากสูงสุด ฿${max.toLocaleString()}` });
 
     const slipImage = req.file?.filename || null;
-    const [result] = await query(
-      'INSERT INTO deposits (uuid,member_id,amount,bank_code,slip_image,transfer_at,status) VALUES (?,?,?,?,?,?,?)',
-      [uuidv4(), req.member.id, amount, bank_code, slipImage, transfer_at || new Date(), 'pending']);
+    const slipPath  = slipImage ? require('path').join(process.env.UPLOAD_DIR || './uploads', slipImage) : null;
 
-    // Auto-approve if enabled
+    // ── SlipOK Verification ──────────────────────────────────────
+    let verifyStatus = 'skipped';
+    let verifyData   = null;
+    let transRef     = null;
+
+    if (slipPath) {
+      try {
+        const { verifySlip } = require('../services/slipVerifier');
+        const result = await verifySlip(slipPath, amount);
+
+        verifyData  = JSON.stringify({ reason: result.reason, ...result.data ? { data: result.data } : {} });
+        transRef    = result.transRef || null;
+
+        if (result.skip) {
+          // ปิดระบบ หรือ ยังไม่ตั้งค่า — ข้ามไปให้ admin ตรวจ
+          verifyStatus = 'skipped';
+        } else if (result.valid) {
+          verifyStatus = 'verified';
+        } else {
+          verifyStatus = 'failed';
+          // ❌ สลิปปลอม/ซ้ำ — ปฏิเสธทันที (ไม่รอ admin)
+          if (result.reason === 'DUPLICATE_SLIP' || result.reason === 'SLIP_INVALID') {
+            const { REASON_TH } = require('../services/slipVerifier');
+            const msg = REASON_TH[result.reason] || result.reason;
+            return res.status(400).json({ success: false, message: msg, reason: result.reason });
+          }
+          // amount_mismatch / expired — ส่งรอ admin ตรวจ
+        }
+      } catch (verifyErr) {
+        verifyStatus = 'error';
+        verifyData   = JSON.stringify({ reason: 'EXCEPTION', error: verifyErr.message });
+      }
+    }
+
+    // Insert deposit record
+    const [result] = await query(
+      `INSERT INTO deposits
+         (uuid,member_id,amount,bank_code,slip_image,transfer_at,status,slip_verify_status,slip_verify_data,slip_ref_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+      [uuidv4(), req.member.id, amount, bank_code, slipImage,
+       transfer_at || new Date(), 'pending',
+       verifyStatus, verifyData, transRef]
+    );
+
+    // ── Auto-approve ─────────────────────────────────────────────
+    // Case 1: SlipOK verified → อนุมัติอัตโนมัติทันที
+    if (verifyStatus === 'verified') {
+      await approveDeposit(result.insertId, req.member.id, amount, null);
+      return res.json({
+        success : true,
+        message : '✅ ตรวจสลิปผ่านแล้ว ฝากเงินสำเร็จ!',
+        auto    : true,
+        verified: true,
+      });
+    }
+
+    // Case 2: Auto-approve (legacy setting) — ใช้เมื่อ slipok ไม่ได้ตั้งค่า
     const autoRow = await query('SELECT value FROM settings WHERE `key`="auto_approve_deposit"');
     const autoMax = await query('SELECT value FROM settings WHERE `key`="auto_approve_max"');
     if (autoRow[0]?.value === 'true' && amount <= parseFloat(autoMax[0]?.value || 1000)) {
@@ -56,7 +110,11 @@ router.post('/deposit', authMember, upload.single('slip'),
       return res.json({ success: true, message: 'ฝากเงินสำเร็จ (อนุมัติอัตโนมัติ)', auto: true });
     }
 
-    res.status(201).json({ success: true, message: 'ส่งสลิปแล้ว กรุณารอการตรวจสอบ (5-15 นาที)', id: result.insertId });
+    // Case 3: รอ Admin ตรวจ
+    const waitMsg = verifyStatus === 'failed'
+      ? '⚠️ ระบบตรวจสลิปไม่ผ่านอัตโนมัติ กำลังรอ Admin ตรวจสอบ'
+      : 'ส่งสลิปแล้ว กรุณารอการตรวจสอบ (5-15 นาที)';
+    res.status(201).json({ success: true, message: waitMsg, id: result.insertId, verify_status: verifyStatus });
   }
 );
 

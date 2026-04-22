@@ -40,6 +40,7 @@ router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req,
     max_withdraw:'finance', auto_approve_max:'finance',
     bonus_new_member:'promotion', cashback_percent:'promotion', referral_commission:'promotion',
     session_expire:'security', pw_min_length:'security',
+    slipok_enabled:'slipok', slipok_api_key:'slipok', slipok_branch_id:'slipok',
   };
   for (const [key, value] of Object.entries(updates)) {
     const grp = KEY_GROUP[key] || 'general';
@@ -53,6 +54,84 @@ router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req,
   await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
     [req.admin.id, 'settings.update', JSON.stringify(Object.keys(updates)), req.ip]);
   res.json({ success: true, message: 'บันทึกการตั้งค่าแล้ว' });
+});
+
+// ═══════════════════════════════════════════════════════════
+//  SLIPOK SETTINGS
+// ═══════════════════════════════════════════════════════════
+
+// GET /api/settings/admin/slipok — ดึงการตั้งค่า SlipOK (ซ่อน api key บางส่วน)
+router.get('/admin/slipok', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const rows = await query("SELECT `key`, value FROM settings WHERE `group`='slipok'");
+  const map = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  // Mask api key (show last 4 only)
+  const rawKey = map['slipok_api_key'] || '';
+  const maskedKey = rawKey.length > 4
+    ? '•'.repeat(rawKey.length - 4) + rawKey.slice(-4)
+    : rawKey ? '••••' : '';
+  res.json({
+    success: true,
+    data: {
+      enabled   : map['slipok_enabled'] === 'true',
+      api_key   : maskedKey,
+      branch_id : map['slipok_branch_id'] || '',
+      has_key   : rawKey.length > 0,
+    }
+  });
+});
+
+// PUT /api/settings/admin/slipok — บันทึกการตั้งค่า SlipOK
+router.put('/admin/slipok', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const { api_key, branch_id, enabled } = req.body;
+  const updates = {};
+  if (typeof enabled !== 'undefined') updates['slipok_enabled'] = String(enabled);
+  if (branch_id !== undefined) updates['slipok_branch_id'] = branch_id;
+  // Only update api_key if a real value is provided (not masked)
+  if (api_key && !api_key.includes('•')) updates['slipok_api_key'] = api_key;
+
+  for (const [key, value] of Object.entries(updates)) {
+    await query(
+      `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES (?,?,?,?)
+       ON DUPLICATE KEY UPDATE value=?`,
+      [key, value, key === 'slipok_enabled' ? 'boolean' : 'string', 'slipok', value]
+    );
+  }
+  await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+    [req.admin.id, 'settings.slipok', JSON.stringify(Object.keys(updates)), req.ip]);
+  res.json({ success: true, message: 'บันทึกการตั้งค่า SlipOK แล้ว' });
+});
+
+// POST /api/settings/admin/slipok/test — ทดสอบการเชื่อมต่อ SlipOK
+router.post('/admin/slipok/test', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const { getSlipOKCredentials } = require('../services/slipVerifier');
+  const creds = await getSlipOKCredentials();
+  if (!creds.apiKey || !creds.branchId) {
+    return res.json({ success: false, message: 'กรุณาบันทึก API Key และ Branch ID ก่อนทดสอบ' });
+  }
+  // Call SlipOK check-balance endpoint (no file needed)
+  try {
+    const axios = require('axios');
+    const r = await axios.get(
+      `https://api.slipok.com/api/line/apikey/${creds.branchId}`,
+      {
+        headers: { 'x-authorization': creds.apiKey },
+        timeout: 10000,
+        validateStatus: () => true,
+      }
+    );
+    // SlipOK returns 405 (Method Not Allowed) on GET — which means credentials are valid
+    if (r.status === 405 || r.status === 200) {
+      return res.json({ success: true, message: `✅ เชื่อมต่อสำเร็จ! Branch ID: ${creds.branchId}`, status: r.status });
+    }
+    if (r.status === 401 || r.status === 403) {
+      return res.json({ success: false, message: `❌ API Key ไม่ถูกต้อง (${r.status})` });
+    }
+    return res.json({ success: true, message: `เชื่อมต่อได้ (HTTP ${r.status})`, status: r.status });
+  } catch (e) {
+    if (e.code === 'ECONNABORTED') return res.json({ success: false, message: 'ทดสอบล้มเหลว: Timeout' });
+    return res.json({ success: false, message: `ทดสอบล้มเหลว: ${e.message}` });
+  }
 });
 
 // GET /api/settings/admin/api-keys — sensitive API settings (superadmin only)
