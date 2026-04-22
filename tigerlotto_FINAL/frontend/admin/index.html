@@ -68,8 +68,24 @@ input,select,textarea{font-family:'Sarabun',sans-serif}
 .topbar-right{display:flex;align-items:center;gap:14px}
 .tb-btn{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;color:var(--muted);cursor:pointer;transition:.2s}
 .tb-btn:hover{color:var(--text);border-color:var(--gold)}
-.notif-dot{position:relative}
-.notif-dot::after{content:'5';position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+/* ── Notification Bell ── */
+.notif-wrap{position:relative}
+#notif-badge{display:none;position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:9px;font-weight:800;min-width:16px;height:16px;border-radius:50%;padding:0 3px;line-height:16px;text-align:center;pointer-events:none;animation:pulse .8s infinite}
+.notif-panel{display:none;position:absolute;top:calc(100% + 10px);right:0;width:320px;background:#181818;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.6);z-index:999;overflow:hidden}
+.notif-panel.open{display:block}
+.notif-panel-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.notif-panel-header span{font-size:13px;font-weight:700;color:var(--text)}
+.notif-panel-header button{font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0}
+.notif-panel-header button:hover{color:var(--gold)}
+.notif-items{max-height:360px;overflow-y:auto}
+.notif-item{padding:12px 16px;border-bottom:1px solid rgba(255,255,255,.04);cursor:pointer;display:flex;gap:10px;align-items:flex-start;transition:.15s}
+.notif-item:hover{background:rgba(255,255,255,.04)}
+.notif-item-icon{font-size:20px;flex-shrink:0;margin-top:2px}
+.notif-item-body{flex:1}
+.notif-item-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:2px}
+.notif-item-sub{font-size:11px;color:var(--muted)}
+.notif-item.unread .notif-item-title{color:var(--gold)}
+.notif-empty{padding:24px;text-align:center;color:var(--muted);font-size:13px}
 
 /* PAGE */
 .page{padding:24px;flex:1}
@@ -282,7 +298,21 @@ select.fi option{background:var(--card2)}
     <h2 id="page-title">📊 Dashboard</h2>
     <div class="topbar-right">
       <span style="font-size:12px;color:var(--muted)" id="tb-time"></span>
-      <button class="tb-btn notif-dot" onclick="nav('deposits')">🔔</button>
+      <div class="notif-wrap">
+        <button class="tb-btn" id="notif-btn" onclick="toggleNotifPanel()" style="position:relative;font-size:16px;padding:7px 10px">
+          🔔
+          <span id="notif-badge"></span>
+        </button>
+        <div class="notif-panel" id="notif-panel">
+          <div class="notif-panel-header">
+            <span>🔔 แจ้งเตือน</span>
+            <button onclick="markAllRead()">อ่านทั้งหมด ✓</button>
+          </div>
+          <div class="notif-items" id="notif-items">
+            <div class="notif-empty">⏳ กำลังโหลด...</div>
+          </div>
+        </div>
+      </div>
       <button class="tb-btn" onclick="doLogout()">ออกจากระบบ</button>
     </div>
   </div>
@@ -323,6 +353,7 @@ async function doLogin(){
     document.getElementById('sb-av').textContent   = data.admin.name[0];
     nav('dashboard');
     startClock();
+    startNotifPolling();
     toast('เข้าสู่ระบบสำเร็จ','ยินดีต้อนรับ '+data.admin.name+' 🐯');
   }catch(e){
     toast('เข้าสู่ระบบไม่สำเร็จ', e.message);
@@ -341,6 +372,110 @@ function startClock(){
     document.getElementById('tb-time').textContent =
       n.toLocaleTimeString('th-TH', { timeZone: 'Asia/Bangkok', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
   }, 1000);
+}
+
+// ═══ NOTIFICATION BELL ═══
+let _notifData      = { dep: 0, wd: 0, adep: 0, awd: 0 };
+let _notifSeen      = { dep: 0, wd: 0, adep: 0, awd: 0 };
+let _notifInterval  = null;
+let _notifPanelOpen = false;
+
+async function fetchNotifCounts() {
+  try {
+    const [depR, wdR, adepR] = await Promise.all([
+      API.AdminAPI.listDeposits({ status:'pending', limit:1 }).catch(()=>({total:0})),
+      API.AdminAPI.listWithdrawals({ status:'pending', limit:1 }).catch(()=>({total:0})),
+      API.AdminAPI.listAgentDeposits({ status:'pending', limit:1 }).catch(()=>({total:0})),
+    ]);
+    const dep  = depR.total  || 0;
+    const wd   = wdR.total   || 0;
+    const adep = adepR.total || 0;
+
+    // detect new items → sound alert
+    const prevTotal = _notifData.dep + _notifData.wd + _notifData.adep;
+    const newTotal  = dep + wd + adep;
+    if (prevTotal !== -1 && newTotal > prevTotal) playNotifySound();
+
+    _notifData = { dep, wd, adep };
+    updateNotifBadge();
+    if (_notifPanelOpen) renderNotifItems();
+  } catch(_) {}
+}
+
+function updateNotifBadge() {
+  const total = _notifData.dep + _notifData.wd + _notifData.adep;
+  const badge = document.getElementById('notif-badge');
+  if (!badge) return;
+  if (total > 0) {
+    badge.style.display = 'block';
+    badge.textContent   = total > 99 ? '99+' : total;
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  if (!panel) return;
+  _notifPanelOpen = !_notifPanelOpen;
+  panel.classList.toggle('open', _notifPanelOpen);
+  if (_notifPanelOpen) renderNotifItems();
+  // close when click outside
+  if (_notifPanelOpen) {
+    setTimeout(() => {
+      document.addEventListener('click', closeNotifOnOutside, { once: true });
+    }, 50);
+  }
+}
+
+function closeNotifOnOutside(e) {
+  const wrap = document.querySelector('.notif-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    document.getElementById('notif-panel')?.classList.remove('open');
+    _notifPanelOpen = false;
+  } else if (_notifPanelOpen) {
+    setTimeout(() => document.addEventListener('click', closeNotifOnOutside, { once: true }), 50);
+  }
+}
+
+function renderNotifItems() {
+  const el = document.getElementById('notif-items');
+  if (!el) return;
+  const items = [];
+  if (_notifData.dep > 0)  items.push({ icon:'💰', title:`ฝากเงิน รอตรวจ ${_notifData.dep} รายการ`,  sub:'คลิกเพื่อดูรายการฝากเงิน',   page:'deposits'   });
+  if (_notifData.wd > 0)   items.push({ icon:'🏧', title:`ถอนเงิน รอโอน ${_notifData.wd} รายการ`,    sub:'คลิกเพื่อดูรายการถอนเงิน',   page:'withdrawals' });
+  if (_notifData.adep > 0) items.push({ icon:'🤝', title:`ฝาก (เอเยนต์) ${_notifData.adep} รายการ`, sub:'คลิกเพื่อดูรายการฝาก Agent', page:'agentdeposits'});
+  if (items.length === 0) {
+    el.innerHTML = '<div class="notif-empty">✅ ไม่มีรายการรอดำเนินการ</div>';
+    return;
+  }
+  el.innerHTML = items.map(it => `
+    <div class="notif-item unread" onclick="notifGo('${it.page}')">
+      <div class="notif-item-icon">${it.icon}</div>
+      <div class="notif-item-body">
+        <div class="notif-item-title">${it.title}</div>
+        <div class="notif-item-sub">${it.sub}</div>
+      </div>
+    </div>`).join('');
+}
+
+function notifGo(page) {
+  document.getElementById('notif-panel')?.classList.remove('open');
+  _notifPanelOpen = false;
+  nav(page);
+}
+
+function markAllRead() {
+  document.getElementById('notif-panel')?.classList.remove('open');
+  _notifPanelOpen = false;
+  const badge = document.getElementById('notif-badge');
+  if (badge) badge.style.display = 'none';
+}
+
+function startNotifPolling() {
+  fetchNotifCounts(); // immediate
+  if (_notifInterval) clearInterval(_notifInterval);
+  _notifInterval = setInterval(fetchNotifCounts, 30000); // every 30s
 }
 
 // ═══ ROUTER ═══
