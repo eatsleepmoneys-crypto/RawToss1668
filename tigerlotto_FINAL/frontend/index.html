@@ -447,11 +447,11 @@ select.fi option{background:var(--card2)}
 
 <!-- ══════════ HERO ══════════ -->
 <section class="hero">
-  <div class="hero-badge">🔥 TigerLotto — หวยออนไลน์อันดับ 1</div>
-  <h1>ซื้อง่าย จ่ายจริง<br><span>ปลอดภัย 100%</span></h1>
+  <div class="hero-badge" id="hero-badge-el">🔥 TigerLotto — หวยออนไลน์อันดับ 1</div>
+  <h1><span id="hero-title1-el">ซื้อง่าย จ่ายจริง</span><br><span id="hero-title2-el">ปลอดภัย 100%</span></h1>
   <p class="hero-sub" id="hero-sub">⏳ กำลังโหลดข้อมูลงวด...</p>
   <div class="hero-cta">
-    <button class="btn btn-gold btn-lg" onclick="openAuth('register')">🎰 สมัครฟรี รับโบนัส 50 บาท</button>
+    <button class="btn btn-gold btn-lg" id="hero-cta1-btn" onclick="openAuth('register')">🎰 สมัครฟรี รับโบนัส 50 บาท</button>
     <button class="btn btn-ghost btn-lg" onclick="document.getElementById('buy').scrollIntoView({behavior:'smooth'})">ดูหวยทั้งหมด →</button>
   </div>
 
@@ -2245,16 +2245,19 @@ async function loadTicker(){
   try{
     const d = await API.LotteryAPI.getResults({ limit:5 });
     const results = d.data || [];
-    const items = [
-      ...results.map(r=>`🏆 ผลรางวัล ${r.lottery_name} งวด ${r.round_name}: รางวัลที่ 1 = ${r.prize_1st||'-'}`),
+    // Use custom ticker items from settings (set by applySiteSettings) or fallback defaults
+    const customItems = window._customTickerItems || [
       '🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!',
       '⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร',
       '🎯 เล่นหวยออนไลน์ปลอดภัย 100% จ่ายจริงทุกงวด',
+      '💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน',
     ];
-    if(items.length < 2) return; // keep static fallback
+    const liveResults = results.map(r=>`🏆 ผลรางวัล ${r.lottery_name} งวด ${r.round_name}: รางวัลที่ 1 = ${r.prize_1st||'-'}`);
+    const items = [...liveResults, ...customItems];
+    if(items.length < 2) return;
     const doubled = [...items,...items];
     ticker.innerHTML = doubled.map(i=>`<span class="tick-item">${i}</span>`).join('');
-  }catch(e){} // fallback: keep static items already in HTML
+  }catch(e){}
 }
 
 /* ─── Member Panel ─── */
@@ -2793,6 +2796,19 @@ function applySiteSettings(s){
     svgEl.style.display = 'none';
   } else if(imgEl && svgEl){
     imgEl.style.display = 'none'; svgEl.style.display = '';
+  }
+  // ── Hero text ──────────────────────────────────
+  const badgeEl  = document.getElementById('hero-badge-el');
+  const title1El = document.getElementById('hero-title1-el');
+  const title2El = document.getElementById('hero-title2-el');
+  const cta1Btn  = document.getElementById('hero-cta1-btn');
+  if(badgeEl  && s.hero_badge)  badgeEl.textContent  = s.hero_badge;
+  if(title1El && s.hero_title1) title1El.textContent = s.hero_title1;
+  if(title2El && s.hero_title2) title2El.textContent = s.hero_title2;
+  if(cta1Btn  && s.hero_cta1)  cta1Btn.textContent  = s.hero_cta1;
+  // ── Ticker custom items ─────────────────────────
+  if(s.ticker_items){
+    window._customTickerItems = s.ticker_items.split('\n').map(t=>t.trim()).filter(Boolean);
   }
 }
 

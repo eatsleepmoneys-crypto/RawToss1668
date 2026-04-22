@@ -1700,9 +1700,17 @@ async function loadBranding(){
     set('br-site-tagline', s.site_tagline || 'OFFICIAL');
     set('br-logo-url',     s.site_logo_url|| '');
     set('br-qr-url',       s.line_qr_url  || '');
+    // Hero text fields
+    set('br-hero-badge',  s.hero_badge  || '🔥 TigerLotto — หวยออนไลน์อันดับ 1');
+    set('br-hero-title1', s.hero_title1 || 'ซื้อง่าย จ่ายจริง');
+    set('br-hero-title2', s.hero_title2 || 'ปลอดภัย 100%');
+    set('br-hero-cta1',   s.hero_cta1  || '🎰 สมัครฟรี รับโบนัส 50 บาท');
+    set('br-ticker-items', s.ticker_items || '🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด\n🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!\n⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร\n🎯 เล่นหวยออนไลน์ปลอดภัย 100% จ่ายจริงทุกงวด\n💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน');
     updateLogoThumb();
     updateBrandPreview();
     updateQRPreview();
+    updateHeroPreview();
+    updateTickerPreview();
   }catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
 function updateBrandPreview(){
@@ -1799,7 +1807,18 @@ async function saveBranding(){
   const btn = document.querySelector('#page-content .btn-gold[onclick="saveBranding()"]');
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...'; }
   try{
-    const payload = { site_name: name, site_tagline: tagline||'OFFICIAL', site_logo_url: logoUrl, line_qr_url: qrUrl };
+    const payload = {
+      site_name      : name,
+      site_tagline   : tagline || 'OFFICIAL',
+      site_logo_url  : logoUrl,
+      line_qr_url    : qrUrl,
+      // Hero text
+      hero_badge     : document.getElementById('br-hero-badge')?.value?.trim()  || '',
+      hero_title1    : document.getElementById('br-hero-title1')?.value?.trim() || '',
+      hero_title2    : document.getElementById('br-hero-title2')?.value?.trim() || '',
+      hero_cta1      : document.getElementById('br-hero-cta1')?.value?.trim()   || '',
+      ticker_items   : document.getElementById('br-ticker-items')?.value?.trim() || '',
+    };
     const res = await API.AdminAPI.updateSettings(payload);
     if(res && res.success === false) throw new Error(res.message || 'API returned error');
     toast('สำเร็จ','🎨 บันทึก Branding แล้ว');
@@ -1809,6 +1828,28 @@ async function saveBranding(){
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='💾 บันทึก Branding ทั้งหมด'; }
   }
+}
+
+function updateHeroPreview(){
+  const badge  = document.getElementById('br-hero-badge')?.value  || '🔥 TigerLotto — หวยออนไลน์อันดับ 1';
+  const title1 = document.getElementById('br-hero-title1')?.value || 'ซื้อง่าย จ่ายจริง';
+  const title2 = document.getElementById('br-hero-title2')?.value || 'ปลอดภัย 100%';
+  const cta1   = document.getElementById('br-hero-cta1')?.value   || '🎰 สมัครฟรี รับโบนัส 50 บาท';
+  const b = document.getElementById('hp-badge');
+  const t1 = document.getElementById('hp-title1');
+  const t2 = document.getElementById('hp-title2');
+  const c1 = document.getElementById('hp-cta1');
+  if(b)  b.textContent  = badge;
+  if(t1) t1.textContent = title1;
+  if(t2) t2.textContent = title2;
+  if(c1) c1.textContent = cta1;
+}
+
+function updateTickerPreview(){
+  const raw  = document.getElementById('br-ticker-items')?.value || '';
+  const items = raw.split('\n').map(t=>t.trim()).filter(Boolean);
+  const el = document.getElementById('ticker-preview-text');
+  if(el) el.textContent = items.slice(0,3).join('  ·  ') + (items.length > 3 ? '  · ...' : '');
 }
 function testLineUrl(){
   const url = document.getElementById('set-line-url')?.value?.trim();
@@ -3706,7 +3747,57 @@ branding:()=>`
         <div style="font-size:11px;color:#888;margin-top:4px">เช่น OFFICIAL · BETA · v2.0</div>
       </div>
     </div>
-    <button class="btn btn-gold" style="margin-top:16px;padding:12px 28px;font-size:15px" onclick="saveBranding()">💾 บันทึก Branding ทั้งหมด</button>
+  </div>
+
+  <!-- Hero Text -->
+  <div class="card" style="grid-column:1/-1">
+    <h3>🏠 ข้อความหน้าแรก (Hero Section)</h3>
+    <!-- Live preview -->
+    <div id="hero-preview" style="background:#0a0a0a;border:1px solid rgba(212,160,23,.2);border-radius:14px;padding:28px;text-align:center;margin-bottom:20px">
+      <div id="hp-badge" style="display:inline-flex;align-items:center;gap:6px;padding:5px 16px;border-radius:30px;border:1px solid rgba(212,160,23,.4);background:rgba(212,160,23,.1);font-size:12px;font-weight:600;color:#d4a017;margin-bottom:14px">🔥 TigerLotto — หวยออนไลน์อันดับ 1</div>
+      <div style="font-size:28px;font-weight:900;line-height:1.2;margin-bottom:8px">
+        <span id="hp-title1" style="color:#fff">ซื้อง่าย จ่ายจริง</span><br>
+        <span id="hp-title2" style="background:linear-gradient(135deg,#d4a017,#ffd700);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ปลอดภัย 100%</span>
+      </div>
+      <div id="hp-cta1" style="display:inline-block;margin-top:12px;padding:12px 24px;background:linear-gradient(135deg,#d4a017,#ffd700);border-radius:30px;font-weight:800;font-size:14px;color:#000">🎰 สมัครฟรี รับโบนัส 50 บาท</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="fg" style="margin:0">
+        <label>Badge บน (แถบเล็ก)</label>
+        <input id="br-hero-badge" class="fi-full" placeholder="🔥 TigerLotto — หวยออนไลน์อันดับ 1"
+          oninput="updateHeroPreview()">
+        <div style="font-size:11px;color:#888;margin-top:4px">ข้อความบนสุด เหนือ Headline</div>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>ปุ่ม CTA หลัก</label>
+        <input id="br-hero-cta1" class="fi-full" placeholder="🎰 สมัครฟรี รับโบนัส 50 บาท"
+          oninput="updateHeroPreview()">
+        <div style="font-size:11px;color:#888;margin-top:4px">ข้อความปุ่มสมัคร/เริ่มเล่น</div>
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Headline บรรทัดที่ 1 (สีขาว)</label>
+        <input id="br-hero-title1" class="fi-full" placeholder="ซื้อง่าย จ่ายจริง"
+          oninput="updateHeroPreview()">
+      </div>
+      <div class="fg" style="margin:0">
+        <label>Headline บรรทัดที่ 2 (สีทอง)</label>
+        <input id="br-hero-title2" class="fi-full" placeholder="ปลอดภัย 100%"
+          oninput="updateHeroPreview()">
+      </div>
+    </div>
+
+    <div class="fg" style="margin-top:14px">
+      <label>Ticker / ข้อความวิ่ง <span style="font-size:11px;color:#888;font-weight:400">(หนึ่งข้อความต่อบรรทัด)</span></label>
+      <textarea id="br-ticker-items" class="fi-full" rows="5"
+        placeholder="🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด&#10;🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!&#10;⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร"
+        oninput="updateTickerPreview()" style="font-size:13px;line-height:1.8"></textarea>
+      <div id="ticker-preview-wrap" style="margin-top:8px;background:#0a0a0a;border-radius:8px;padding:8px 12px;overflow:hidden;white-space:nowrap">
+        <span id="ticker-preview-text" style="font-size:12px;color:#d4a017;font-weight:700"></span>
+      </div>
+    </div>
+
+    <button class="btn btn-gold" style="margin-top:18px;padding:12px 28px;font-size:15px" onclick="saveBranding()">💾 บันทึก Branding ทั้งหมด</button>
   </div>
 </div>`,
 

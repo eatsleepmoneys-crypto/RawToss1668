@@ -6,7 +6,7 @@ const rbac = require('../middleware/rbac');
 // GET /api/settings — public settings (non-sensitive)
 router.get('/', async (req, res) => {
   const rows = await query(
-    'SELECT `key`,`value`,`type` FROM settings WHERE `group` IN ("general","contact","finance") AND `key` NOT LIKE "%secret%" AND `key` NOT LIKE "%password%" AND `key` NOT IN ("site_url","auto_approve_deposit","auto_approve_max")');
+    'SELECT `key`,`value`,`type` FROM settings WHERE `group` IN ("general","contact","finance","hero") AND `key` NOT LIKE "%secret%" AND `key` NOT LIKE "%password%" AND `key` NOT IN ("site_url","auto_approve_deposit","auto_approve_max")');
   const map = {};
   rows.forEach(r => {
     map[r.key] = r.type === 'boolean' ? r.value === 'true'
@@ -41,6 +41,7 @@ router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req,
     bonus_new_member:'promotion', cashback_percent:'promotion', referral_commission:'promotion',
     session_expire:'security', pw_min_length:'security',
     slipok_enabled:'slipok', slipok_api_key:'slipok', slipok_branch_id:'slipok',
+    hero_badge:'hero', hero_title1:'hero', hero_title2:'hero', hero_cta1:'hero', ticker_items:'hero',
   };
   for (const [key, value] of Object.entries(updates)) {
     const grp = KEY_GROUP[key] || 'general';

@@ -554,7 +554,12 @@ const SEEDS = [
     ('require_2fa_admin','true','boolean','security'),
     ('slipok_enabled','false','boolean','slipok'),
     ('slipok_api_key','','string','slipok'),
-    ('slipok_branch_id','','string','slipok')`,
+    ('slipok_branch_id','','string','slipok'),
+    ('hero_badge','🔥 TigerLotto — หวยออนไลน์อันดับ 1','string','hero'),
+    ('hero_title1','ซื้อง่าย จ่ายจริง','string','hero'),
+    ('hero_title2','ปลอดภัย 100%','string','hero'),
+    ('hero_cta1','🎰 สมัครฟรี รับโบนัส 50 บาท','string','hero'),
+    ('ticker_items','🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด\n🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!\n⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร\n🎯 เล่นหวยออนไลน์ปลอดภัย 100% จ่ายจริงทุกงวด\n💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน','string','hero')`,
 
   // Promotions (INSERT IGNORE)
   `INSERT IGNORE INTO \`promotions\` (\`code\`,\`name\`,\`type\`,\`value\`,\`is_percent\`,\`is_active\`) VALUES
