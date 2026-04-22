@@ -187,6 +187,7 @@ select.fi option{background:var(--card2)}
 .alert-gold{background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.25);color:var(--gold)}
 .alert-red{background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.25);color:var(--red)}
 .alert-green{background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.25);color:var(--green)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 </style>
 </head>
 <body>
@@ -354,7 +355,110 @@ const PAGE_TITLES={
   referral:'🔗 ระบบแนะนำ',
   api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs',branding:'🎨 ตั้งค่าหน้าเว็บ'
 };
+// ═══ AUTO-REFRESH POLLING ═══
+let _autoRefreshInterval = null;
+let _autoRefreshPage     = null;
+let _lastDepPendingCount = -1;
+let _lastWdPendingCount  = -1;
+const AUTO_REFRESH_SEC   = 15;
+
+function startAutoRefresh(page) {
+  stopAutoRefresh();
+  _autoRefreshPage = page;
+  _lastDepPendingCount = -1;
+  _lastWdPendingCount  = -1;
+  let countdown = AUTO_REFRESH_SEC;
+  updateRefreshIndicator(countdown, page);
+
+  _autoRefreshInterval = setInterval(async () => {
+    countdown--;
+    if (countdown <= 0) {
+      countdown = AUTO_REFRESH_SEC;
+      await silentRefresh(page);
+    }
+    updateRefreshIndicator(countdown, page);
+  }, 1000);
+}
+
+function stopAutoRefresh() {
+  if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
+  _autoRefreshPage = null;
+}
+
+function updateRefreshIndicator(sec, page) {
+  const el = document.getElementById('auto-refresh-indicator');
+  if (!el) return;
+  el.innerHTML = `<span style="color:var(--muted);font-size:11px">🔄 refresh ใน ${sec}s</span>`;
+}
+
+async function silentRefresh(page) {
+  try {
+    if (page === 'deposits') {
+      const d = await API.AdminAPI.listDeposits({ limit: 50, status: document.getElementById('dep-status-sel')?.value || 'pending' });
+      const rows = d.data || [];
+      const pendingCnt = rows.filter(r => r.status === 'pending').length;
+      if (_lastDepPendingCount !== -1 && pendingCnt > _lastDepPendingCount) {
+        playNotifySound();
+        showPendingBadge('deposits', pendingCnt);
+      }
+      _lastDepPendingCount = pendingCnt;
+      // อัพเดทตาราง
+      renderDepositsRows(rows);
+      const sumEl = document.getElementById('dep-summary');
+      if (sumEl) {
+        const total = rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+        sumEl.innerHTML = `รอตรวจ: <b style="color:var(--orange)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--gold2)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+      }
+    } else if (page === 'withdrawals') {
+      const d = await API.AdminAPI.listWithdrawals({ limit: 50, status: document.getElementById('wd-status-sel')?.value || 'pending' });
+      const rows = d.data || [];
+      const pendingCnt = rows.filter(r => r.status === 'pending').length;
+      if (_lastWdPendingCount !== -1 && pendingCnt > _lastWdPendingCount) {
+        playNotifySound();
+        showPendingBadge('withdrawals', pendingCnt);
+      }
+      _lastWdPendingCount = pendingCnt;
+      renderWithdrawalsRows(rows);
+      const sumEl = document.getElementById('wd-summary');
+      if (sumEl) {
+        const total = rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
+        sumEl.innerHTML = `รอโอน: <b style="color:var(--red)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--red)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+      }
+    }
+  } catch(_) { /* silent fail */ }
+}
+
+function playNotifySound() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
+  } catch(_) {}
+}
+
+function showPendingBadge(page, count) {
+  const el = document.getElementById('auto-refresh-indicator');
+  if (el) el.innerHTML = `<span style="background:#e74c3c;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;animation:pulse 1s infinite">🔔 มี ${count} รายการใหม่!</span>`;
+  // flash page title
+  const titleEl = document.getElementById('page-title');
+  if (titleEl) {
+    const orig = titleEl.textContent;
+    titleEl.textContent = `🔴 (${count}) ${orig.replace(/^🔴.*?\) /,'')}`;
+  }
+  setTimeout(()=>{
+    const t = document.getElementById('page-title');
+    if(t) t.textContent = PAGE_TITLES[page] || page;
+  }, 5000);
+}
+
 function nav(page){
+  stopAutoRefresh();
   document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('on'));
   const items=document.querySelectorAll('.sb-item');
   items.forEach(i=>{if(i.getAttribute('onclick')===`nav('${page}')`)i.classList.add('on');});
@@ -363,6 +467,7 @@ function nav(page){
   if(fn)document.getElementById('page-content').innerHTML=fn();
   initPageCharts(page);
   afterNav(page); // ← load real API data
+  if(page==='deposits'||page==='withdrawals') startAutoRefresh(page);
 }
 
 // ═══ REAL API LOADER per page ═══
@@ -566,6 +671,38 @@ async function loadAgents(){
 let _depTimer = null;
 function debounceDeposits(){ clearTimeout(_depTimer); _depTimer = setTimeout(()=>loadDeposits(), 400); }
 
+const DEP_STATUS = { pending:'รอตรวจ', approved:'อนุมัติ', rejected:'ปฏิเสธ' };
+const SLIP_VERIFY_BADGE = {
+  verified : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#1a5c2a;color:#5cdb5c">✅ ผ่าน</span>',
+  failed   : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#5c1a1a;color:#db5c5c">❌ ไม่ผ่าน</span>',
+  skipped  : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#2a2a1a;color:#aaa">⏭ ข้าม</span>',
+  error    : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#3a1a2a;color:#db9">⚠️ Error</span>',
+};
+function renderDepositsRows(rows) {
+  const tbody = document.getElementById('deposits-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+    : rows.map(dep=>`
+    <tr>
+      <td style="font-size:12px;color:var(--muted)">${dep.id}</td>
+      <td style="font-weight:600">${dep.name||'-'}</td>
+      <td style="color:var(--muted)">${dep.phone||'-'}</td>
+      <td style="color:var(--gold2);font-weight:700">฿${Number(dep.amount||0).toLocaleString('th-TH')}</td>
+      <td>${dep.bank_code||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
+      <td>${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}</td>
+      <td>${SLIP_VERIFY_BADGE[dep.slip_verify_status] || SLIP_VERIFY_BADGE['skipped']}</td>
+      <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${DEP_STATUS[dep.status]||dep.status}</span></td>
+      <td>
+        ${dep.status==='pending'?`
+          <button class="act-btn act-green" onclick="approveDeposit(${dep.id})">อนุมัติ</button>
+          <button class="act-btn act-red"   onclick="rejectDeposit(${dep.id})">ปฏิเสธ</button>
+        `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
+      </td>
+    </tr>`).join('');
+}
+
 async function loadDeposits(){
   const status = document.getElementById('dep-status-sel')?.value ?? 'pending';
   const search = document.getElementById('dep-search')?.value?.trim() || '';
@@ -573,7 +710,6 @@ async function loadDeposits(){
   const sumEl  = document.getElementById('dep-summary');
   if(!tbody) return;
   tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
-
   try {
     const params = { limit: 50 };
     if(status) params.status = status;
@@ -581,39 +717,10 @@ async function loadDeposits(){
     const d    = await API.AdminAPI.listDeposits(params);
     const rows = d.data || [];
     const total = rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
-
-    if(sumEl){
-      const pendingCnt = rows.filter(r=>r.status==='pending').length;
-      sumEl.innerHTML = `รอตรวจ: <b style="color:var(--orange)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--gold2)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
-    }
-
-    const DEP_STATUS = { pending:'รอตรวจ', approved:'อนุมัติ', rejected:'ปฏิเสธ' };
-    const SLIP_VERIFY_BADGE = {
-      verified : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#1a5c2a;color:#5cdb5c">✅ ผ่าน</span>',
-      failed   : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#5c1a1a;color:#db5c5c">❌ ไม่ผ่าน</span>',
-      skipped  : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#2a2a1a;color:#aaa">⏭ ข้าม</span>',
-      error    : '<span style="font-size:11px;padding:2px 7px;border-radius:20px;background:#3a1a2a;color:#f0a;color:#db9">⚠️ Error</span>',
-    };
-    tbody.innerHTML = rows.length === 0
-      ? '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
-      : rows.map(dep=>`
-      <tr>
-        <td style="font-size:12px;color:var(--muted)">${dep.id}</td>
-        <td style="font-weight:600">${dep.name||'-'}</td>
-        <td style="color:var(--muted)">${dep.phone||'-'}</td>
-        <td style="color:var(--gold2);font-weight:700">฿${Number(dep.amount||0).toLocaleString('th-TH')}</td>
-        <td>${dep.bank_code||'-'}</td>
-        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
-        <td>${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}</td>
-        <td>${SLIP_VERIFY_BADGE[dep.slip_verify_status] || SLIP_VERIFY_BADGE['skipped']}</td>
-        <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${DEP_STATUS[dep.status]||dep.status}</span></td>
-        <td>
-          ${dep.status==='pending'?`
-            <button class="act-btn act-green" onclick="approveDeposit(${dep.id})">อนุมัติ</button>
-            <button class="act-btn act-red"   onclick="rejectDeposit(${dep.id})">ปฏิเสธ</button>
-          `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
-        </td>
-      </tr>`).join('');
+    const pendingCnt = rows.filter(r=>r.status==='pending').length;
+    _lastDepPendingCount = pendingCnt;
+    if(sumEl) sumEl.innerHTML = `รอตรวจ: <b style="color:var(--orange)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--gold2)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+    renderDepositsRows(rows);
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
     if(sumEl) sumEl.textContent = '';
@@ -624,6 +731,32 @@ async function loadDeposits(){
 let _wdTimer = null;
 function debounceWithdrawals(){ clearTimeout(_wdTimer); _wdTimer = setTimeout(()=>loadWithdrawals(), 400); }
 
+const WD_STATUS = { pending:'รอโอน', processing:'กำลังโอน', completed:'โอนแล้ว', rejected:'ปฏิเสธ' };
+const WD_BADGE  = { pending:'badge-yellow', processing:'badge-blue', completed:'badge-green', rejected:'badge-red' };
+function renderWithdrawalsRows(rows) {
+  const tbody = document.getElementById('withdrawals-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = rows.length === 0
+    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+    : rows.map(w=>`
+    <tr>
+      <td style="font-size:12px;color:var(--muted)">${w.id}</td>
+      <td style="font-weight:600">${w.name||'-'}</td>
+      <td style="color:var(--muted)">${w.phone||'-'}</td>
+      <td style="color:var(--red);font-weight:700">฿${Number(w.amount||0).toLocaleString('th-TH')}</td>
+      <td>${w.bank_code||'-'}</td>
+      <td style="font-size:12px">${w.bank_account||'-'}</td>
+      <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
+      <td><span class="badge ${WD_BADGE[w.status]||'badge-yellow'}">${WD_STATUS[w.status]||w.status}</span></td>
+      <td>
+        ${w.status==='pending'||w.status==='processing'?`
+          <button class="act-btn act-green" onclick="processWithdrawal(${w.id})">โอนแล้ว</button>
+          <button class="act-btn act-red"   onclick="rejectWithdrawal(${w.id})">ปฏิเสธ</button>
+        `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
+      </td>
+    </tr>`).join('');
+}
+
 async function loadWithdrawals(){
   const status = document.getElementById('wd-status-sel')?.value ?? 'pending';
   const search = document.getElementById('wd-search')?.value?.trim() || '';
@@ -631,7 +764,6 @@ async function loadWithdrawals(){
   const sumEl  = document.getElementById('wd-summary');
   if(!tbody) return;
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
-
   try {
     const params = { limit: 50 };
     if(status) params.status = status;
@@ -639,33 +771,10 @@ async function loadWithdrawals(){
     const d    = await API.AdminAPI.listWithdrawals(params);
     const rows = d.data || [];
     const total = rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
-
-    if(sumEl){
-      const pendingCnt = rows.filter(r=>r.status==='pending'||r.status==='processing').length;
-      sumEl.innerHTML = `รอโอน: <b style="color:var(--red)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--red)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
-    }
-
-    const WD_STATUS = { pending:'รอโอน', processing:'กำลังโอน', completed:'โอนแล้ว', rejected:'ปฏิเสธ' };
-    const WD_BADGE  = { pending:'badge-yellow', processing:'badge-blue', completed:'badge-green', rejected:'badge-red' };
-    tbody.innerHTML = rows.length === 0
-      ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
-      : rows.map(w=>`
-      <tr>
-        <td style="font-size:12px;color:var(--muted)">${w.id}</td>
-        <td style="font-weight:600">${w.name||'-'}</td>
-        <td style="color:var(--muted)">${w.phone||'-'}</td>
-        <td style="color:var(--red);font-weight:700">฿${Number(w.amount||0).toLocaleString('th-TH')}</td>
-        <td>${w.bank_code||'-'}</td>
-        <td style="font-size:12px">${w.bank_account||'-'}</td>
-        <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
-        <td><span class="badge ${WD_BADGE[w.status]||'badge-yellow'}">${WD_STATUS[w.status]||w.status}</span></td>
-        <td>
-          ${w.status==='pending'||w.status==='processing'?`
-            <button class="act-btn act-green" onclick="processWithdrawal(${w.id})">โอนแล้ว</button>
-            <button class="act-btn act-red"   onclick="rejectWithdrawal(${w.id})">ปฏิเสธ</button>
-          `:'<span style="color:var(--muted);font-size:12px">ดำเนินการแล้ว</span>'}
-        </td>
-      </tr>`).join('');
+    const pendingCnt = rows.filter(r=>r.status==='pending'||r.status==='processing').length;
+    _lastWdPendingCount = pendingCnt;
+    if(sumEl) sumEl.innerHTML = `รอโอน: <b style="color:var(--red)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--red)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
+    renderWithdrawalsRows(rows);
   } catch(e) {
     tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
     if(sumEl) sumEl.textContent = '';
@@ -3333,7 +3442,9 @@ deposits:()=>`
   <select class="fi fi-sm" id="dep-status-sel" onchange="loadDeposits()">
     <option value="pending">รอตรวจ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
   </select>
+  <button class="btn btn-sm btn-outline" onclick="loadDeposits()" style="flex-shrink:0">🔄 รีเฟรช</button>
   <span id="dep-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
+  <span id="auto-refresh-indicator" style="margin-left:auto"></span>
 </div>
 <div class="card">
   <div class="tbl-wrap">
@@ -3351,7 +3462,9 @@ withdrawals:()=>`
   <select class="fi fi-sm" id="wd-status-sel" onchange="loadWithdrawals()">
     <option value="pending">รอโอน</option><option value="processing">กำลังโอน</option><option value="completed">โอนแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
   </select>
+  <button class="btn btn-sm btn-outline" onclick="loadWithdrawals()" style="flex-shrink:0">🔄 รีเฟรช</button>
   <span id="wd-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
+  <span id="auto-refresh-indicator" style="margin-left:auto"></span>
 </div>
 <div class="card">
   <div class="tbl-wrap">
