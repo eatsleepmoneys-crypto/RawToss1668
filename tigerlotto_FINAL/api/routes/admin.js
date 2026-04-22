@@ -331,8 +331,15 @@ router.delete('/promotions/:id', authAdmin, rbac.requirePerm('settings.view'), a
 // ─── Hot Numbers ──────────────────────────────────────────────────────────────
 // GET /api/admin/hot-numbers — ตัวเลขที่ถูกแทงมากที่สุด
 router.get('/hot-numbers', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
-  const { round_id, limit = 50 } = req.query;
-  let sql = `
+  const { round_id, limit = 50, bet_type, date_from, date_to } = req.query;
+  const where = [];
+  const params = [];
+  if (round_id)  { where.push('h.round_id=?');              params.push(parseInt(round_id)); }
+  if (bet_type)  { where.push('bt.name=?');                  params.push(bet_type); }
+  if (date_from) { where.push('DATE(lr.draw_date) >= ?');    params.push(date_from); }
+  if (date_to)   { where.push('DATE(lr.draw_date) <= ?');    params.push(date_to); }
+  const whereClause = where.length ? ' WHERE ' + where.join(' AND ') : '';
+  const sql = `
     SELECT h.id, h.number, h.bet_count, h.total_amount, h.max_payout,
            lt.name AS lottery_type, bt.name AS bet_type,
            lr.draw_date, lr.status AS round_status,
@@ -341,12 +348,23 @@ router.get('/hot-numbers', authAdmin, rbac.requirePerm('reports.view'), async (r
     JOIN lottery_types lt ON h.lottery_type_id = lt.id
     JOIN bet_types bt ON h.bet_type_id = bt.id
     JOIN lottery_rounds lr ON h.round_id = lr.id
+    ${whereClause}
+    ORDER BY h.total_amount DESC
+    LIMIT ${Math.min(parseInt(limit)||50, 200)}
   `;
-  const params = [];
-  if (round_id) { sql += ' WHERE h.round_id=?'; params.push(parseInt(round_id)); }
-  sql += ` ORDER BY h.total_amount DESC LIMIT ${Math.min(parseInt(limit)||50, 200)}`;
   const data = await query(sql, params);
   res.json({ success: true, data });
+});
+
+// GET /api/admin/hot-numbers/bet-types — distinct bet type names in hot_numbers
+router.get('/hot-numbers/bet-types', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
+  const data = await query(
+    `SELECT DISTINCT bt.name
+     FROM hot_numbers h
+     JOIN bet_types bt ON h.bet_type_id = bt.id
+     ORDER BY bt.id`
+  );
+  res.json({ success: true, data: data.map(r => r.name) });
 });
 
 // GET /api/admin/hot-numbers/rounds — รายการรอบที่มีข้อมูล

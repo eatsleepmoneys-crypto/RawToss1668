@@ -1824,10 +1824,25 @@ async function loadHotNumbers(){
       });
     }catch(e){ console.warn('listHotRounds error',e.message); }
   }
-  const round_id = roundSel?.value || '';
-  const limit = document.getElementById('hn-limit')?.value || 50;
+  // โหลดประเภทแทงจริงจาก DB
+  const btSel = document.getElementById('hn-bet-type');
+  if(btSel && btSel.options.length <= 1){
+    try{
+      const bt = await API.AdminAPI.listHotBetTypes();
+      (bt.data||[]).forEach(name=>{
+        const opt = document.createElement('option');
+        opt.value = name; opt.textContent = name;
+        btSel.appendChild(opt);
+      });
+    }catch(e){ console.warn('listHotBetTypes error',e.message); }
+  }
+  const round_id  = roundSel?.value || '';
+  const limit     = document.getElementById('hn-limit')?.value || 50;
+  const bet_type  = document.getElementById('hn-bet-type')?.value || '';
+  const date_from = document.getElementById('hn-date-from')?.value || '';
+  const date_to   = document.getElementById('hn-date-to')?.value || '';
   try{
-    const d = await API.AdminAPI.listHotNumbers({ round_id, limit });
+    const d = await API.AdminAPI.listHotNumbers({ round_id, limit, bet_type, date_from, date_to });
     const rows = d.data || [];
     if(!rows.length){
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูลตัวเลขฮอต</td></tr>';
@@ -4181,14 +4196,25 @@ promotions:()=>`
 </div>`,
 
 hotnumbers:()=>`
-<div class="filter-bar">
-  <select id="hn-round" class="fi" style="min-width:200px" onchange="loadHotNumbers()">
+<div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+  <select id="hn-round" class="fi" style="min-width:180px" onchange="loadHotNumbers()">
     <option value="">— ทุกรอบ —</option>
   </select>
+  <select id="hn-bet-type" class="fi" style="min-width:150px" onchange="loadHotNumbers()">
+    <option value="">— ทุกประเภท —</option>
+  </select>
+  <div style="display:flex;align-items:center;gap:6px">
+    <span style="font-size:12px;color:var(--muted);white-space:nowrap">วันที่:</span>
+    <input type="date" id="hn-date-from" class="fi" style="width:140px" onchange="loadHotNumbers()">
+    <span style="color:var(--muted)">–</span>
+    <input type="date" id="hn-date-to" class="fi" style="width:140px" onchange="loadHotNumbers()">
+    <button class="btn btn-outline" style="padding:5px 10px;font-size:12px" onclick="document.getElementById('hn-date-from').value='';document.getElementById('hn-date-to').value='';loadHotNumbers()">✕</button>
+  </div>
   <select id="hn-limit" class="fi" onchange="loadHotNumbers()">
     <option value="20">Top 20</option>
     <option value="50" selected>Top 50</option>
     <option value="100">Top 100</option>
+    <option value="200">Top 200</option>
   </select>
   <button class="btn btn-outline" onclick="loadHotNumbers()">🔄 รีเฟรช</button>
 </div>

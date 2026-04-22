@@ -243,6 +243,7 @@ const AdminAPI = {
     return apiFetch(`/admin/hot-numbers${qs?'?'+qs:''}`, {}, 'admin');
   },
   listHotRounds    : () => apiFetch('/admin/hot-numbers/rounds', {}, 'admin'),
+  listHotBetTypes  : () => apiFetch('/admin/hot-numbers/bet-types', {}, 'admin'),
 
   // KYC
   listKYC          : (status = 'pending', page = 1) => apiFetch(`/admin/kyc?status=${status}&page=${page}&limit=20`, {}, 'admin'),
