@@ -48,8 +48,49 @@ router.post('/', authMember,
       if (bet.amount < round.min_bet || bet.amount > round.max_bet) {
         return res.status(400).json({ success: false, message: `จำนวนเงินต้องอยู่ระหว่าง ${round.min_bet}–${round.max_bet} บาท` });
       }
-      const rate = RATE_MAP[bet.bet_type];
-      validated.push({ ...bet, number: numStr, rate, payout: bet.amount * rate });
+
+      // ─── ระบบอั้นหวย: ตรวจ tier ────────────────────────────────────────────
+      // ดึง row ที่ตรงกับ round นี้ก่อน (round-specific) แล้วค่อย template (round_id IS NULL)
+      const [nlRow] = await query(
+        `SELECT * FROM number_limits
+         WHERE lottery_id=? AND number=? AND bet_type=?
+           AND (round_id=? OR round_id IS NULL)
+         ORDER BY (round_id IS NULL) ASC
+         LIMIT 1`,
+        [round.lottery_id, numStr, bet.bet_type, round_id]
+      );
+
+      let rate_override = null;   // null = จ่ายเต็ม
+      let nl_id         = null;
+      let nl_tier       = null;
+
+      if (nlRow) {
+        nl_id   = nlRow.id;
+        nl_tier = nlRow.current_tier;
+
+        // ถัง 3 → ปิดรับแทง
+        if (nl_tier === '3') {
+          return res.status(400).json({
+            success: false,
+            message: `เลข ${numStr} ประเภท ${bet.bet_type} ปิดรับแทงแล้ว (ถัง 3)`
+          });
+        }
+
+        // ถัง 2 / 2.1 / 2.2 / 2.3 → จ่ายตาม % ที่ตั้งไว้
+        if (nl_tier === '2')   rate_override = parseFloat(nlRow.tier2_rate)   ?? null;
+        if (nl_tier === '2.1') rate_override = parseFloat(nlRow.tier2_1_rate) ?? null;
+        if (nl_tier === '2.2') rate_override = parseFloat(nlRow.tier2_2_rate) ?? null;
+        if (nl_tier === '2.3') rate_override = parseFloat(nlRow.tier2_3_rate) ?? null;
+      }
+
+      const rate   = RATE_MAP[bet.bet_type];
+      // payout ปรับตาม rate_override (เช่น 75% ของ rate ปกติ)
+      const effectiveRate = (rate_override !== null && rate_override !== undefined)
+        ? rate * rate_override / 100
+        : rate;
+      const payout = parseFloat(bet.amount) * effectiveRate;
+
+      validated.push({ ...bet, number: numStr, rate, rate_override, payout, nl_id, nl_tier });
       totalAmount += parseFloat(bet.amount);
     }
 
@@ -81,9 +122,59 @@ router.post('/', authMember,
       for (const bet of validated) {
         const betUuid = uuidv4();
         await conn.execute(
-          'INSERT INTO bets (uuid,member_id,round_id,bet_type,number,amount,rate,payout,status) VALUES (?,?,?,?,?,?,?,?,?)',
-          [betUuid, req.member.id, round_id, bet.bet_type, bet.number, bet.amount, bet.rate, bet.payout, 'waiting']);
+          'INSERT INTO bets (uuid,member_id,round_id,bet_type,number,amount,rate,rate_override,payout,status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+          [betUuid, req.member.id, round_id, bet.bet_type, bet.number, bet.amount, bet.rate,
+           bet.rate_override !== undefined ? bet.rate_override : null,
+           bet.payout, 'waiting']);
         placedBets.push({ uuid: betUuid, ...bet });
+
+        // ─── อั้นหวย: อัปเดต tier_used และ escalate ────────────────────────
+        if (bet.nl_id) {
+          // เพิ่ม used ในถังที่กำลังใช้อยู่
+          await conn.execute(
+            `UPDATE number_limits SET
+               tier1_used   = tier1_used   + IF(current_tier='1',   ?, 0),
+               tier2_used   = tier2_used   + IF(current_tier='2',   ?, 0),
+               tier2_1_used = tier2_1_used + IF(current_tier='2.1', ?, 0),
+               tier2_2_used = tier2_2_used + IF(current_tier='2.2', ?, 0),
+               tier2_3_used = tier2_3_used + IF(current_tier='2.3', ?, 0)
+             WHERE id=?`,
+            [bet.amount, bet.amount, bet.amount, bet.amount, bet.amount, bet.nl_id]
+          );
+
+          // ตรวจว่าถึง limit ต้องขยับถังหรือยัง (อ่านล่าสุด + FOR UPDATE เพื่อ race-safe)
+          const [[nl]] = await conn.execute(
+            'SELECT * FROM number_limits WHERE id=? FOR UPDATE', [bet.nl_id]
+          );
+          if (nl) {
+            let newTier = nl.current_tier;
+            if (nl.current_tier === '1' && nl.tier1_limit > 0 && nl.tier1_used >= nl.tier1_limit) {
+              // ขยับไปถัง 2 (ถ้ามี sub-tier ให้ข้ามไป 2.1 ก่อน)
+              newTier = (nl.tier2_1_rate !== null) ? '2.1' : '2';
+            } else if (nl.current_tier === '2' && nl.tier2_limit > 0 && nl.tier2_used >= nl.tier2_limit) {
+              newTier = (nl.tier2_1_rate !== null) ? '2.1' : '3';
+            } else if (nl.current_tier === '2.1' && nl.tier2_1_limit > 0 && nl.tier2_1_used >= nl.tier2_1_limit) {
+              newTier = (nl.tier2_2_rate !== null) ? '2.2' : '3';
+            } else if (nl.current_tier === '2.2' && nl.tier2_2_limit > 0 && nl.tier2_2_used >= nl.tier2_2_limit) {
+              newTier = (nl.tier2_3_rate !== null) ? '2.3' : '3';
+            } else if (nl.current_tier === '2.3' && nl.tier2_3_limit > 0 && nl.tier2_3_used >= nl.tier2_3_limit) {
+              newTier = '3';
+            }
+
+            if (newTier !== nl.current_tier) {
+              const isEscalatingFromTier1 = nl.current_tier === '1';
+              const isClosing             = newTier === '3';
+              await conn.execute(
+                `UPDATE number_limits SET
+                   current_tier  = ?,
+                   escalated_at  = IF(? AND escalated_at IS NULL, NOW(), escalated_at),
+                   closed_at     = IF(?, NOW(), closed_at)
+                 WHERE id=?`,
+                [newTier, isEscalatingFromTier1 ? 1 : 0, isClosing ? 1 : 0, bet.nl_id]
+              );
+            }
+          }
+        }
       }
 
       await conn.execute(
