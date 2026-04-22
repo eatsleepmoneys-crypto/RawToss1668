@@ -1988,23 +1988,26 @@ async function loadReferralAdmin(){
   try {
     const d = await apiFetch('/admin/referral/stats', {}, 'admin');
     if (!d.success) throw new Error(d.message || 'โหลดไม่ได้');
-    const { global_rate, summary, top_earners, recent_commissions } = d.data;
+    const { global_rate, summary, top_earners, recent_commissions, agent_referrals, member_referrals } = d.data;
 
-    // Stats
-    const fmt = v => parseFloat(v||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
-    const el = id => document.getElementById(id);
-    if(el('ref-total-all'))    el('ref-total-all').textContent    = '฿'+fmt(summary.total_all);
-    if(el('ref-total-month'))  el('ref-total-month').textContent  = '฿'+fmt(summary.total_month);
-    if(el('ref-member-earners')) el('ref-member-earners').textContent = summary.member_earners || 0;
-    if(el('ref-agent-earners'))  el('ref-agent-earners').textContent  = summary.agent_earners  || 0;
+    const fmt  = v => parseFloat(v||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const fmtM = v => parseFloat(v||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const el   = id => document.getElementById(id);
+    const MEMBER_STATUS = { active:'✅ ปกติ', banned:'⛔ ระงับ', pending:'⏳ รอยืนยัน' };
 
-    // Global rate input
+    // Stats cards
+    if(el('ref-total-all'))        el('ref-total-all').textContent        = '฿'+fmt(summary.total_all);
+    if(el('ref-total-month'))      el('ref-total-month').textContent      = '฿'+fmt(summary.total_month);
+    if(el('ref-agent-ref-count'))  el('ref-agent-ref-count').textContent  = summary.agent_ref_count  || 0;
+    if(el('ref-member-ref-count')) el('ref-member-ref-count').textContent = summary.member_ref_count || 0;
+
+    // Global rate
     if(el('ref-global-rate')) el('ref-global-rate').value = global_rate;
-    if(el('ref-rate-cur')) el('ref-rate-cur').textContent = `อัตราปัจจุบัน: ${global_rate}%`;
+    if(el('ref-rate-cur'))    el('ref-rate-cur').textContent = `อัตราปัจจุบัน: ${global_rate}%`;
 
-    // Top earners table
+    // Top earners
     const topTbody = el('ref-top-tbody');
-    if(topTbody) topTbody.innerHTML = top_earners.length === 0
+    if(topTbody) topTbody.innerHTML = (top_earners||[]).length === 0
       ? `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีข้อมูล</td></tr>`
       : top_earners.map((r,i) => `<tr>
           <td>${i+1}</td>
@@ -2016,10 +2019,44 @@ async function loadReferralAdmin(){
           <td style="color:var(--gold2);font-weight:700">฿${fmt(r.total)}</td>
         </tr>`).join('');
 
+    // Agent referrals table
+    const agRefTbody = el('ref-agent-ref-tbody');
+    const agRefBadge = el('ref-agent-ref-badge');
+    if(agRefBadge) agRefBadge.textContent = `(${(agent_referrals||[]).length} คน)`;
+    if(agRefTbody) agRefTbody.innerHTML = (agent_referrals||[]).length === 0
+      ? `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีสมาชิกสมัครผ่าน Agent</td></tr>`
+      : (agent_referrals||[]).map(m => `<tr>
+          <td style="font-size:12px;color:var(--muted)">${new Date(m.created_at).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td style="font-weight:600">${m.name||'-'}</td>
+          <td style="font-size:12px">${m.phone||'-'}</td>
+          <td><span style="font-size:11px;color:var(--gold2);font-weight:700">${m.member_code||'-'}</span></td>
+          <td style="color:var(--gold2)">${m.agent_name||'-'} <span style="font-size:11px;color:var(--muted)">(${m.agent_phone||''})</span></td>
+          <td style="color:var(--green)">฿${fmtM(m.balance)}</td>
+          <td>${MEMBER_STATUS[m.status]||m.status}</td>
+          <td style="color:${parseFloat(m.commission_paid)>0?'var(--gold2)':'var(--muted)'}">฿${fmt(m.commission_paid)}</td>
+        </tr>`).join('');
+
+    // Member referrals table
+    const memRefTbody = el('ref-member-ref-tbody');
+    const memRefBadge = el('ref-member-ref-badge');
+    if(memRefBadge) memRefBadge.textContent = `(${(member_referrals||[]).length} คน)`;
+    if(memRefTbody) memRefTbody.innerHTML = (member_referrals||[]).length === 0
+      ? `<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีสมาชิกสมัครผ่านสมาชิกอื่น</td></tr>`
+      : (member_referrals||[]).map(m => `<tr>
+          <td style="font-size:12px;color:var(--muted)">${new Date(m.created_at).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</td>
+          <td style="font-weight:600">${m.name||'-'}</td>
+          <td style="font-size:12px">${m.phone||'-'}</td>
+          <td><span style="font-size:11px;color:var(--gold2);font-weight:700">${m.member_code||'-'}</span></td>
+          <td style="color:var(--gold2)">${m.ref_name||'-'} <span style="font-size:11px;color:var(--muted)">(${m.ref_code||''})</span></td>
+          <td style="color:var(--green)">฿${fmtM(m.balance)}</td>
+          <td>${MEMBER_STATUS[m.status]||m.status}</td>
+          <td style="color:${parseFloat(m.commission_paid)>0?'var(--gold2)':'var(--muted)'}">฿${fmt(m.commission_paid)}</td>
+        </tr>`).join('');
+
     // Recent commissions
     const recTbody = el('ref-recent-tbody');
-    if(recTbody) recTbody.innerHTML = recent_commissions.length === 0
-      ? `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีข้อมูล</td></tr>`
+    if(recTbody) recTbody.innerHTML = (recent_commissions||[]).length === 0
+      ? `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีรายการค่าคอม</td></tr>`
       : recent_commissions.map(r => `<tr>
           <td style="font-size:12px;color:var(--muted)">${new Date(r.created_at).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'})}</td>
           <td>${r.earner_name||'-'}</td>
@@ -4886,8 +4923,8 @@ referral:()=>`
 <div class="stats-grid" style="margin-bottom:18px">
   <div class="stat-card"><div class="sc-icon">💸</div><div class="sc-label">ค่าคอมทั้งหมด</div><div class="sc-val" id="ref-total-all">⏳</div><div class="sc-change">บาท</div></div>
   <div class="stat-card"><div class="sc-icon">📅</div><div class="sc-label">ค่าคอมเดือนนี้</div><div class="sc-val" id="ref-total-month">⏳</div><div class="sc-change">บาท</div></div>
-  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">ผู้รับค่าคอม (Member)</div><div class="sc-val" id="ref-member-earners">⏳</div><div class="sc-change">คน</div></div>
-  <div class="stat-card"><div class="sc-icon">🤝</div><div class="sc-label">ผู้รับค่าคอม (Agent)</div><div class="sc-val" id="ref-agent-earners">⏳</div><div class="sc-change">คน</div></div>
+  <div class="stat-card"><div class="sc-icon">🤝</div><div class="sc-label">สมัครผ่าน Agent</div><div class="sc-val" id="ref-agent-ref-count">⏳</div><div class="sc-change">คน</div></div>
+  <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">สมัครผ่านสมาชิก</div><div class="sc-val" id="ref-member-ref-count">⏳</div><div class="sc-change">คน</div></div>
 </div>
 <div class="g2" style="margin-bottom:18px">
   <div class="card">
@@ -4909,6 +4946,26 @@ referral:()=>`
         <tbody id="ref-top-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">⏳</td></tr></tbody>
       </table>
     </div>
+  </div>
+</div>
+<!-- สมาชิกที่สมัครผ่าน Agent -->
+<div class="card" style="margin-bottom:16px">
+  <h3>🤝 สมาชิกที่สมัครผ่าน Agent <span id="ref-agent-ref-badge" style="font-size:13px;font-weight:500;color:var(--muted)"></span></h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>วันที่สมัคร</th><th>ชื่อสมาชิก</th><th>เบอร์</th><th>รหัส</th><th>สังกัด Agent</th><th>ยอดเงิน</th><th>สถานะ</th><th>ค่าคอมที่จ่ายแล้ว</th></tr></thead>
+      <tbody id="ref-agent-ref-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<!-- สมาชิกที่สมัครผ่านสมาชิกอื่น -->
+<div class="card" style="margin-bottom:16px">
+  <h3>👥 สมาชิกที่สมัครผ่านสมาชิก <span id="ref-member-ref-badge" style="font-size:13px;font-weight:500;color:var(--muted)"></span></h3>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>วันที่สมัคร</th><th>ชื่อสมาชิก</th><th>เบอร์</th><th>รหัส</th><th>ถูกแนะนำโดย</th><th>ยอดเงิน</th><th>สถานะ</th><th>ค่าคอมที่จ่ายแล้ว</th></tr></thead>
+      <tbody id="ref-member-ref-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳</td></tr></tbody>
+    </table>
   </div>
 </div>
 <div class="card">

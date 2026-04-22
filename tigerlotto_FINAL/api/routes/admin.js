@@ -889,7 +889,7 @@ router.get('/referral/stats', authAdmin, rbac.requirePerm('reports.view'), async
     catch { return []; }
   };
 
-  const [rateSetting, summary, topEarners, recentComms] = await Promise.all([
+  const [rateSetting, summary, topEarners, recentComms, agentReferrals, memberReferrals] = await Promise.all([
     safe("SELECT value FROM settings WHERE `key`='referral_commission'", { value: '0' }),
     safe(`SELECT
       COALESCE(SUM(amount),0) AS total_all,
@@ -912,16 +912,36 @@ router.get('/referral/stats', authAdmin, rbac.requirePerm('reports.view'), async
            ELSE (SELECT name FROM agents WHERE id=c.earner_id) END AS earner_name,
       (SELECT name FROM members WHERE id=c.from_member_id) AS from_name
       FROM commissions c
-      ORDER BY c.id DESC LIMIT 50`)
+      ORDER BY c.id DESC LIMIT 50`),
+    // สมาชิกที่สมัครผ่าน Agent (agent_id ถูกตั้งค่า)
+    safeAll(`SELECT m.id, m.name, m.phone, m.member_code, m.status, m.balance, m.created_at,
+      a.name AS agent_name, a.phone AS agent_phone,
+      COALESCE((SELECT SUM(amount) FROM commissions WHERE earner_type='agent' AND earner_id=a.id AND from_member_id=m.id),0) AS commission_paid
+      FROM members m
+      JOIN agents a ON m.agent_id = a.id
+      ORDER BY m.created_at DESC LIMIT 100`),
+    // สมาชิกที่สมัครผ่านสมาชิกอื่น (ref_by ถูกตั้งค่า)
+    safeAll(`SELECT m.id, m.name, m.phone, m.member_code, m.status, m.balance, m.created_at,
+      r.name AS ref_name, r.phone AS ref_phone, r.member_code AS ref_code,
+      COALESCE((SELECT SUM(amount) FROM commissions WHERE earner_type='member' AND earner_id=r.id AND from_member_id=m.id),0) AS commission_paid
+      FROM members m
+      JOIN members r ON m.ref_by = r.id
+      ORDER BY m.created_at DESC LIMIT 100`)
   ]);
+
+  // นับสมาชิกสมัครผ่าน agent + member referral
+  const agentRefCount  = agentReferrals.length;
+  const memberRefCount = memberReferrals.length;
 
   res.json({
     success: true,
     data: {
       global_rate: parseFloat(rateSetting?.value || 0),
-      summary,
+      summary: { ...summary, agent_ref_count: agentRefCount, member_ref_count: memberRefCount },
       top_earners: topEarners,
       recent_commissions: recentComms,
+      agent_referrals: agentReferrals,
+      member_referrals: memberReferrals,
     }
   });
 });
