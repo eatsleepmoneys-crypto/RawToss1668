@@ -861,15 +861,16 @@ async function migrate() {
     `ALTER TABLE \`commissions\` ADD COLUMN \`from_member_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`earner_id\``,
     `ALTER TABLE \`commissions\` ADD COLUMN \`bet_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`from_member_id\``,
     `ALTER TABLE \`commissions\` ADD COLUMN \`description\` VARCHAR(255) DEFAULT NULL`,
-    // commissions: legacy columns จากระบบเก่า — ทำให้ nullable เพื่อไม่ conflict กับ INSERT ของเรา
-    // ปิด FK checks ชั่วคราว เพื่อให้ MODIFY ผ่าน
+    // commissions: legacy columns จากระบบเก่า — ให้มี default ค่าเริ่มต้น เพื่อ INSERT ผ่านโดยไม่ต้องระบุ
+    // ใช้ SET DEFAULT (ไม่แตะ type/NULL/FK) สำหรับ column ที่มี FK constraint
+    `ALTER TABLE \`commissions\` ALTER COLUMN \`source_user_id\` SET DEFAULT 0`,
+    `ALTER TABLE \`commissions\` ALTER COLUMN \`slip_id\`        SET DEFAULT 0`,
+    // ส่วน column ที่ไม่มี FK — MODIFY ได้เลย
     `SET FOREIGN_KEY_CHECKS=0`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`agent_id\`      INT UNSIGNED NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`source_user_id\` INT UNSIGNED NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`slip_id\`       INT UNSIGNED NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`level\`         TINYINT NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`status\`        VARCHAR(20) NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`paid_at\`       DATETIME NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`agent_id\`  INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`level\`     TINYINT NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`status\`    VARCHAR(20) NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`paid_at\`   DATETIME NULL DEFAULT NULL`,
     `SET FOREIGN_KEY_CHECKS=1`,
   ];
   for (const sql of ALTERS) {
