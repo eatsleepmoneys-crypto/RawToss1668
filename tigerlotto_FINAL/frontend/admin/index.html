@@ -497,8 +497,12 @@ async function loadMembers(page=1, search=_membersSearch, status=_membersStatus)
         <td style="color:var(--muted);font-size:12px">${m.created_at?.slice(0,10)||'-'}</td>
         <td style="color:var(--muted);font-size:12px">${m.last_login_at?.slice(0,10)||'-'}</td>
         <td>
-          <div style="display:flex;gap:4px">
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
             <button class="act-btn" onclick="viewMember(${m.id})">ดู</button>
+            <button class="act-btn act-blue" style="background:rgba(30,144,255,.15);color:#7ec8e3;border:1px solid rgba(30,144,255,.4)"
+              onclick="openMemberBankModal(${m.id},'${(m.name||'').replace(/'/g,"\\'")}','${m.bank_code||''}','${(m.bank_account||'').replace(/'/g,"\\'")}','${(m.bank_name||'').replace(/'/g,"\\'")}')">
+              🏦${m.bank_account?'':'⚠️'}
+            </button>
             <button class="act-btn ${m.status==='active'?'act-red':'act-green'}" onclick="toggleBanMember(${m.id},'${m.status}','${(m.name||'').replace(/'/g,"\\'")}')">
               ${m.status==='active'?'แบน':'ปลดแบน'}
             </button>
@@ -540,10 +544,19 @@ async function loadAgents(){
       <td style="font-size:12px"><div style="color:var(--gold2);font-weight:700">ส่วนลด ${a.commission_rate}%</div><div style="color:var(--muted)">คอม ${a.referral_rate||0}%</div></td>
       <td style="color:var(--gold2);font-weight:700">฿${Number(a.balance||0).toLocaleString('th-TH')}</td>
       <td style="color:var(--gold2)">฿${Number(a.total_commission||0).toLocaleString('th-TH')}</td>
+      <td>
+        ${a.bank_account
+          ? `<div style="font-size:12px;font-weight:700;color:var(--text)">${a.bank_code||''} ${a.bank_account}</div><div style="font-size:11px;color:var(--muted)">${a.bank_name||''}</div>`
+          : `<span style="font-size:11px;color:#e74c3c">⚠️ ยังไม่มีบัญชี</span>`}
+      </td>
       <td><span class="badge ${a.status==='active'?'badge-green':'badge-gray'}">${a.status==='active'?'Active':'Inactive'}</span></td>
       <td>
-        <div style="display:flex;gap:4px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="act-btn" onclick="editAgentModal(${a.id},'${a.name}',${a.commission_rate},${a.referral_rate||0},'${a.status}')">แก้ไข</button>
+          <button class="act-btn" style="background:rgba(30,144,255,.15);color:#7ec8e3;border:1px solid rgba(30,144,255,.4)"
+            onclick="openAgentBankModal(${a.id},'${(a.name||'').replace(/'/g,"\\'")}','${a.bank_code||''}','${(a.bank_account||'').replace(/'/g,"\\'")}','${(a.bank_name||'').replace(/'/g,"\\'")}')">
+            🏦
+          </button>
         </div>
       </td>
     </tr>`).join('');
@@ -2822,6 +2835,10 @@ async function viewMember(id){
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+        <button class="btn" style="background:rgba(30,144,255,.15);color:#7ec8e3;border:1px solid rgba(30,144,255,.4)"
+          onclick="closeModal();openMemberBankModal(${m.id},'${(m.name||'').replace(/'/g,"\\'")}','${(m.bank_code||'')}','${(m.bank_account||'').replace(/'/g,"\\'")}','${(m.bank_name||'').replace(/'/g,"\\'")}')">
+          🏦 บัญชีธนาคาร
+        </button>
         <button class="btn btn-gold" onclick="closeModal();openCreditModal(${m.id},'${(m.name||'').replace(/'/g,"\\'")}')">💰 ปรับยอดเงิน</button>
       </div>`);
   }catch(e){ toast('ผิดพลาด', e.message,'error'); }
@@ -2834,6 +2851,122 @@ async function saveMemberRefRate(id){
     await fetch(`/api/members/admin/${id}/referral-rate`,{method:'PATCH',headers:{...API._h(),'Content-Type':'application/json'},body:JSON.stringify({referral_rate:rate})}).then(r=>r.json());
     toast('สำเร็จ',`ตั้งค่าคอม ${rate}% ให้สมาชิกแล้ว`); closeModal(); loadMembers();
   }catch(e){toast('ผิดพลาด',e.message,'error');}
+}
+
+// ─── Bank Account Modal (Member) ───────────────────────────────────────────
+const BANK_OPTS_HTML = [
+  ['KBANK','กสิกรไทย'],['SCB','ไทยพาณิชย์'],['BBL','กรุงเทพ'],['KTB','กรุงไทย'],
+  ['BAY','กรุงศรี'],['TMB','ทีเอ็มบีธนชาต'],['GSB','ออมสิน'],['BAAC','ธกส'],
+  ['CIMB','ซีไอเอ็มบี'],['UOB','ยูโอบี'],['KKP','เกียรตินาคิน'],
+  ['TISCO','ทิสโก้'],['LH','แลนด์แอนด์เฮ้าส์'],['TBANK','ธนชาต'],
+].map(([k,v])=>`<option value="${k}">${v} (${k})</option>`).join('');
+
+function openMemberBankModal(id, name, bankCode='', bankAccount='', bankName=''){
+  openModal(`
+    <h3>🏦 บัญชีธนาคาร — ${name||'#'+id}</h3>
+    ${bankAccount
+      ? `<div style="background:#0d1f0d;border:1px solid rgba(92,219,92,.35);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+          ✅ บัญชีปัจจุบัน: <b style="color:var(--gold2)">${bankCode} ${bankAccount}</b> (${bankName})
+         </div>`
+      : `<div style="background:#1f0d0d;border:1px solid rgba(219,92,92,.35);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#e74c3c">
+          ⚠️ ยังไม่มีบัญชีธนาคารผูกไว้
+         </div>`}
+    <div class="fi-row">
+      <div class="fg">
+        <label>ธนาคาร</label>
+        <select class="fi fi-full" id="mb-bank-code">
+          <option value="">— เลือกธนาคาร —</option>
+          ${BANK_OPTS_HTML}
+        </select>
+      </div>
+    </div>
+    <div class="fi-row">
+      <div class="fg">
+        <label>เลขบัญชี</label>
+        <input class="fi fi-full" id="mb-bank-account" type="text" placeholder="เช่น 1234567890" value="${bankAccount}">
+      </div>
+      <div class="fg">
+        <label>ชื่อเจ้าของบัญชี</label>
+        <input class="fi fi-full" id="mb-bank-name" type="text" placeholder="ชื่อ-นามสกุล" value="${bankName}">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="saveMemberBank(${id})">💾 บันทึกบัญชี</button>
+    </div>
+  `);
+  // Pre-select bank code
+  const sel = document.getElementById('mb-bank-code');
+  if(sel && bankCode) sel.value = bankCode;
+}
+
+async function saveMemberBank(id){
+  const bank_code    = document.getElementById('mb-bank-code')?.value?.trim();
+  const bank_account = document.getElementById('mb-bank-account')?.value?.trim();
+  const bank_name    = document.getElementById('mb-bank-name')?.value?.trim();
+  if(!bank_code||!bank_account||!bank_name){ toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบทุกช่อง','error'); return; }
+  try{
+    const r = await fetch(`/api/members/admin/${id}/bank`,{
+      method:'PATCH', headers:{...API._h(),'Content-Type':'application/json'},
+      body: JSON.stringify({ bank_code, bank_account, bank_name })
+    }).then(r=>r.json());
+    if(!r.success) throw new Error(r.message||'ผิดพลาด');
+    toast('สำเร็จ', r.message); closeModal(); loadMembers();
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+
+// ─── Bank Account Modal (Agent) ────────────────────────────────────────────
+function openAgentBankModal(id, name, bankCode='', bankAccount='', bankName=''){
+  openModal(`
+    <h3>🏦 บัญชีธนาคาร — เอเยนต์ ${name||'#'+id}</h3>
+    ${bankAccount
+      ? `<div style="background:#0d1f0d;border:1px solid rgba(92,219,92,.35);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+          ✅ บัญชีปัจจุบัน: <b style="color:var(--gold2)">${bankCode} ${bankAccount}</b> (${bankName})
+         </div>`
+      : `<div style="background:#1f0d0d;border:1px solid rgba(219,92,92,.35);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#e74c3c">
+          ⚠️ ยังไม่มีบัญชีธนาคารผูกไว้
+         </div>`}
+    <div class="fi-row">
+      <div class="fg">
+        <label>ธนาคาร</label>
+        <select class="fi fi-full" id="ab-bank-code">
+          <option value="">— เลือกธนาคาร —</option>
+          ${BANK_OPTS_HTML}
+        </select>
+      </div>
+    </div>
+    <div class="fi-row">
+      <div class="fg">
+        <label>เลขบัญชี</label>
+        <input class="fi fi-full" id="ab-bank-account" type="text" placeholder="เช่น 1234567890" value="${bankAccount}">
+      </div>
+      <div class="fg">
+        <label>ชื่อเจ้าของบัญชี</label>
+        <input class="fi fi-full" id="ab-bank-name" type="text" placeholder="ชื่อ-นามสกุล" value="${bankName}">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="saveAgentBank(${id})">💾 บันทึกบัญชี</button>
+    </div>
+  `);
+  const sel = document.getElementById('ab-bank-code');
+  if(sel && bankCode) sel.value = bankCode;
+}
+
+async function saveAgentBank(id){
+  const bank_code    = document.getElementById('ab-bank-code')?.value?.trim();
+  const bank_account = document.getElementById('ab-bank-account')?.value?.trim();
+  const bank_name    = document.getElementById('ab-bank-name')?.value?.trim();
+  if(!bank_code||!bank_account||!bank_name){ toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบทุกช่อง','error'); return; }
+  try{
+    const r = await fetch(`/api/admin/agents/${id}/bank`,{
+      method:'PATCH', headers:{...API._h(),'Content-Type':'application/json'},
+      body: JSON.stringify({ bank_code, bank_account, bank_name })
+    }).then(r=>r.json());
+    if(!r.success) throw new Error(r.message||'ผิดพลาด');
+    toast('สำเร็จ', r.message); closeModal(); loadAgents();
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
 }
 
 function openCreditModal(id, name){

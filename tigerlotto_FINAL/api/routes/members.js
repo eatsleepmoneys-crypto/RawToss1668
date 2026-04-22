@@ -277,4 +277,19 @@ router.patch('/admin/:id/credit', authAdmin, rbac.requirePerm('members.credit'),
   res.json({ success: true, message: 'ปรับยอดเงินสำเร็จ' });
 });
 
+// PATCH /api/members/admin/:id/bank — ตั้ง/แก้ไขบัญชีธนาคารของสมาชิก
+router.patch('/admin/:id/bank', authAdmin, rbac.requirePerm('members.edit'), async (req, res) => {
+  const { bank_code, bank_account, bank_name } = req.body;
+  if (!bank_code || !bank_account || !bank_name)
+    return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลธนาคารให้ครบ (ธนาคาร / เลขบัญชี / ชื่อบัญชี)' });
+  const [m] = await query('SELECT id, name FROM members WHERE id=?', [req.params.id]);
+  if (!m) return res.status(404).json({ success: false, message: 'ไม่พบสมาชิก' });
+  await query('UPDATE members SET bank_code=?, bank_account=?, bank_name=? WHERE id=?',
+    [bank_code.toUpperCase(), bank_account.trim(), bank_name.trim(), req.params.id]);
+  await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+    [req.admin.id, 'member.bank_update', 'member', req.params.id,
+     `${bank_code} ${bank_account} (${bank_name})`, req.ip]);
+  res.json({ success: true, message: `อัพเดทบัญชีธนาคารของ ${m.name} แล้ว` });
+});
+
 module.exports = router;

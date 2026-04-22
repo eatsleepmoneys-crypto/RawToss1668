@@ -77,7 +77,7 @@ router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req
 //  AGENTS
 // ══════════════════════════════════════
 router.get('/agents', authAdmin, rbac.requirePerm('agents.view'), async (req, res) => {
-  const rows = await query('SELECT id,uuid,name,phone,commission_rate,referral_rate,balance,total_commission,status,created_at FROM agents ORDER BY id DESC');
+  const rows = await query('SELECT id,uuid,name,phone,commission_rate,referral_rate,balance,total_commission,status,bank_code,bank_account,bank_name,created_at FROM agents ORDER BY id DESC');
   res.json({ success: true, data: rows });
 });
 
@@ -113,6 +113,21 @@ router.patch('/agents/:id', authAdmin, rbac.requirePerm('agents.manage'), async 
     [commission_rate ?? null, referral_rate ?? null, status ?? null, req.params.id]
   );
   res.json({ success: true, message: 'อัพเดทเอเยนต์แล้ว' });
+});
+
+// ── Agent Bank Account ──
+router.patch('/agents/:id/bank', authAdmin, rbac.requirePerm('agents.manage'), async (req, res) => {
+  const { bank_code, bank_account, bank_name } = req.body;
+  if (!bank_code || !bank_account || !bank_name)
+    return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลธนาคารให้ครบ (ธนาคาร / เลขบัญชี / ชื่อบัญชี)' });
+  const [a] = await query('SELECT id, name FROM agents WHERE id=?', [req.params.id]);
+  if (!a) return res.status(404).json({ success: false, message: 'ไม่พบเอเยนต์' });
+  await query('UPDATE agents SET bank_code=?, bank_account=?, bank_name=? WHERE id=?',
+    [bank_code.toUpperCase(), bank_account.trim(), bank_name.trim(), req.params.id]);
+  await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+    [req.admin.id, 'agent.bank_update', 'agent', req.params.id,
+     `${bank_code} ${bank_account} (${bank_name})`, req.ip]);
+  res.json({ success: true, message: `อัพเดทบัญชีธนาคารของ ${a.name} แล้ว` });
 });
 
 // ── Agent Credit ──
