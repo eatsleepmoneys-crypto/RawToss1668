@@ -858,17 +858,23 @@ function renderDepositsRows(rows) {
     </tr>`).join('');
 }
 
+function clearDepDates(){ const f=document.getElementById('dep-date-from'),t=document.getElementById('dep-date-to'); if(f)f.value=''; if(t)t.value=''; loadDeposits(); }
+
 async function loadDeposits(){
-  const status = document.getElementById('dep-status-sel')?.value ?? 'pending';
-  const search = document.getElementById('dep-search')?.value?.trim() || '';
+  const status    = document.getElementById('dep-status-sel')?.value ?? 'pending';
+  const search    = document.getElementById('dep-search')?.value?.trim() || '';
+  const dateFrom  = document.getElementById('dep-date-from')?.value || '';
+  const dateTo    = document.getElementById('dep-date-to')?.value   || '';
   const tbody  = document.getElementById('deposits-tbody');
   const sumEl  = document.getElementById('dep-summary');
   if(!tbody) return;
   tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
   try {
     const params = { limit: 50 };
-    if(status) params.status = status;
-    if(search) params.search = search;
+    if(status)   params.status    = status;
+    if(search)   params.search    = search;
+    if(dateFrom) params.date_from = dateFrom;
+    if(dateTo)   params.date_to   = dateTo;
     const d    = await API.AdminAPI.listDeposits(params);
     const rows = d.data || [];
     const total = rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
@@ -915,17 +921,23 @@ function renderWithdrawalsRows(rows) {
     </tr>`).join('');
 }
 
+function clearWdDates(){ const f=document.getElementById('wd-date-from'),t=document.getElementById('wd-date-to'); if(f)f.value=''; if(t)t.value=''; loadWithdrawals(); }
+
 async function loadWithdrawals(){
-  const status = document.getElementById('wd-status-sel')?.value ?? 'pending';
-  const search = document.getElementById('wd-search')?.value?.trim() || '';
+  const status   = document.getElementById('wd-status-sel')?.value ?? 'pending';
+  const search   = document.getElementById('wd-search')?.value?.trim() || '';
+  const dateFrom = document.getElementById('wd-date-from')?.value || '';
+  const dateTo   = document.getElementById('wd-date-to')?.value   || '';
   const tbody  = document.getElementById('withdrawals-tbody');
   const sumEl  = document.getElementById('wd-summary');
   if(!tbody) return;
   tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
   try {
     const params = { limit: 50 };
-    if(status) params.status = status;
-    if(search) params.search = search;
+    if(status)   params.status    = status;
+    if(search)   params.search    = search;
+    if(dateFrom) params.date_from = dateFrom;
+    if(dateTo)   params.date_to   = dateTo;
     const d    = await API.AdminAPI.listWithdrawals(params);
     const rows = d.data || [];
     const total = rows.reduce((s, r) => s + parseFloat(r.amount || 0), 0);
@@ -1083,6 +1095,105 @@ function rejectAgentWithdrawal(id){
 let _betsPage = 1;
 let _betsTimer = null;
 
+let _betsViewMode = 'list'; // 'list' | 'bill'
+
+function setBetsView(mode){
+  _betsViewMode = mode;
+  document.getElementById('bets-view-list')?.classList.toggle('on', mode==='list');
+  document.getElementById('bets-view-bill')?.classList.toggle('on', mode==='bill');
+  document.getElementById('bets-list-view') && (document.getElementById('bets-list-view').style.display = mode==='list'?'':'none');
+  document.getElementById('bets-bill-view') && (document.getElementById('bets-bill-view').style.display = mode==='bill'?'':'none');
+  loadBets(1);
+}
+
+function clearBetsDates(){
+  const f=document.getElementById('bets-date-from'),t=document.getElementById('bets-date-to');
+  if(f)f.value=''; if(t)t.value=''; loadBets(1);
+}
+
+function toggleBill(billId){
+  const el = document.getElementById('bill-detail-'+billId);
+  if(!el) return;
+  const isOpen = el.style.display !== 'none';
+  el.style.display = isOpen ? 'none' : 'block';
+  const btn = document.getElementById('bill-toggle-'+billId);
+  if(btn) btn.textContent = isOpen ? '▼ ดูรายการ' : '▲ ซ่อน';
+}
+
+function renderBillView(rows){
+  const container = document.getElementById('bets-bills-container');
+  if(!container) return;
+  if(!rows.length){
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px">ไม่พบรายการ</div>';
+    return;
+  }
+  // Group by member_name + round_name
+  const groups = {};
+  rows.forEach(b => {
+    const key = `${b.member_name||'-'}__${b.round_name||'-'}__${b.lottery_name||'-'}`;
+    if(!groups[key]) groups[key] = { member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, bets:[], total:0, payout:0 };
+    groups[key].bets.push(b);
+    groups[key].total   += parseFloat(b.amount||0);
+    groups[key].payout  += parseFloat(b.payout||0);
+  });
+  const BTL = {'3top':'3บน','3tod':'โต้ด','2top':'2บน','2bot':'2ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+  let html = '';
+  Object.entries(groups).forEach(([key, g], idx) => {
+    const hasWin = g.bets.some(b=>b.status==='win');
+    const statusColor = hasWin ? 'var(--green)' : 'var(--muted)';
+    const winTotal = g.bets.reduce((s,b)=>s+parseFloat(b.win_amount||0),0);
+    html += `
+    <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleBill(${idx})" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:var(--card2);user-select:none">
+        <span style="font-size:15px">${g.lottery_flag||'🎰'}</span>
+        <div style="flex:1;min-width:120px">
+          <div style="font-weight:700;font-size:14px">${g.member_name||'-'}</div>
+          <div style="font-size:11px;color:var(--muted)">${g.phone||''}</div>
+        </div>
+        <div style="flex:1;min-width:120px">
+          <div style="font-size:12px;color:var(--muted)">${g.lottery_name||''}</div>
+          <div style="font-size:12px">${g.round_name||'-'}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:var(--muted)">${g.bets.length} รายการ</div>
+          <div style="font-weight:700;color:var(--gold2)">฿${g.total.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>
+        </div>
+        ${winTotal>0?`<div style="text-align:right;color:var(--green);font-weight:700">+฿${winTotal.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>`:''}
+        <button id="bill-toggle-${idx}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--text)">▼ ดูรายการ</button>
+      </div>
+      <div id="bill-detail-${idx}" style="display:none;padding:12px">
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr style="color:var(--muted);border-bottom:1px solid var(--border)">
+            <th style="padding:4px 8px;text-align:left">ประเภท</th>
+            <th style="padding:4px 8px;text-align:center;font-size:16px">เลข</th>
+            <th style="padding:4px 8px;text-align:right">ยอดแทง</th>
+            <th style="padding:4px 8px;text-align:right">ถ้าถูก</th>
+            <th style="padding:4px 8px;text-align:right">สถานะ</th>
+            <th style="padding:4px 8px;text-align:center">จัดการ</th>
+          </tr></thead>
+          <tbody>
+            ${g.bets.map(b=>`
+            <tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:4px 8px"><span class="badge badge-blue">${BTL[b.bet_type]||b.bet_type}</span></td>
+              <td style="padding:4px 8px;text-align:center;font-size:18px;font-weight:800;letter-spacing:3px;color:var(--gold)">${b.number}</td>
+              <td style="padding:4px 8px;text-align:right;font-weight:600">฿${Number(b.amount||0).toLocaleString()}</td>
+              <td style="padding:4px 8px;text-align:right;color:var(--muted)">฿${Number(b.payout||0).toLocaleString()}</td>
+              <td style="padding:4px 8px;text-align:right">
+                <span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${{waiting:'รอผล',win:'ถูก',lose:'ไม่ถูก',cancelled:'ยกเลิก'}[b.status]||b.status}</span>
+                ${b.win_amount>0?`<div style="color:var(--green);font-size:11px">+฿${Number(b.win_amount).toLocaleString()}</div>`:''}
+              </td>
+              <td style="padding:4px 8px;text-align:center">
+                ${b.status==='waiting'?`<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`:'-'}
+              </td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
 function debounceBetsSearch(){
   clearTimeout(_betsTimer);
   _betsTimer = setTimeout(() => loadBets(1), 400);
@@ -1103,16 +1214,22 @@ async function loadBets(page){
   if(!tbody) return;
 
   // Build params
-  const search    = document.getElementById('bets-search')?.value?.trim() || '';
-  const bet_type  = document.getElementById('bets-type-sel')?.value || '';
-  const status    = document.getElementById('bets-status-sel')?.value || '';
+  const search       = document.getElementById('bets-search')?.value?.trim() || '';
+  const bet_type     = document.getElementById('bets-type-sel')?.value || '';
+  const status       = document.getElementById('bets-status-sel')?.value || '';
   const lottery_code = document.getElementById('bets-lottery-sel')?.value || '';
+  const dateFrom     = document.getElementById('bets-date-from')?.value || '';
+  const dateTo       = document.getElementById('bets-date-to')?.value   || '';
+  const isBillView   = _betsViewMode === 'bill';
 
-  const params = { page: _betsPage, limit: 30 };
+  // bill mode loads more rows (no pagination needed)
+  const params = { page: _betsPage, limit: isBillView ? 200 : 30 };
   if(search)       params.search       = search;
   if(bet_type)     params.bet_type     = bet_type;
   if(status)       params.status       = status;
   if(lottery_code) params.lottery_code = lottery_code;
+  if(dateFrom)     params.date_from    = dateFrom;
+  if(dateTo)       params.date_to      = dateTo;
 
   tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</td></tr>';
   if(sumEl) sumEl.textContent = '⏳ กำลังโหลด...';
@@ -1129,39 +1246,50 @@ async function loadBets(page){
       `พบ <b style="color:var(--gold2)">${total.toLocaleString()}</b> รายการ` +
       ` &nbsp;|&nbsp; ยอดรวม <b style="color:var(--gold2)">฿${Number(d.total_amount||0).toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
 
-    // Rows
-    if(!rows.length){
-      tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">ไม่พบรายการแทง</td></tr>';
+    // Switch views
+    if(isBillView){
+      // Bill view — group by member+round
+      document.getElementById('bets-list-view') && (document.getElementById('bets-list-view').style.display = 'none');
+      document.getElementById('bets-bill-view') && (document.getElementById('bets-bill-view').style.display = '');
+      renderBillView(rows);
+      if(pager) pager.innerHTML = ''; // no pagination in bill mode
     } else {
-      tbody.innerHTML = rows.map(b => `
-        <tr>
-          <td style="font-size:11px;color:var(--muted)">${b.id}</td>
-          <td>
-            <div style="font-weight:600">${b.member_name||'-'}</div>
-            <div style="font-size:11px;color:var(--muted)">${b.phone||''}</div>
-          </td>
-          <td><span>${b.lottery_flag||''}</span> <span style="font-size:12px">${b.lottery_name||'-'}</span></td>
-          <td style="font-size:11px;color:var(--muted);max-width:130px;word-break:break-word">${b.round_name||'-'}</td>
-          <td><span class="badge badge-blue">${betTypeLabel(b.bet_type)}</span></td>
-          <td style="font-size:20px;font-weight:800;color:var(--gold);letter-spacing:3px">${b.number}</td>
-          <td style="font-weight:700">฿${Number(b.amount||0).toLocaleString()}</td>
-          <td style="color:var(--muted)">฿${Number(b.payout||0).toLocaleString()}</td>
-          <td style="font-size:11px;color:var(--muted)">${UI.formatDate(b.created_at)}</td>
-          <td><span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${betStatusLabel(b.status)}</span>${b.status==='win'?`<div style="font-size:11px;color:var(--green);margin-top:2px">+฿${Number(b.win_amount||0).toLocaleString()}</div>`:''}</td>
-          <td>${b.status==='waiting'
-            ? `<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`
-            : '-'}</td>
-        </tr>`).join('');
-    }
+      // List view
+      document.getElementById('bets-list-view') && (document.getElementById('bets-list-view').style.display = '');
+      document.getElementById('bets-bill-view') && (document.getElementById('bets-bill-view').style.display = 'none');
+      if(!rows.length){
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">ไม่พบรายการแทง</td></tr>';
+      } else {
+        tbody.innerHTML = rows.map(b => `
+          <tr>
+            <td style="font-size:11px;color:var(--muted)">${b.id}</td>
+            <td>
+              <div style="font-weight:600">${b.member_name||'-'}</div>
+              <div style="font-size:11px;color:var(--muted)">${b.phone||''}</div>
+            </td>
+            <td><span>${b.lottery_flag||''}</span> <span style="font-size:12px">${b.lottery_name||'-'}</span></td>
+            <td style="font-size:11px;color:var(--muted);max-width:130px;word-break:break-word">${b.round_name||'-'}</td>
+            <td><span class="badge badge-blue">${betTypeLabel(b.bet_type)}</span></td>
+            <td style="font-size:20px;font-weight:800;color:var(--gold);letter-spacing:3px">${b.number}</td>
+            <td style="font-weight:700">฿${Number(b.amount||0).toLocaleString()}</td>
+            <td style="color:var(--muted)">฿${Number(b.payout||0).toLocaleString()}</td>
+            <td style="font-size:11px;color:var(--muted)">${UI.formatDate(b.created_at)}</td>
+            <td><span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${betStatusLabel(b.status)}</span>${b.status==='win'?`<div style="font-size:11px;color:var(--green);margin-top:2px">+฿${Number(b.win_amount||0).toLocaleString()}</div>`:''}</td>
+            <td>${b.status==='waiting'
+              ? `<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`
+              : '-'}</td>
+          </tr>`).join('');
+      }
 
-    // Pagination
-    if(pager && pages > 1){
-      let html = '';
-      if(_betsPage > 1) html += `<button class="pager-btn" onclick="loadBets(${_betsPage-1})">◀</button>`;
-      const start = Math.max(1, _betsPage-2), end = Math.min(pages, _betsPage+2);
-      for(let i=start;i<=end;i++) html += `<button class="pager-btn${i===_betsPage?' on':''}" onclick="loadBets(${i})">${i}</button>`;
-      if(_betsPage < pages) html += `<button class="pager-btn" onclick="loadBets(${_betsPage+1})">▶</button>`;
-      pager.innerHTML = html;
+      // Pagination (list mode only)
+      if(pager && pages > 1){
+        let html = '';
+        if(_betsPage > 1) html += `<button class="pager-btn" onclick="loadBets(${_betsPage-1})">◀</button>`;
+        const start = Math.max(1, _betsPage-2), end = Math.min(pages, _betsPage+2);
+        for(let i=start;i<=end;i++) html += `<button class="pager-btn${i===_betsPage?' on':''}" onclick="loadBets(${i})">${i}</button>`;
+        if(_betsPage < pages) html += `<button class="pager-btn" onclick="loadBets(${_betsPage+1})">▶</button>`;
+        pager.innerHTML = html;
+      } else if(pager) pager.innerHTML = '';
     }
 
     // Populate lottery dropdown (only once if empty)
@@ -3764,12 +3892,15 @@ results:()=>`
 </div>`,
 
 deposits:()=>`
-<div class="filter-bar">
-  <input class="fi" id="dep-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1"
+<div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+  <input class="fi" id="dep-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1;min-width:140px"
     oninput="debounceDeposits()" onkeydown="if(event.key==='Enter')loadDeposits()">
   <select class="fi fi-sm" id="dep-status-sel" onchange="loadDeposits()">
     <option value="pending">รอตรวจ</option><option value="approved">อนุมัติแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
   </select>
+  <input type="date" class="fi fi-sm" id="dep-date-from" onchange="loadDeposits()" title="วันที่เริ่มต้น">
+  <input type="date" class="fi fi-sm" id="dep-date-to"   onchange="loadDeposits()" title="วันที่สิ้นสุด">
+  <button class="btn btn-outline btn-xs" onclick="clearDepDates()" title="ล้างวันที่">✕</button>
   <button class="btn btn-sm btn-outline" onclick="loadDeposits()" style="flex-shrink:0">🔄 รีเฟรช</button>
   <span id="dep-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
   <span id="auto-refresh-indicator" style="margin-left:auto"></span>
@@ -3784,12 +3915,15 @@ deposits:()=>`
 </div>`,
 
 withdrawals:()=>`
-<div class="filter-bar">
-  <input class="fi" id="wd-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1"
+<div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+  <input class="fi" id="wd-search" placeholder="🔍 ค้นหาชื่อ เบอร์..." style="flex:1;min-width:140px"
     oninput="debounceWithdrawals()" onkeydown="if(event.key==='Enter')loadWithdrawals()">
   <select class="fi fi-sm" id="wd-status-sel" onchange="loadWithdrawals()">
     <option value="pending">รอโอน</option><option value="processing">กำลังโอน</option><option value="completed">โอนแล้ว</option><option value="rejected">ปฏิเสธ</option><option value="">ทุกสถานะ</option>
   </select>
+  <input type="date" class="fi fi-sm" id="wd-date-from" onchange="loadWithdrawals()" title="วันที่เริ่มต้น">
+  <input type="date" class="fi fi-sm" id="wd-date-to"   onchange="loadWithdrawals()" title="วันที่สิ้นสุด">
+  <button class="btn btn-outline btn-xs" onclick="clearWdDates()" title="ล้างวันที่">✕</button>
   <button class="btn btn-sm btn-outline" onclick="loadWithdrawals()" style="flex-shrink:0">🔄 รีเฟรช</button>
   <span id="wd-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</span>
   <span id="auto-refresh-indicator" style="margin-left:auto"></span>
@@ -3870,6 +4004,13 @@ bets:()=>`
     <option value="lose">❌ ไม่ถูก</option>
     <option value="cancelled">🚫 ยกเลิก</option>
   </select>
+  <input type="date" class="fi fi-sm" id="bets-date-from" onchange="loadBets(1)" title="วันที่เริ่มต้น">
+  <input type="date" class="fi fi-sm" id="bets-date-to"   onchange="loadBets(1)" title="วันที่สิ้นสุด">
+  <button class="btn btn-outline btn-xs" onclick="clearBetsDates()" title="ล้างวันที่">✕ ล้างวัน</button>
+  <div style="display:flex;gap:4px;background:var(--card2);border-radius:8px;padding:2px">
+    <button id="bets-view-list" class="btn btn-xs on" onclick="setBetsView('list')" style="padding:4px 10px;font-size:12px">📋 รายการ</button>
+    <button id="bets-view-bill" class="btn btn-xs"    onclick="setBetsView('bill')" style="padding:4px 10px;font-size:12px">🧾 บิล</button>
+  </div>
   <button class="btn btn-outline" onclick="loadBets(1)">🔄 รีเฟรช</button>
 </div>
 <div class="card">
@@ -3877,27 +4018,34 @@ bets:()=>`
     <div id="bets-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</div>
     <div id="bets-pager" style="display:flex;gap:6px"></div>
   </div>
-  <div class="tbl-wrap">
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>สมาชิก</th>
-          <th>หวย</th>
-          <th>งวด</th>
-          <th>ประเภท</th>
-          <th>เลข</th>
-          <th>ยอดแทง</th>
-          <th>ถ้าถูก</th>
-          <th>เวลาแทง</th>
-          <th>สถานะ</th>
-          <th>จัดการ</th>
-        </tr>
-      </thead>
-      <tbody id="bets-tbody">
-        <tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</td></tr>
-      </tbody>
-    </table>
+  <div id="bets-list-view">
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>สมาชิก</th>
+            <th>หวย</th>
+            <th>งวด</th>
+            <th>ประเภท</th>
+            <th>เลข</th>
+            <th>ยอดแทง</th>
+            <th>ถ้าถูก</th>
+            <th>เวลาแทง</th>
+            <th>สถานะ</th>
+            <th>จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="bets-tbody">
+          <tr><td colspan="11" style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div id="bets-bill-view" style="display:none">
+    <div id="bets-bills-container">
+      <div style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</div>
+    </div>
   </div>
 </div>`,
 

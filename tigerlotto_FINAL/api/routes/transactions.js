@@ -358,11 +358,13 @@ router.get('/admin/deposits', authAdmin, rbac.requirePerm('deposits.view'), asyn
   const lim    = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
   const pg     = Math.max(parseInt(req.query.page) || 1, 1);
   const offset = (pg - 1) * lim;
-  const { status, search } = req.query;
+  const { status, search, date_from, date_to } = req.query;
 
   const where = []; const params = [];
   if (status && status !== 'all') { where.push('d.status=?'); params.push(status); }
   if (search)                     { where.push('(m.name LIKE ? OR m.phone LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
+  if (date_from) { where.push('DATE(d.created_at) >= ?'); params.push(date_from); }
+  if (date_to)   { where.push('DATE(d.created_at) <= ?'); params.push(date_to); }
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const rows = await query(
@@ -409,11 +411,13 @@ router.get('/admin/withdrawals', authAdmin, rbac.requirePerm('withdrawals.view')
   const lim    = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
   const pg     = Math.max(parseInt(req.query.page) || 1, 1);
   const offset = (pg - 1) * lim;
-  const { status, search } = req.query;
+  const { status, search, date_from, date_to } = req.query;
 
   const where = []; const params = [];
   if (status && status !== 'all') { where.push('w.status=?'); params.push(status); }
   if (search)                     { where.push('(m.name LIKE ? OR m.phone LIKE ?)'); params.push(`%${search}%`, `%${search}%`); }
+  if (date_from) { where.push('DATE(w.created_at) >= ?'); params.push(date_from); }
+  if (date_to)   { where.push('DATE(w.created_at) <= ?'); params.push(date_to); }
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   const rows = await query(

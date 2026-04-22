@@ -267,7 +267,7 @@ router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, 
   const pg     = Math.max(parseInt(req.query.page)  || 1, 1);
   const offset = (pg - 1) * lim;
 
-  const { round_id, member_id, status, bet_type, search, lottery_code } = req.query;
+  const { round_id, member_id, status, bet_type, search, lottery_code, date_from, date_to } = req.query;
   const where = []; const params = [];
   if (round_id)     { where.push('b.round_id=?');  params.push(parseInt(round_id)); }
   if (member_id)    { where.push('b.member_id=?'); params.push(parseInt(member_id)); }
@@ -278,6 +278,8 @@ router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, 
     where.push('(m.name LIKE ? OR m.phone LIKE ? OR b.number LIKE ?)');
     params.push(`%${search}%`, `%${search}%`, `%${search}%`);
   }
+  if (date_from) { where.push('DATE(b.created_at) >= ?'); params.push(date_from); }
+  if (date_to)   { where.push('DATE(b.created_at) <= ?'); params.push(date_to); }
   const whereClause = where.length ? 'WHERE ' + where.join(' AND ') : '';
 
   // ใช้ inline LIMIT/OFFSET (ปลอดภัย — parseInt แล้ว) เพื่อหลีกเลี่ยง mysql2 prepared-statement bug
