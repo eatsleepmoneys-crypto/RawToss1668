@@ -491,17 +491,21 @@ const PAGE_TITLES={
   api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs',branding:'🎨 ตั้งค่าหน้าเว็บ'
 };
 // ═══ AUTO-REFRESH POLLING ═══
-let _autoRefreshInterval = null;
-let _autoRefreshPage     = null;
-let _lastDepPendingCount = -1;
-let _lastWdPendingCount  = -1;
-const AUTO_REFRESH_SEC   = 15;
+let _autoRefreshInterval  = null;
+let _autoRefreshPage      = null;
+let _lastDepPendingCount  = -1;
+let _lastWdPendingCount   = -1;
+let _lastAdepPendingCount = -1;
+let _lastAwdPendingCount  = -1;
+const AUTO_REFRESH_SEC    = 15;
 
 function startAutoRefresh(page) {
   stopAutoRefresh();
   _autoRefreshPage = page;
-  _lastDepPendingCount = -1;
-  _lastWdPendingCount  = -1;
+  _lastDepPendingCount  = -1;
+  _lastWdPendingCount   = -1;
+  _lastAdepPendingCount = -1;
+  _lastAwdPendingCount  = -1;
   let countdown = AUTO_REFRESH_SEC;
   updateRefreshIndicator(countdown, page);
 
@@ -559,6 +563,22 @@ async function silentRefresh(page) {
         const total = rows.reduce((s,r)=>s+parseFloat(r.amount||0),0);
         sumEl.innerHTML = `รอโอน: <b style="color:var(--red)">${pendingCnt} รายการ</b> · รวม: <b style="color:var(--red)">฿${total.toLocaleString('th-TH',{minimumFractionDigits:2})}</b>`;
       }
+    } else if (page === 'agentdeposits') {
+      await loadAgentDeposits({ silent: true });
+      const newCnt = parseInt(document.getElementById('badge-adep')?.textContent || '0');
+      if (_lastAdepPendingCount !== -1 && newCnt > _lastAdepPendingCount) {
+        playNotifySound();
+        showPendingBadge('agentdeposits', newCnt);
+      }
+      _lastAdepPendingCount = newCnt;
+    } else if (page === 'agentwithdrawals') {
+      await loadAgentWithdrawals({ silent: true });
+      const newCnt = parseInt(document.getElementById('badge-awd')?.textContent || '0');
+      if (_lastAwdPendingCount !== -1 && newCnt > _lastAwdPendingCount) {
+        playNotifySound();
+        showPendingBadge('agentwithdrawals', newCnt);
+      }
+      _lastAwdPendingCount = newCnt;
     }
   } catch(_) { /* silent fail */ }
 }
@@ -602,7 +622,7 @@ function nav(page){
   if(fn)document.getElementById('page-content').innerHTML=fn();
   initPageCharts(page);
   afterNav(page); // ← load real API data
-  if(page==='deposits'||page==='withdrawals') startAutoRefresh(page);
+  if(['deposits','withdrawals','agentdeposits','agentwithdrawals'].includes(page)) startAutoRefresh(page);
 }
 
 // ═══ REAL API LOADER per page ═══
@@ -923,13 +943,13 @@ async function loadWithdrawals(){
 let _adepTimer = null;
 function debounceAgentDeposits(){ clearTimeout(_adepTimer); _adepTimer = setTimeout(()=>loadAgentDeposits(), 400); }
 
-async function loadAgentDeposits(){
+async function loadAgentDeposits({ silent = false } = {}){
   const status = document.getElementById('adep-status-sel')?.value ?? 'pending';
   const search = document.getElementById('adep-search')?.value?.trim() || '';
   const tbody  = document.getElementById('adep-tbody');
   const sumEl  = document.getElementById('adep-summary');
   if(!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  if(!silent) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
   try {
     const params = { limit: 50, status };
     if(search) params.search = search;
@@ -997,13 +1017,13 @@ function rejectAgentDeposit(id){
 let _awdTimer = null;
 function debounceAgentWithdrawals(){ clearTimeout(_awdTimer); _awdTimer = setTimeout(()=>loadAgentWithdrawals(), 400); }
 
-async function loadAgentWithdrawals(){
+async function loadAgentWithdrawals({ silent = false } = {}){
   const status = document.getElementById('awd-status-sel')?.value ?? 'pending';
   const search = document.getElementById('awd-search')?.value?.trim() || '';
   const tbody  = document.getElementById('awd-tbody');
   const sumEl  = document.getElementById('awd-summary');
   if(!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  if(!silent) tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
   try {
     const params = { limit: 50, status };
     if(search) params.search = search;
