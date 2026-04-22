@@ -201,6 +201,65 @@ async function sendWithdrawNotif(info) {
 }
 
 /**
+ * sendAgentDepositNotif(info)
+ * แจ้งเตือนเมื่อ Agent ฝากเงิน / Admin อนุมัติ-ปฏิเสธ
+ *
+ * info: { agentName, phone, amount, bank_code, status, note, adminName }
+ */
+async function sendAgentDepositNotif(info) {
+  const creds = await getLineCredentials();
+  if (!creds.notifyDeposit) return;
+  if (!creds.notifyEnabled && !creds.botEnabled) return;
+
+  const statusTH = info.status === 'approved' ? '✅ อนุมัติแล้ว'
+                 : info.status === 'rejected'  ? '❌ ปฏิเสธ'
+                 : '⏳ รอตรวจสอบ';
+  const icon = info.status === 'approved' ? '✅' : info.status === 'rejected' ? '❌' : '💰';
+
+  const message = [
+    `${icon} [ฝากเงิน Agent — ${statusTH}]`,
+    `เอเยนต์: ${info.agentName || '-'} (${info.phone || '-'})`,
+    `ยอด: ฿${fmt(info.amount)}`,
+    info.bank_code ? `ธนาคาร: ${info.bank_code}` : null,
+    info.note      ? `หมายเหตุ: ${info.note}`      : null,
+    info.adminName ? `ดำเนินการโดย: ${info.adminName}` : null,
+    `เวลา: ${thaiTime()}`,
+  ].filter(Boolean).join('\n');
+
+  return notify(message);
+}
+
+/**
+ * sendAgentWithdrawNotif(info)
+ * แจ้งเตือนเมื่อ Agent ถอนเงิน / Admin อนุมัติ-ปฏิเสธ
+ *
+ * info: { agentName, phone, amount, bank_code, bank_account, bank_name, status, note, adminName }
+ */
+async function sendAgentWithdrawNotif(info) {
+  const creds = await getLineCredentials();
+  if (!creds.notifyWithdraw) return;
+  if (!creds.notifyEnabled && !creds.botEnabled) return;
+
+  const statusTH = info.status === 'approved' ? '✅ อนุมัติแล้ว'
+                 : info.status === 'rejected'  ? '❌ ปฏิเสธ'
+                 : '⏳ รอตรวจสอบ';
+  const icon = info.status === 'approved' ? '✅' : info.status === 'rejected' ? '❌' : '🏧';
+
+  const message = [
+    `${icon} [ถอนเงิน Agent — ${statusTH}]`,
+    `เอเยนต์: ${info.agentName || '-'} (${info.phone || '-'})`,
+    `ยอด: ฿${fmt(info.amount)}`,
+    `บัญชีปลายทาง: ${info.bank_code || '-'} ${info.bank_account || '-'}`,
+    info.bank_name ? `ชื่อบัญชี: ${info.bank_name}`          : null,
+    info.note      ? `หมายเหตุ: ${info.note}`                : null,
+    info.adminName ? `ดำเนินการโดย: ${info.adminName}`       : null,
+    `เวลา: ${thaiTime()}`,
+  ].filter(Boolean).join('\n');
+
+  return notify(message);
+}
+
+/**
  * testNotify()
  * ทดสอบส่งข้อความ
  */
@@ -234,5 +293,7 @@ module.exports = {
   notify,
   sendDepositNotif,
   sendWithdrawNotif,
+  sendAgentDepositNotif,
+  sendAgentWithdrawNotif,
   testNotify,
 };

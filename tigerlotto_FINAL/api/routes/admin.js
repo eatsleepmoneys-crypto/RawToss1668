@@ -709,7 +709,10 @@ router.get('/agent-deposits', authAdmin, rbac.requirePerm('finance.view'), async
 // ── POST /api/admin/agent-deposits/:id/approve ───────────────────
 router.post('/agent-deposits/:id/approve', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
   const depId = Number(req.params.id);
-  const [dep] = await query('SELECT * FROM agent_deposits WHERE id=? AND status="pending"', [depId]);
+  const [dep] = await query(
+    'SELECT ad.*, a.name agent_name, a.phone agent_phone, a.bank_code a_bank_code FROM agent_deposits ad LEFT JOIN agents a ON ad.agent_id=a.id WHERE ad.id=? AND ad.status="pending"',
+    [depId]
+  );
   if (!dep) return res.status(404).json({ success: false, message: 'ไม่พบคำขอหรืออนุมัติแล้ว' });
 
   await transaction(async (conn) => {
@@ -728,16 +731,25 @@ router.post('/agent-deposits/:id/approve', authAdmin, rbac.requirePerm('finance.
        `Admin อนุมัติฝากเงิน #${dep.id}`]
     );
   });
+  // LINE notification
+  try { require('../services/lineService').sendAgentDepositNotif({ agentName: dep.agent_name, phone: dep.agent_phone, amount: dep.amount, bank_code: dep.a_bank_code || dep.bank_code, status: 'approved', adminName: req.admin.name }); } catch {}
   res.json({ success: true, message: 'อนุมัติฝากเงินสำเร็จ' });
 });
 
 // ── POST /api/admin/agent-deposits/:id/reject ────────────────────
 router.post('/agent-deposits/:id/reject', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
   const { note } = req.body;
+  const depId = Number(req.params.id);
+  const [dep] = await query(
+    'SELECT ad.*, a.name agent_name, a.phone agent_phone FROM agent_deposits ad LEFT JOIN agents a ON ad.agent_id=a.id WHERE ad.id=? AND ad.status="pending"',
+    [depId]
+  );
   await query(
     'UPDATE agent_deposits SET status="rejected", reject_note=?, approved_by=?, approved_at=NOW() WHERE id=? AND status="pending"',
-    [note || null, req.admin.id, Number(req.params.id)]
+    [note || null, req.admin.id, depId]
   );
+  // LINE notification
+  if (dep) try { require('../services/lineService').sendAgentDepositNotif({ agentName: dep?.agent_name, phone: dep?.agent_phone, amount: dep?.amount, status: 'rejected', note, adminName: req.admin.name }); } catch {}
   res.json({ success: true, message: 'ปฏิเสธคำขอฝากเงินแล้ว' });
 });
 
@@ -769,7 +781,13 @@ router.get('/agent-withdrawals', authAdmin, rbac.requirePerm('finance.view'), as
 // ── POST /api/admin/agent-withdrawals/:id/approve ────────────────
 router.post('/agent-withdrawals/:id/approve', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
   const wdId = Number(req.params.id);
-  const [wd] = await query('SELECT * FROM agent_withdrawals WHERE id=? AND status="pending"', [wdId]);
+  const [wd] = await query(
+    `SELECT aw.*, a.name AS agent_name, a.phone AS agent_phone
+     FROM agent_withdrawals aw
+     JOIN agents a ON aw.agent_id = a.id
+     WHERE aw.id=? AND aw.status="pending"`,
+    [wdId]
+  );
   if (!wd) return res.status(404).json({ success: false, message: 'ไม่พบคำขอหรืออนุมัติแล้ว' });
 
   await transaction(async (conn) => {
@@ -790,16 +808,55 @@ router.post('/agent-withdrawals/:id/approve', authAdmin, rbac.requirePerm('finan
        `Admin อนุมัติถอนเงิน #${wd.id}`]
     );
   });
+
+  try {
+    require('../services/lineService').sendAgentWithdrawNotif({
+      agentName  : wd.agent_name,
+      phone      : wd.agent_phone,
+      amount     : wd.amount,
+      bank_code  : wd.bank_code,
+      bank_account: wd.bank_account,
+      bank_name  : wd.bank_name,
+      status     : 'approved',
+      adminName  : req.admin.name,
+    });
+  } catch {}
+
   res.json({ success: true, message: 'อนุมัติถอนเงินสำเร็จ' });
 });
 
 // ── POST /api/admin/agent-withdrawals/:id/reject ─────────────────
 router.post('/agent-withdrawals/:id/reject', authAdmin, rbac.requirePerm('finance.manage'), async (req, res) => {
   const { note } = req.body;
+  const wdId = Number(req.params.id);
+
+  const [wd] = await query(
+    `SELECT aw.*, a.name AS agent_name, a.phone AS agent_phone
+     FROM agent_withdrawals aw
+     JOIN agents a ON aw.agent_id = a.id
+     WHERE aw.id=? AND aw.status="pending"`,
+    [wdId]
+  );
+
   await query(
     'UPDATE agent_withdrawals SET status="rejected", reject_note=?, processed_by=?, processed_at=NOW() WHERE id=? AND status="pending"',
-    [note || null, req.admin.id, Number(req.params.id)]
+    [note || null, req.admin.id, wdId]
   );
+
+  if (wd) try {
+    require('../services/lineService').sendAgentWithdrawNotif({
+      agentName  : wd.agent_name,
+      phone      : wd.agent_phone,
+      amount     : wd.amount,
+      bank_code  : wd.bank_code,
+      bank_account: wd.bank_account,
+      bank_name  : wd.bank_name,
+      status     : 'rejected',
+      note,
+      adminName  : req.admin.name,
+    });
+  } catch {}
+
   res.json({ success: true, message: 'ปฏิเสธคำขอถอนเงินแล้ว' });
 });
 
