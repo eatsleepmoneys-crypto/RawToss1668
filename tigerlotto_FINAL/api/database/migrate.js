@@ -855,6 +855,12 @@ async function migrate() {
     // commissions: uuid column — เพิ่มถ้า table สร้างก่อน schema มี uuid
     `ALTER TABLE \`commissions\` ADD COLUMN \`uuid\` VARCHAR(36) NOT NULL DEFAULT '' AFTER \`id\``,
     `ALTER TABLE \`commissions\` ADD UNIQUE KEY \`uq_commissions_uuid\` (\`uuid\`)`,
+    // commissions: เพิ่ม columns ที่ขาดหาย (table เก่าจากระบบอื่น)
+    `ALTER TABLE \`commissions\` ADD COLUMN \`earner_type\` VARCHAR(10) NOT NULL DEFAULT 'agent' COMMENT 'agent or member' AFTER \`uuid\``,
+    `ALTER TABLE \`commissions\` ADD COLUMN \`earner_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`earner_type\``,
+    `ALTER TABLE \`commissions\` ADD COLUMN \`from_member_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`earner_id\``,
+    `ALTER TABLE \`commissions\` ADD COLUMN \`bet_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`from_member_id\``,
+    `ALTER TABLE \`commissions\` ADD COLUMN \`description\` VARCHAR(255) DEFAULT NULL`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
