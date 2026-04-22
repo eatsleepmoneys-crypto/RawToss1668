@@ -1515,11 +1515,18 @@ function parseTNewsLaoSection(html) {
       return laGovExtract(m5[1]);
     }
 
-    // 3. Fallback: standalone 6-digit ใน chunk
-    const mAny6 = chunk.match(/\b(\d{6})\b/);
-    if (mAny6) {
-      console.log('[FETCHER:TNEWS_LAO] section standalone 6-digit:', mAny6[1]);
-      return laGovExtract(mAny6[1]);
+    // 3. Fallback: standalone 6-digit ใน chunk (ต้อง pass _isValidLaoNum)
+    const allChunk6 = [...chunk.matchAll(/\b(\d{6})\b/g)].map(m => m[1]);
+    const validChunk6 = allChunk6.filter(n => {
+      const v = parseInt(n);
+      if (v >= 256000 && v <= 257000) return false;
+      const dd = parseInt(n.slice(0,2)), yyyy = parseInt(n.slice(2,6));
+      if (dd >= 1 && dd <= 31 && yyyy >= 2500 && yyyy <= 2600) return false;
+      return true;
+    });
+    if (validChunk6.length) {
+      console.log('[FETCHER:TNEWS_LAO] section standalone 6-digit (filtered):', validChunk6[0]);
+      return laGovExtract(validChunk6[0]);
     }
 
     // section found but no numbers yet (ผลยังไม่ออก)
@@ -1529,8 +1536,19 @@ function parseTNewsLaoSection(html) {
 
   // ── Last resort: หา 6-digit แรกที่ดูเหมือน lottery number ─────────
   // (ไม่ใช่ปีพุทธศักราช, ไม่ใช่ตัวเลขอื่น)
-  const allSix = [...bodyText.matchAll(/\b(\d{6})\b/g)].map(m => m[1])
-    .filter(n => !(parseInt(n) >= 256000 && parseInt(n) <= 257000)); // ข้ามปี พ.ศ.
+  const _isValidLaoNum = (n) => {
+    const v = parseInt(n);
+    if (v >= 256000 && v <= 257000) return false;   // ข้ามปี พ.ศ. 6 หลัก
+    // ข้าม format DDYYYY: 2 หลักแรก = วันที่ (01-31) + 4 หลักหลัง = ปี พ.ศ. (2500-2600)
+    const dd   = parseInt(n.slice(0, 2));
+    const yyyy = parseInt(n.slice(2, 6));
+    if (dd >= 1 && dd <= 31 && yyyy >= 2500 && yyyy <= 2600) return false;
+    // ข้าม format MMYYYY: 2 หลักแรก = เดือน (01-12)
+    const mm = parseInt(n.slice(0, 2));
+    if (mm >= 1 && mm <= 12 && yyyy >= 2500 && yyyy <= 2600) return false;
+    return true;
+  };
+  const allSix = [...bodyText.matchAll(/\b(\d{6})\b/g)].map(m => m[1]).filter(_isValidLaoNum);
   if (allSix.length) {
     console.log('[FETCHER:TNEWS_LAO] last-resort standalone 6-digit:', allSix[0]);
     return laGovExtract(allSix[0]);
