@@ -538,6 +538,8 @@ const SEEDS = [
     ('max_withdraw','50000','number','finance'),
     ('auto_approve_deposit','false','boolean','finance'),
     ('auto_approve_max','1000','number','finance'),
+    ('auto_withdraw_enabled','false','boolean','finance'),
+    ('auto_withdraw_max','5000','number','finance'),
     ('bonus_new_member','50','number','promotion'),
     ('cashback_percent','5','number','promotion'),
     ('referral_commission','3','number','promotion'),
@@ -810,6 +812,10 @@ async function migrate() {
     // Fix: slipok_enabled was seeded as 'false' — update existing row to 'true'
     // (INSERT IGNORE won't overwrite existing rows so we need UPDATE)
     `UPDATE \`settings\` SET value='true' WHERE \`key\`='slipok_enabled' AND value='false'`,
+    // auto_withdraw settings — insert if not exist
+    `INSERT IGNORE INTO \`settings\` (\`key\`,value,type,\`group\`) VALUES
+      ('auto_withdraw_enabled','false','boolean','finance'),
+      ('auto_withdraw_max','5000','number','finance')`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

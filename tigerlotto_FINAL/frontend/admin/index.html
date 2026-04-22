@@ -882,7 +882,10 @@ function renderWithdrawalsRows(rows) {
       <td>${w.bank_code||'-'}</td>
       <td style="font-size:12px">${w.bank_account||'-'}</td>
       <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
-      <td><span class="badge ${WD_BADGE[w.status]||'badge-yellow'}">${WD_STATUS[w.status]||w.status}</span></td>
+      <td>
+        <span class="badge ${WD_BADGE[w.status]||'badge-yellow'}">${WD_STATUS[w.status]||w.status}</span>
+        ${w.ref_no && String(w.ref_no).startsWith('AUTO') ? '<span class="badge badge-blue" title="อนุมัติอัตโนมัติ">🤖 AUTO</span>' : ''}
+      </td>
       <td>
         ${w.status==='pending'||w.status==='processing'?`
           <button class="act-btn act-green" onclick="processWithdrawal(${w.id})">โอนแล้ว</button>
@@ -1880,6 +1883,13 @@ async function loadSettings(){
   setInput('set-cashback2',      s.cashback_percent);
   setInput('set-ref-comm2',      s.referral_commission);
   setInput('set-auto-dep-max',   s.auto_approve_max);
+  // Auto-withdraw settings
+  const awEnabled = s.auto_withdraw_enabled === true || s.auto_withdraw_enabled === 'true';
+  const awCbx = document.getElementById('set-auto-wd-enabled');
+  const awWrap = document.getElementById('auto-wd-max-wrap');
+  if(awCbx) { awCbx.checked = awEnabled; }
+  if(awWrap) { awWrap.style.display = awEnabled ? 'block' : 'none'; }
+  setInput('set-auto-wd-max',    s.auto_withdraw_max ?? 5000);
   setInput('set-seo-title',      s.seo_title);
   setInput('set-primary-color',  s.primary_color || '#d4a017');
   setInput('set-session-expire', s.session_expire);
@@ -1892,7 +1902,7 @@ async function loadSettings(){
 const SETTINGS_GROUPS = {
   general  : ['site_name','site_url','line_id','line_url','contact_tel'],
   seo      : ['seo_title'],
-  finance  : ['min_deposit','max_deposit','min_withdraw','max_withdraw','auto_approve_max'],
+  finance  : ['min_deposit','max_deposit','min_withdraw','max_withdraw','auto_approve_max','auto_withdraw_enabled','auto_withdraw_max'],
   promo    : ['bonus_new_member','cashback_percent','referral_commission'],
   security : ['session_expire','pw_min_length'],
 };
@@ -1906,7 +1916,9 @@ const SETTINGS_ID_MAP = {
   max_deposit       : 'set-max-dep',
   min_withdraw      : 'set-min-wd',
   max_withdraw      : 'set-max-wd',
-  auto_approve_max  : 'set-auto-dep-max',
+  auto_approve_max      : 'set-auto-dep-max',
+  auto_withdraw_enabled : 'set-auto-wd-enabled',
+  auto_withdraw_max     : 'set-auto-wd-max',
   bonus_new_member  : 'set-bonus-new',
   cashback_percent  : 'set-cashback',
   referral_commission:'set-ref-comm',
@@ -4265,7 +4277,19 @@ settings:()=>`
         <div class="fg"><label>ถอนขั้นต่ำ (บาท)</label><input id="set-min-wd" class="fi-full" type="number" placeholder="100"></div>
         <div class="fg"><label>ถอนสูงสุด (บาท)</label><input id="set-max-wd" class="fi-full" type="number" placeholder="50000"></div>
       </div>
-      <div class="fg"><label>วงเงินอนุมัติอัตโนมัติ (บาท)</label><input id="set-auto-dep-max" class="fi-full" type="number" placeholder="5000"></div>
+      <div class="fg"><label>วงเงินอนุมัติฝากอัตโนมัติ (บาท)</label><input id="set-auto-dep-max" class="fi-full" type="number" placeholder="5000"></div>
+      <hr style="border-color:var(--border);margin:14px 0">
+      <h4 style="margin:0 0 10px;color:var(--gold)">🤖 ถอนเงินอัตโนมัติ</h4>
+      <div class="fi-row" style="align-items:center;gap:16px;margin-bottom:10px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="set-auto-wd-enabled" onchange="document.getElementById('auto-wd-max-wrap').style.display=this.checked?'block':'none'">
+          เปิดระบบถอนอัตโนมัติ
+        </label>
+        <span style="font-size:12px;color:var(--muted)">(ระบบอนุมัติถอนทันที ไม่ต้องรอแอดมิน)</span>
+      </div>
+      <div id="auto-wd-max-wrap" style="display:none">
+        <div class="fg"><label>วงเงินถอนอัตโนมัติสูงสุด (บาท, 0 = ไม่จำกัด)</label><input id="set-auto-wd-max" class="fi-full" type="number" placeholder="5000" min="0"></div>
+      </div>
       <button class="btn btn-gold" onclick="saveSettings('finance')">บันทึก</button>
     </div>
     <div class="card"><h3>🎁 โบนัส & คอมมิชชั่น</h3>

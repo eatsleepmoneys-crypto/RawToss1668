@@ -1361,9 +1361,13 @@ async function doWithdraw(){
   const btn = document.getElementById('btn-wd-submit');
   UI.loading(btn, true);
   try{
-    await API.TransactionsAPI.withdraw(amount, u.bank_account, u.bank_name);
+    const wdRes = await API.TransactionsAPI.withdraw(amount, u.bank_account, u.bank_name);
     closeM('wd-ov');
-    toast('ส่งคำขอถอนเงินแล้ว','ระบบจะโอนเงินให้ภายใน 3 นาที 💰');
+    if(wdRes?.auto) {
+      toast('✅ ถอนเงินสำเร็จ!','กำลังโอนเงินเข้าบัญชีของคุณ ภายใน 5 นาที 💰');
+    } else {
+      toast('ส่งคำขอถอนเงินแล้ว','ระบบจะโอนเงินให้ภายใน 3-30 นาที 💰');
+    }
     refreshBalance();
   }catch(e){
     toast('ถอนเงินไม่สำเร็จ', e.message);

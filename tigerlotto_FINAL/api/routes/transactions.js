@@ -194,17 +194,50 @@ router.post('/withdraw', authMember,
     if (!m.bank_account) return res.status(400).json({ success: false, message: 'กรุณาผูกบัญชีธนาคารก่อนถอน' });
     if (parseFloat(m.balance) < amount) return res.status(400).json({ success: false, message: `ยอดเงินไม่เพียงพอ (มี ฿${m.balance})` });
 
+    // ── ตรวจสอบ auto-withdraw settings ก่อน transaction ──────────────────
+    const [awEnabledRow] = await query("SELECT value FROM settings WHERE `key`='auto_withdraw_enabled'");
+    const [awMaxRow]     = await query("SELECT value FROM settings WHERE `key`='auto_withdraw_max'");
+    const autoEnabled = awEnabledRow?.value === 'true';
+    const autoMax     = parseFloat(awMaxRow?.value || 0);
+    const doAuto      = autoEnabled && (autoMax === 0 || parseFloat(amount) <= autoMax);
+
+    const wdUuid   = uuidv4();
+    const autoRef  = doAuto ? ('AUTO-' + Date.now()) : null;
+    const wdStatus = doAuto ? 'completed' : 'pending';
+
     await transaction(async (conn) => {
       const [[member]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [req.member.id]);
       const newBal = parseFloat(member.balance) - parseFloat(amount);
       await conn.execute('UPDATE members SET balance=? WHERE id=?', [newBal, req.member.id]);
-      await conn.execute('INSERT INTO withdrawals (uuid,member_id,amount,bank_code,bank_account,bank_name,status) VALUES (?,?,?,?,?,?,?)',
-        [uuidv4(), req.member.id, amount, m.bank_code, m.bank_account, m.bank_name, 'pending']);
+      if (doAuto) {
+        await conn.execute(
+          'INSERT INTO withdrawals (uuid,member_id,amount,bank_code,bank_account,bank_name,status,ref_no,processed_at,note) VALUES (?,?,?,?,?,?,?,?,NOW(),?)',
+          [wdUuid, req.member.id, amount, m.bank_code, m.bank_account, m.bank_name, 'completed', autoRef, 'อนุมัติอัตโนมัติ']
+        );
+        await conn.execute('UPDATE members SET total_withdraw=total_withdraw+? WHERE id=?', [amount, req.member.id]);
+      } else {
+        await conn.execute(
+          'INSERT INTO withdrawals (uuid,member_id,amount,bank_code,bank_account,bank_name,status) VALUES (?,?,?,?,?,?,?)',
+          [wdUuid, req.member.id, amount, m.bank_code, m.bank_account, m.bank_name, 'pending']
+        );
+      }
       await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
         [uuidv4(), req.member.id, 'withdraw', -amount, member.balance, newBal, `ถอนเงิน ฿${amount}`]);
     });
 
-    res.status(201).json({ success: true, message: 'ส่งคำขอถอนแล้ว กรุณารอ 5-30 นาที' });
+    // ── แจ้งเตือนสมาชิก ──────────────────────────────────────────────────
+    if (doAuto) {
+      await query(
+        'INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+        [req.member.id,
+         '✅ ถอนเงินสำเร็จ',
+         `โอนเงิน ฿${parseFloat(amount).toLocaleString('th-TH', {minimumFractionDigits:2})} เข้าบัญชี ${m.bank_name} (${m.bank_account}) เรียบร้อยแล้ว`,
+         'withdraw']
+      ).catch(() => {});
+      return res.status(201).json({ success: true, message: `✅ ถอนเงินสำเร็จ! เงินจะโอนเข้าบัญชีของคุณภายใน 5 นาที`, auto: true });
+    }
+
+    res.status(201).json({ success: true, message: 'ส่งคำขอถอนแล้ว กรุณารอ 5-30 นาที', auto: false });
   }
 );
 
