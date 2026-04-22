@@ -3784,6 +3784,9 @@ PAGES.numlimits = () => `
     <div style="background:rgba(255,71,87,.12);border:1px solid var(--red);border-radius:8px;padding:8px 16px;font-size:13px">
       <span style="color:var(--red);font-weight:700">● ถัง 3</span> ปิดรับแทง
     </div>
+    <div style="background:rgba(61,139,205,.12);border:1px solid #3d8bcd;border-radius:8px;padding:8px 16px;font-size:13px">
+      <span style="color:#5dade2;font-weight:700">🌐 ทุกเลข</span> Global cap รวมทุกตัว
+    </div>
   </div>
   <div class="tbl-wrap">
     <table class="tbl">
@@ -3877,7 +3880,9 @@ async function loadNumLimits(page) {
 
     tbody.innerHTML = r.data.map(nl => `
       <tr>
-        <td><b style="font-size:16px;color:var(--gold2)">${nl.number}</b></td>
+        <td>${nl.number==='*'
+          ? `<span style="background:rgba(61,139,205,.2);color:#5dade2;border:1px solid #3d8bcd;padding:3px 9px;border-radius:6px;font-size:12px;font-weight:700">🌐 ทุกเลข</span>`
+          : `<b style="font-size:16px;color:var(--gold2)">${nl.number}</b>`}</td>
         <td><span style="background:var(--card2);padding:2px 7px;border-radius:5px;font-size:12px">${BT_LABEL[nl.bet_type]||nl.bet_type}</span></td>
         <td>${tierBadge(nl.current_tier)}</td>
         <td style="font-size:12px">${fmtUsed(nl.tier1_used, nl.tier1_limit)}</td>
@@ -3969,8 +3974,8 @@ function openNumLimitModal(existingData) {
       <div class="fg"><label>งวด (ว่าง = ใช้ทุกงวด)</label>
         <select id="nl-m-round" class="fi-full"><option value="">-- template ทุกงวด --</option></select>
       </div>
-      <div class="fg"><label>เลข *</label>
-        <input id="nl-m-number" class="fi-full" placeholder="เช่น 999" value="${first.number||''}">
+      <div class="fg"><label>เลข <span style="color:var(--muted);font-weight:400">(ว่าง = ทุกเลขรวม)</span></label>
+        <input id="nl-m-number" class="fi-full" placeholder="เช่น 999 หรือว่างไว้ = ทุกเลข" value="${first.number==='*'?'':first.number||''}">
       </div>
     </div>
 
@@ -4028,9 +4033,10 @@ async function nlModalLoadRounds(preselect) {
 async function saveNumLimit() {
   const lottery_id = document.getElementById('nl-m-lt')?.value;
   const round_id   = document.getElementById('nl-m-round')?.value || null;
-  const number     = document.getElementById('nl-m-number')?.value?.trim();
-  if (!lottery_id || !number) {
-    return toast('ผิดพลาด','กรุณาระบุประเภทหวยและเลข','error');
+  const numRaw     = document.getElementById('nl-m-number')?.value?.trim();
+  const number     = numRaw === '' ? '*' : numRaw;  // ว่าง = global ทุกเลข
+  if (!lottery_id) {
+    return toast('ผิดพลาด','กรุณาเลือกประเภทหวย','error');
   }
 
   const ALL_BET_TYPES = ['3top','3tod','2top','2bot','run_top','run_bot'];

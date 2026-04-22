@@ -50,47 +50,70 @@ router.post('/', authMember,
       }
 
       // ─── ระบบอั้นหวย: ตรวจ tier ────────────────────────────────────────────
-      // ดึง row ที่ตรงกับ round นี้ก่อน (round-specific) แล้วค่อย template (round_id IS NULL)
+      // helper: ดึงอัตราจาก tier ปัจจุบัน (null = ไม่ได้อยู่ถัง 2+)
+      const getTierRate = (row) => {
+        if (!row) return null;
+        const t = row.current_tier;
+        if (t === '2')   return parseFloat(row.tier2_rate)   ?? null;
+        if (t === '2.1') return parseFloat(row.tier2_1_rate) ?? null;
+        if (t === '2.2') return parseFloat(row.tier2_2_rate) ?? null;
+        if (t === '2.3') return parseFloat(row.tier2_3_rate) ?? null;
+        return null; // tier=1 → จ่ายเต็ม
+      };
+
+      // 1. Global limit (number='*') — ครอบคลุมทุกเลขของ bet_type นี้
+      const [globalRow] = await query(
+        `SELECT * FROM number_limits
+         WHERE lottery_id=? AND number='*' AND bet_type=?
+           AND (round_id=? OR round_id IS NULL)
+         ORDER BY (round_id IS NULL) ASC LIMIT 1`,
+        [round.lottery_id, bet.bet_type, round_id]
+      );
+
+      // 2. Per-number limit — เฉพาะเลขนี้
       const [nlRow] = await query(
         `SELECT * FROM number_limits
          WHERE lottery_id=? AND number=? AND bet_type=?
            AND (round_id=? OR round_id IS NULL)
-         ORDER BY (round_id IS NULL) ASC
-         LIMIT 1`,
+         ORDER BY (round_id IS NULL) ASC LIMIT 1`,
         [round.lottery_id, numStr, bet.bet_type, round_id]
       );
 
-      let rate_override = null;   // null = จ่ายเต็ม
-      let nl_id         = null;
-      let nl_tier       = null;
-
-      if (nlRow) {
-        nl_id   = nlRow.id;
-        nl_tier = nlRow.current_tier;
-
-        // ถัง 3 → ปิดรับแทง
-        if (nl_tier === '3') {
-          return res.status(400).json({
-            success: false,
-            message: `เลข ${numStr} ประเภท ${bet.bet_type} ปิดรับแทงแล้ว (ถัง 3)`
-          });
-        }
-
-        // ถัง 2 / 2.1 / 2.2 / 2.3 → จ่ายตาม % ที่ตั้งไว้
-        if (nl_tier === '2')   rate_override = parseFloat(nlRow.tier2_rate)   ?? null;
-        if (nl_tier === '2.1') rate_override = parseFloat(nlRow.tier2_1_rate) ?? null;
-        if (nl_tier === '2.2') rate_override = parseFloat(nlRow.tier2_2_rate) ?? null;
-        if (nl_tier === '2.3') rate_override = parseFloat(nlRow.tier2_3_rate) ?? null;
+      // ถัง 3 → ปิดรับแทง (ทั้ง global และ per-number)
+      if (globalRow?.current_tier === '3') {
+        return res.status(400).json({
+          success: false,
+          message: `ประเภท ${bet.bet_type} ปิดรับแทงทั้งหมดแล้ว (ถัง 3 global)`
+        });
+      }
+      if (nlRow?.current_tier === '3') {
+        return res.status(400).json({
+          success: false,
+          message: `เลข ${numStr} ประเภท ${bet.bet_type} ปิดรับแทงแล้ว (ถัง 3)`
+        });
       }
 
+      // rate_override = เอาค่าต่ำสุดระหว่าง global และ per-number (เข้มงวดกว่า)
+      const globalRate = getTierRate(globalRow);
+      const perNumRate = getTierRate(nlRow);
+      let rate_override = null;
+      if (globalRate !== null && perNumRate !== null) rate_override = Math.min(globalRate, perNumRate);
+      else if (globalRate !== null) rate_override = globalRate;
+      else if (perNumRate !== null) rate_override = perNumRate;
+
+      const nl_id      = nlRow?.id     ?? null;
+      const nl_tier    = nlRow?.current_tier ?? null;
+      const gl_id      = globalRow?.id ?? null;
+      const gl_tier    = globalRow?.current_tier ?? null;
+
       const rate   = RATE_MAP[bet.bet_type];
-      // payout ปรับตาม rate_override (เช่น 75% ของ rate ปกติ)
-      const effectiveRate = (rate_override !== null && rate_override !== undefined)
+      const effectiveRate = (rate_override !== null)
         ? rate * rate_override / 100
         : rate;
       const payout = parseFloat(bet.amount) * effectiveRate;
 
-      validated.push({ ...bet, number: numStr, rate, rate_override, payout, nl_id, nl_tier });
+      validated.push({ ...bet, number: numStr, rate, rate_override, payout,
+                       nl_id, nl_tier, gl_id, gl_tier });
       totalAmount += parseFloat(bet.amount);
     }
 
@@ -129,8 +152,8 @@ router.post('/', authMember,
         placedBets.push({ uuid: betUuid, ...bet });
 
         // ─── อั้นหวย: อัปเดต tier_used และ escalate ────────────────────────
-        if (bet.nl_id) {
-          // เพิ่ม used ในถังที่กำลังใช้อยู่
+        // helper ใช้ร่วมกัน
+        const _updateNlUsed = async (nlId) => {
           await conn.execute(
             `UPDATE number_limits SET
                tier1_used   = tier1_used   + IF(current_tier='1',   ?, 0),
@@ -139,42 +162,41 @@ router.post('/', authMember,
                tier2_2_used = tier2_2_used + IF(current_tier='2.2', ?, 0),
                tier2_3_used = tier2_3_used + IF(current_tier='2.3', ?, 0)
              WHERE id=?`,
-            [bet.amount, bet.amount, bet.amount, bet.amount, bet.amount, bet.nl_id]
+            [bet.amount, bet.amount, bet.amount, bet.amount, bet.amount, nlId]
           );
-
-          // ตรวจว่าถึง limit ต้องขยับถังหรือยัง (อ่านล่าสุด + FOR UPDATE เพื่อ race-safe)
           const [[nl]] = await conn.execute(
-            'SELECT * FROM number_limits WHERE id=? FOR UPDATE', [bet.nl_id]
+            'SELECT * FROM number_limits WHERE id=? FOR UPDATE', [nlId]
           );
           if (nl) {
             let newTier = nl.current_tier;
-            if (nl.current_tier === '1' && nl.tier1_limit > 0 && nl.tier1_used >= nl.tier1_limit) {
-              // ขยับไปถัง 2 (ถ้ามี sub-tier ให้ข้ามไป 2.1 ก่อน)
+            if (nl.current_tier === '1' && nl.tier1_limit > 0 && nl.tier1_used >= nl.tier1_limit)
               newTier = (nl.tier2_1_rate !== null) ? '2.1' : '2';
-            } else if (nl.current_tier === '2' && nl.tier2_limit > 0 && nl.tier2_used >= nl.tier2_limit) {
+            else if (nl.current_tier === '2' && nl.tier2_limit > 0 && nl.tier2_used >= nl.tier2_limit)
               newTier = (nl.tier2_1_rate !== null) ? '2.1' : '3';
-            } else if (nl.current_tier === '2.1' && nl.tier2_1_limit > 0 && nl.tier2_1_used >= nl.tier2_1_limit) {
+            else if (nl.current_tier === '2.1' && nl.tier2_1_limit > 0 && nl.tier2_1_used >= nl.tier2_1_limit)
               newTier = (nl.tier2_2_rate !== null) ? '2.2' : '3';
-            } else if (nl.current_tier === '2.2' && nl.tier2_2_limit > 0 && nl.tier2_2_used >= nl.tier2_2_limit) {
+            else if (nl.current_tier === '2.2' && nl.tier2_2_limit > 0 && nl.tier2_2_used >= nl.tier2_2_limit)
               newTier = (nl.tier2_3_rate !== null) ? '2.3' : '3';
-            } else if (nl.current_tier === '2.3' && nl.tier2_3_limit > 0 && nl.tier2_3_used >= nl.tier2_3_limit) {
+            else if (nl.current_tier === '2.3' && nl.tier2_3_limit > 0 && nl.tier2_3_used >= nl.tier2_3_limit)
               newTier = '3';
-            }
-
             if (newTier !== nl.current_tier) {
-              const isEscalatingFromTier1 = nl.current_tier === '1';
-              const isClosing             = newTier === '3';
+              const fromT1 = nl.current_tier === '1' ? 1 : 0;
+              const closing = newTier === '3' ? 1 : 0;
               await conn.execute(
-                `UPDATE number_limits SET
-                   current_tier  = ?,
-                   escalated_at  = IF(? AND escalated_at IS NULL, NOW(), escalated_at),
-                   closed_at     = IF(?, NOW(), closed_at)
-                 WHERE id=?`,
-                [newTier, isEscalatingFromTier1 ? 1 : 0, isClosing ? 1 : 0, bet.nl_id]
+                `UPDATE number_limits SET current_tier=?,
+                   escalated_at=IF(? AND escalated_at IS NULL,NOW(),escalated_at),
+                   closed_at=IF(?,NOW(),closed_at) WHERE id=?`,
+                [newTier, fromT1, closing, nlId]
               );
             }
           }
-        }
+        };
+
+        // Global limit อัปเดตก่อน (ยอดรวมทุกเลข)
+        if (bet.gl_id) await _updateNlUsed(bet.gl_id);
+
+        // Per-number limit อัปเดต
+        if (bet.nl_id) await _updateNlUsed(bet.nl_id);
       }
 
       await conn.execute(
