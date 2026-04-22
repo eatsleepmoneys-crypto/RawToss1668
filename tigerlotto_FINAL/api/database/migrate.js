@@ -861,6 +861,13 @@ async function migrate() {
     `ALTER TABLE \`commissions\` ADD COLUMN \`from_member_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`earner_id\``,
     `ALTER TABLE \`commissions\` ADD COLUMN \`bet_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`from_member_id\``,
     `ALTER TABLE \`commissions\` ADD COLUMN \`description\` VARCHAR(255) DEFAULT NULL`,
+    // commissions: legacy columns จากระบบเก่า — ทำให้ nullable เพื่อไม่ conflict กับ INSERT ของเรา
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`agent_id\`      INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`source_user_id\` INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`slip_id\`       INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`level\`         TINYINT NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`status\`        VARCHAR(20) NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`paid_at\`       DATETIME NULL DEFAULT NULL`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
