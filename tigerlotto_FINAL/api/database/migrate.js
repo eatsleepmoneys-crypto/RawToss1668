@@ -552,7 +552,7 @@ const SEEDS = [
     ('session_expire','60','number','security'),
     ('login_max_attempt','5','number','security'),
     ('require_2fa_admin','true','boolean','security'),
-    ('slipok_enabled','false','boolean','slipok'),
+    ('slipok_enabled','true','boolean','slipok'),
     ('slipok_api_key','','string','slipok'),
     ('slipok_branch_id','','string','slipok'),
     ('slipok_verify_sender','true','boolean','slipok'),
@@ -807,6 +807,9 @@ async function migrate() {
     `ALTER TABLE \`agents\` ADD COLUMN \`bank_name\`    VARCHAR(100) DEFAULT NULL COMMENT 'ชื่อเจ้าของบัญชี' AFTER \`bank_account\``,
     // agent_deposits: เพิ่ม slip_image สำหรับแนบสลิปโอนเงิน
     `ALTER TABLE \`agent_deposits\` ADD COLUMN \`slip_image\` VARCHAR(255) DEFAULT NULL COMMENT 'ชื่อไฟล์สลิป' AFTER \`bank_code\``,
+    // Fix: slipok_enabled was seeded as 'false' — update existing row to 'true'
+    // (INSERT IGNORE won't overwrite existing rows so we need UPDATE)
+    `UPDATE \`settings\` SET value='true' WHERE \`key\`='slipok_enabled' AND value='false'`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

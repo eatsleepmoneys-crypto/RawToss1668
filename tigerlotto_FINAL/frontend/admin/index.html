@@ -692,7 +692,7 @@ function renderDepositsRows(rows) {
       <td>${dep.bank_code||'-'}</td>
       <td style="font-size:12px;color:var(--muted)">${UI.formatDate(dep.created_at)}</td>
       <td>${dep.slip_image?`<a href="/uploads/${dep.slip_image}" target="_blank" style="color:var(--gold)">ดูสลิป</a>`:'-'}</td>
-      <td>${SLIP_VERIFY_BADGE[dep.slip_verify_status] || SLIP_VERIFY_BADGE['skipped']}</td>
+      <td title="${dep.slip_verify_data ? (()=>{try{const d=JSON.parse(dep.slip_verify_data);return d.reason||'';}catch{return dep.slip_verify_data;}})()||'' : ''}">${SLIP_VERIFY_BADGE[dep.slip_verify_status] || SLIP_VERIFY_BADGE['skipped']}</td>
       <td><span class="badge ${dep.status==='approved'?'badge-green':dep.status==='rejected'?'badge-red':'badge-yellow'}">${DEP_STATUS[dep.status]||dep.status}</span></td>
       <td>
         ${dep.status==='pending'?`
