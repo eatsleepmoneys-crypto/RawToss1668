@@ -901,13 +901,17 @@ select.fi option{background:var(--card2)}
     </div>
     <!-- Tabs -->
     <div class="mpanel-tabs">
-      <button class="mpanel-tab on" id="mpt-bets"   onclick="mpTab('bets')">🎫 ประวัติแทง</button>
-      <button class="mpanel-tab"    id="mpt-tx"     onclick="mpTab('tx')">💳 ฝาก-ถอน</button>
-      <button class="mpanel-tab"    id="mpt-refer"  onclick="mpTab('refer')">🔗 แนะนำ</button>
-      <button class="mpanel-tab"    id="mpt-notif"  onclick="mpTab('notif')">🔔<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
+      <button class="mpanel-tab"    id="mpt-profile" onclick="mpTab('profile')">👤 ข้อมูล</button>
+      <button class="mpanel-tab on" id="mpt-bets"    onclick="mpTab('bets')">🎫 ประวัติ</button>
+      <button class="mpanel-tab"    id="mpt-tx"      onclick="mpTab('tx')">💳 ฝาก-ถอน</button>
+      <button class="mpanel-tab"    id="mpt-refer"   onclick="mpTab('refer')">🔗 แนะนำ</button>
+      <button class="mpanel-tab"    id="mpt-notif"   onclick="mpTab('notif')">🔔<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
     </div>
     <!-- Body -->
     <div class="mpanel-body">
+      <div class="mpanel-sec" id="mps-profile">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
       <div class="mpanel-sec on" id="mps-bets">
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
       </div>
@@ -2231,14 +2235,117 @@ function closeMPanel(){
 
 function mpTab(tab){
   _mpActive = tab;
-  ['bets','tx','refer','notif'].forEach(t=>{
+  ['profile','bets','tx','refer','notif'].forEach(t=>{
     document.getElementById('mpt-'+t)?.classList.toggle('on', t===tab);
     document.getElementById('mps-'+t)?.classList.toggle('on', t===tab);
   });
-  if(tab==='bets'  && !_mpLoaded.bets)  loadBetHistory();
-  if(tab==='tx'    && !_mpLoaded.tx)    loadTxHistory();
-  if(tab==='refer' && !_mpLoaded.refer) loadReferralPanel();
-  if(tab==='notif' && !_mpLoaded.notif) loadNotifications();
+  if(tab==='profile' && !_mpLoaded.profile) loadProfilePanel();
+  if(tab==='bets'    && !_mpLoaded.bets)    loadBetHistory();
+  if(tab==='tx'      && !_mpLoaded.tx)      loadTxHistory();
+  if(tab==='refer'   && !_mpLoaded.refer)   loadReferralPanel();
+  if(tab==='notif'   && !_mpLoaded.notif)   loadNotifications();
+}
+
+/* ── Profile & Level Tab ── */
+async function loadProfilePanel(){
+  _mpLoaded.profile = true;
+  const el = document.getElementById('mps-profile');
+  el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try {
+    const d = await API.MembersAPI.getProfile();
+    const m = d.data;
+    const lv = m.cur_level;
+    const nv = m.next_level;
+    const prog = m.level_progress ?? 0;
+    const BANK_MAP = {'SCB':'ไทยพาณิชย์','KBANK':'กสิกรไทย','KTB':'กรุงไทย','BBL':'กรุงเทพ','BAY':'กรุงศรี','TMB':'ทีเอ็มบี','TISCO':'ทิสโก้','GSB':'ออมสิน','BAAC':'ธกส.','UOB':'ยูโอบี','TTB':'ทีทีบี','TMW':'TrueMoney'};
+
+    // ─── Level Card ───
+    const lvColor  = lv?.color  || '#888';
+    const lvIcon   = lv?.icon   || '🎖️';
+    const lvName   = lv?.name   || '-';
+    const nextName = nv?.name   || 'สูงสุด';
+    const nextBet  = nv ? `฿${parseFloat(nv.min_total_bet).toLocaleString()}` : '-';
+    const need     = nv ? Math.max(0, parseFloat(nv.min_total_bet) - parseFloat(m.total_bet||0)) : 0;
+
+    // แสดง all_levels roadmap
+    const allLvHtml = (m.all_levels||[]).map(l => {
+      const reached = parseFloat(m.total_bet||0) >= parseFloat(l.min_total_bet);
+      const isCur   = lv && l.id === lv.id;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+                          background:${isCur?'rgba(212,160,23,.12)':'transparent'};
+                          border:1px solid ${isCur?'rgba(212,160,23,.4)':'transparent'}">
+        <span style="font-size:18px">${l.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:${reached?l.color:'#555'}">${l.name}</div>
+          <div style="font-size:10px;color:#666">ยอดแทงสะสม ฿${parseFloat(l.min_total_bet).toLocaleString()}+</div>
+        </div>
+        <span style="font-size:14px">${reached?'✅':'🔒'}</span>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+    <!-- Level Hero -->
+    <div style="background:linear-gradient(135deg,${lvColor}22,${lvColor}11);border:1px solid ${lvColor}55;
+                border-radius:16px;padding:18px;margin-bottom:14px;text-align:center">
+      <div style="font-size:40px;margin-bottom:4px">${lvIcon}</div>
+      <div style="font-size:20px;font-weight:900;color:${lvColor}">${lvName}</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">ระดับสมาชิกปัจจุบัน</div>
+      ${nv ? `
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:4px">
+          <span>${lvName}</span><span>${nextName} (${nextBet})</span>
+        </div>
+        <div style="background:#222;border-radius:20px;height:10px;overflow:hidden">
+          <div style="height:100%;width:${prog}%;background:linear-gradient(90deg,${lvColor},${lvColor}cc);border-radius:20px;transition:width .5s"></div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px">
+          แทงอีก <b style="color:${lvColor}">฿${need.toLocaleString()}</b> เพื่อเลื่อนขั้น
+        </div>
+      </div>` : `<div style="margin-top:8px;font-size:12px;color:var(--gold)">⭐ ระดับสูงสุด</div>`}
+    </div>
+
+    <!-- ข้อมูลส่วนตัว -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">📋 ข้อมูลส่วนตัว</div>
+      ${_infoRow('👤 ชื่อ', m.name || '-')}
+      ${_infoRow('📱 เบอร์โทร', m.phone || '-')}
+      ${_infoRow('📧 อีเมล', m.email || '-')}
+      ${_infoRow('🆔 รหัสสมาชิก', m.member_code || '-')}
+      ${_infoRow('📅 วันที่สมัคร', m.created_at ? new Date(m.created_at).toLocaleDateString('th-TH') : '-')}
+    </div>
+
+    <!-- ธนาคาร -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">🏦 บัญชีธนาคาร</div>
+      ${_infoRow('ธนาคาร', BANK_MAP[m.bank_code] || m.bank_code || '-')}
+      ${_infoRow('เลขบัญชี', m.bank_account || '-')}
+      ${_infoRow('ชื่อบัญชี', m.bank_name || '-')}
+    </div>
+
+    <!-- สถิติ -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">📊 สถิติการเล่น</div>
+      ${_infoRow('💰 ยอดแทงสะสม', '฿' + parseFloat(m.total_bet||0).toLocaleString())}
+      ${_infoRow('🏆 ยอดชนะรวม',  '฿' + parseFloat(m.total_win||0).toLocaleString())}
+      ${_infoRow('⬇️ ยอดฝากรวม',  '฿' + parseFloat(m.total_deposit||0).toLocaleString())}
+      ${_infoRow('⬆️ ยอดถอนรวม',  '฿' + parseFloat(m.total_withdraw||0).toLocaleString())}
+    </div>
+
+    <!-- Level Roadmap -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">🏅 เส้นทางระดับ</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${allLvHtml}</div>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="mp-empty"><div class="mp-empty-icon">❌</div>${e.message}</div>`;
+  }
+}
+
+function _infoRow(label, value){
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e1e2a;font-size:13px">
+    <span style="color:#888">${label}</span>
+    <span style="color:#fff;font-weight:600;text-align:right;max-width:60%">${value}</span>
+  </div>`;
 }
 
 /* ── Bet History (Bill View) ── */

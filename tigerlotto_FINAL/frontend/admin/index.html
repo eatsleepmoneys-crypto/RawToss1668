@@ -241,6 +241,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('autoresult')"><span class="ic">🤖</span>ดึงผลหวยออโต้</div>
     <div class="sb-item" onclick="nav('bets')"><span class="ic">📋</span>รายการแทง</div>
     <div class="sb-item" onclick="nav('numlimits')"><span class="ic">🚦</span>อั้นหวย</div>
+    <div class="sb-item" onclick="nav('memberlevels')"><span class="ic">🏅</span>ระดับสมาชิก</div>
 
     <div class="sb-sec">การเงิน</div>
     <div class="sb-item" onclick="nav('deposits')"><span class="ic">💰</span>ฝากเงิน<span class="badge" id="badge-dep">8</span></div>
@@ -343,7 +344,7 @@ function startClock(){
 // ═══ ROUTER ═══
 const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
-  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',numlimits:'🚦 อั้นหวย',
+  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',numlimits:'🚦 อั้นหวย',memberlevels:'🏅 ระดับสมาชิก',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',credits:'💳 เพิ่ม/ลด เครดิต',
   promotions:'🎁 โปรโมชั่น',
   hotnumbers:'🔥 ตัวเลขฮอต',
@@ -390,7 +391,8 @@ async function afterNav(page){
     else if(page==='agentdeposits') await loadAgentDeposits();
     else if(page==='agentwithdrawals') await loadAgentWithdrawals();
     else if(page==='referral') await loadReferralAdmin();
-    else if(page==='numlimits') await loadNumLimits();
+    else if(page==='numlimits')    await loadNumLimits();
+    else if(page==='memberlevels') await loadMemberLevels();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -4189,6 +4191,141 @@ async function saveBulkNumLimit() {
     toast('สำเร็จ', `บันทึก ${r.count} เลขแล้ว`);
     closeModal(); loadNumLimits();
   } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
+}
+
+// ═══ MEMBER LEVELS PAGE ═══
+PAGES.memberlevels = () => `
+<div style="max-width:700px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <div>
+      <h3 style="margin:0;font-size:16px">🏅 ระดับสมาชิก</h3>
+      <p style="margin:4px 0 0;font-size:12px;color:#888">กำหนดระดับตามยอดแทงสะสม — สมาชิกจะเลื่อนขั้นอัตโนมัติ</p>
+    </div>
+    <button class="btn-g" onclick="openAddLevelModal()">+ เพิ่มระดับ</button>
+  </div>
+  <div id="levels-table-wrap">⏳ กำลังโหลด...</div>
+</div>`;
+
+async function loadMemberLevels(){
+  document.getElementById('page-content').innerHTML = PAGES.memberlevels();
+  try {
+    const r = await apiFetch('/admin/member-levels', {}, 'admin');
+    renderLevelsTable(r.data || []);
+  } catch(e){ document.getElementById('levels-table-wrap').innerHTML = `<p style="color:#e74c3c">${e.message}</p>`; }
+}
+
+function renderLevelsTable(rows){
+  const wrap = document.getElementById('levels-table-wrap');
+  if(!rows.length){
+    wrap.innerHTML = '<p style="color:#888;text-align:center;padding:30px">ยังไม่มีข้อมูลระดับ — กดเพิ่มระดับ</p>';
+    return;
+  }
+  wrap.innerHTML = `
+  <table class="tbl" style="width:100%">
+    <thead><tr>
+      <th style="width:50px">LV</th>
+      <th>ชื่อระดับ</th>
+      <th style="width:140px">ยอดแทงสะสมขั้นต่ำ</th>
+      <th style="width:80px">ไอคอน/สี</th>
+      <th>สิทธิพิเศษ</th>
+      <th style="width:90px">จัดการ</th>
+    </tr></thead>
+    <tbody>
+    ${rows.map(lv => `
+      <tr>
+        <td style="font-size:18px;font-weight:800;text-align:center">
+          <span style="color:${lv.color}">${lv.level_num}</span>
+        </td>
+        <td>
+          <span style="font-size:18px">${lv.icon}</span>
+          <span style="font-weight:700;color:${lv.color};margin-left:6px">${lv.name}</span>
+        </td>
+        <td style="font-weight:700">฿${parseFloat(lv.min_total_bet).toLocaleString()}</td>
+        <td style="text-align:center">
+          <span style="display:inline-block;width:22px;height:22px;border-radius:50%;background:${lv.color};vertical-align:middle"></span>
+        </td>
+        <td style="font-size:12px;color:#aaa">${lv.benefits||'-'}</td>
+        <td>
+          <button class="btn-sm btn-edit" onclick="openEditLevelModal(${JSON.stringify(lv).replace(/"/g,'&quot;')})">✏️</button>
+          <button class="btn-sm btn-del" onclick="deleteMemberLevel(${lv.id},'${lv.name}')">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function openAddLevelModal(){
+  openModal(`
+  <h3 style="margin:0 0 16px">➕ เพิ่มระดับสมาชิก</h3>
+  <div class="fg"><label>ลำดับระดับ (LV)</label>
+    <input id="lv-num" class="fi" type="number" min="1" placeholder="1,2,3..."></div>
+  <div class="fg"><label>ชื่อระดับ</label>
+    <input id="lv-name" class="fi" placeholder="เช่น Bronze, Silver, Gold"></div>
+  <div class="fg"><label>ยอดแทงสะสมขั้นต่ำ (฿)</label>
+    <input id="lv-min" class="fi" type="number" min="0" placeholder="0"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="fg"><label>ไอคอน</label>
+      <input id="lv-icon" class="fi" placeholder="🥉" maxlength="4"></div>
+    <div class="fg"><label>สีตัวอักษร</label>
+      <input id="lv-color" class="fi" type="color" value="#cd7f32"></div>
+  </div>
+  <div class="fg"><label>สิทธิพิเศษ (ข้อความสั้น)</label>
+    <input id="lv-benefits" class="fi" placeholder="เช่น โบนัสพิเศษ 5%"></div>
+  <button class="btn-g" style="width:100%;margin-top:4px" onclick="saveMemberLevel()">💾 บันทึก</button>
+  `);
+}
+
+function openEditLevelModal(lv){
+  openModal(`
+  <h3 style="margin:0 0 16px">✏️ แก้ไขระดับ — ${lv.icon} ${lv.name}</h3>
+  <input type="hidden" id="lv-id" value="${lv.id}">
+  <div class="fg"><label>ลำดับระดับ (LV)</label>
+    <input id="lv-num" class="fi" type="number" value="${lv.level_num}"></div>
+  <div class="fg"><label>ชื่อระดับ</label>
+    <input id="lv-name" class="fi" value="${lv.name}"></div>
+  <div class="fg"><label>ยอดแทงสะสมขั้นต่ำ (฿)</label>
+    <input id="lv-min" class="fi" type="number" value="${lv.min_total_bet}"></div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="fg"><label>ไอคอน</label>
+      <input id="lv-icon" class="fi" value="${lv.icon}" maxlength="4"></div>
+    <div class="fg"><label>สีตัวอักษร</label>
+      <input id="lv-color" class="fi" type="color" value="${lv.color||'#cd7f32'}"></div>
+  </div>
+  <div class="fg"><label>สิทธิพิเศษ</label>
+    <input id="lv-benefits" class="fi" value="${lv.benefits||''}"></div>
+  <button class="btn-g" style="width:100%;margin-top:4px" onclick="saveMemberLevel(${lv.id})">💾 บันทึก</button>
+  `);
+}
+
+async function saveMemberLevel(id){
+  const payload = {
+    level_num    : parseInt(document.getElementById('lv-num').value),
+    name         : document.getElementById('lv-name').value.trim(),
+    min_total_bet: parseFloat(document.getElementById('lv-min').value)||0,
+    icon         : document.getElementById('lv-icon').value.trim()||'🎖️',
+    color        : document.getElementById('lv-color').value,
+    benefits     : document.getElementById('lv-benefits').value.trim()||null,
+  };
+  if(!payload.name || isNaN(payload.level_num))
+    return toast('ผิดพลาด','กรุณากรอก ลำดับระดับ และ ชื่อระดับ','error');
+  try {
+    if(id){
+      await apiFetch(`/admin/member-levels/${id}`, { method:'PATCH', body:JSON.stringify(payload) }, 'admin');
+    } else {
+      await apiFetch('/admin/member-levels', { method:'POST', body:JSON.stringify(payload) }, 'admin');
+    }
+    toast('สำเร็จ','บันทึกระดับแล้ว');
+    closeModal(); loadMemberLevels();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function deleteMemberLevel(id, name){
+  if(!confirm(`ลบระดับ "${name}" ใช่ไหม?`)) return;
+  try {
+    await apiFetch(`/admin/member-levels/${id}`, { method:'DELETE' }, 'admin');
+    toast('ลบแล้ว', `ลบระดับ ${name} เรียบร้อย`);
+    loadMemberLevels();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
 
 // ═══ AUTO-SPREAD ═══

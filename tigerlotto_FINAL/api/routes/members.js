@@ -17,7 +17,26 @@ router.get('/profile', authMember, async (req, res) => {
             balance,bonus_balance,total_deposit,total_withdraw,total_bet,total_win,
             level,member_code,is_verified,phone_verified,created_at
      FROM members WHERE id=?`, [req.member.id]);
-  res.json({ success: true, data: m });
+
+  // คำนวณ level จาก member_levels table (dynamic — admin ปรับได้)
+  const levels = await query('SELECT * FROM member_levels ORDER BY min_total_bet ASC').catch(() => []);
+  const totalBet = parseFloat(m?.total_bet || 0);
+  let curLevel = null, nextLevel = null;
+  if (levels.length) {
+    for (const lv of levels) {
+      if (totalBet >= parseFloat(lv.min_total_bet)) curLevel = lv;
+    }
+    const curIdx = curLevel ? levels.findIndex(l => l.id === curLevel.id) : -1;
+    nextLevel = levels[curIdx + 1] || null;
+  }
+  const progress = (curLevel && nextLevel)
+    ? Math.min(100, Math.round(
+        (totalBet - parseFloat(curLevel.min_total_bet)) /
+        (parseFloat(nextLevel.min_total_bet) - parseFloat(curLevel.min_total_bet)) * 100
+      ))
+    : (curLevel ? 100 : 0);
+
+  res.json({ success: true, data: { ...m, cur_level: curLevel, next_level: nextLevel, level_progress: progress, all_levels: levels } });
 });
 
 // PATCH /api/members/profile — update email, bank

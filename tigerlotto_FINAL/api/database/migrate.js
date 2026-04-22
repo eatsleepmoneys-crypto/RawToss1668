@@ -472,6 +472,19 @@ const CREATES = [
     INDEX \`idx_status\` (\`status\`),
     INDEX \`idx_number\` (\`number\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // member_levels — ตั้งค่าระดับสมาชิก (admin กำหนดได้)
+  `CREATE TABLE IF NOT EXISTS \`member_levels\` (
+    \`id\`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`level_num\`    TINYINT UNSIGNED NOT NULL UNIQUE COMMENT 'ลำดับระดับ 1,2,3...',
+    \`name\`         VARCHAR(50) NOT NULL COMMENT 'ชื่อระดับ เช่น Bronze, Silver',
+    \`min_total_bet\` DECIMAL(15,2) NOT NULL DEFAULT 0.00 COMMENT 'ยอดแทงสะสมขั้นต่ำ',
+    \`color\`        VARCHAR(20) NOT NULL DEFAULT '#cd7f32',
+    \`icon\`         VARCHAR(10) NOT NULL DEFAULT '🥉',
+    \`benefits\`     TEXT NULL COMMENT 'สิทธิพิเศษ (JSON หรือ text)',
+    \`created_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 // ─── Seed data ───────────────────────────────────────────────────────────────
@@ -489,6 +502,13 @@ const SEEDS = [
     ('TH_STK','หวยหุ้นไทย','📈',8,720,115,90,85,3.0,4.0,5000),
     ('VN_HAN_SP','ฮานอยพิเศษ','🇻🇳',9,720,115,90,85,3.0,4.0,3000),
     ('VN_HAN_VIP','ฮานอย VIP','🇻🇳',10,720,115,90,85,3.0,4.0,3000)`,
+
+  // member_levels seed (ข้อมูลเริ่มต้น — INSERT IGNORE ถ้ามีแล้วจะข้าม)
+  `INSERT IGNORE INTO \`member_levels\` (level_num,name,min_total_bet,color,icon,benefits) VALUES
+    (1,'Bronze',      0,       '#cd7f32','🥉','เข้าร่วมสมาชิกทั่วไป'),
+    (2,'Silver',   5000,       '#a8a9ad','🥈','รับโบนัสพิเศษ 5%'),
+    (3,'Gold',    20000,       '#ffd700','🥇','รับโบนัสพิเศษ 10% + สิทธิ์ถอนเร็ว'),
+    (4,'Platinum',100000,      '#e8e8e8','💎','รับโบนัสพิเศษ 15% + บริการ VIP')`,
 
   // อัปเดตชื่อหวยที่เปลี่ยนแปลง (สำหรับ DB ที่มีอยู่แล้ว)
   `UPDATE \`lottery_types\` SET \`name\`='ลาวพัฒนา' WHERE \`code\`='LA_GOV' AND \`name\`='หวยลาว'`,

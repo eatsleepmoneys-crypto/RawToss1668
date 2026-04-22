@@ -856,4 +856,50 @@ router.patch('/referral/rate', authAdmin, rbac.requirePerm('settings.manage'), a
   res.json({ success: true, message: `ตั้งค่าอัตราค่าคอมแนะนำ ${rate}% สำเร็จ` });
 });
 
+// ══════════════════════════════════════
+//  MEMBER LEVELS — ตั้งค่าระดับสมาชิก
+// ══════════════════════════════════════
+
+// GET /api/admin/member-levels
+router.get('/member-levels', authAdmin, async (req, res) => {
+  const rows = await query('SELECT * FROM member_levels ORDER BY min_total_bet ASC');
+  res.json({ success: true, data: rows });
+});
+
+// POST /api/admin/member-levels — สร้างหรืออัปเดต level (upsert by level_num)
+router.post('/member-levels', authAdmin, async (req, res) => {
+  const { level_num, name, min_total_bet, color, icon, benefits } = req.body;
+  if (!level_num || !name || min_total_bet == null)
+    return res.status(400).json({ success: false, message: 'level_num, name, min_total_bet จำเป็น' });
+
+  const result = await query(
+    `INSERT INTO member_levels (level_num, name, min_total_bet, color, icon, benefits)
+     VALUES (?,?,?,?,?,?)
+     ON DUPLICATE KEY UPDATE
+       name=VALUES(name), min_total_bet=VALUES(min_total_bet),
+       color=VALUES(color), icon=VALUES(icon), benefits=VALUES(benefits)`,
+    [level_num, name, parseFloat(min_total_bet), color || '#cd7f32', icon || '🎖️', benefits || null]
+  );
+  res.json({ success: true, message: 'บันทึกแล้ว', id: result.insertId || null });
+});
+
+// PATCH /api/admin/member-levels/:id
+router.patch('/member-levels/:id', authAdmin, async (req, res) => {
+  const allowed = ['name','min_total_bet','color','icon','benefits'];
+  const sets = []; const params = [];
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) { sets.push(`${k}=?`); params.push(req.body[k]); }
+  }
+  if (!sets.length) return res.status(400).json({ success: false, message: 'ไม่มีฟิลด์ที่จะอัปเดต' });
+  params.push(parseInt(req.params.id));
+  await query(`UPDATE member_levels SET ${sets.join(',')} WHERE id=?`, params);
+  res.json({ success: true, message: 'อัปเดตแล้ว' });
+});
+
+// DELETE /api/admin/member-levels/:id
+router.delete('/member-levels/:id', authAdmin, async (req, res) => {
+  await query('DELETE FROM member_levels WHERE id=?', [parseInt(req.params.id)]);
+  res.json({ success: true, message: 'ลบแล้ว' });
+});
+
 module.exports = router;
