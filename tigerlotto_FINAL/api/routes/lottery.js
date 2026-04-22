@@ -250,6 +250,30 @@ router.patch('/admin/rounds/:id/close', authAdmin, rbac.requirePerm('rounds.mana
   res.json({ success: true, message: 'ปิดรับงวดแล้ว' });
 });
 
+// PATCH /api/lottery/admin/rounds/:id — แก้ไขรายละเอียดงวด (ชื่อ/วันออก/เวลาปิด)
+router.patch('/admin/rounds/:id', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  const { round_name, draw_date, close_at, open_at, status } = req.body;
+  const fields = [];
+  const vals   = [];
+  if (round_name !== undefined) { fields.push('round_name=?'); vals.push(round_name); }
+  if (draw_date  !== undefined) { fields.push('draw_date=?');  vals.push(draw_date);  }
+  if (close_at   !== undefined) { fields.push('close_at=?');   vals.push(close_at);   }
+  if (open_at    !== undefined) { fields.push('open_at=?');    vals.push(open_at);    }
+  if (status     !== undefined) { fields.push('status=?');     vals.push(status);     }
+  if (!fields.length) return res.status(400).json({ success: false, message: 'ไม่มีข้อมูลให้อัปเดต' });
+  vals.push(req.params.id);
+  await query(`UPDATE lottery_rounds SET ${fields.join(',')} WHERE id=?`, vals);
+  res.json({ success: true, message: 'อัปเดตงวดสำเร็จ' });
+});
+
+// DELETE /api/lottery/admin/rounds/:id — ลบงวดที่ยังไม่มีการแทง
+router.delete('/admin/rounds/:id', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  const [bets] = await query('SELECT COUNT(*) c FROM bets WHERE round_id=?', [req.params.id]);
+  if (bets.c > 0) return res.status(400).json({ success: false, message: `ไม่สามารถลบได้ มีการแทง ${bets.c} รายการ` });
+  await query('DELETE FROM lottery_rounds WHERE id=?', [req.params.id]);
+  res.json({ success: true, message: 'ลบงวดสำเร็จ' });
+});
+
 // POST /api/lottery/admin/results — announce result + auto payout
 router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
   body('round_id').isInt(),
