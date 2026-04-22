@@ -110,28 +110,70 @@ router.post('/admin/slipok/test', authAdmin, rbac.requirePerm('settings.view'), 
   if (!creds.apiKey || !creds.branchId) {
     return res.json({ success: false, message: 'กรุณาบันทึก API Key และ Branch ID ก่อนทดสอบ' });
   }
-  // Call SlipOK check-balance endpoint (no file needed)
+
   try {
-    const axios = require('axios');
-    const r = await axios.get(
+    const axios    = require('axios');
+    const FormData = require('form-data');
+
+    // SlipOK รับแค่ POST — ส่ง POST ไม่มีไฟล์เพื่อทดสอบ credentials
+    // Response คาดหวัง:
+    //   400  = credentials ถูกต้อง แต่ไม่มีไฟล์สลิป (คาดหวัง ✅)
+    //   401  = API Key ไม่ถูกต้อง ❌
+    //   403  = Forbidden ❌
+    //   404  = Branch ID ไม่พบ ❌
+    //   200  = OK ✅
+    const form = new FormData();
+    // ไม่แนบไฟล์ — แค่ทดสอบว่า credentials ผ่านหรือไม่
+    const r = await axios.post(
       `https://api.slipok.com/api/line/apikey/${creds.branchId}`,
+      form,
       {
-        headers: { 'x-authorization': creds.apiKey },
-        timeout: 10000,
-        validateStatus: () => true,
+        headers: {
+          ...form.getHeaders(),
+          'x-authorization': creds.apiKey,
+        },
+        timeout: 12000,
+        validateStatus: () => true, // ไม่ throw บน 4xx
       }
     );
-    // SlipOK returns 405 (Method Not Allowed) on GET — which means credentials are valid
-    if (r.status === 405 || r.status === 200) {
-      return res.json({ success: true, message: `✅ เชื่อมต่อสำเร็จ! Branch ID: ${creds.branchId}`, status: r.status });
+
+    const body = r.data || {};
+    const status = r.status;
+
+    if (status === 200 || status === 400) {
+      // 400 = credentials ถูก แต่ไม่มีไฟล์ = ปกติ
+      const code = body?.code || body?.message || '';
+      // ถ้า 400 + code บอกว่า no file = ✅ credentials valid
+      return res.json({
+        success : true,
+        message : `✅ เชื่อมต่อสำเร็จ! Branch ID: ${creds.branchId} พร้อมใช้งาน`,
+        status,
+        detail  : code || 'พร้อมรับสลิป',
+      });
     }
-    if (r.status === 401 || r.status === 403) {
-      return res.json({ success: false, message: `❌ API Key ไม่ถูกต้อง (${r.status})` });
+
+    if (status === 401) {
+      return res.json({ success: false, message: '❌ API Key ไม่ถูกต้อง — กรุณาตรวจสอบใหม่' });
     }
-    return res.json({ success: true, message: `เชื่อมต่อได้ (HTTP ${r.status})`, status: r.status });
+    if (status === 403) {
+      return res.json({ success: false, message: '❌ ไม่มีสิทธิ์เข้าถึง (403) — ตรวจสอบ API Key' });
+    }
+    if (status === 404) {
+      return res.json({ success: false, message: `❌ Branch ID "${creds.branchId}" ไม่พบในระบบ SlipOK — กรุณาตรวจสอบใหม่` });
+    }
+
+    // status อื่น
+    return res.json({
+      success : false,
+      message : `⚠️ SlipOK ตอบกลับ HTTP ${status} — ${body?.message || body?.code || 'ไม่ทราบสาเหตุ'}`,
+      status,
+    });
+
   } catch (e) {
-    if (e.code === 'ECONNABORTED') return res.json({ success: false, message: 'ทดสอบล้มเหลว: Timeout' });
-    return res.json({ success: false, message: `ทดสอบล้มเหลว: ${e.message}` });
+    if (e.code === 'ECONNABORTED' || e.code === 'ETIMEDOUT') {
+      return res.json({ success: false, message: '⚠️ ทดสอบล้มเหลว: SlipOK ไม่ตอบสนอง (timeout)' });
+    }
+    return res.json({ success: false, message: `⚠️ ทดสอบล้มเหลว: ${e.message}` });
   }
 });
 
