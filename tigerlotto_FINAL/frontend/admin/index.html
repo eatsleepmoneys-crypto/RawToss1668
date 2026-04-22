@@ -1120,6 +1120,21 @@ function toggleBill(billId){
   if(btn) btn.textContent = isOpen ? '▼ ดูรายการ' : '▲ ซ่อน';
 }
 
+// ── Bet type config: order + label + color ──────────────────────────────
+const BET_TYPE_ORDER = ['3top','3tod','2top','2bot','run_top','run_bot'];
+const BET_TYPE_CONFIG = {
+  '3top'   : { label:'3 ตัวบน',  bg:'rgba(139,92,246,0.18)', border:'rgba(139,92,246,0.5)',  text:'#c4b5fd' },
+  '3tod'   : { label:'3 ตัวโต๊ด', bg:'rgba(168,85,247,0.13)', border:'rgba(168,85,247,0.4)',  text:'#d8b4fe' },
+  '2top'   : { label:'2 ตัวบน',  bg:'rgba(59,130,246,0.18)', border:'rgba(59,130,246,0.5)',  text:'#93c5fd' },
+  '2bot'   : { label:'2 ตัวล่าง', bg:'rgba(14,165,233,0.15)', border:'rgba(14,165,233,0.45)', text:'#7dd3fc' },
+  'run_top': { label:'วิ่งบน',    bg:'rgba(234,179,8,0.15)',  border:'rgba(234,179,8,0.45)',  text:'#fde047' },
+  'run_bot': { label:'วิ่งล่าง',  bg:'rgba(249,115,22,0.15)', border:'rgba(249,115,22,0.45)', text:'#fdba74' },
+};
+function betTypeBadge(t){
+  const c = BET_TYPE_CONFIG[t] || { label:t, bg:'rgba(100,100,100,0.15)', border:'rgba(100,100,100,0.4)', text:'#ccc' };
+  return `<span style="display:inline-block;padding:2px 9px;border-radius:6px;font-size:11px;font-weight:700;background:${c.bg};border:1px solid ${c.border};color:${c.text};white-space:nowrap">${c.label}</span>`;
+}
+
 function renderBillView(rows){
   const container = document.getElementById('bets-bills-container');
   if(!container) return;
@@ -1127,66 +1142,76 @@ function renderBillView(rows){
     container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:30px">ไม่พบรายการ</div>';
     return;
   }
-  // Group by member_name + round_name
+  // Group by member_id + round_id
   const groups = {};
   rows.forEach(b => {
     const key = `${b.member_name||'-'}__${b.round_name||'-'}__${b.lottery_name||'-'}`;
-    if(!groups[key]) groups[key] = { member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, bets:[], total:0, payout:0 };
+    if(!groups[key]) groups[key] = { member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, bets:[], total:0 };
     groups[key].bets.push(b);
-    groups[key].total   += parseFloat(b.amount||0);
-    groups[key].payout  += parseFloat(b.payout||0);
+    groups[key].total += parseFloat(b.amount||0);
   });
-  const BTL = {'3top':'3บน','3tod':'โต้ด','2top':'2บน','2bot':'2ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
   let html = '';
   Object.entries(groups).forEach(([key, g], idx) => {
-    const hasWin = g.bets.some(b=>b.status==='win');
-    const statusColor = hasWin ? 'var(--green)' : 'var(--muted)';
     const winTotal = g.bets.reduce((s,b)=>s+parseFloat(b.win_amount||0),0);
+    // Sort bets: 3top → 3tod → 2top → 2bot → run_top → run_bot
+    const sorted = [...g.bets].sort((a,b) => {
+      const oa = BET_TYPE_ORDER.indexOf(a.bet_type), ob = BET_TYPE_ORDER.indexOf(b.bet_type);
+      return (oa<0?99:oa) - (ob<0?99:ob);
+    });
+    // Group sorted rows by type for row striping
+    let prevType = null;
+    const betRows = sorted.map(b => {
+      const cfg = BET_TYPE_CONFIG[b.bet_type] || {};
+      const rowBg = b.bet_type !== prevType ? `background:${cfg.bg||'transparent'}` : '';
+      prevType = b.bet_type;
+      return `
+      <tr style="border-bottom:1px solid var(--border);${rowBg}">
+        <td style="padding:5px 10px;width:90px">${betTypeBadge(b.bet_type)}</td>
+        <td style="padding:5px 10px;text-align:center;font-size:20px;font-weight:800;letter-spacing:4px;color:var(--gold)">${b.number}</td>
+        <td style="padding:5px 10px;text-align:right;font-weight:600">฿${Number(b.amount||0).toLocaleString()}</td>
+        <td style="padding:5px 10px;text-align:right;color:var(--muted)">฿${Number(b.payout||0).toLocaleString()}</td>
+        <td style="padding:5px 10px;text-align:right">
+          <span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${{waiting:'รอผล',win:'✅ ถูก',lose:'ไม่ถูก',cancelled:'ยกเลิก'}[b.status]||b.status}</span>
+          ${parseFloat(b.win_amount||0)>0?`<div style="color:var(--green);font-size:11px;font-weight:700">+฿${Number(b.win_amount).toLocaleString()}</div>`:''}
+        </td>
+        <td style="padding:5px 10px;text-align:center">
+          ${b.status==='waiting'?`<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`:'-'}
+        </td>
+      </tr>`;
+    }).join('');
+
     html += `
     <div style="border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden">
       <div onclick="toggleBill(${idx})" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:var(--card2);user-select:none">
-        <span style="font-size:15px">${g.lottery_flag||'🎰'}</span>
+        <span style="font-size:16px">${g.lottery_flag||'🎰'}</span>
         <div style="flex:1;min-width:120px">
           <div style="font-weight:700;font-size:14px">${g.member_name||'-'}</div>
           <div style="font-size:11px;color:var(--muted)">${g.phone||''}</div>
         </div>
-        <div style="flex:1;min-width:120px">
-          <div style="font-size:12px;color:var(--muted)">${g.lottery_name||''}</div>
+        <div style="flex:1;min-width:140px">
+          <div style="font-size:11px;color:var(--muted)">${g.lottery_name||''}</div>
           <div style="font-size:12px">${g.round_name||'-'}</div>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:12px;color:var(--muted)">${g.bets.length} รายการ</div>
+        <div style="text-align:right;margin-right:8px">
+          <div style="font-size:11px;color:var(--muted)">${g.bets.length} รายการ</div>
           <div style="font-weight:700;color:var(--gold2)">฿${g.total.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>
         </div>
-        ${winTotal>0?`<div style="text-align:right;color:var(--green);font-weight:700">+฿${winTotal.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>`:''}
+        ${winTotal>0?`<div style="text-align:right;color:var(--green);font-weight:700;margin-right:8px">+฿${winTotal.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>`:''}
         <button id="bill-toggle-${idx}" style="background:none;border:1px solid var(--border);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--text)">▼ ดูรายการ</button>
       </div>
-      <div id="bill-detail-${idx}" style="display:none;padding:12px">
+      <div id="bill-detail-${idx}" style="display:none">
         <table style="width:100%;border-collapse:collapse;font-size:12px">
-          <thead><tr style="color:var(--muted);border-bottom:1px solid var(--border)">
-            <th style="padding:4px 8px;text-align:left">ประเภท</th>
-            <th style="padding:4px 8px;text-align:center;font-size:16px">เลข</th>
-            <th style="padding:4px 8px;text-align:right">ยอดแทง</th>
-            <th style="padding:4px 8px;text-align:right">ถ้าถูก</th>
-            <th style="padding:4px 8px;text-align:right">สถานะ</th>
-            <th style="padding:4px 8px;text-align:center">จัดการ</th>
-          </tr></thead>
-          <tbody>
-            ${g.bets.map(b=>`
-            <tr style="border-bottom:1px solid var(--border)">
-              <td style="padding:4px 8px"><span class="badge badge-blue">${BTL[b.bet_type]||b.bet_type}</span></td>
-              <td style="padding:4px 8px;text-align:center;font-size:18px;font-weight:800;letter-spacing:3px;color:var(--gold)">${b.number}</td>
-              <td style="padding:4px 8px;text-align:right;font-weight:600">฿${Number(b.amount||0).toLocaleString()}</td>
-              <td style="padding:4px 8px;text-align:right;color:var(--muted)">฿${Number(b.payout||0).toLocaleString()}</td>
-              <td style="padding:4px 8px;text-align:right">
-                <span class="badge ${b.status==='win'?'badge-green':b.status==='lose'?'badge-red':b.status==='cancelled'?'badge-red':'badge-yellow'}">${{waiting:'รอผล',win:'ถูก',lose:'ไม่ถูก',cancelled:'ยกเลิก'}[b.status]||b.status}</span>
-                ${b.win_amount>0?`<div style="color:var(--green);font-size:11px">+฿${Number(b.win_amount).toLocaleString()}</div>`:''}
-              </td>
-              <td style="padding:4px 8px;text-align:center">
-                ${b.status==='waiting'?`<button class="act-btn act-red" onclick="cancelBet(${b.id})">ยกเลิก</button>`:'-'}
-              </td>
-            </tr>`).join('')}
-          </tbody>
+          <thead>
+            <tr style="background:var(--card3,#1a1a2e)">
+              <th style="padding:6px 10px;text-align:left;color:var(--muted);font-weight:600">ประเภท</th>
+              <th style="padding:6px 10px;text-align:center;color:var(--muted);font-weight:600">เลข</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">ยอดแทง</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">ถ้าถูก</th>
+              <th style="padding:6px 10px;text-align:right;color:var(--muted);font-weight:600">สถานะ</th>
+              <th style="padding:6px 10px;text-align:center;color:var(--muted);font-weight:600">จัดการ</th>
+            </tr>
+          </thead>
+          <tbody>${betRows}</tbody>
         </table>
       </div>
     </div>`;
