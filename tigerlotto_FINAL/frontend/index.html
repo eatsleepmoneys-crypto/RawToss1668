@@ -2252,7 +2252,7 @@ async function loadProfilePanel(){
   const el = document.getElementById('mps-profile');
   el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
   try {
-    const d = await API.MembersAPI.getProfile();
+    const d = await API.MemberAPI.getProfile();
     const m = d.data;
     const lv = m.cur_level;
     const nv = m.next_level;
