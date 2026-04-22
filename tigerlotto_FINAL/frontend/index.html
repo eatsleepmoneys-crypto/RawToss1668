@@ -304,7 +304,7 @@ select.fi option{background:var(--card2)}
 
 /* ─── อั้นหวย SLIDE PANEL ─── */
 #an-panel{
-  position:fixed;top:0;right:-310px;width:290px;height:100%;
+  position:fixed;top:0;right:-400px;width:370px;height:100%;
   background:#13131c;border-left:1px solid rgba(212,160,23,.25);
   z-index:9500;transition:right .35s cubic-bezier(.4,0,.2,1);
   display:flex;flex-direction:column;box-shadow:-6px 0 30px rgba(0,0,0,.6);
@@ -324,23 +324,23 @@ select.fi option{background:var(--card2)}
 }
 #an-toggle-btn.visible{display:block}
 .an-tab-btn{
-  padding:4px 10px;font-size:11px;font-weight:700;border-radius:20px;
+  padding:5px 13px;font-size:12px;font-weight:700;border-radius:20px;
   border:1px solid #444;background:var(--card2);color:#aaa;cursor:pointer;
   transition:.15s;white-space:nowrap;font-family:'Sarabun',sans-serif;
 }
 .an-tab-btn.on{background:var(--grad);color:#000;border-color:transparent}
 .an-row{
-  display:grid;grid-template-columns:44px 54px 1fr 1fr;gap:2px 6px;
-  align-items:center;padding:5px 10px;border-radius:6px;font-size:12px;
+  display:grid;grid-template-columns:52px 64px 1fr 90px;gap:2px 8px;
+  align-items:center;padding:7px 12px;border-radius:6px;font-size:13px;
 }
 .an-row:nth-child(even){background:rgba(255,255,255,.03)}
 .an-row-hdr{
-  font-size:10px;color:#666;font-weight:700;padding:4px 10px;
+  font-size:11px;color:#666;font-weight:700;padding:5px 12px;
   border-bottom:1px solid #2a2a3a;margin-bottom:2px;
-  display:grid;grid-template-columns:44px 54px 1fr 1fr;gap:2px 6px;
+  display:grid;grid-template-columns:52px 64px 1fr 90px;gap:2px 8px;
 }
 @media(max-width:600px){
-  #an-panel{width:260px}
+  #an-panel{width:310px;right:-320px}
 }
 </style>
 </head>
@@ -825,11 +825,11 @@ select.fi option{background:var(--card2)}
 <div id="an-panel">
   <div style="padding:14px 14px 10px;border-bottom:1px solid #252535;flex-shrink:0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-      <div style="font-size:14px;font-weight:800;color:var(--gold)">🚦 อั้นหวย</div>
-      <button onclick="closeAnPanel()" style="background:none;border:none;color:#888;font-size:18px;cursor:pointer;padding:0 4px;line-height:1">✕</button>
+      <div style="font-size:16px;font-weight:800;color:var(--gold)">🚦 อั้นหวย</div>
+      <button onclick="closeAnPanel()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;padding:0 4px;line-height:1">✕</button>
     </div>
-    <div id="an-panel-name" style="font-size:11px;color:#888"></div>
-    <div id="an-panel-tabs" style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px"></div>
+    <div id="an-panel-name" style="font-size:13px;color:#aaa;margin-top:2px"></div>
+    <div id="an-panel-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
   </div>
   <div style="padding:8px 0;border-bottom:1px solid #252535;flex-shrink:0">
     <div class="an-row-hdr">
@@ -1426,19 +1426,20 @@ function _renderAnList(){
 
 function _anRowHtml(r){
   const numLbl = r.number === '*'
-    ? `<span style="color:#5dade2;font-weight:800">ทุกเลข</span>`
-    : `<span style="font-size:15px;font-weight:800;letter-spacing:1px;color:#fff">${r.number}</span>`;
+    ? `<span style="color:#5dade2;font-weight:800;font-size:13px">ทุกเลข</span>`
+    : `<span style="font-size:17px;font-weight:800;letter-spacing:1px;color:#fff">${r.number}</span>`;
 
-  const typeLbl = `<span style="font-size:10px;color:#bbb">${AN_BT_LBL[r.bet_type]||r.bet_type}</span>`;
+  const typeLbl = `<span style="font-size:12px;color:#ccc;font-weight:600">${AN_BT_LBL[r.bet_type]||r.bet_type}</span>`;
 
   let statusHtml, rateHtml;
   if(r.closed || r.current_tier === '3'){
-    statusHtml = `<span style="background:#c0392b;color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;white-space:nowrap">❌ ปิด</span>`;
-    rateHtml   = `<span style="color:#e74c3c;font-size:11px">-</span>`;
+    statusHtml = `<span style="background:#c0392b;color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;white-space:nowrap">❌ ปิดรับ</span>`;
+    rateHtml   = `<span style="color:#e74c3c;font-size:13px;font-weight:700">ปิด</span>`;
   } else {
-    const tierLbl = `ถัง${r.current_tier}`;
-    statusHtml = `<span style="background:#e67e22;color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;white-space:nowrap">🔸 ${tierLbl}</span>`;
-    rateHtml   = `<span style="color:#e67e22;font-size:11px;font-weight:700">×${r.effective_rate}</span>`;
+    // แสดง % ที่จ่าย เช่น "จ่าย 50%"
+    const pct = r.rate_pct !== null && r.rate_pct !== undefined ? r.rate_pct : 100;
+    statusHtml = `<span style="background:#e67e22;color:#fff;font-size:12px;font-weight:800;border-radius:6px;padding:3px 10px;white-space:nowrap">จ่าย ${pct}%</span>`;
+    rateHtml   = `<span style="color:#f39c12;font-size:13px;font-weight:800">×${r.effective_rate}</span>`;
   }
 
   return `<div class="an-row">${numLbl}${typeLbl}${statusHtml}<div style="text-align:right">${rateHtml}</div></div>`;
