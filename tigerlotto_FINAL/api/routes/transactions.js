@@ -32,10 +32,9 @@ const upload = multer({
 // POST /api/transactions/deposit — member submit deposit
 router.post('/deposit', authMember, upload.single('slip'),
   body('amount').isFloat({ min: 1 }),
-  body('bank_code').notEmpty(),
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, message: errors.array()[0]?.msg || 'ข้อมูลไม่ถูกต้อง' });
 
     const { amount, bank_code, transfer_at } = req.body;
 
@@ -177,7 +176,7 @@ router.post('/withdraw', authMember,
   body('amount').isFloat({ min: 1 }),
   async (req, res) => {
     const errors = validationResult(req);
-    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, message: errors.array()[0]?.msg || 'ข้อมูลไม่ถูกต้อง' });
 
     const { amount } = req.body;
     const [minR] = await query('SELECT value FROM settings WHERE `key`="min_withdraw"');
