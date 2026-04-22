@@ -3893,8 +3893,12 @@ async function loadNumLimits(page) {
         <td style="font-size:12px">${fmtTierCell(nl.tier2_3_rate, nl.tier2_3_used, nl.tier2_3_limit)}</td>
         <td style="font-size:12px">${nl.lottery_flag||''} ${nl.lottery_name||''}</td>
         <td style="font-size:12px;color:var(--muted)">${nl.round_name||'<i>ทุกงวด</i>'}</td>
-        <td>
+        <td style="white-space:nowrap">
           <button class="btn-xs btn-sec" onclick="editNumLimit(${nl.id})" title="แก้ไข">✏️</button>
+          ${nl.current_tier==='1'
+            ? `<button class="btn-xs" style="background:rgba(255,165,2,.18);color:var(--orange);border:1px solid var(--orange)" onclick="skipToTier2(${nl.id})" title="ข้ามถัง1 → เปิดถัง2 ทันที">⏭️ถัง2</button>`
+            : `<button class="btn-xs" style="background:rgba(46,213,115,.12);color:var(--green);border:1px solid var(--green)" onclick="backToTier1(${nl.id})" title="ย้อนกลับถัง1">↩️ถัง1</button>`
+          }
           <button class="btn-xs" style="background:rgba(46,213,115,.15);color:var(--green)" onclick="resetNumLimit(${nl.id})" title="รีเซ็ตถัง">🔄</button>
           <button class="btn-xs btn-del" onclick="deleteNumLimit(${nl.id})" title="ลบ">🗑️</button>
         </td>
@@ -3990,6 +3994,12 @@ function openNumLimitModal(existingData) {
       ${_nlTierTableRows(['2top','2bot','run_top','run_bot'], rows)}
     </div>
 
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:10px 14px;background:rgba(255,165,2,.08);border:1px solid rgba(255,165,2,.3);border-radius:9px">
+      <input type="checkbox" id="nl-m-skip-t1" style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer">
+      <label for="nl-m-skip-t1" style="font-size:13px;color:var(--orange);cursor:pointer;font-weight:600">
+        ⏭️ ข้ามถัง 1 — เปิดถัง 2 ทันทีสำหรับทุกประเภทที่บันทึก
+      </label>
+    </div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
       💡 ถัง1 จำกัด = ยอดรวมก่อนขยับถัง (0=ไม่จำกัด) &nbsp;|&nbsp; ถัง2 Rate% = % จ่ายในถัง2 &nbsp;|&nbsp; ถัง2.1–2.3 = sub-tier (ว่าง=ข้าม)
     </div>
@@ -4048,6 +4058,8 @@ async function saveNumLimit() {
   const fNum = (s, def=0) => s===''||s===undefined ? def : parseFloat(s)||def;
   const fOpt = (s) => s===''||s===undefined ? null : parseFloat(s)||null;
 
+  const skipToT2 = document.getElementById('nl-m-skip-t1')?.checked;
+
   let saved = 0, errors = [];
   for (const bt of ALL_BET_TYPES) {
     const payload = {
@@ -4065,12 +4077,16 @@ async function saveNumLimit() {
     try {
       const r = await apiFetch('/number-limits', { method: 'POST', body: JSON.stringify(payload) }, 'admin');
       if (!r.success) throw new Error(r.message);
+      // ถ้าติ๊ก "ข้ามถัง1" → patch ให้เปิดถัง2 ทันที
+      if (skipToT2 && r.id) {
+        await apiFetch('/number-limits/'+r.id, { method: 'PATCH', body: JSON.stringify({ current_tier: '2' }) }, 'admin').catch(()=>{});
+      }
       saved++;
     } catch(e) { errors.push(`${BT_LABEL[bt]}: ${e.message}`); }
   }
 
   if (errors.length) toast('บางรายการผิดพลาด', errors.join(' | '), 'error');
-  else toast('สำเร็จ', `บันทึก ${saved} ประเภทแล้ว`);
+  else toast('สำเร็จ', `บันทึก ${saved} ประเภท${skipToT2?' (เปิดถัง2 แล้ว)':''}`);
   closeModal(); loadNumLimits();
 }
 
@@ -4087,6 +4103,22 @@ async function editNumLimit(id) {
       String(x.round_id||'') === String(clicked.round_id||'')
     );
     openNumLimitModal(allForNum);
+  } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function skipToTier2(id) {
+  try {
+    const r = await apiFetch('/number-limits/'+id, { method: 'PATCH', body: JSON.stringify({ current_tier: '2', escalated_at: null }) }, 'admin');
+    if (!r.success) throw new Error(r.message);
+    toast('สำเร็จ','เปิดถัง 2 แล้ว'); loadNumLimits();
+  } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function backToTier1(id) {
+  try {
+    const r = await apiFetch('/number-limits/'+id, { method: 'PATCH', body: JSON.stringify({ current_tier: '1' }) }, 'admin');
+    if (!r.success) throw new Error(r.message);
+    toast('สำเร็จ','ย้อนกลับถัง 1 แล้ว'); loadNumLimits();
   } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
 }
 
@@ -4245,6 +4277,9 @@ function _asGroupRows(bts) {
       <td style="${tdS}">${inp(`as-${bt}-t2l`,'0','จำกัด')}</td>
       <td style="${tdS}">${inp(`as-${bt}-t21r`,'','2.1%')}</td>
       <td style="${tdS}">${inp(`as-${bt}-t21l`,'0','จำกัด')}</td>
+      <td style="${tdS};text-align:center">
+        <input type="checkbox" id="as-${bt}-skip" style="width:16px;height:16px;accent-color:var(--orange);cursor:pointer" title="ข้ามถัง1 เปิดถัง2 เลย">
+      </td>
     </tr>`;
   }).join('');
 
@@ -4257,6 +4292,7 @@ function _asGroupRows(bts) {
       <th style="${thS}">ถัง2 จำกัด</th>
       <th style="${thS}">ถัง2.1 %</th>
       <th style="${thS}">ถัง2.1 จำกัด</th>
+      <th style="${thS}">⏭️ เริ่มถัง2</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -4342,6 +4378,7 @@ async function saveAutoSpread() {
       tier2_limit  : fN(v(`as-${bt.key}-t2l`)),
       tier2_1_rate : fO(v(`as-${bt.key}-t21r`)),
       tier2_1_limit: fN(v(`as-${bt.key}-t21l`)),
+      skip_tier1   : document.getElementById(`as-${bt.key}-skip`)?.checked || false,
     };
   }
 

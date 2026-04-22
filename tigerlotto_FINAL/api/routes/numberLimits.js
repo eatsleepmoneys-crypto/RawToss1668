@@ -243,6 +243,8 @@ router.post('/auto-spread', authAdmin, async (req, res) => {
     const t23r = cfg.tier2_3_rate  != null && cfg.tier2_3_rate  !== '' ? parseFloat(cfg.tier2_3_rate)  : null;
     const t23l = parseFloat(cfg.tier2_3_limit) || 0;
 
+    const startTier = cfg.skip_tier1 ? '2' : '1';
+
     // Generate all numbers for this digit count
     for (let i = 0; i < count; i++) {
       const num = String(i).padStart(digits, '0');
@@ -255,16 +257,20 @@ router.post('/auto-spread', authAdmin, async (req, res) => {
              (lottery_id, round_id, number, bet_type,
               tier1_limit, tier2_rate, tier2_limit,
               tier2_1_rate, tier2_1_limit, tier2_2_rate, tier2_2_limit,
-              tier2_3_rate, tier2_3_limit, current_tier)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'1')
+              tier2_3_rate, tier2_3_limit, current_tier,
+              escalated_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,IF(?='2',NOW(),NULL))
            ON DUPLICATE KEY UPDATE
              tier1_limit=VALUES(tier1_limit),
              tier2_rate=VALUES(tier2_rate),   tier2_limit=VALUES(tier2_limit),
              tier2_1_rate=VALUES(tier2_1_rate), tier2_1_limit=VALUES(tier2_1_limit),
              tier2_2_rate=VALUES(tier2_2_rate), tier2_2_limit=VALUES(tier2_2_limit),
-             tier2_3_rate=VALUES(tier2_3_rate), tier2_3_limit=VALUES(tier2_3_limit)`,
+             tier2_3_rate=VALUES(tier2_3_rate), tier2_3_limit=VALUES(tier2_3_limit),
+             current_tier=VALUES(current_tier),
+             escalated_at=VALUES(escalated_at)`,
           [lottery_id, round_id, num, bet_type,
-           limit, t2r, t2l, t21r, t21l, t22r, t22l, t23r, t23l]
+           limit, t2r, t2l, t21r, t21l, t22r, t22l, t23r, t23l,
+           startTier, startTier]
         );
         created++;
       } catch(e) { errors.push(`${bet_type}:${num} — ${e.message.substring(0,60)}`); }
