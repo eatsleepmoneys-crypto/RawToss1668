@@ -207,6 +207,78 @@ router.delete('/:id', authAdmin, async (req, res) => {
   res.json({ success: true, message: 'ลบแล้ว' });
 });
 
+// ─── POST /api/number-limits/auto-spread ──────────────────────────────────────
+// Auto-distribute total budget across all possible numbers for each bet_type
+// overrides = [{ number, bet_type, tier1_limit }] for custom per-number adjustments
+router.post('/auto-spread', authAdmin, async (req, res) => {
+  const { lottery_id, round_id = null, bet_types = {}, overrides = [] } = req.body;
+  if (!lottery_id) return res.status(400).json({ success: false, message: 'lottery_id จำเป็น' });
+
+  const DIGIT_COUNT = { '3top':3,'3tod':3,'2top':2,'2bot':2,'run_top':1,'run_bot':1 };
+
+  // Build override lookup: { 'bet_type:number': tier1_limit }
+  const ovMap = {};
+  for (const ov of overrides) {
+    if (ov.number && ov.bet_type) ovMap[`${ov.bet_type}:${ov.number}`] = parseFloat(ov.tier1_limit) || 0;
+  }
+
+  let created = 0;
+  const errors = [];
+
+  for (const [bet_type, cfg] of Object.entries(bet_types)) {
+    if (!cfg || !cfg.total_budget || parseFloat(cfg.total_budget) <= 0) continue;
+    const digits = DIGIT_COUNT[bet_type];
+    if (!digits) continue;
+
+    const count       = Math.pow(10, digits);        // 10 / 100 / 1000
+    const perNumLimit = Math.floor(parseFloat(cfg.total_budget) / count);
+    if (perNumLimit <= 0) { errors.push(`${bet_type}: งบต่อเลขน้อยเกินไป (${cfg.total_budget}/${count})`); continue; }
+
+    const t2r  = parseFloat(cfg.tier2_rate)    || 100;
+    const t2l  = parseFloat(cfg.tier2_limit)   || 0;
+    const t21r = cfg.tier2_1_rate  != null && cfg.tier2_1_rate  !== '' ? parseFloat(cfg.tier2_1_rate)  : null;
+    const t21l = parseFloat(cfg.tier2_1_limit) || 0;
+    const t22r = cfg.tier2_2_rate  != null && cfg.tier2_2_rate  !== '' ? parseFloat(cfg.tier2_2_rate)  : null;
+    const t22l = parseFloat(cfg.tier2_2_limit) || 0;
+    const t23r = cfg.tier2_3_rate  != null && cfg.tier2_3_rate  !== '' ? parseFloat(cfg.tier2_3_rate)  : null;
+    const t23l = parseFloat(cfg.tier2_3_limit) || 0;
+
+    // Generate all numbers for this digit count
+    for (let i = 0; i < count; i++) {
+      const num = String(i).padStart(digits, '0');
+      const ovKey = `${bet_type}:${num}`;
+      const limit = ovKey in ovMap ? ovMap[ovKey] : perNumLimit;
+
+      try {
+        await query(
+          `INSERT INTO number_limits
+             (lottery_id, round_id, number, bet_type,
+              tier1_limit, tier2_rate, tier2_limit,
+              tier2_1_rate, tier2_1_limit, tier2_2_rate, tier2_2_limit,
+              tier2_3_rate, tier2_3_limit, current_tier)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,'1')
+           ON DUPLICATE KEY UPDATE
+             tier1_limit=VALUES(tier1_limit),
+             tier2_rate=VALUES(tier2_rate),   tier2_limit=VALUES(tier2_limit),
+             tier2_1_rate=VALUES(tier2_1_rate), tier2_1_limit=VALUES(tier2_1_limit),
+             tier2_2_rate=VALUES(tier2_2_rate), tier2_2_limit=VALUES(tier2_2_limit),
+             tier2_3_rate=VALUES(tier2_3_rate), tier2_3_limit=VALUES(tier2_3_limit)`,
+          [lottery_id, round_id, num, bet_type,
+           limit, t2r, t2l, t21r, t21l, t22r, t22l, t23r, t23l]
+        );
+        created++;
+      } catch(e) { errors.push(`${bet_type}:${num} — ${e.message.substring(0,60)}`); }
+    }
+  }
+
+  res.json({
+    success: true,
+    message: `สร้าง ${created} รายการแล้ว${errors.length ? ` (${errors.length} error)` : ''}`,
+    count: created,
+    errors: errors.slice(0, 10),
+  });
+});
+
 // ─── Export helper for use in bets.js ─────────────────────────────────────────
 module.exports = router;
 module.exports.getLimitRow = getLimitRow;

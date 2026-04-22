@@ -3771,6 +3771,7 @@ PAGES.numlimits = () => `
   <input id="nl-num-search" class="fi" placeholder="🔍 ค้นหาเลข..." style="width:160px" oninput="loadNumLimits()">
   <button class="btn-g" onclick="openNumLimitModal()">➕ เพิ่มอั้นหวย</button>
   <button class="btn-sec" onclick="openBulkNumLimitModal()">📋 เพิ่มหลายเลข</button>
+  <button class="btn-sec" style="background:rgba(61,139,205,.15);color:#5dade2;border-color:#3d8bcd" onclick="openAutoSpreadModal()">🔀 Auto-Spread</button>
 </div>
 
 <div class="card" style="margin-bottom:16px">
@@ -4156,6 +4157,218 @@ async function saveBulkNumLimit() {
     toast('สำเร็จ', `บันทึก ${r.count} เลขแล้ว`);
     closeModal(); loadNumLimits();
   } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
+}
+
+// ═══ AUTO-SPREAD ═══
+const AS_BET_TYPES = [
+  { key:'3top', label:'3 ตัวบน',  digits:3, count:1000 },
+  { key:'3tod', label:'3 โต๊ด',   digits:3, count:1000 },
+  { key:'2top', label:'2 ตัวบน',  digits:2, count:100  },
+  { key:'2bot', label:'2 ตัวล่าง',digits:2, count:100  },
+  { key:'run_top', label:'วิ่งบน', digits:1, count:10  },
+  { key:'run_bot', label:'วิ่งล่าง',digits:1, count:10 },
+];
+
+function _asCalc(bt) {
+  const total = parseFloat(document.getElementById(`as-${bt}-total`)?.value) || 0;
+  const entry = AS_BET_TYPES.find(x=>x.key===bt);
+  const per = total > 0 ? Math.floor(total / entry.count) : 0;
+  const el = document.getElementById(`as-${bt}-per`);
+  if (el) el.textContent = per > 0 ? `฿${per.toLocaleString()} / เลข` : '—';
+}
+
+let _asOverrides = [];  // [{ number, bet_type, tier1_limit }]
+
+function openAutoSpreadModal() {
+  _asOverrides = [];
+  openModal(`
+    <h3 style="margin-bottom:14px">🔀 Auto-Spread — กระจายงบทุกเลขอัตโนมัติ</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="fg"><label>ประเภทหวย *</label>
+        <select id="as-lt" class="fi-full" onchange="asLoadRounds()">${_nlLotteryOptions()}</select>
+      </div>
+      <div class="fg"><label>งวด (ว่าง = ใช้ทุกงวด)</label>
+        <select id="as-round" class="fi-full"><option value="">-- template ทุกงวด --</option></select>
+      </div>
+    </div>
+
+    <div style="background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">📋 3 ตัว (000–999 = 1,000 เลข)</div>
+      ${_asGroupRows(['3top','3tod'])}
+    </div>
+
+    <div style="background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">📋 2 ตัว (00–99 = 100 เลข)</div>
+      ${_asGroupRows(['2top','2bot'])}
+    </div>
+
+    <div style="background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">📋 วิ่ง (0–9 = 10 เลข)</div>
+      ${_asGroupRows(['run_top','run_bot'])}
+    </div>
+
+    <div style="background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:12px;color:#5dade2;font-weight:700">✏️ กำหนดราคาบางเลขเอง (Override)</div>
+        <button class="btn-xs" style="background:rgba(61,139,205,.2);color:#5dade2" onclick="asAddOverride()">+ เพิ่มเลข</button>
+      </div>
+      <div id="as-overrides-list">
+        <div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">ยังไม่มีเลขที่กำหนดพิเศษ</div>
+      </div>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+      💡 ระบบจะสร้าง limit ให้ทุกเลขที่เป็นไปได้โดยอัตโนมัติ &nbsp;|&nbsp; เลขที่กำหนดพิเศษจะ override ค่าที่คำนวณได้
+    </div>
+    <button class="btn-g" style="width:100%" onclick="saveAutoSpread()">🔀 สร้างทั้งหมด</button>
+  `, { wide: true });
+  asLoadRounds();
+}
+
+function _asGroupRows(bts) {
+  const thS = 'padding:6px 8px;font-size:11px;color:var(--muted);font-weight:600;text-align:center;white-space:nowrap;border-bottom:1px solid var(--border)';
+  const tdS = 'padding:4px 5px;vertical-align:middle';
+  const inp = (id, val='', ph='') =>
+    `<input id="${id}" type="number" min="0" step="any" placeholder="${ph}"
+      style="width:80px;padding:5px 7px;background:var(--card3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;text-align:center"
+      value="${val}" oninput="_asCalc('${id.split('-')[1]}')">`;
+
+  const rows = bts.map(bt => {
+    const entry = AS_BET_TYPES.find(x=>x.key===bt);
+    return `<tr>
+      <td style="${tdS};font-weight:700;font-size:13px;padding-left:8px;white-space:nowrap">${entry.label}</td>
+      <td style="${tdS}">${inp(`as-${bt}-total`,'','งบรวม ฿')}</td>
+      <td style="${tdS};text-align:center">
+        <span id="as-${bt}-per" style="font-size:12px;color:var(--green);font-weight:600">—</span>
+      </td>
+      <td style="${tdS}">${inp(`as-${bt}-t2r`,'75','ถัง2 %')}</td>
+      <td style="${tdS}">${inp(`as-${bt}-t2l`,'0','จำกัด')}</td>
+      <td style="${tdS}">${inp(`as-${bt}-t21r`,'','2.1%')}</td>
+      <td style="${tdS}">${inp(`as-${bt}-t21l`,'0','จำกัด')}</td>
+    </tr>`;
+  }).join('');
+
+  return `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;min-width:500px">
+    <thead><tr>
+      <th style="${thS}">ประเภท</th>
+      <th style="${thS}">งบรวม (฿)</th>
+      <th style="${thS}">➗ต่อเลข</th>
+      <th style="${thS}">ถัง2 Rate%</th>
+      <th style="${thS}">ถัง2 จำกัด</th>
+      <th style="${thS}">ถัง2.1 %</th>
+      <th style="${thS}">ถัง2.1 จำกัด</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>`;
+}
+
+async function asLoadRounds() {
+  const ltSel = document.getElementById('as-lt');
+  const roundSel = document.getElementById('as-round');
+  if (!ltSel || !roundSel) return;
+  roundSel.innerHTML = '<option value="">-- template ทุกงวด --</option>';
+  if (!ltSel.value) return;
+  try {
+    const r = await apiFetch('/lottery/rounds?lottery_id='+ltSel.value+'&status=open,closed&limit=30', {}, 'admin');
+    (r.data || r.rounds || []).forEach(rnd => {
+      const o = document.createElement('option');
+      o.value = rnd.id;
+      o.textContent = rnd.round_name + (rnd.status==='open'?' (เปิด)':'');
+      roundSel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+function asAddOverride() {
+  const idx = _asOverrides.length;
+  _asOverrides.push({ number:'', bet_type:'3top', tier1_limit:'' });
+  asRenderOverrides();
+}
+
+function asRemoveOverride(idx) {
+  _asOverrides.splice(idx, 1);
+  asRenderOverrides();
+}
+
+function asRenderOverrides() {
+  const el = document.getElementById('as-overrides-list');
+  if (!el) return;
+  if (!_asOverrides.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);text-align:center;padding:8px">ยังไม่มีเลขที่กำหนดพิเศษ</div>';
+    return;
+  }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px">
+      <div style="font-size:11px;color:var(--muted);font-weight:600;padding:0 4px">เลข</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;padding:0 4px">ประเภท</div>
+      <div style="font-size:11px;color:var(--muted);font-weight:600;padding:0 4px">จำกัด (฿)</div>
+      <div></div>
+    </div>
+    ${_asOverrides.map((ov,i) => `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;align-items:center">
+      <input class="fi-full" type="text" maxlength="3" placeholder="เช่น 999"
+        style="font-size:13px;text-align:center;font-weight:700"
+        value="${ov.number}" oninput="_asOvSet(${i},'number',this.value)">
+      <select class="fi-full" style="font-size:12px" onchange="_asOvSet(${i},'bet_type',this.value)">
+        ${AS_BET_TYPES.map(bt=>`<option value="${bt.key}" ${ov.bet_type===bt.key?'selected':''}>${bt.label}</option>`).join('')}
+      </select>
+      <input class="fi-full" type="number" min="0" placeholder="จำกัด ฿"
+        style="font-size:13px;text-align:center"
+        value="${ov.tier1_limit}" oninput="_asOvSet(${i},'tier1_limit',this.value)">
+      <button class="btn-xs btn-del" onclick="asRemoveOverride(${i})">✕</button>
+    </div>`).join('')}`;
+}
+
+function _asOvSet(i, field, val) {
+  if (_asOverrides[i]) _asOverrides[i][field] = val;
+}
+
+async function saveAutoSpread() {
+  const lottery_id = document.getElementById('as-lt')?.value;
+  const round_id   = document.getElementById('as-round')?.value || null;
+  if (!lottery_id) return toast('ผิดพลาด','กรุณาเลือกประเภทหวย','error');
+
+  const v = (id) => document.getElementById(id)?.value;
+  const fN = (s,def=0) => s===''||s==null ? def : parseFloat(s)||def;
+  const fO = (s) => s===''||s==null ? null : parseFloat(s)||null;
+
+  const bet_types = {};
+  for (const bt of AS_BET_TYPES) {
+    const total = fN(v(`as-${bt.key}-total`));
+    if (!total) continue;
+    bet_types[bt.key] = {
+      total_budget : total,
+      tier2_rate   : fN(v(`as-${bt.key}-t2r`), 100),
+      tier2_limit  : fN(v(`as-${bt.key}-t2l`)),
+      tier2_1_rate : fO(v(`as-${bt.key}-t21r`)),
+      tier2_1_limit: fN(v(`as-${bt.key}-t21l`)),
+    };
+  }
+
+  if (!Object.keys(bet_types).length) {
+    return toast('ผิดพลาด','กรุณาใส่งบรวมอย่างน้อย 1 ประเภท','error');
+  }
+
+  // Validate overrides
+  const overrides = _asOverrides
+    .filter(ov => ov.number && ov.bet_type && ov.tier1_limit !== '')
+    .map(ov => ({ number: ov.number.trim(), bet_type: ov.bet_type, tier1_limit: parseFloat(ov.tier1_limit)||0 }));
+
+  const btn = document.querySelector('#modal-body .btn-g');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังสร้าง...'; }
+
+  try {
+    const r = await apiFetch('/number-limits/auto-spread', {
+      method: 'POST',
+      body: JSON.stringify({ lottery_id, round_id, bet_types, overrides })
+    }, 'admin');
+    if (!r.success) throw new Error(r.message);
+    toast('สำเร็จ', r.message);
+    closeModal(); loadNumLimits();
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '🔀 สร้างทั้งหมด'; }
+  }
 }
 
 // ═══ CHART INIT ═══
