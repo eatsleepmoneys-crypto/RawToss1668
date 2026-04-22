@@ -35,6 +35,23 @@ router.post('/deposit', authMember, upload.single('slip'),
 
     const { amount, bank_code, transfer_at } = req.body;
 
+    // ── ดึงข้อมูลบัญชีธนาคารของสมาชิก ───────────────────────────
+    const [member] = await query(
+      'SELECT bank_code, bank_account, bank_name FROM members WHERE id=?',
+      [req.member.id]
+    );
+
+    // ── บล็อกถ้าไม่มีบัญชีลงทะเบียน (default: เปิดใช้งาน) ───────
+    const reqBankRow = await query("SELECT value FROM settings WHERE `key`='require_sender_bank' LIMIT 1");
+    const requireBank = reqBankRow[0]?.value !== 'false'; // default true
+    if (requireBank && !member?.bank_account) {
+      return res.status(400).json({
+        success : false,
+        message : 'กรุณาผูกบัญชีธนาคารก่อนฝากเงิน — ติดต่อ Admin เพื่อเพิ่มบัญชี',
+        code    : 'NO_BANK_ACCOUNT',
+      });
+    }
+
     // Check min/max
     const minRow = await query('SELECT value FROM settings WHERE `key`="min_deposit"');
     const maxRow = await query('SELECT value FROM settings WHERE `key`="max_deposit"');
@@ -50,29 +67,43 @@ router.post('/deposit', authMember, upload.single('slip'),
     let verifyStatus = 'skipped';
     let verifyData   = null;
     let transRef     = null;
+    let depositNote  = null;  // หมายเหตุสำหรับ Admin
 
     if (slipPath) {
       try {
-        const { verifySlip } = require('../services/slipVerifier');
-        const result = await verifySlip(slipPath, amount);
+        const { verifySlip, REASON_TH } = require('../services/slipVerifier');
+        // ส่งข้อมูลบัญชีสมาชิกไปด้วยเพื่อตรวจผู้โอน
+        const result = await verifySlip(slipPath, amount, member);
 
-        verifyData  = JSON.stringify({ reason: result.reason, ...result.data ? { data: result.data } : {} });
-        transRef    = result.transRef || null;
+        verifyData = JSON.stringify({ reason: result.reason, ...(result.data ? { data: result.data } : {}) });
+        transRef   = result.transRef || null;
 
         if (result.skip) {
-          // ปิดระบบ หรือ ยังไม่ตั้งค่า — ข้ามไปให้ admin ตรวจ
           verifyStatus = 'skipped';
+
         } else if (result.valid) {
           verifyStatus = 'verified';
+
         } else {
           verifyStatus = 'failed';
-          // ❌ สลิปปลอม/ซ้ำ — ปฏิเสธทันที (ไม่รอ admin)
+
+          // ❌ สลิปปลอม / ซ้ำ — ปฏิเสธทันที
           if (result.reason === 'DUPLICATE_SLIP' || result.reason === 'SLIP_INVALID') {
-            const { REASON_TH } = require('../services/slipVerifier');
-            const msg = REASON_TH[result.reason] || result.reason;
-            return res.status(400).json({ success: false, message: msg, reason: result.reason });
+            return res.status(400).json({
+              success: false,
+              message: REASON_TH[result.reason] || result.reason,
+              reason : result.reason,
+            });
           }
-          // amount_mismatch / expired — ส่งรอ admin ตรวจ
+
+          // ⚠️ บัญชีผู้โอนไม่ตรง — รอ Admin ตรวจ พร้อมหมายเหตุ
+          if (result.reason === 'WRONG_SENDER_ACCOUNT') {
+            verifyStatus = 'failed';
+            const senderInfo = `${result.senderBank || ''} ${result.senderAccount || '(ไม่ระบุ)'}`.trim();
+            const regInfo    = `${result.registeredBank || ''} ${result.registeredAccount || ''}`.trim();
+            depositNote = `⚠️ บัญชีผู้โอนไม่ตรง: สลิประบุ [${senderInfo}] | บัญชีลงทะเบียน [${regInfo}]`;
+          }
+          // amount_mismatch / expired — รอ Admin ตรวจ (ไม่มี note พิเศษ)
         }
       } catch (verifyErr) {
         verifyStatus = 'error';
@@ -83,11 +114,11 @@ router.post('/deposit', authMember, upload.single('slip'),
     // Insert deposit record
     const [result] = await query(
       `INSERT INTO deposits
-         (uuid,member_id,amount,bank_code,slip_image,transfer_at,status,slip_verify_status,slip_verify_data,slip_ref_id)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`,
+         (uuid,member_id,amount,bank_code,slip_image,transfer_at,status,slip_verify_status,slip_verify_data,slip_ref_id,note)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
       [uuidv4(), req.member.id, amount, bank_code, slipImage,
        transfer_at || new Date(), 'pending',
-       verifyStatus, verifyData, transRef]
+       verifyStatus, verifyData, transRef, depositNote]
     );
 
     // ── Auto-approve ─────────────────────────────────────────────
@@ -103,9 +134,10 @@ router.post('/deposit', authMember, upload.single('slip'),
     }
 
     // Case 2: Auto-approve (legacy setting) — ใช้เมื่อ slipok ไม่ได้ตั้งค่า
+    // ไม่ auto-approve ถ้า slipok ตรวจไม่ผ่าน (เช่น WRONG_SENDER_ACCOUNT)
     const autoRow = await query('SELECT value FROM settings WHERE `key`="auto_approve_deposit"');
     const autoMax = await query('SELECT value FROM settings WHERE `key`="auto_approve_max"');
-    if (autoRow[0]?.value === 'true' && amount <= parseFloat(autoMax[0]?.value || 1000)) {
+    if (verifyStatus !== 'failed' && autoRow[0]?.value === 'true' && amount <= parseFloat(autoMax[0]?.value || 1000)) {
       await approveDeposit(result.insertId, req.member.id, amount, null);
       return res.json({ success: true, message: 'ฝากเงินสำเร็จ (อนุมัติอัตโนมัติ)', auto: true });
     }

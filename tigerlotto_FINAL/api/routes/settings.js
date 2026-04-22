@@ -41,6 +41,7 @@ router.put('/admin', authAdmin, rbac.requirePerm('settings.manage'), async (req,
     bonus_new_member:'promotion', cashback_percent:'promotion', referral_commission:'promotion',
     session_expire:'security', pw_min_length:'security',
     slipok_enabled:'slipok', slipok_api_key:'slipok', slipok_branch_id:'slipok',
+    slipok_verify_sender:'slipok', require_sender_bank:'slipok',
     hero_badge:'hero', hero_title1:'hero', hero_title2:'hero', hero_cta1:'hero', ticker_items:'hero',
   };
   for (const [key, value] of Object.entries(updates)) {
@@ -74,20 +75,24 @@ router.get('/admin/slipok', authAdmin, rbac.requirePerm('settings.view'), async 
   res.json({
     success: true,
     data: {
-      enabled   : map['slipok_enabled'] === 'true',
-      api_key   : maskedKey,
-      branch_id : map['slipok_branch_id'] || '',
-      has_key   : rawKey.length > 0,
+      enabled        : map['slipok_enabled'] === 'true',
+      api_key        : maskedKey,
+      branch_id      : map['slipok_branch_id'] || '',
+      has_key        : rawKey.length > 0,
+      verify_sender  : map['slipok_verify_sender'] !== 'false',  // default true
+      require_bank   : map['require_sender_bank']  !== 'false',  // default true
     }
   });
 });
 
 // PUT /api/settings/admin/slipok — บันทึกการตั้งค่า SlipOK
 router.put('/admin/slipok', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
-  const { api_key, branch_id, enabled } = req.body;
+  const { api_key, branch_id, enabled, verify_sender, require_bank } = req.body;
   const updates = {};
-  if (typeof enabled !== 'undefined') updates['slipok_enabled'] = String(enabled);
-  if (branch_id !== undefined) updates['slipok_branch_id'] = branch_id;
+  if (typeof enabled !== 'undefined')        updates['slipok_enabled']       = String(enabled);
+  if (branch_id !== undefined)               updates['slipok_branch_id']     = branch_id;
+  if (typeof verify_sender !== 'undefined')  updates['slipok_verify_sender'] = String(verify_sender);
+  if (typeof require_bank !== 'undefined')   updates['require_sender_bank']  = String(require_bank);
   // Only update api_key if a real value is provided (not masked)
   if (api_key && !api_key.includes('•')) updates['slipok_api_key'] = api_key;
 

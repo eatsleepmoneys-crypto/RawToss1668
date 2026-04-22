@@ -2392,24 +2392,36 @@ async function loadSlipOKSettings(){
   try {
     const d = await apiFetch('/settings/admin/slipok', {}, 'admin');
     if(!d.data) return;
-    const enabledEl = document.getElementById('slipok-enabled');
-    const labelEl   = document.getElementById('slipok-enabled-label');
-    const branchEl  = document.getElementById('slipok-branch-id');
+    const enabledEl      = document.getElementById('slipok-enabled');
+    const labelEl        = document.getElementById('slipok-enabled-label');
+    const branchEl       = document.getElementById('slipok-branch-id');
+    const verifySenderEl = document.getElementById('slipok-verify-sender');
+    const requireBankEl  = document.getElementById('slipok-require-bank');
     if(enabledEl){ enabledEl.checked = d.data.enabled; if(labelEl) labelEl.textContent = d.data.enabled ? 'เปิดอยู่' : 'ปิดอยู่'; }
-    if(branchEl)  branchEl.value = d.data.branch_id || '';
+    if(branchEl)       branchEl.value    = d.data.branch_id || '';
+    if(verifySenderEl) verifySenderEl.checked = d.data.verify_sender !== false;
+    if(requireBankEl)  requireBankEl.checked  = d.data.require_bank  !== false;
     const statusEl = document.getElementById('slipok-status');
     if(statusEl && d.data.has_key) statusEl.innerHTML = '<span style="color:#5cdb5c">✅ มี API Key บันทึกอยู่แล้ว</span>';
   } catch(e) { console.warn('loadSlipOKSettings', e.message); }
 }
 
 async function saveSlipOKSettings(){
-  const apiKey   = document.getElementById('slipok-api-key')?.value?.trim() || '';
-  const branchId = document.getElementById('slipok-branch-id')?.value?.trim() || '';
-  const enabled  = document.getElementById('slipok-enabled')?.checked ?? false;
+  const apiKey        = document.getElementById('slipok-api-key')?.value?.trim() || '';
+  const branchId      = document.getElementById('slipok-branch-id')?.value?.trim() || '';
+  const enabled       = document.getElementById('slipok-enabled')?.checked ?? false;
+  const verifySender  = document.getElementById('slipok-verify-sender')?.checked ?? true;
+  const requireBank   = document.getElementById('slipok-require-bank')?.checked ?? true;
   try {
     await apiFetch('/settings/admin/slipok', {
       method: 'PUT',
-      body: JSON.stringify({ api_key: apiKey || undefined, branch_id: branchId, enabled })
+      body: JSON.stringify({
+        api_key: apiKey || undefined,
+        branch_id: branchId,
+        enabled,
+        verify_sender: verifySender,
+        require_bank: requireBank,
+      })
     }, 'admin');
     toast('สำเร็จ', 'บันทึกการตั้งค่า SlipOK แล้ว');
     document.getElementById('slipok-api-key').value = '';
@@ -3624,7 +3636,23 @@ api:()=>`
       <input id="slipok-branch-id" class="fi-full" placeholder="เช่น 12345">
     </div>
   </div>
-  <div style="display:flex;gap:8px;margin-top:8px">
+  <div class="fi-row" style="margin-top:12px">
+    <div class="fg">
+      <label>ตรวจบัญชีผู้โอน (Sender Verification)</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px">
+        <input type="checkbox" id="slipok-verify-sender" style="width:18px;height:18px;cursor:pointer">
+        <span style="font-size:12px;color:#aaa">เมื่อเปิด — ถ้าบัญชีผู้โอนในสลิปไม่ตรงกับบัญชีที่สมาชิกลงทะเบียน จะค้างเป็น pending รอ Admin ตรวจ</span>
+      </label>
+    </div>
+    <div class="fg">
+      <label>บังคับผูกบัญชีก่อนฝาก (Require Bank Account)</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px">
+        <input type="checkbox" id="slipok-require-bank" style="width:18px;height:18px;cursor:pointer">
+        <span style="font-size:12px;color:#aaa">เมื่อเปิด — สมาชิกที่ยังไม่ได้ผูกบัญชีธนาคารจะไม่สามารถฝากเงินได้</span>
+      </label>
+    </div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:12px">
     <button class="btn btn-gold" onclick="saveSlipOKSettings()">💾 บันทึก</button>
     <button class="btn btn-outline" onclick="testSlipOKConnection()">🧪 ทดสอบการเชื่อมต่อ</button>
   </div>

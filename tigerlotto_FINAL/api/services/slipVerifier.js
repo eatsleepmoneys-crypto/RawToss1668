@@ -48,8 +48,65 @@ async function checkDuplicateRef(transRef) {
   }
 }
 
+// ── Bank code mapping (SlipOK numeric → our code) ─────────────────────────
+const BANK_CODE_MAP = {
+  '002':'BBL','004':'KBANK','006':'KTB','007':'IBANK','008':'TBANK',
+  '011':'TMB','014':'SCB', '025':'BAY', '030':'GSB', '033':'GHB',
+  '034':'BAAC','035':'UOB','066':'CIMB','067':'TISCO','069':'KKP',
+  '073':'LH',  '098':'PROMPTPAY',
+  // passthrough ถ้า SlipOK ส่งชื่อมาแล้ว
+  'BBL':'BBL','KBANK':'KBANK','KTB':'KTB','TMB':'TMB','SCB':'SCB',
+  'BAY':'BAY','GSB':'GSB','BAAC':'BAAC','UOB':'UOB','CIMB':'CIMB',
+  'TISCO':'TISCO','TBANK':'TBANK','KKP':'KKP','LH':'LH',
+};
+
+function normalizeBankCode(code) {
+  if (!code) return '';
+  return BANK_CODE_MAP[String(code)] || BANK_CODE_MAP[String(code).toUpperCase()] || String(code).toUpperCase();
+}
+
 /**
- * verifySlip(filePath, expectedAmount)
+ * accountsMatch(slipAccountStr, registeredAccount)
+ * เปรียบเทียบเลขบัญชีจากสลิป (มาสก์บางส่วน) กับบัญชีที่ลงทะเบียน
+ * คืน true=ตรง, false=ไม่ตรง, null=ตรวจไม่ได้ (ถูก mask มากเกิน)
+ */
+function accountsMatch(slipAccountStr, registeredAccount) {
+  // ดึงตัวเลขที่มองเห็นได้จากสลิป (ไม่ใช่ x หรือ -)
+  const visible = String(slipAccountStr || '').replace(/[xX\-\s\.]/g, '');
+  const regDigits = String(registeredAccount || '').replace(/[^0-9]/g, '');
+  if (!visible || visible.length < 3) return null; // mask มากเกิน ตรวจไม่ได้
+  if (!regDigits) return null;
+  // ตรวจว่าเลขที่ visible เป็น substring ของบัญชีลงทะเบียน
+  return regDigits.includes(visible) || regDigits.endsWith(visible);
+}
+
+/**
+ * verifySenderAccount(slipData, memberInfo)
+ * ตรวจว่าผู้โอนในสลิปตรงกับบัญชีลงทะเบียนของสมาชิกหรือไม่
+ * คืน { ok, senderAccount, senderBank }
+ */
+function verifySenderAccount(slipData, memberInfo) {
+  const sender = slipData?.sender || slipData?.payerProxy || null;
+  if (!sender) return { ok: null, reason: 'NO_SENDER_INFO' }; // SlipOK ไม่ส่งข้อมูลผู้โอน
+
+  const senderAccVal  = sender?.account?.value || sender?.accountNo || sender?.proxy?.value || '';
+  const senderBankRaw = sender?.bank?.code || sender?.bank?.name || sender?.bankCode || '';
+  const senderBank    = normalizeBankCode(senderBankRaw);
+  const regBank       = normalizeBankCode(memberInfo.bank_code || '');
+  const regAccount    = memberInfo.bank_account || '';
+
+  const match = accountsMatch(senderAccVal, regAccount);
+  if (match === null) return { ok: null, reason: 'CANNOT_VERIFY', senderAccount: senderAccVal, senderBank };
+
+  // ถ้าธนาคารมีข้อมูล ตรวจด้วย
+  if (senderBank && regBank && senderBank !== regBank) {
+    return { ok: false, senderAccount: senderAccVal, senderBank };
+  }
+  return { ok: match, senderAccount: senderAccVal, senderBank };
+}
+
+/**
+ * verifySlip(filePath, expectedAmount, memberInfo?)
  * ส่งสลิปไปตรวจกับ SlipOK API
  *
  * Return:
@@ -65,7 +122,7 @@ async function checkDuplicateRef(transRef) {
  *   DUPLICATE_SLIP  — สลิปนี้เคยใช้ฝากแล้ว
  *   API_ERROR       — เรียก SlipOK ไม่ได้ / timeout
  */
-async function verifySlip(filePath, expectedAmount) {
+async function verifySlip(filePath, expectedAmount, memberInfo = null) {
   const creds = await getSlipOKCredentials();
 
   if (!creds.enabled) {
@@ -133,6 +190,30 @@ async function verifySlip(filePath, expectedAmount) {
       }
     }
 
+    // ── ตรวจบัญชีผู้โอน (ถ้าเปิดใช้งาน) ─────────────────────────
+    if (memberInfo && memberInfo.bank_account) {
+      try {
+        const [row] = await require('../config/db').query(
+          "SELECT value FROM settings WHERE `key`='slipok_verify_sender' LIMIT 1"
+        );
+        if (row?.value === 'true') {
+          const senderCheck = verifySenderAccount(slipData, memberInfo);
+          if (senderCheck.ok === false) {
+            return {
+              valid            : false,
+              reason           : 'WRONG_SENDER_ACCOUNT',
+              data             : slipData,
+              transRef,
+              senderAccount    : senderCheck.senderAccount,
+              senderBank       : senderCheck.senderBank,
+              registeredAccount: memberInfo.bank_account,
+              registeredBank   : normalizeBankCode(memberInfo.bank_code || ''),
+            };
+          }
+        }
+      } catch { /* ถ้า query ล้มเหลว ข้ามตรวจผู้โอน */ }
+    }
+
     return { valid: true, reason: 'OK', data: slipData, transRef };
 
   } catch (err) {
@@ -154,7 +235,8 @@ async function verifySlip(filePath, expectedAmount) {
  * REASON_TH — คำอธิบายภาษาไทย
  */
 const REASON_TH = {
-  OK              : '✅ ตรวจสลิปผ่าน',
+  OK                  : '✅ ตรวจสลิปผ่าน',
+  WRONG_SENDER_ACCOUNT: '❌ บัญชีผู้โอนไม่ตรงกับที่ลงทะเบียน',
   NOT_ENABLED     : '⚙️ ปิดระบบตรวจสลิปอัตโนมัติ',
   NO_CREDENTIALS  : '⚙️ ยังไม่ได้ตั้งค่า SlipOK',
   SLIP_INVALID    : '❌ สลิปไม่ถูกต้องหรือปลอมแปลง',
@@ -166,4 +248,4 @@ const REASON_TH = {
   API_ERROR       : '⚠️ เรียก SlipOK ไม่ได้',
 };
 
-module.exports = { verifySlip, getSlipOKCredentials, checkDuplicateRef, REASON_TH };
+module.exports = { verifySlip, getSlipOKCredentials, checkDuplicateRef, REASON_TH, normalizeBankCode, accountsMatch };

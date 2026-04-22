@@ -555,6 +555,8 @@ const SEEDS = [
     ('slipok_enabled','false','boolean','slipok'),
     ('slipok_api_key','','string','slipok'),
     ('slipok_branch_id','','string','slipok'),
+    ('slipok_verify_sender','true','boolean','slipok'),
+    ('require_sender_bank','true','boolean','slipok'),
     ('hero_badge','🔥 TigerLotto — หวยออนไลน์อันดับ 1','string','hero'),
     ('hero_title1','ซื้อง่าย จ่ายจริง','string','hero'),
     ('hero_title2','ปลอดภัย 100%','string','hero'),
