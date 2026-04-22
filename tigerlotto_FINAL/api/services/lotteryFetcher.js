@@ -541,7 +541,13 @@ async function fetchPressInThLao() {
 }
 
 async function fetchLAGov() {
-  // Source 0: press.in.th — primary ✅ (เลขท้าย 4 ตัว)
+  // Source 0: TNews (tnews.co.th) — primary ✅
+  try {
+    const r = await fetchTNewsLAGov();
+    if (r) return r;
+  } catch(e) { console.warn('[FETCHER:LA_GOV] TNews error:', e.message); }
+
+  // Source 1: press.in.th — secondary (JS-rendered, may not work server-side)
   try {
     const r = await fetchPressInThLao();
     if (r) {
@@ -549,12 +555,6 @@ async function fetchLAGov() {
       return r;
     }
   } catch(e) { console.warn('[FETCHER:LA_GOV] press.in.th error:', e.message); }
-
-  // Source 1: TNews (tnews.co.th) — secondary
-  try {
-    const r = await fetchTNewsLAGov();
-    if (r) return r;
-  } catch(e) { console.warn('[FETCHER:LA_GOV] TNews error:', e.message); }
 
   // Source 1: Sanook Lao Lottery (Thai site — fast, reliable 4-digit result)
   try {
@@ -862,16 +862,7 @@ async function fetchVNHanoi() {
     };
   }
 
-  // Source 1: press.in.th — primary ✅
-  try {
-    const result = await fetchPressInThHanoi('VN_HAN');
-    if (result) {
-      console.log('[FETCHER:VN_HAN] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
-      return result;
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN] press.in.th error:', e.message); }
-
-  // Source 2: TNews.co.th (section ผลหวยฮานอยปกติ) — secondary
+  // Source 1: TNews.co.th — primary ✅
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN');
     if (result) {
@@ -879,6 +870,15 @@ async function fetchVNHanoi() {
       return result;
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN] TNews error:', e.message); }
+
+  // Source 2: press.in.th — secondary (JS-rendered, may not work server-side)
+  try {
+    const result = await fetchPressInThHanoi('VN_HAN');
+    if (result) {
+      console.log('[FETCHER:VN_HAN] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN] press.in.th error:', e.message); }
 
   // Source 2: xskt.com.vn RSS feed (XML — fallback, XSMB 5-digit)
   try {
@@ -2320,16 +2320,7 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
  * เป็นหวยเอกชนเวียดนาม (ไม่ใช่ XSMB รัฐบาล) ออกผลก่อน XSMB ปกติ
  */
 async function fetchVNHanoiSP() {
-  // Source 1: press.in.th — primary ✅
-  try {
-    const result = await fetchPressInThHanoi('VN_HAN_SP');
-    if (result) {
-      console.log('[FETCHER:VN_HAN_SP] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
-      return result;
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] press.in.th error:', e.message); }
-
-  // Source 2: TNews.co.th — secondary (section ผลหวยฮานอยพิเศษ)
+  // Source 1: TNews.co.th — primary ✅
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_SP');
     if (result) {
@@ -2337,6 +2328,15 @@ async function fetchVNHanoiSP() {
       return result;
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] TNews error:', e.message); }
+
+  // Source 2: press.in.th — secondary (JS-rendered, may not work server-side)
+  try {
+    const result = await fetchPressInThHanoi('VN_HAN_SP');
+    if (result) {
+      console.log('[FETCHER:VN_HAN_SP] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] press.in.th error:', e.message); }
 
   // Source 3: DB sources (Admin-configured) — fallback
   try {
@@ -2354,16 +2354,7 @@ async function fetchVNHanoiSP() {
  * ฮานอย VIP (VN_HAN_VIP) — ออกผลทุกวัน ~19:00 น.
  */
 async function fetchVNHanoiVIP() {
-  // Source 1: press.in.th — primary ✅
-  try {
-    const result = await fetchPressInThHanoi('VN_HAN_VIP');
-    if (result) {
-      console.log('[FETCHER:VN_HAN_VIP] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
-      return result;
-    }
-  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] press.in.th error:', e.message); }
-
-  // Source 2: TNews.co.th — secondary (section ผลหวยฮานอย vip)
+  // Source 1: TNews.co.th — primary ✅
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_VIP');
     if (result) {
@@ -2371,6 +2362,15 @@ async function fetchVNHanoiVIP() {
       return result;
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] TNews error:', e.message); }
+
+  // Source 2: press.in.th — secondary (JS-rendered, may not work server-side)
+  try {
+    const result = await fetchPressInThHanoi('VN_HAN_VIP');
+    if (result) {
+      console.log('[FETCHER:VN_HAN_VIP] press.in.th ✅ main=%s top2=%s bot2=%s', result.prize_1st, result.prize_last_2, result.prize_2bot||'?');
+      return result;
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] press.in.th error:', e.message); }
 
   // Source 3: DB sources (Admin-configured) — fallback
   try {
