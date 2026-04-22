@@ -355,6 +355,15 @@ router.post('/wallet/deposit', authAgent, agentUpload.single('slip'), async (req
      req.file.filename, depositNote, 'pending']
   );
 
+  // LINE แจ้งเตือน Admin ว่ามีคำขอฝากเงิน Agent รอตรวจสอบ
+  require('../services/lineService').sendAgentDepositNotif({
+    agentName : req.agent.name || '-',
+    phone     : req.agent.phone || '-',
+    amount    : amt,
+    bank_code : bank_code || agent?.bank_code || '-',
+    status    : 'pending',
+  }).catch(e => console.error('[LINE] agent deposit pending notif error:', e.message));
+
   res.status(201).json({ success: true, message: 'ส่งสลิปฝากเงินสำเร็จ รอ Admin อนุมัติ' });
 });
 
@@ -388,6 +397,18 @@ router.post('/wallet/withdraw', authAgent, async (req, res) => {
     'INSERT INTO agent_withdrawals (uuid, agent_id, amount, bank_code, bank_account, bank_name, note, status) VALUES (?,?,?,?,?,?,?,?)',
     [uuidv4(), req.agent.id, amt, bank_code, bank_account, bank_name, note || null, 'pending']
   );
+
+  // LINE แจ้งเตือน Admin ว่ามีคำขอถอนเงิน Agent รอตรวจสอบ
+  require('../services/lineService').sendAgentWithdrawNotif({
+    agentName   : req.agent.name || '-',
+    phone       : req.agent.phone || '-',
+    amount      : amt,
+    bank_code,
+    bank_account,
+    bank_name,
+    status      : 'pending',
+  }).catch(e => console.error('[LINE] agent withdraw pending notif error:', e.message));
+
   res.json({ success: true, message: 'ส่งคำขอถอนเงินสำเร็จ รอ Admin อนุมัติ' });
 });
 
