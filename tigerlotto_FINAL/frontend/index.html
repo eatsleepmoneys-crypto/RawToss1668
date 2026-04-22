@@ -1364,7 +1364,19 @@ async function addToBuyCart(){
 
 // ดึง rate_override สำหรับ bets ใน items[] แล้วเก็บไว้ที่ bet._rateInfo
 async function enrichCartRates(items){
+  // ถ้ายังไม่มี curLotteryId ให้ดึงจาก round
+  if(!curLotteryId && curRoundId){
+    try {
+      const rd = await fetch(`${window.API_BASE||'/api'}/lottery/rounds`);
+      const rdata = await rd.json();
+      if(rdata.success){
+        const round = rdata.data.find(r => r.id == curRoundId);
+        if(round) curLotteryId = round.lottery_id;
+      }
+    } catch(e){}
+  }
   if(!curLotteryId) return;
+
   const checks = [];
   items.forEach(item => {
     item.bets.forEach(bet => {
@@ -1388,7 +1400,7 @@ async function enrichCartRates(items){
         if(info) bet._rateInfo = info;
       });
     });
-  } catch(e) { /* silent fail — rates just won't show */ }
+  } catch(e) { /* silent fail */ }
 }
 
 function renderBuyCart(){
@@ -1421,14 +1433,20 @@ function renderBuyCart(){
     }
   });
 
-  // helpers สร้าง badge อั้น
-  function _rateBadge(rateInfo){
-    if(!rateInfo) return '';
+  // helpers สร้าง badge อัตราจ่าย — แสดงเสมอ
+  function _rateBadge(rateInfo, betType){
+    // fallback rate จาก BET_CFG ก่อนที่ async จะโหลดเสร็จ
+    const TYPE_BASE = {'3top':750,'3tod':120,'2top':95,'2bot':90,'run_top':3.2,'run_bot':4.2};
+    if(!rateInfo){
+      const b = TYPE_BASE[betType];
+      return b ? `<span style="color:#aaa;font-size:9px;margin-left:3px">×${b}</span>` : '';
+    }
     if(rateInfo.closed || rateInfo.tier === '3')
       return `<span style="background:#c0392b;color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:2px;white-space:nowrap">❌ปิด</span>`;
     if(rateInfo.rate_override !== null && rateInfo.rate_override !== undefined)
       return `<span style="background:#e67e22;color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:2px;white-space:nowrap">🔸อั้น ×${rateInfo.effective_rate}</span>`;
-    return '';
+    // จ่ายเต็ม
+    return `<span style="color:#2ecc71;font-size:9px;font-weight:600;margin-left:3px;white-space:nowrap">×${rateInfo.effective_rate}</span>`;
   }
 
   let html = '';
@@ -1438,7 +1456,7 @@ function renderBuyCart(){
     html += `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">`;
     buckets[grp].forEach(e => {
       const numsHtml = e.bets.map(bet =>
-        `<span style="display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px;font-weight:700;letter-spacing:1px">${bet.number}${_rateBadge(bet._rateInfo)}</span>`
+        `<span style="display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px;font-weight:700;letter-spacing:1px">${bet.number}${_rateBadge(bet._rateInfo, bet.bet_type)}</span>`
       ).join(' ');
       html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:4px 8px;font-size:13px">
         <span style="display:flex;flex-wrap:wrap;gap:3px;flex:1">${numsHtml}</span>
