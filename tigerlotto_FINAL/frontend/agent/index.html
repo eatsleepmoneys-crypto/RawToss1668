@@ -632,6 +632,8 @@ async function loadCommissions() {
 // ── Profile ───────────────────────────────────────────────────────
 function loadProfile() {
   const a = _agentData;
+  const PROF_BANK_OPTS = Object.entries(BANK_NAMES).map(([k,v])=>`<option value="${k}">${v} (${k})</option>`).join('');
+  const hasBankProf = !!(a.bank_account);
   document.getElementById('tab-content').innerHTML = `
     <div class="card">
       <div class="profile-row">
@@ -664,6 +666,34 @@ function loadProfile() {
         </div>
       </div>
     </div>
+
+    <!-- ── บัญชีธนาคาร ── -->
+    <div class="card">
+      <h3>🏦 บัญชีธนาคาร (สำหรับฝาก/ถอน)</h3>
+      ${hasBankProf ? `
+      <div style="background:rgba(92,219,92,.08);border:1px solid rgba(92,219,92,.3);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:#5cdb5c;font-weight:700;margin-bottom:6px">✅ บัญชีที่ลงทะเบียน</div>
+        <div style="font-size:14px;font-weight:700;color:#fff">${BANK_NAMES[a.bank_code]||a.bank_code||''}</div>
+        <div style="font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;margin:4px 0">${a.bank_account}</div>
+        <div style="font-size:13px;color:#ccc">${a.bank_name||''}</div>
+      </div>` : `
+      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.35);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:13px;color:#e74c3c;font-weight:700">⚠️ ยังไม่มีบัญชีธนาคารลงทะเบียน</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">กรุณาเพิ่มบัญชีด้านล่าง เพื่อใช้ฝาก/ถอนเงิน</div>
+      </div>`}
+      <div class="fg">
+        <label>ธนาคาร</label>
+        <select class="fi" id="prof-bank-code">
+          <option value="">— เลือกธนาคาร —</option>
+          ${PROF_BANK_OPTS}
+        </select>
+      </div>
+      <div class="fg"><label>เลขบัญชี</label><input class="fi" id="prof-bank-acc" type="text" placeholder="เช่น 1234567890" value="${a.bank_account||''}"></div>
+      <div class="fg"><label>ชื่อบัญชี</label><input class="fi" id="prof-bank-name" type="text" placeholder="ชื่อ-นามสกุลผู้ถือบัญชี" value="${a.bank_name||''}"></div>
+      <button class="btn btn-gold" style="max-width:220px" id="bank-btn" onclick="saveAgentBank()">💾 บันทึกบัญชีธนาคาร</button>
+      <div class="err" id="bank-err"></div>
+    </div>
+
     <div class="card">
       <h3>🔒 เปลี่ยนรหัสผ่าน</h3>
       <div class="fg"><label>รหัสผ่านปัจจุบัน</label><input class="fi" id="pw-old" type="password" placeholder="••••••••"></div>
@@ -672,6 +702,41 @@ function loadProfile() {
       <button class="btn btn-gold" style="max-width:200px" id="pw-btn" onclick="changePassword()">บันทึกรหัสผ่าน</button>
       <div class="err" id="pw-err"></div>
     </div>`;
+
+  // pre-select bank if already set
+  if (a.bank_code) {
+    const sel = document.getElementById('prof-bank-code');
+    if (sel) sel.value = a.bank_code;
+  }
+}
+
+async function saveAgentBank() {
+  const bank_code    = document.getElementById('prof-bank-code')?.value;
+  const bank_account = document.getElementById('prof-bank-acc')?.value?.trim();
+  const bank_name    = document.getElementById('prof-bank-name')?.value?.trim();
+  const err          = document.getElementById('bank-err');
+  const btn          = document.getElementById('bank-btn');
+  err.textContent = '';
+  if (!bank_code)    { err.textContent = 'กรุณาเลือกธนาคาร'; return; }
+  if (!bank_account) { err.textContent = 'กรุณากรอกเลขบัญชี'; return; }
+  if (!bank_name)    { err.textContent = 'กรุณากรอกชื่อบัญชี'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
+  try {
+    await aFetch('/agent/bank', { method: 'PATCH', body: JSON.stringify({ bank_code, bank_account, bank_name }) });
+    // อัพเดท _agentData ในหน่วยความจำ
+    _agentData.bank_code    = bank_code;
+    _agentData.bank_account = bank_account;
+    _agentData.bank_name    = bank_name;
+    err.style.color = '#5cdb5c';
+    err.textContent = '✅ บันทึกบัญชีธนาคารสำเร็จ';
+    // reload หน้า profile เพื่อแสดงข้อมูลใหม่
+    setTimeout(() => loadProfile(), 800);
+  } catch(e) {
+    err.style.color = '#e74c3c';
+    err.textContent = e.message || 'เกิดข้อผิดพลาด';
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 บันทึกบัญชีธนาคาร';
+  }
 }
 
 async function changePassword() {

@@ -690,6 +690,18 @@ router.post('/commission/transfer', authAgent, async (req, res) => {
   res.json({ success: true, message: `โอนค่าคอม ฿${amount} เข้ากระเป๋าหลักสำเร็จ` });
 });
 
+// ── PATCH /api/agent/bank — Agent ลงทะเบียน/แก้ไขบัญชีธนาคารตัวเอง ──
+router.patch('/bank', authAgent, async (req, res) => {
+  const { bank_code, bank_account, bank_name } = req.body;
+  if (!bank_code || !bank_account || !bank_name)
+    return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลธนาคารให้ครบ' });
+  await query(
+    'UPDATE agents SET bank_code=?, bank_account=?, bank_name=? WHERE id=?',
+    [bank_code.toUpperCase().trim(), bank_account.trim(), bank_name.trim(), req.agent.id]
+  );
+  res.json({ success: true, message: 'บันทึกบัญชีธนาคารสำเร็จ' });
+});
+
 // ── POST /api/agent/change-password ──────────────────────────────
 router.post('/change-password', authAgent, async (req, res) => {
   const { old_password, new_password } = req.body;
