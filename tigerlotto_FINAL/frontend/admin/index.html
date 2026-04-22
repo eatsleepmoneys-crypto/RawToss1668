@@ -1158,14 +1158,11 @@ function renderBillView(rows){
       const oa = BET_TYPE_ORDER.indexOf(a.bet_type), ob = BET_TYPE_ORDER.indexOf(b.bet_type);
       return (oa<0?99:oa) - (ob<0?99:ob);
     });
-    // Group sorted rows by type for row striping
-    let prevType = null;
+    // All rows of same type share the same background color
     const betRows = sorted.map(b => {
       const cfg = BET_TYPE_CONFIG[b.bet_type] || {};
-      const rowBg = b.bet_type !== prevType ? `background:${cfg.bg||'transparent'}` : '';
-      prevType = b.bet_type;
       return `
-      <tr style="border-bottom:1px solid var(--border);${rowBg}">
+      <tr style="border-bottom:1px solid ${cfg.border||'var(--border)'};background:${cfg.bg||'transparent'}">
         <td style="padding:5px 10px;width:90px">${betTypeBadge(b.bet_type)}</td>
         <td style="padding:5px 10px;text-align:center;font-size:20px;font-weight:800;letter-spacing:4px;color:var(--gold)">${b.number}</td>
         <td style="padding:5px 10px;text-align:right;font-weight:600">฿${Number(b.amount||0).toLocaleString()}</td>
