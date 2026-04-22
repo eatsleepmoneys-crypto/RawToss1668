@@ -464,8 +464,93 @@ function laGovExtract(rawDigits) {
   };
 }
 
+// ── press.in.th Lao scraper ───────────────────────────────────────
+// URL: https://www.press.in.th/huay-ruay/
+// Structure: h3 "ตรวจหวยลาว {DATE_THAI}" → .lao-grid → .lao-num ×3
+//   .lao-num[0] = เลขท้าย 4 ตัว, [1] = เลขท้าย 3 ตัว, [2] = เลขท้าย 2 ตัว
+// .lao-meta = "อัปเดตล่าสุด: DD/MM/YYYY HH:mm น."
+// "xxxx" / "xxx" = ยังไม่ออกผล
+// ─────────────────────────────────────────────────────────────────
+
+let _pressInThLaoCache = { data: null, ts: 0 };
+const PRESS_LAO_CACHE_TTL = 3 * 60 * 1000; // 3 นาที
+
+async function fetchPressInThLao() {
+  const now = Date.now();
+  if (_pressInThLaoCache.data && (now - _pressInThLaoCache.ts) < PRESS_LAO_CACHE_TTL) {
+    return _pressInThLaoCache.data;
+  }
+
+  let html;
+  try {
+    const res = await httpGetProxy('https://www.press.in.th/huay-ruay/', 20000, 'th');
+    html = res.data;
+  } catch(e) {
+    console.warn('[FETCHER:PRESS_LAO] fetch error:', e.message);
+    return null;
+  }
+
+  const $ = cheerio.load(html);
+
+  // Bangkok date today DD/MM/YYYY
+  const nowBkk = new Date(Date.now() + 7 * 3600 * 1000);
+  const dd   = String(nowBkk.getUTCDate()).padStart(2, '0');
+  const mm   = String(nowBkk.getUTCMonth() + 1).padStart(2, '0');
+  const yyyy = String(nowBkk.getUTCFullYear());
+  const todayDDMMYYYY = `${dd}/${mm}/${yyyy}`;
+
+  // Validate date from .lao-meta: "อัปเดตล่าสุด: DD/MM/YYYY HH:mm น."
+  const metaText = $('.lao-meta').first().text() || '';
+  const metaDateM = metaText.match(/(\d{2}\/\d{2}\/\d{4})/);
+  if (metaDateM && metaDateM[1] !== todayDDMMYYYY) {
+    console.warn(`[FETCHER:PRESS_LAO] date mismatch: page=${metaDateM[1]}, today=${todayDDMMYYYY}`);
+    return null;
+  }
+
+  // Extract .lao-num values: [0]=4ตัว, [1]=3ตัว, [2]=2ตัว
+  const nums = $('.lao-num').map((_, el) => $(el).text().trim()).get();
+  if (!nums.length) return null;
+
+  const raw4 = nums[0] ? nums[0].replace(/\D/g, '') : '';
+  const raw3 = nums[1] ? nums[1].replace(/\D/g, '') : '';
+  const raw2 = nums[2] ? nums[2].replace(/\D/g, '') : '';
+
+  // Skip if not yet announced (still "xxxx")
+  if (!raw4 || raw4.length < 4 || /^x+$/i.test(nums[0])) {
+    console.warn('[FETCHER:PRESS_LAO] ยังไม่ออกผล (xxxx)');
+    return null;
+  }
+
+  // Use laGovExtract-compatible structure (4-digit → pad to 6 → slice logic works)
+  // prize_1st = 4-digit (ใช้แค่ 4 ตัว ตามที่ผู้ใช้กำหนด)
+  const p4 = raw4.padStart(4, '0').slice(-4);
+  const top2 = raw2.length === 2 ? raw2 : p4.slice(-2);
+  const top3 = raw3.length === 3 ? raw3 : p4.slice(-3);
+
+  const result = {
+    prize_1st:    p4,
+    prize_last_2: top2,
+    prize_front_3: [],
+    prize_last_3: [top3],
+    prize_2bot:   null,
+  };
+
+  console.log(`[FETCHER:PRESS_LAO] ✅ 4ตัว=${p4} 3ตัว=${top3} 2ตัว=${top2} (date=${metaDateM?.[1]||'?'})`);
+  _pressInThLaoCache = { data: result, ts: now };
+  return result;
+}
+
 async function fetchLAGov() {
-  // Source 0: TNews (tnews.co.th) — ใช้ได้จาก Railway (ไม่บล็อก datacenter IPs)
+  // Source 0: press.in.th — primary ✅ (เลขท้าย 4 ตัว)
+  try {
+    const r = await fetchPressInThLao();
+    if (r) {
+      console.log('[FETCHER:LA_GOV] press.in.th ✅ main=%s top2=%s', r.prize_1st, r.prize_last_2);
+      return r;
+    }
+  } catch(e) { console.warn('[FETCHER:LA_GOV] press.in.th error:', e.message); }
+
+  // Source 1: TNews (tnews.co.th) — secondary
   try {
     const r = await fetchTNewsLAGov();
     if (r) return r;
@@ -2323,8 +2408,9 @@ async function testFetch(lotteryCode) {
   const fn = FETCH_FUNCS[lotteryCode];
   if (!fn) throw new Error(`Unknown lottery code: ${lotteryCode}`);
   // ล้าง cache เพื่อ force re-fetch
-  _tnewsCache     = { data: null, ts: 0 };
-  _pressInThCache = { data: null, ts: 0 };
+  _tnewsCache        = { data: null, ts: 0 };
+  _pressInThCache    = { data: null, ts: 0 };
+  _pressInThLaoCache = { data: null, ts: 0 };
   console.log(`[FETCHER:${lotteryCode}] 🧪 dry-run test...`);
   return fn();
 }
@@ -2531,4 +2617,4 @@ function startLotteryFetcher() {
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
 }
 
-module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache, debugTNewsRaw, debugPressInTh };
+module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache, debugTNewsRaw, debugPressInTh, fetchPressInThLao };
