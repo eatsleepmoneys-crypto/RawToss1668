@@ -1932,18 +1932,25 @@ async function loadStats(){
 }
 
 /* ─── Lottery Cards ─── */
+// Flag image helper — flagcdn.com renders properly on all platforms incl. Windows
+const _FI = (cc, h=14) =>
+  `<img src="https://flagcdn.com/40x30/${cc}.png" style="height:${h}px;border-radius:2px;vertical-align:middle;margin-right:3px;box-shadow:0 0 0 1px rgba(255,255,255,.15)" alt="${cc.toUpperCase()}" loading="lazy">`;
+// DB stores short codes like "LA","VN","TH" → convert to flag img
+const _DB_FLAG = { 'TH':_FI('th'), 'LA':_FI('la'), 'VN':_FI('vn'), 'CN':_FI('cn'), 'SG':_FI('sg'), 'MY':_FI('my'), 'HK':_FI('hk') };
+const _dbFlag = v => _DB_FLAG[v] || v || '';
+
 const LOT_TYPE_META = {
-  TH_GOV:     { label:'หวยรัฐบาล',    flag:'🇹🇭', tagClass:'hot',  tagText:'🔥 HOT'       },
-  YEEKEE:     { label:'หวยยี่กี',     flag:'⚡',   tagClass:'vip',  tagText:'⚡ ยี่กี'     },
-  LA_GOV:     { label:'หวยลาว',       flag:'🇱🇦', tagClass:'lao',  tagText:'🇱🇦 ลาว'      },
-  VN_HAN:     { label:'ฮานอยปกติ',    flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ปกติ'     },
-  VN_HAN_SP:  { label:'ฮานอยพิเศษ',   flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 พิเศษ'    },
-  VN_HAN_VIP: { label:'ฮานอย VIP',    flag:'🇻🇳', tagClass:'vip',  tagText:'🇻🇳 VIP'      },
-  VN_HANOI:   { label:'ฮานอย',        flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ฮานอย'    },
-  TH_STK:     { label:'หวยหุ้นไทย',   flag:'🇹🇭', tagClass:'',     tagText:'🇹🇭 หุ้นไทย'  },
-  CN_STK:     { label:'หวยหุ้นจีน',   flag:'🇨🇳', tagClass:'',     tagText:'🇨🇳 หุ้นจีน'  },
-  SG_STK:     { label:'หวยสิงคโปร์',  flag:'🇸🇬', tagClass:'',     tagText:'🇸🇬 สิงคโปร์' },
-  MY_STK:     { label:'หวยมาเลย์',    flag:'🇲🇾', tagClass:'',     tagText:'🇲🇾 มาเลย์'   },
+  TH_GOV:     { label:'หวยรัฐบาล',    flag:_FI('th'), tagClass:'hot',  tagText:`${_FI('th',12)}HOT`           },
+  YEEKEE:     { label:'หวยยี่กี',     flag:'⚡',       tagClass:'vip',  tagText:'⚡ ยี่กี'                     },
+  LA_GOV:     { label:'หวยลาว',       flag:_FI('la'), tagClass:'lao',  tagText:`${_FI('la',12)}ลาว`           },
+  VN_HAN:     { label:'ฮานอยปกติ',    flag:_FI('vn'), tagClass:'',     tagText:`${_FI('vn',12)}ปกติ`          },
+  VN_HAN_SP:  { label:'ฮานอยพิเศษ',   flag:_FI('vn'), tagClass:'',     tagText:`${_FI('vn',12)}พิเศษ`         },
+  VN_HAN_VIP: { label:'ฮานอย VIP',    flag:_FI('vn'), tagClass:'vip',  tagText:`${_FI('vn',12)}VIP`           },
+  VN_HANOI:   { label:'ฮานอย',        flag:_FI('vn'), tagClass:'',     tagText:`${_FI('vn',12)}ฮานอย`         },
+  TH_STK:     { label:'หวยหุ้นไทย',   flag:_FI('th'), tagClass:'',     tagText:`${_FI('th',12)}หุ้นไทย`       },
+  CN_STK:     { label:'หวยหุ้นจีน',   flag:_FI('cn'), tagClass:'',     tagText:`${_FI('cn',12)}หุ้นจีน`       },
+  SG_STK:     { label:'หวยสิงคโปร์',  flag:_FI('sg'), tagClass:'',     tagText:`${_FI('sg',12)}สิงคโปร์`      },
+  MY_STK:     { label:'หวยมาเลย์',    flag:_FI('my'), tagClass:'',     tagText:`${_FI('my',12)}มาเลย์`        },
 };
 // codes ที่จัดกลุ่มเป็น "ฮานอย" เดียว
 const VN_CODES = new Set(['VN_HAN','VN_HAN_SP','VN_HAN_VIP']);
@@ -2017,7 +2024,7 @@ function _renderLotGroups(filterCode){
     const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
     return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
       <div class="lot-card-top">${_tagFor(code)}${_statusFor(r)}</div>
-      <div class="lot-name">${r.flag||meta.flag} ${r.lottery_name}</div>
+      <div class="lot-name">${_dbFlag(r.flag)||meta.flag} ${r.lottery_name}</div>
       <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
       <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
       ${isUpcoming ? `<div class="lot-meta">เปิดรับ: <span>${openStr}</span></div>`
@@ -2035,8 +2042,8 @@ function _renderLotGroups(filterCode){
     const maxRate = Math.max(...list.map(r=>r.rate_3top||720));
     const typesCount = new Set(list.map(r=>r.code)).size;
     return `<div class="lot-card" onclick="openHanoiSelector()" style="cursor:pointer">
-      <div class="lot-card-top"><span class="lot-tag">🇻🇳 ฮานอย</span><span class="lot-status open">● เปิดรับ</span></div>
-      <div class="lot-name">🇻🇳 หวยฮานอย</div>
+      <div class="lot-card-top"><span class="lot-tag">${_FI('vn',12)}ฮานอย</span><span class="lot-status open">● เปิดรับ</span></div>
+      <div class="lot-name">${_FI('vn')} หวยฮานอย</div>
       <div class="lot-prize">฿${Number(maxRate).toLocaleString()}x</div>
       <div class="lot-meta" style="color:var(--gold)">${typesCount} ประเภท: ปกติ · พิเศษ · VIP</div>
       <div class="lot-meta">ปิดรับเร็วสุด: <span>${closeStr}</span></div>
@@ -2228,7 +2235,7 @@ async function loadHeroResult(){
       <div class="result-header">
         <div>
           <div class="result-label">ผลหวยล่าสุด</div>
-          <div class="result-date">${r.flag||'🇹🇭'} ${r.lottery_name} <span>งวด ${r.round_name}</span></div>
+          <div class="result-date">${_dbFlag(r.flag)||_FI('th')} ${r.lottery_name} <span>งวด ${r.round_name}</span></div>
         </div>
         <div style="text-align:right;font-size:12px;color:var(--muted)">${UI.formatDate(r.announced_at)}</div>
       </div>
@@ -2280,7 +2287,7 @@ function _renderResultsList(filterCode){
     const has2bot = r.prize_2bot && (r.code === 'LA_GOV' || (r.code && r.code.startsWith('VN_')));
     return `<div class="res-row">
       <div>
-        <div class="res-type">${r.flag||'🎰'} ${r.lottery_name}</div>
+        <div class="res-type">${_dbFlag(r.flag)||'🎰'} ${r.lottery_name}</div>
         <div class="res-date-small">งวด ${r.round_name} · ${UI.formatDateOnly(r.draw_date)}</div>
       </div>
       <div class="res-nums">
@@ -2563,7 +2570,7 @@ function _renderBills(bills){
             <span class="bet-badge ${statusCls}">${statusTh}</span>
             <span style="font-size:12px;color:var(--dim)">${timeStr}</span>
           </div>
-          <div style="font-size:14px;font-weight:700">${bill.flag}${bill.lottery_name}</div>
+          <div style="font-size:14px;font-weight:700">${_dbFlag(bill.flag)}${bill.lottery_name}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">${bill.round_name||''} · ${dateStr}</div>
           <div style="font-size:12px;color:var(--dim);margin-top:3px">${bill.bets.length} รายการ</div>
         </div>
