@@ -6,7 +6,7 @@ const multer = require('multer');
 // ── Multer Setup ──────────────────────────────────────────────
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = path.join(process.env.UPLOAD_DIR || '/var/www/tigerlotto/uploads', 'kyc');
+    const dir = path.join(process.env.UPLOAD_DIR || './uploads', 'kyc');
     fs.mkdirSync(dir, { recursive: true });
     cb(null, dir);
   },

@@ -13,14 +13,18 @@
 const router    = require('express').Router();
 const bcrypt    = require('bcryptjs');
 const path      = require('path');
+const fs        = require('fs');
 const multer    = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const { query, transaction } = require('../config/db');
 const { authAgent } = require('../middleware/auth');
 
 // ── Multer (slip upload for agent) ─────────────────────────────────
+const AGENT_UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
+if (!fs.existsSync(AGENT_UPLOAD_DIR)) fs.mkdirSync(AGENT_UPLOAD_DIR, { recursive: true });
+
 const agentStorage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+  destination: (req, file, cb) => cb(null, AGENT_UPLOAD_DIR),
   filename:    (req, file, cb) => cb(null, `aslip_${Date.now()}${path.extname(file.originalname)}`),
 });
 const agentUpload = multer({

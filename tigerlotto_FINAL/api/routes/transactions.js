@@ -1,6 +1,7 @@
 const router  = require('express').Router();
 const multer  = require('multer');
 const path    = require('path');
+const fs      = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const { body, validationResult } = require('express-validator');
 const { query, transaction } = require('../config/db');
@@ -8,8 +9,11 @@ const { authMember, authAdmin } = require('../middleware/auth');
 const rbac = require('../middleware/rbac');
 
 // ─── Multer (slip upload) ─────────────────────────
+const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+  destination: (req, file, cb) => cb(null, UPLOAD_DIR),
   filename:    (req, file, cb) => cb(null, `slip_${Date.now()}${path.extname(file.originalname)}`),
 });
 const upload = multer({
@@ -61,7 +65,7 @@ router.post('/deposit', authMember, upload.single('slip'),
     if (amount > max) return res.status(400).json({ success: false, message: `ฝากสูงสุด ฿${max.toLocaleString()}` });
 
     const slipImage = req.file?.filename || null;
-    const slipPath  = slipImage ? require('path').join(process.env.UPLOAD_DIR || './uploads', slipImage) : null;
+    const slipPath  = slipImage ? path.join(UPLOAD_DIR, slipImage) : null;
 
     // ── SlipOK Verification ──────────────────────────────────────
     let verifyStatus = 'skipped';
