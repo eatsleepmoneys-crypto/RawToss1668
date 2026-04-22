@@ -757,6 +757,31 @@ async function migrate() {
     console.warn(`   ⚠️  FK scan error: ${e.message.substring(0, 120)}`);
   }
 
+  // 0b. Drop ALL FK constraints ON commissions (legacy FKs from external system)
+  //     so we can freely MODIFY columns to be nullable
+  console.log('\n🔗 Dropping legacy FK constraints from commissions table...');
+  try {
+    const [commFKs] = await conn.query(
+      `SELECT DISTINCT kcu.CONSTRAINT_NAME
+       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE kcu
+       JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
+         ON tc.CONSTRAINT_NAME = kcu.CONSTRAINT_NAME
+         AND tc.TABLE_SCHEMA = kcu.CONSTRAINT_SCHEMA
+         AND tc.TABLE_NAME = kcu.TABLE_NAME
+       WHERE kcu.CONSTRAINT_SCHEMA = DATABASE()
+         AND kcu.TABLE_NAME = 'commissions'
+         AND tc.CONSTRAINT_TYPE = 'FOREIGN KEY'`
+    );
+    for (const row of commFKs) {
+      await run(
+        `DROP FK ${row.CONSTRAINT_NAME} on commissions`,
+        `ALTER TABLE \`commissions\` DROP FOREIGN KEY \`${row.CONSTRAINT_NAME}\``
+      );
+    }
+  } catch (e) {
+    console.warn(`   ⚠️  commissions FK scan error: ${e.message.substring(0, 120)}`);
+  }
+
   // ─── SAFE MODE (default): CREATE IF NOT EXISTS + seeds only — NO drops ───
   // ─── RESET MODE: drop first, then create ──────────────────────────────────
   const forceReset = process.env.DB_FORCE_RESET === 'true';
@@ -861,17 +886,13 @@ async function migrate() {
     `ALTER TABLE \`commissions\` ADD COLUMN \`from_member_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`earner_id\``,
     `ALTER TABLE \`commissions\` ADD COLUMN \`bet_id\` INT UNSIGNED NOT NULL DEFAULT 0 AFTER \`from_member_id\``,
     `ALTER TABLE \`commissions\` ADD COLUMN \`description\` VARCHAR(255) DEFAULT NULL`,
-    // commissions: legacy columns จากระบบเก่า — ให้มี default ค่าเริ่มต้น เพื่อ INSERT ผ่านโดยไม่ต้องระบุ
-    // ใช้ SET DEFAULT (ไม่แตะ type/NULL/FK) สำหรับ column ที่มี FK constraint
-    `ALTER TABLE \`commissions\` ALTER COLUMN \`source_user_id\` SET DEFAULT 0`,
-    `ALTER TABLE \`commissions\` ALTER COLUMN \`slip_id\`        SET DEFAULT 0`,
-    // ส่วน column ที่ไม่มี FK — MODIFY ได้เลย
-    `SET FOREIGN_KEY_CHECKS=0`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`agent_id\`  INT UNSIGNED NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`level\`     TINYINT NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`status\`    VARCHAR(20) NULL DEFAULT NULL`,
-    `ALTER TABLE \`commissions\` MODIFY COLUMN \`paid_at\`   DATETIME NULL DEFAULT NULL`,
-    `SET FOREIGN_KEY_CHECKS=1`,
+    // commissions: legacy columns จากระบบเก่า — MODIFY ให้ nullable หลังจาก FK ถูก drop แล้ว
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`agent_id\`       INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`source_user_id\` INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`slip_id\`        INT UNSIGNED NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`level\`          TINYINT NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`status\`         VARCHAR(20) NULL DEFAULT NULL`,
+    `ALTER TABLE \`commissions\` MODIFY COLUMN \`paid_at\`        DATETIME NULL DEFAULT NULL`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
