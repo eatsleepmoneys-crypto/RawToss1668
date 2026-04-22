@@ -801,6 +801,12 @@ async function migrate() {
     `ALTER TABLE \`deposits\` ADD COLUMN \`slip_verify_data\` JSON DEFAULT NULL AFTER \`slip_verify_status\``,
     `ALTER TABLE \`deposits\` ADD COLUMN \`slip_ref_id\` VARCHAR(64) DEFAULT NULL COMMENT 'transRef จาก SlipOK ใช้ตรวจซ้ำ' AFTER \`slip_verify_data\``,
     `ALTER TABLE \`deposits\` ADD INDEX \`idx_slip_ref\` (\`slip_ref_id\`)`,
+    // agents: เพิ่มข้อมูลธนาคารของเอเยนต์ (ใช้ตรวจบัญชีผู้โอนเงินฝาก)
+    `ALTER TABLE \`agents\` ADD COLUMN \`bank_code\`    VARCHAR(20)  DEFAULT NULL COMMENT 'รหัสธนาคาร เช่น KBANK, SCB' AFTER \`commission_balance\``,
+    `ALTER TABLE \`agents\` ADD COLUMN \`bank_account\` VARCHAR(30)  DEFAULT NULL COMMENT 'เลขบัญชี' AFTER \`bank_code\``,
+    `ALTER TABLE \`agents\` ADD COLUMN \`bank_name\`    VARCHAR(100) DEFAULT NULL COMMENT 'ชื่อเจ้าของบัญชี' AFTER \`bank_account\``,
+    // agent_deposits: เพิ่ม slip_image สำหรับแนบสลิปโอนเงิน
+    `ALTER TABLE \`agent_deposits\` ADD COLUMN \`slip_image\` VARCHAR(255) DEFAULT NULL COMMENT 'ชื่อไฟล์สลิป' AFTER \`bank_code\``,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

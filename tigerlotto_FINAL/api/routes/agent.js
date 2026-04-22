@@ -12,9 +12,25 @@
 
 const router    = require('express').Router();
 const bcrypt    = require('bcryptjs');
+const path      = require('path');
+const multer    = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const { query, transaction } = require('../config/db');
 const { authAgent } = require('../middleware/auth');
+
+// ── Multer (slip upload for agent) ─────────────────────────────────
+const agentStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, process.env.UPLOAD_DIR || './uploads'),
+  filename:    (req, file, cb) => cb(null, `aslip_${Date.now()}${path.extname(file.originalname)}`),
+});
+const agentUpload = multer({
+  storage: agentStorage,
+  limits: { fileSize: parseInt(process.env.MAX_FILE_SIZE) || 5242880 },
+  fileFilter: (req, file, cb) => {
+    if (/image\/(jpg|jpeg|png|webp)/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('อนุญาตเฉพาะไฟล์รูปภาพ (jpg, png, webp)'));
+  },
+});
 
 // ── BANK LIST ───────────────────────────────────────────────────────
 const BANKS = {
@@ -46,6 +62,16 @@ async function ensureAffCode(agentId) {
   }
   return code;
 }
+
+// ── GET /api/agent/profile — ดึงข้อมูล Agent รวมถึงข้อมูลธนาคาร ──
+router.get('/profile', authAgent, async (req, res) => {
+  const [ag] = await query(
+    'SELECT id, uuid, name, phone, email, status, bank_code, bank_account, bank_name, balance, commission_balance, created_at FROM agents WHERE id=?',
+    [req.agent.id]
+  );
+  if (!ag) return res.status(404).json({ success: false, message: 'ไม่พบข้อมูล' });
+  res.json({ success: true, data: ag });
+});
 
 // ── GET /api/agent/aff/:code — public: resolve aff_code → agent name ──
 router.get('/aff/:code', async (req, res) => {
@@ -282,17 +308,50 @@ router.get('/wallet/transactions', authAgent, async (req, res) => {
   res.json({ success: true, data: rows, total: Number(total.cnt), page: Number(page) });
 });
 
-// ── POST /api/agent/wallet/deposit ────────────────────────────────
-router.post('/wallet/deposit', authAgent, async (req, res) => {
-  const { amount, bank_code, note } = req.body;
+// ── POST /api/agent/wallet/deposit — รับสลิป, ไม่ตรวจ SlipOK, รอ Admin อนุมัติ ──
+router.post('/wallet/deposit', authAgent, agentUpload.single('slip'), async (req, res) => {
+  const { amount, bank_code, transfer_at, note } = req.body;
   const amt = Number(amount);
   if (!amt || amt < 100) return res.status(400).json({ success: false, message: 'จำนวนเงินขั้นต่ำ 100 บาท' });
+  if (!req.file)         return res.status(400).json({ success: false, message: 'กรุณาแนบสลิปโอนเงิน' });
+
+  // ── ตรวจว่า Agent มีบัญชีธนาคารผูกไว้ (ถ้าตั้งค่าบังคับ) ──────
+  const [agent] = await query(
+    'SELECT bank_code, bank_account, bank_name FROM agents WHERE id=?',
+    [req.agent.id]
+  );
+  const reqBankRow = await query("SELECT value FROM settings WHERE `key`='require_sender_bank' LIMIT 1");
+  const requireBank = reqBankRow[0]?.value !== 'false'; // default true
+  if (requireBank && !agent?.bank_account) {
+    return res.status(400).json({
+      success : false,
+      message : 'กรุณาติดต่อ Admin เพื่อผูกบัญชีธนาคารก่อนฝากเงิน',
+      code    : 'NO_BANK_ACCOUNT',
+    });
+  }
+
+  // ── เพิ่มหมายเหตุบัญชีผู้โอน (Admin จะเห็นข้อมูลนี้) ────────────
+  const BANK_MAP = {
+    'SCB':'ไทยพาณิชย์','KBANK':'กสิกรไทย','BBL':'กรุงเทพ','KTB':'กรุงไทย',
+    'BAY':'กรุงศรี','TMB':'ทีเอ็มบีธนชาต','GSB':'ออมสิน','BAAC':'ธกส',
+    'CIMB':'ซีไอเอ็มบี','TBANK':'ธนชาต','UOB':'ยูโอบี','LH':'แลนด์แอนด์เฮ้าส์','TISCO':'ทิสโก้'
+  };
+  let depositNote = note || null;
+  if (agent?.bank_account) {
+    const bankLabel = BANK_MAP[agent.bank_code] || agent.bank_code || '';
+    const regInfo   = `${bankLabel} ${agent.bank_account}${agent.bank_name ? ' ('+agent.bank_name+')' : ''}`.trim();
+    depositNote = `📌 บัญชีที่ลงทะเบียน: ${regInfo}${note ? '\n'+note : ''}`;
+  }
 
   await query(
-    'INSERT INTO agent_deposits (uuid, agent_id, amount, bank_code, note, status) VALUES (?,?,?,?,?,?)',
-    [uuidv4(), req.agent.id, amt, bank_code || null, note || null, 'pending']
+    `INSERT INTO agent_deposits
+       (uuid, agent_id, amount, bank_code, slip_image, note, status)
+     VALUES (?,?,?,?,?,?,?)`,
+    [uuidv4(), req.agent.id, amt, bank_code || agent?.bank_code || null,
+     req.file.filename, depositNote, 'pending']
   );
-  res.json({ success: true, message: 'ส่งคำขอฝากเงินสำเร็จ รอ Admin อนุมัติ' });
+
+  res.status(201).json({ success: true, message: 'ส่งสลิปฝากเงินสำเร็จ รอ Admin อนุมัติ' });
 });
 
 // ── GET /api/agent/wallet/deposits ────────────────────────────────

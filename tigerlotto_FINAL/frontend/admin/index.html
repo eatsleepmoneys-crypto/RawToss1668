@@ -669,7 +669,7 @@ async function loadAgentDeposits(){
   const tbody  = document.getElementById('adep-tbody');
   const sumEl  = document.getElementById('adep-summary');
   if(!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
   try {
     const params = { limit: 50, status };
     if(search) params.search = search;
@@ -685,14 +685,23 @@ async function loadAgentDeposits(){
 
     const STS_LABEL = { pending:'รอตรวจ', approved:'อนุมัติ', rejected:'ปฏิเสธ' };
     tbody.innerHTML = rows.length === 0
-      ? '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
+      ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่มีรายการ</td></tr>'
       : rows.map(r=>`
       <tr>
         <td style="font-size:12px;color:var(--muted)">${r.id}</td>
         <td style="font-weight:600">${r.agent_name||'-'}</td>
         <td style="color:var(--muted);font-size:12px">${r.agent_phone||'-'}</td>
         <td style="color:var(--gold2);font-weight:700">฿${Number(r.amount||0).toLocaleString('th-TH')}</td>
-        <td style="font-size:12px">${r.bank_code||'-'} ${r.bank_account||''}</td>
+        <td>
+          ${r.slip_image
+            ? `<a href="/uploads/${r.slip_image}" target="_blank" title="ดูสลิป">
+                <img src="/uploads/${r.slip_image}" style="height:44px;width:44px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:zoom-in">
+               </a>`
+            : '<span style="color:var(--muted);font-size:11px">ไม่มีสลิป</span>'}
+        </td>
+        <td style="font-size:11px;color:var(--muted);max-width:160px">
+          ${r.note ? `<span title="${r.note}" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px">${r.note}</span>` : '—'}
+        </td>
         <td style="font-size:12px;color:var(--muted)">${UI.formatDate(r.created_at)}</td>
         <td><span class="badge ${r.status==='approved'?'badge-green':r.status==='rejected'?'badge-red':'badge-yellow'}">${STS_LABEL[r.status]||r.status}</span></td>
         <td>
@@ -703,7 +712,7 @@ async function loadAgentDeposits(){
         </td>
       </tr>`).join('');
   } catch(e) {
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--red);padding:20px">⚠️ โหลดไม่ได้: ${e.message}</td></tr>`;
     if(sumEl) sumEl.textContent = '';
   }
 }
@@ -3236,8 +3245,8 @@ agentdeposits:()=>`
 <div class="card">
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>#</th><th>เอเยนต์</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>ธนาคาร / เลขบัญชี</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
-      <tbody id="adep-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+      <thead><tr><th>#</th><th>เอเยนต์</th><th>เบอร์โทร</th><th>จำนวน (บาท)</th><th>สลิป</th><th>หมายเหตุ/บัญชีลงทะเบียน</th><th>เวลา</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <tbody id="adep-tbody"><tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>
 </div>`,

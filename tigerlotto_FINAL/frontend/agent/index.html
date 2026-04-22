@@ -254,6 +254,17 @@ async function aFetch(path, opts = {}) {
   return data;
 }
 
+// ── FormData (file upload) helper ─────────────────────────────────
+async function aFetchForm(path, formData) {
+  const headers = {};
+  if (_agentToken) headers['Authorization'] = `Bearer ${_agentToken}`;
+  // ไม่ set Content-Type เพื่อให้ browser จัดการ multipart boundary
+  const res  = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: formData });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
 // ── Login / Logout ──────────────────────────────────────────────
 async function doLogin() {
   const phone = document.getElementById('lg-phone').value.trim();
@@ -788,15 +799,17 @@ async function loadWalletDeposits(page = 1) {
       <div class="card" style="padding:0">
         <div class="tbl-wrap">
           <table>
-            <thead><tr><th>#</th><th>จำนวน</th><th>ธนาคาร</th><th>สถานะ</th><th>หมายเหตุ</th><th>เวลา</th></tr></thead>
+            <thead><tr><th>#</th><th>จำนวน</th><th>สลิป</th><th>สถานะ</th><th>หมายเหตุ</th><th>เวลา</th></tr></thead>
             <tbody>
               ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีรายการ</td></tr>' :
               rows.map(d => `<tr>
                 <td style="color:var(--muted);font-size:11px">${d.id}</td>
                 <td style="font-weight:700;color:var(--green)">฿${fmt(d.amount)}</td>
-                <td style="color:var(--muted)">${d.bank_code||'—'}</td>
+                <td>${d.slip_image
+                  ? `<a href="/uploads/${d.slip_image}" target="_blank"><img src="/uploads/${d.slip_image}" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>`
+                  : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
                 <td><span class="badge ${d.status==='approved'?'badge-green':d.status==='pending'?'badge-pending':'badge-red'}">${DEP_LABEL[d.status]||d.status}</span></td>
-                <td style="font-size:12px;color:var(--muted)">${d.note||d.reject_note||'—'}</td>
+                <td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.reject_note||d.note||'—'}</td>
                 <td style="font-size:11px;color:var(--muted)">${new Date(d.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
               </tr>`).join('')}
             </tbody>
@@ -838,9 +851,18 @@ async function loadWalletWithdrawals(page = 1) {
 }
 
 // ── Deposit Modal ─────────────────────────────────────────────────
-function openDepositModal() {
-  const banks = {SCB:'ไทยพาณิชย์',KTB:'กรุงไทย',BBL:'กรุงเทพ',BAY:'กรุงศรี',KBANK:'กสิกรไทย',TMB:'ทีทีบี',GSB:'ออมสิน',BAAC:'ธ.ก.ส.',KKP:'เกียรตินาคิน',CIMB:'ซีไอเอ็มบี',UOB:'ยูโอบี'};
-  const bankOpts = Object.entries(banks).map(([k,v]) => `<option value="${k}">${v} (${k})</option>`).join('');
+const BANK_NAMES = {SCB:'ธ.ไทยพาณิชย์',KTB:'ธ.กรุงไทย',BBL:'ธ.กรุงเทพ',BAY:'ธ.กรุงศรี',KBANK:'ธ.กสิกรไทย',TMB:'ธ.ทีเอ็มบีธนชาต',GSB:'ธ.ออมสิน',BAAC:'ธ.ธกส',KKP:'ธ.เกียรตินาคิน',CIMB:'ธ.ซีไอเอ็มบี',UOB:'ธ.ยูโอบี',TISCO:'ธ.ทิสโก้',LH:'ธ.แลนด์แอนด์เฮ้าส์',TBANK:'ธ.ธนชาต'};
+
+async function openDepositModal() {
+  // โหลดข้อมูลบัญชีธนาคารที่ลงทะเบียนของ Agent
+  let agentProfile = null;
+  try { agentProfile = (await aFetch('/agent/profile')).data; } catch(_) {}
+
+  const hasBankAccount = !!(agentProfile?.bank_account);
+  const bankLabel = hasBankAccount
+    ? `${BANK_NAMES[agentProfile.bank_code]||agentProfile.bank_code||''} ${agentProfile.bank_name ? '· '+agentProfile.bank_name : ''}`.trim()
+    : '';
+
   const bg = document.createElement('div');
   bg.className = 'modal-bg';
   bg.id = 'dep-modal';
@@ -848,42 +870,71 @@ function openDepositModal() {
   bg.innerHTML = `
     <div class="modal-box">
       <button class="modal-close" onclick="document.getElementById('dep-modal').remove()">✕</button>
-      <h3>💰 แจ้งฝากเงิน</h3>
-      <div style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:var(--muted);line-height:1.7">
-        📌 กรุณาโอนเงินมาที่บัญชีของระบบก่อน แล้วแจ้งจำนวนเงินที่โอน Admin จะอนุมัติและเติมเครดิตให้ภายใน 10 นาที
-      </div>
+      <h3>💰 ฝากเงิน — แนบสลิป</h3>
+
+      ${hasBankAccount ? `
+      <!-- ✅ แสดงบัญชีที่ต้องโอนจาก -->
+      <div style="background:#0d1f0d;border:1px solid rgba(92,219,92,.4);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:#5cdb5c;font-weight:700;margin-bottom:8px;letter-spacing:.3px">⚠️ กรุณาโอนจากบัญชีที่ลงทะเบียนเท่านั้น</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:rgba(92,219,92,.15);border:1px solid rgba(92,219,92,.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏦</div>
+          <div>
+            <div style="font-size:12px;color:#aaa">${bankLabel}</div>
+            <div style="font-size:18px;font-weight:900;color:#ffd700;letter-spacing:2px">${agentProfile.bank_account}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#666;margin-top:8px">หากโอนจากบัญชีอื่น Admin จะตรวจสอบก่อนอนุมัติ</div>
+      </div>` : `
+      <!-- ❌ ยังไม่มีบัญชีลงทะเบียน -->
+      <div style="background:#1f0d0d;border:1px solid rgba(219,92,92,.4);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center">
+        <div style="font-size:14px;color:#e74c3c;font-weight:700">⚠️ ยังไม่มีบัญชีธนาคารผูกไว้</div>
+        <div style="font-size:12px;color:#888;margin-top:6px">กรุณาติดต่อ Admin เพื่อผูกบัญชีธนาคารก่อนฝากเงิน</div>
+      </div>`}
+
       <div class="fg"><label>จำนวนเงิน (บาท)</label>
-        <input class="fi" id="dep-amount" type="number" min="100" placeholder="ขั้นต่ำ 100 บาท">
+        <input class="fi" id="dep-amount" type="number" min="100" placeholder="ขั้นต่ำ 100 บาท" ${!hasBankAccount?'disabled':''}>
       </div>
-      <div class="fg"><label>ธนาคาร (ที่โอนจาก)</label>
-        <select class="fi" id="dep-bank"><option value="">— เลือกธนาคาร —</option>${bankOpts}</select>
+      <div class="fg">
+        <label>แนบสลิปโอนเงิน <span style="color:var(--red)">*</span></label>
+        <input class="fi" id="dep-slip" type="file" accept="image/*" style="padding:10px" ${!hasBankAccount?'disabled':''}>
       </div>
-      <div class="fg"><label>หมายเหตุ (เลขอ้างอิง ฯลฯ)</label>
-        <input class="fi" id="dep-note" type="text" placeholder="เช่น ref xxxx ชำระ ${new Date().toLocaleDateString('th-TH')}">
+      <div class="fg"><label>หมายเหตุ (ไม่บังคับ)</label>
+        <input class="fi" id="dep-note" type="text" placeholder="เช่น ref xxxx" ${!hasBankAccount?'disabled':''}>
       </div>
-      <button class="btn btn-gold" id="dep-submit-btn" onclick="submitDeposit()">✅ ยืนยันแจ้งฝากเงิน</button>
+      <button class="btn btn-gold" id="dep-submit-btn" onclick="submitDeposit()" ${!hasBankAccount?'disabled style="opacity:.5;cursor:not-allowed"':''}>
+        📤 ส่งสลิปฝากเงิน — รอ Admin อนุมัติ
+      </button>
       <div class="err" id="dep-err"></div>
     </div>`;
   document.body.appendChild(bg);
 }
 
 async function submitDeposit() {
-  const amount   = document.getElementById('dep-amount')?.value;
-  const bank_code= document.getElementById('dep-bank')?.value;
-  const note     = document.getElementById('dep-note')?.value;
-  const err      = document.getElementById('dep-err');
-  const btn      = document.getElementById('dep-submit-btn');
+  const amount  = document.getElementById('dep-amount')?.value;
+  const slipEl  = document.getElementById('dep-slip');
+  const note    = document.getElementById('dep-note')?.value;
+  const err     = document.getElementById('dep-err');
+  const btn     = document.getElementById('dep-submit-btn');
   err.textContent = '';
   if (!amount || Number(amount) < 100) { err.textContent = 'กรุณากรอกจำนวนเงินขั้นต่ำ 100 บาท'; return; }
+  if (!slipEl?.files[0]) { err.textContent = 'กรุณาแนบสลิปโอนเงิน'; return; }
   btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
   try {
-    await aFetch('/agent/wallet/deposit', { method:'POST', body: JSON.stringify({ amount: Number(amount), bank_code, note }) });
+    const fd = new FormData();
+    fd.append('amount',   Number(amount));
+    fd.append('slip',     slipEl.files[0]);
+    if (note) fd.append('note', note);
+    await aFetchForm('/agent/wallet/deposit', fd);
     document.getElementById('dep-modal')?.remove();
     loadWallet('deposits');
+    // แสดง toast ถ้ามี
+    const toastFn = window.showToast || window.toast;
+    if (toastFn) toastFn('ส่งสลิปสำเร็จ ✅', 'Admin จะอนุมัติภายใน 10 นาที');
+    else alert('ส่งสลิปสำเร็จ — Admin จะอนุมัติภายใน 10 นาที');
   } catch(e) {
     err.style.color = 'var(--red)';
     err.textContent = e.message;
-    btn.disabled = false; btn.textContent = '✅ ยืนยันแจ้งฝากเงิน';
+    btn.disabled = false; btn.textContent = '📤 ส่งสลิปฝากเงิน — รอ Admin อนุมัติ';
   }
 }
 
