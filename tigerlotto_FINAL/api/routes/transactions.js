@@ -194,16 +194,24 @@ router.post('/withdraw', authMember,
     if (!m.bank_account) return res.status(400).json({ success: false, message: 'กรุณาผูกบัญชีธนาคารก่อนถอน' });
     if (parseFloat(m.balance) < amount) return res.status(400).json({ success: false, message: `ยอดเงินไม่เพียงพอ (มี ฿${m.balance})` });
 
-    // ── ตรวจสอบ auto-withdraw settings ก่อน transaction ──────────────────
-    const [awEnabledRow] = await query("SELECT value FROM settings WHERE `key`='auto_withdraw_enabled'");
-    const [awMaxRow]     = await query("SELECT value FROM settings WHERE `key`='auto_withdraw_max'");
-    const autoEnabled = awEnabledRow?.value === 'true';
-    const autoMax     = parseFloat(awMaxRow?.value || 0);
-    const doAuto      = autoEnabled && (autoMax === 0 || parseFloat(amount) <= autoMax);
+    // ── ตรวจสอบ auto-withdraw + KBank settings ก่อน transaction ──────────
+    const settingRows = await query(
+      "SELECT `key`,value FROM settings WHERE `key` IN " +
+      "('auto_withdraw_enabled','auto_withdraw_max','kbank_enabled')"
+    );
+    const stMap = {};
+    settingRows.forEach(r => { stMap[r.key] = r.value; });
 
-    const wdUuid   = uuidv4();
-    const autoRef  = doAuto ? ('AUTO-' + Date.now()) : null;
-    const wdStatus = doAuto ? 'completed' : 'pending';
+    const autoEnabled  = stMap['auto_withdraw_enabled'] === 'true';
+    const autoMax      = parseFloat(stMap['auto_withdraw_max'] || 0);
+    const kbankEnabled = stMap['kbank_enabled'] === 'true';
+    const doAuto       = autoEnabled && (autoMax === 0 || parseFloat(amount) <= autoMax);
+    // ถ้า KBank เปิด → สถานะเริ่มต้นเป็น 'processing' (รอ API ยืนยัน)
+    // ถ้าไม่มี KBank  → ถ้า autoEnabled = 'completed' (admin โอนเอง), ไม่งั้น 'pending'
+    const initStatus   = doAuto ? (kbankEnabled ? 'processing' : 'completed') : 'pending';
+
+    const wdUuid  = uuidv4();
+    const autoRef = doAuto ? ('AUTO-' + Date.now()) : null;
 
     await transaction(async (conn) => {
       const [[member]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [req.member.id]);
@@ -212,7 +220,7 @@ router.post('/withdraw', authMember,
       if (doAuto) {
         await conn.execute(
           'INSERT INTO withdrawals (uuid,member_id,amount,bank_code,bank_account,bank_name,status,ref_no,processed_at,note) VALUES (?,?,?,?,?,?,?,?,NOW(),?)',
-          [wdUuid, req.member.id, amount, m.bank_code, m.bank_account, m.bank_name, 'completed', autoRef, 'อนุมัติอัตโนมัติ']
+          [wdUuid, req.member.id, amount, m.bank_code, m.bank_account, m.bank_name, initStatus, autoRef, 'อนุมัติอัตโนมัติ']
         );
         await conn.execute('UPDATE members SET total_withdraw=total_withdraw+? WHERE id=?', [amount, req.member.id]);
       } else {
@@ -225,7 +233,52 @@ router.post('/withdraw', authMember,
         [uuidv4(), req.member.id, 'withdraw', -amount, member.balance, newBal, `ถอนเงิน ฿${amount}`]);
     });
 
-    // ── แจ้งเตือนสมาชิก ──────────────────────────────────────────────────
+    // ── KBank API Transfer ─────────────────────────────────────────────────
+    if (doAuto && kbankEnabled) {
+      let kbResult = null;
+      try {
+        const kbankService = require('../services/kbankService');
+        kbResult = await kbankService.transfer(amount, m, wdUuid);
+        console.log(`[AutoWD] KBank transfer result: success=${kbResult.success} txId=${kbResult.transactionId||'-'} reason=${kbResult.reason||'-'}`);
+      } catch (kbErr) {
+        console.error('[AutoWD] KBank transfer error:', kbErr.message);
+        kbResult = { success: false, reason: 'API_ERROR', error: kbErr.message };
+      }
+
+      if (kbResult?.success) {
+        // ✅ โอนสำเร็จ — update ref_no ด้วย KBank transaction ID
+        const kbRef = 'KBANK-' + (kbResult.transactionId || Date.now());
+        await query(
+          "UPDATE withdrawals SET status='completed', ref_no=?, note='โอนผ่าน KBank API อัตโนมัติ' WHERE uuid=?",
+          [kbRef, wdUuid]
+        ).catch(() => {});
+        await query(
+          'INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+          [req.member.id,
+           '✅ ถอนเงินสำเร็จ',
+           `โอนเงิน ฿${parseFloat(amount).toLocaleString('th-TH',{minimumFractionDigits:2})} เข้าบัญชี ${m.bank_name} (${m.bank_account}) แล้ว (ref: ${kbRef})`,
+           'withdraw']
+        ).catch(() => {});
+        return res.status(201).json({ success: true, message: '✅ ถอนเงินสำเร็จ! เงินโอนเข้าบัญชีแล้ว', auto: true, kbank: true });
+      } else {
+        // ❌ KBank โอนไม่สำเร็จ — เปลี่ยนกลับเป็น pending ให้ Admin จัดการ
+        await query(
+          "UPDATE withdrawals SET status='pending', note=? WHERE uuid=?",
+          [`KBank โอนไม่สำเร็จ: ${kbResult.reason||kbResult.error||'unknown'} — รอ Admin โอนเอง`, wdUuid]
+        ).catch(() => {});
+        await query(
+          'INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+          [req.member.id,
+           '⏳ กำลังดำเนินการถอนเงิน',
+           `รายการถอน ฿${parseFloat(amount).toLocaleString('th-TH',{minimumFractionDigits:2})} อยู่ระหว่างดำเนินการ ทีมงานจะโอนภายใน 15 นาที`,
+           'withdraw']
+        ).catch(() => {});
+        console.warn(`[AutoWD] KBank failed (${kbResult.reason}) — withdrawal ${wdUuid} set back to pending`);
+        return res.status(201).json({ success: true, message: '⏳ ส่งคำขอถอนแล้ว ทีมงานจะโอนเงินให้ภายใน 15 นาที', auto: false });
+      }
+    }
+
+    // ── ไม่มี KBank (auto-approve only หรือ pending ปกติ) ─────────────────
     if (doAuto) {
       await query(
         'INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',

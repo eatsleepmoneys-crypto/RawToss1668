@@ -213,6 +213,74 @@ router.post('/admin/maintenance', authAdmin, rbac.requirePerm('settings.manage')
 });
 
 // ═══════════════════════════════════════════════════════════
+//  KBANK API SETTINGS
+// ═══════════════════════════════════════════════════════════
+
+// GET /api/settings/admin/kbank
+router.get('/admin/kbank', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const rows = await query("SELECT `key`, value FROM settings WHERE `group`='kbank'");
+  const map = {};
+  rows.forEach(r => { map[r.key] = r.value; });
+  // Mask client secret
+  const rawSecret = map['kbank_client_secret'] || '';
+  const maskedSecret = rawSecret.length > 4
+    ? '•'.repeat(Math.min(rawSecret.length - 4, 20)) + rawSecret.slice(-4)
+    : rawSecret ? '••••' : '';
+  res.json({
+    success: true,
+    data: {
+      enabled      : map['kbank_enabled']      === 'true',
+      sandbox      : map['kbank_sandbox']       !== 'false',
+      client_id    : map['kbank_client_id']     || '',
+      client_secret: maskedSecret,
+      has_secret   : rawSecret.length > 0,
+      account_no   : map['kbank_account_no']    || '',
+      account_name : map['kbank_account_name']  || '',
+    }
+  });
+});
+
+// PUT /api/settings/admin/kbank
+router.put('/admin/kbank', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  const { enabled, sandbox, client_id, client_secret, account_no, account_name } = req.body;
+  const updates = {};
+  if (typeof enabled      !== 'undefined') updates['kbank_enabled']       = String(enabled);
+  if (typeof sandbox      !== 'undefined') updates['kbank_sandbox']       = String(sandbox);
+  if (client_id           !== undefined)   updates['kbank_client_id']     = client_id;
+  if (account_no          !== undefined)   updates['kbank_account_no']    = account_no;
+  if (account_name        !== undefined)   updates['kbank_account_name']  = account_name;
+  // Only update secret if real value (not masked)
+  if (client_secret && !client_secret.includes('•')) updates['kbank_client_secret'] = client_secret;
+
+  for (const [key, value] of Object.entries(updates)) {
+    await query(
+      `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES (?,?,?,?)
+       ON DUPLICATE KEY UPDATE value=?`,
+      [key, value,
+       ['kbank_enabled','kbank_sandbox'].includes(key) ? 'boolean' : 'string',
+       'kbank', value]
+    );
+  }
+  // Reset token cache when credentials change
+  try { require('../services/kbankService')._tokenCache = { token: null, expireAt: 0 }; } catch {}
+
+  await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+    [req.admin.id, 'settings.kbank', JSON.stringify(Object.keys(updates)), req.ip]);
+  res.json({ success: true, message: 'บันทึกการตั้งค่า KBank API แล้ว' });
+});
+
+// POST /api/settings/admin/kbank/test
+router.post('/admin/kbank/test', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  try {
+    const { testConnection } = require('../services/kbankService');
+    const result = await testConnection();
+    res.json(result);
+  } catch (err) {
+    res.json({ success: false, message: `⚠️ ทดสอบล้มเหลว: ${err.message}` });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════
 //  SCRAPERAPI PROXY KEY
 // ═══════════════════════════════════════════════════════════
 const axios = require('axios');

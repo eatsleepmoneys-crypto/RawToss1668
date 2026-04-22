@@ -884,7 +884,7 @@ function renderWithdrawalsRows(rows) {
       <td style="font-size:12px;color:var(--muted)">${UI.formatDate(w.created_at)}</td>
       <td>
         <span class="badge ${WD_BADGE[w.status]||'badge-yellow'}">${WD_STATUS[w.status]||w.status}</span>
-        ${w.ref_no && String(w.ref_no).startsWith('AUTO') ? '<span class="badge badge-blue" title="อนุมัติอัตโนมัติ">🤖 AUTO</span>' : ''}
+        ${w.ref_no && String(w.ref_no).startsWith('KBANK') ? '<span class="badge badge-green" title="โอนผ่าน KBank API">🏦 KBank</span>' : w.ref_no && String(w.ref_no).startsWith('AUTO') ? '<span class="badge badge-blue" title="อนุมัติอัตโนมัติ รอแอดมินโอน">🤖 AUTO</span>' : ''}
       </td>
       <td>
         ${w.status==='pending'||w.status==='processing'?`
@@ -2724,16 +2724,76 @@ async function testSlipOKConnection(){
   }
 }
 
-// ── Patch loadApiSettings to also load SlipOK ─────────────────────────────
+// ── KBank Settings ─────────────────────────────────────────────────────────
+async function loadKBankSettings(){
+  try {
+    const d = await apiFetch('/settings/admin/kbank', {}, 'admin');
+    const s = d.data || {};
+    const enabledEl  = document.getElementById('kbank-enabled');
+    const sandboxEl  = document.getElementById('kbank-sandbox');
+    const labelEl    = document.getElementById('kbank-enabled-label');
+    if(enabledEl) { enabledEl.checked = !!s.enabled; }
+    if(sandboxEl) { sandboxEl.checked = s.sandbox !== false; }
+    if(labelEl)   { labelEl.textContent = s.enabled ? 'เปิดอยู่' : 'ปิดอยู่'; }
+    const setVal = (id, v) => { const el=document.getElementById(id); if(el) el.value=v||''; };
+    setVal('kbank-client-id',     s.client_id);
+    setVal('kbank-account-no',    s.account_no);
+    setVal('kbank-account-name',  s.account_name);
+    // Show masked secret hint
+    if(s.has_secret){ const el=document.getElementById('kbank-client-secret'); if(el) el.placeholder=s.client_secret+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
+  } catch(e) { console.warn('loadKBankSettings', e.message); }
+}
+
+async function saveKBankSettings(){
+  const payload = {
+    enabled     : document.getElementById('kbank-enabled')?.checked ?? false,
+    sandbox     : document.getElementById('kbank-sandbox')?.checked ?? true,
+    client_id   : document.getElementById('kbank-client-id')?.value?.trim()     || '',
+    client_secret: document.getElementById('kbank-client-secret')?.value?.trim() || '',
+    account_no  : document.getElementById('kbank-account-no')?.value?.trim()    || '',
+    account_name: document.getElementById('kbank-account-name')?.value?.trim()  || '',
+  };
+  try {
+    await apiFetch('/settings/admin/kbank', { method:'PUT', body: JSON.stringify(payload) }, 'admin');
+    toast('สำเร็จ', 'บันทึกการตั้งค่า KBank API แล้ว');
+    document.getElementById('kbank-client-secret').value = '';
+    const lbl = document.getElementById('kbank-enabled-label');
+    if(lbl) lbl.textContent = payload.enabled ? 'เปิดอยู่' : 'ปิดอยู่';
+    await loadKBankSettings();
+  } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+async function testKBankConnection(){
+  const statusEl = document.getElementById('kbank-status');
+  if(statusEl) statusEl.innerHTML = '⏳ กำลังทดสอบการเชื่อมต่อ KBank...';
+  try {
+    const d = await apiFetch('/settings/admin/kbank/test', { method:'POST' }, 'admin');
+    if(statusEl){
+      statusEl.innerHTML = d.success
+        ? `<span style="color:#1dbe72">${d.message}</span>${d.accountNo?' · บัญชีต้นทาง: '+d.accountNo:''}`
+        : `<span style="color:#db5c5c">${d.message}</span>`;
+    }
+  } catch(e){
+    if(statusEl) statusEl.innerHTML = `<span style="color:#db5c5c">❌ ${e.message}</span>`;
+  }
+}
+
+// ── Patch loadApiSettings to also load SlipOK + KBank ─────────────────────
 const _origLoadApiSettings = loadApiSettings;
 loadApiSettings = async function(){
   await _origLoadApiSettings();
   await loadSlipOKSettings();
+  await loadKBankSettings();
   // Wire checkbox label update
   const cb = document.getElementById('slipok-enabled');
   if(cb) cb.addEventListener('change', ()=>{
     const lbl = document.getElementById('slipok-enabled-label');
     if(lbl) lbl.textContent = cb.checked ? 'เปิดอยู่' : 'ปิดอยู่';
+  });
+  const kbCb = document.getElementById('kbank-enabled');
+  if(kbCb) kbCb.addEventListener('change', ()=>{
+    const lbl = document.getElementById('kbank-enabled-label');
+    if(lbl) lbl.textContent = kbCb.checked ? 'เปิดอยู่' : 'ปิดอยู่';
   });
 };
 
@@ -4062,6 +4122,65 @@ api:()=>`
     <b style="color:#5cdb5c">ขั้นตอน:</b>
     1) สมัครที่ slipok.com → 2) สร้าง Branch → 3) คัดลอก API Key + Branch ID → 4) วางด้านบน → 5) บันทึก → 6) ทดสอบ<br>
     <span style="color:#888">เมื่อเปิดใช้งาน สลิปที่ผ่านการตรวจจะอนุมัติอัตโนมัติ สลิปที่ไม่ผ่านจะรอ Admin ตรวจสอบ</span>
+  </div>
+</div>
+</div>
+
+<div class="api-card" style="margin-top:10px;border-color:#1dbe7244">
+  <div class="api-card-hdr">
+    <div class="api-card-title"><span class="ico">🏦</span>KBank Open API — โอนเงินอัตโนมัติ</div>
+  </div>
+  <div class="alert" style="background:#0a200f;border:1px solid #1dbe7244;color:#a9dfbf;margin-bottom:12px;font-size:12px">
+    โอนเงินถอนให้สมาชิก<b>อัตโนมัติ</b>ผ่าน KBank API รองรับ PromptPay และโอนตรงบัญชี<br>
+    สมัครที่ <a href="https://apiportal.kasikornbank.com" target="_blank" style="color:#1dbe72">apiportal.kasikornbank.com</a>
+    · ต้องมีบัญชีธุรกิจ KBank
+  </div>
+  <div class="fi-row" style="margin-bottom:12px">
+    <div class="fg">
+      <label>เปิดใช้งาน KBank API</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px">
+        <input type="checkbox" id="kbank-enabled" style="width:18px;height:18px;cursor:pointer">
+        <span style="font-size:13px" id="kbank-enabled-label">ปิดอยู่</span>
+      </label>
+    </div>
+    <div class="fg">
+      <label>Environment</label>
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:10px;background:#111;border-radius:8px">
+        <input type="checkbox" id="kbank-sandbox" style="width:18px;height:18px;cursor:pointer" checked>
+        <span style="font-size:13px">Sandbox (ทดสอบ)</span>
+      </label>
+    </div>
+  </div>
+  <div class="fi-row">
+    <div class="fg">
+      <label>Consumer Key (Client ID)</label>
+      <input id="kbank-client-id" class="fi-full" placeholder="KBank Consumer Key จาก Developer Portal">
+    </div>
+    <div class="fg">
+      <label>Consumer Secret (Client Secret)</label>
+      <input id="kbank-client-secret" class="fi-full" type="password" placeholder="ใส่เพื่ออัปเดต (ว่าง = คงเดิม)">
+    </div>
+  </div>
+  <div class="fi-row" style="margin-top:10px">
+    <div class="fg">
+      <label>เลขบัญชีธนาคาร KBank (บัญชีต้นทาง)</label>
+      <input id="kbank-account-no" class="fi-full" placeholder="เลขบัญชีที่ใช้โอนเงินออก เช่น 1234567890">
+    </div>
+    <div class="fg">
+      <label>ชื่อบัญชี</label>
+      <input id="kbank-account-name" class="fi-full" placeholder="ชื่อเจ้าของบัญชี">
+    </div>
+  </div>
+  <div id="kbank-status" style="margin-top:10px;padding:10px;background:#111;border-radius:8px;font-size:12px;color:#555">— ยังไม่ได้ทดสอบ</div>
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button class="btn btn-gold" onclick="saveKBankSettings()">💾 บันทึก</button>
+    <button class="btn btn-outline" onclick="testKBankConnection()">🧪 ทดสอบการเชื่อมต่อ</button>
+  </div>
+  <div style="margin-top:12px;padding:10px;background:#0a1a0a;border-radius:8px;font-size:12px;color:#aaa">
+    <b style="color:#1dbe72">ขั้นตอนสมัคร:</b>
+    1) ไป <a href="https://apiportal.kasikornbank.com" target="_blank" style="color:#1dbe72">apiportal.kasikornbank.com</a>
+    → 2) สมัคร + เลือก Product "Fund Transfer" → 3) รับ Consumer Key + Secret → 4) ใส่ข้างบน → 5) ทดสอบ Sandbox ก่อน<br>
+    <span style="color:#888">เมื่อเปิด KBank API: ระบบจะโอนเงินจริงทันทีเมื่อสมาชิกถอน (ต้องเปิด "ถอนอัตโนมัติ" ในการตั้งค่าการเงินด้วย)</span>
   </div>
 </div>
 </div><!-- end api-security-tab -->

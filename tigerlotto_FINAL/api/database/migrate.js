@@ -540,6 +540,12 @@ const SEEDS = [
     ('auto_approve_max','1000','number','finance'),
     ('auto_withdraw_enabled','false','boolean','finance'),
     ('auto_withdraw_max','5000','number','finance'),
+    ('kbank_enabled','false','boolean','kbank'),
+    ('kbank_sandbox','true','boolean','kbank'),
+    ('kbank_client_id','','string','kbank'),
+    ('kbank_client_secret','','string','kbank'),
+    ('kbank_account_no','','string','kbank'),
+    ('kbank_account_name','','string','kbank'),
     ('bonus_new_member','50','number','promotion'),
     ('cashback_percent','5','number','promotion'),
     ('referral_commission','3','number','promotion'),
@@ -816,6 +822,14 @@ async function migrate() {
     `INSERT IGNORE INTO \`settings\` (\`key\`,value,type,\`group\`) VALUES
       ('auto_withdraw_enabled','false','boolean','finance'),
       ('auto_withdraw_max','5000','number','finance')`,
+    // kbank api settings — insert if not exist
+    `INSERT IGNORE INTO \`settings\` (\`key\`,value,type,\`group\`) VALUES
+      ('kbank_enabled','false','boolean','kbank'),
+      ('kbank_sandbox','true','boolean','kbank'),
+      ('kbank_client_id','','string','kbank'),
+      ('kbank_client_secret','','string','kbank'),
+      ('kbank_account_no','','string','kbank'),
+      ('kbank_account_name','','string','kbank')`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
