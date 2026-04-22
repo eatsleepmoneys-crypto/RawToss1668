@@ -380,23 +380,27 @@ router.get('/admin/deposits', authAdmin, rbac.requirePerm('deposits.view'), asyn
 
 // PATCH /api/transactions/admin/deposits/:id/approve
 router.patch('/admin/deposits/:id/approve', authAdmin, rbac.requirePerm('deposits.approve'), async (req, res) => {
-  const [dep] = await query('SELECT * FROM deposits WHERE id=? AND status="pending"', [req.params.id]);
+  const [dep] = await query('SELECT d.*,m.name,m.phone FROM deposits d JOIN members m ON d.member_id=m.id WHERE d.id=? AND d.status="pending"', [req.params.id]);
   if (!dep) return res.status(400).json({ success: false, message: 'ไม่พบรายการหรืออนุมัติแล้ว' });
   await approveDeposit(dep.id, dep.member_id, dep.amount, req.admin.id);
   await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
     [req.admin.id, 'deposit.approve', 'deposit', dep.id, `฿${dep.amount}`, req.ip]);
+  // LINE notification
+  try { require('../services/lineService').sendDepositNotif({ name: dep.name, phone: dep.phone, amount: dep.amount, bank_code: dep.bank_code, status: 'approved', adminName: req.admin.name }); } catch {}
   res.json({ success: true, message: `อนุมัติฝากเงิน ฿${dep.amount} แล้ว` });
 });
 
 // PATCH /api/transactions/admin/deposits/:id/reject
 router.patch('/admin/deposits/:id/reject', authAdmin, rbac.requirePerm('deposits.approve'), async (req, res) => {
   const { note } = req.body;
-  const [dep] = await query('SELECT * FROM deposits WHERE id=? AND status="pending"', [req.params.id]);
+  const [dep] = await query('SELECT d.*,m.name,m.phone FROM deposits d JOIN members m ON d.member_id=m.id WHERE d.id=? AND d.status="pending"', [req.params.id]);
   if (!dep) return res.status(400).json({ success: false, message: 'ไม่พบรายการ' });
   await query('UPDATE deposits SET status="rejected", note=?, approved_by=?, approved_at=NOW() WHERE id=?',
     [note || '', req.admin.id, dep.id]);
   await query('INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
     [dep.member_id, '❌ ฝากเงินไม่สำเร็จ', `รายการฝาก ฿${dep.amount} ถูกปฏิเสธ: ${note||'กรุณาติดต่อ Admin'}`, 'deposit']);
+  // LINE notification
+  try { require('../services/lineService').sendDepositNotif({ name: dep.name, phone: dep.phone, amount: dep.amount, bank_code: dep.bank_code, status: 'rejected', note, adminName: req.admin.name }); } catch {}
   res.json({ success: true, message: 'ปฏิเสธรายการแล้ว' });
 });
 
@@ -428,7 +432,7 @@ router.get('/admin/withdrawals', authAdmin, rbac.requirePerm('withdrawals.view')
 // PATCH /api/transactions/admin/withdrawals/:id/process
 router.patch('/admin/withdrawals/:id/process', authAdmin, rbac.requirePerm('withdrawals.process'), async (req, res) => {
   const { ref_no } = req.body;
-  const [wd] = await query('SELECT * FROM withdrawals WHERE id=? AND status IN ("pending","processing")', [req.params.id]);
+  const [wd] = await query('SELECT w.*,m.name,m.phone FROM withdrawals w JOIN members m ON w.member_id=m.id WHERE w.id=? AND w.status IN ("pending","processing")', [req.params.id]);
   if (!wd) return res.status(400).json({ success: false, message: 'ไม่พบรายการ' });
   await query('UPDATE withdrawals SET status="completed", processed_by=?, processed_at=NOW(), ref_no=? WHERE id=?',
     [req.admin.id, ref_no || null, wd.id]);
@@ -437,13 +441,15 @@ router.patch('/admin/withdrawals/:id/process', authAdmin, rbac.requirePerm('with
     [wd.member_id, '✅ ถอนเงินสำเร็จ', `โอนเงิน ฿${parseFloat(wd.amount).toLocaleString()} เข้าบัญชี ${wd.bank_name} แล้ว`, 'withdraw']);
   await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
     [req.admin.id, 'withdraw.complete', 'withdrawal', wd.id, `฿${wd.amount} ref:${ref_no}`, req.ip]);
+  // LINE notification
+  try { require('../services/lineService').sendWithdrawNotif({ name: wd.name, phone: wd.phone, amount: wd.amount, bank_code: wd.bank_code, bank_account: wd.bank_account, bank_name: wd.bank_name, method: 'approved', refNo: ref_no, adminName: req.admin.name }); } catch {}
   res.json({ success: true, message: `โอนเงิน ฿${wd.amount} สำเร็จ` });
 });
 
 // PATCH /api/transactions/admin/withdrawals/:id/reject
 router.patch('/admin/withdrawals/:id/reject', authAdmin, rbac.requirePerm('withdrawals.process'), async (req, res) => {
   const { note } = req.body;
-  const [wd] = await query('SELECT * FROM withdrawals WHERE id=? AND status="pending"', [req.params.id]);
+  const [wd] = await query('SELECT w.*,m.name,m.phone FROM withdrawals w JOIN members m ON w.member_id=m.id WHERE w.id=? AND w.status="pending"', [req.params.id]);
   if (!wd) return res.status(400).json({ success: false, message: 'ไม่พบรายการ' });
   await transaction(async (conn) => {
     await conn.execute('UPDATE withdrawals SET status="rejected", note=?, processed_by=?, processed_at=NOW() WHERE id=?',
@@ -457,6 +463,8 @@ router.patch('/admin/withdrawals/:id/reject', authAdmin, rbac.requirePerm('withd
     await conn.execute('INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
       [wd.member_id, '❌ ถอนเงินไม่สำเร็จ', `รายการถอน ฿${wd.amount} ถูกปฏิเสธ เงินได้คืนในกระเป๋าแล้ว`, 'withdraw']);
   });
+  // LINE notification
+  try { require('../services/lineService').sendWithdrawNotif({ name: wd.name, phone: wd.phone, amount: wd.amount, bank_code: wd.bank_code, bank_account: wd.bank_account, bank_name: wd.bank_name, method: 'rejected', note, adminName: req.admin.name }); } catch {}
   res.json({ success: true, message: 'ปฏิเสธและคืนเงินแล้ว' });
 });
 

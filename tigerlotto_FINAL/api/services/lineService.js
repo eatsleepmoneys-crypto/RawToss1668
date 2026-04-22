@@ -145,17 +145,19 @@ async function sendDepositNotif(info) {
   const statusTH = info.status === 'approved' ? '✅ อนุมัติแล้ว'
                  : info.status === 'rejected'  ? '❌ ปฏิเสธ'
                  : '⏳ รอตรวจสอบ';
-  const slipTH = info.slipVerified === true  ? '✅ สลิปผ่าน'
-               : info.slipVerified === false ? '❌ สลิปไม่ผ่าน'
-               : '';
+  const icon     = info.status === 'approved' ? '✅' : info.status === 'rejected' ? '❌' : '💰';
+  const slipTH   = info.slipVerified === true  ? '✅ สลิปผ่าน'
+                 : info.slipVerified === false ? '❌ สลิปไม่ผ่าน'
+                 : '';
 
   const message = [
-    '💰 [ฝากเงิน]',
+    `${icon} [ฝากเงิน — ${statusTH}]`,
     `สมาชิก: ${info.name || '-'} (${info.phone || '-'})`,
     `ยอด: ฿${fmt(info.amount)}`,
     `ธนาคาร: ${info.bank_code || '-'}`,
-    slipTH ? `สลิป: ${slipTH}` : null,
-    `สถานะ: ${statusTH}`,
+    slipTH                ? `สลิป: ${slipTH}`             : null,
+    info.note             ? `หมายเหตุ: ${info.note}`       : null,
+    info.adminName        ? `ดำเนินการโดย: ${info.adminName}` : null,
     `เวลา: ${thaiTime()}`,
   ].filter(Boolean).join('\n');
 
@@ -174,17 +176,24 @@ async function sendWithdrawNotif(info) {
   if (!creds.notifyWithdraw) return;
   if (!creds.notifyEnabled && !creds.botEnabled) return;
 
-  const methodTH = info.method === 'kbank' ? '🏦 KBank API (อัตโนมัติ)'
-                 : info.method === 'auto'  ? '🤖 อนุมัติอัตโนมัติ (รอแอดมินโอน)'
-                 : '⏳ รอแอดมินโอน';
+  const METHOD_MAP = {
+    kbank   : { icon: '🏦', label: 'KBank API (อัตโนมัติ)' },
+    auto    : { icon: '🤖', label: 'อนุมัติอัตโนมัติ (รอแอดมินโอน)' },
+    approved: { icon: '✅', label: 'แอดมินโอนเงินแล้ว' },
+    rejected: { icon: '❌', label: 'ปฏิเสธ / คืนเงินแล้ว' },
+    pending : { icon: '⏳', label: 'รอแอดมินโอน' },
+  };
+  const m = METHOD_MAP[info.method] || METHOD_MAP.pending;
 
   const message = [
-    '🏧 [ถอนเงิน]',
+    `${m.icon} [ถอนเงิน — ${m.label}]`,
     `สมาชิก: ${info.name || '-'} (${info.phone || '-'})`,
     `ยอด: ฿${fmt(info.amount)}`,
     `บัญชีปลายทาง: ${info.bank_code || '-'} ${info.bank_account || '-'}`,
-    info.bank_name ? `ชื่อบัญชี: ${info.bank_name}` : null,
-    `ช่องทาง: ${methodTH}`,
+    info.bank_name  ? `ชื่อบัญชี: ${info.bank_name}`          : null,
+    info.refNo      ? `เลขอ้างอิง: ${info.refNo}`             : null,
+    info.note       ? `หมายเหตุ: ${info.note}`                : null,
+    info.adminName  ? `ดำเนินการโดย: ${info.adminName}`       : null,
     `เวลา: ${thaiTime()}`,
   ].filter(Boolean).join('\n');
 
