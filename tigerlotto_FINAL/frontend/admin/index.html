@@ -2612,6 +2612,67 @@ async function triggerAutoFetch(code, btn){
   finally{ if(btn){ btn.disabled=false; btn.textContent='⚡ Fetch ผลทันที'; } }
 }
 
+async function runTNewsDebug(btn){
+  const out = document.getElementById('tnews-debug-out');
+  if(!out) return;
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง Debug...'; }
+  out.style.display='block';
+  out.innerHTML='<div class="card"><div style="color:var(--muted);padding:12px">⏳ กำลังดึงบทความ TNews...</div></div>';
+  try{
+    const d = await apiFetch('/admin/auto-results/tnews-debug',{},'admin');
+    if(d.error){ out.innerHTML=`<div class="card"><div style="color:var(--error,#e74c3c);padding:12px">❌ ${d.error}</div></div>`; return; }
+
+    // ── Parsed Results ──
+    const parsed = d.parsedData || {};
+    const types = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'];
+    const parsedRows = types.map(t => {
+      const r = parsed[t];
+      return `<tr>
+        <td><b>${t}</b></td>
+        <td style="color:var(--gold);font-weight:700;font-size:16px">${r?r.prize_1st:'<span style="color:var(--muted)">ไม่พบ</span>'}</td>
+        <td>${r?r.prize_last_2:'-'}</td>
+        <td>${r?r.prize_2bot||'-':'-'}</td>
+        <td>${r?(r.prize_last_3||[]).join(', '):'-'}</td>
+      </tr>`;
+    }).join('');
+
+    // ── Raw Chunks (all occurrences) ──
+    const raw = d.rawChunks || {};
+    const rawHtml = Object.entries(raw).map(([type, occ])=>{
+      const occArr = Array.isArray(occ) ? occ : [occ];
+      return occArr.map((o,i)=>`
+        <div style="margin-bottom:8px">
+          <div style="font-size:11px;color:var(--muted)">
+            <b>${type}</b> occurrence #${i+1} — header: <code>${o.header||'ไม่พบ'}</code> @ pos ${o.position}
+          </div>
+          ${o.chunk?`<pre style="font-size:11px;background:rgba(0,0,0,.3);padding:8px;border-radius:6px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:120px;overflow-y:auto">${o.chunk.replace(/</g,'&lt;')}</pre>`:'<div style="color:var(--muted);font-size:11px">— ไม่พบ —</div>'}
+        </div>`).join('');
+    }).join('');
+
+    out.innerHTML = `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="margin:0">🔍 TNews Debug</h3>
+        <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="document.getElementById('tnews-debug-out').style.display='none'">✕ ปิด</button>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+        📄 Article URL: <a href="${d.articleUrl||''}" target="_blank" style="color:var(--gold);word-break:break-all">${d.articleUrl||'ไม่พบ'}</a>
+        &nbsp;|&nbsp; Body length: ${d.bodyTextLength||0} chars
+      </div>
+      <h4 style="margin:12px 0 8px">ผลที่ Parse ได้</h4>
+      <div class="tbl-wrap" style="margin-bottom:12px">
+        <table class="tbl"><thead><tr><th>ประเภท</th><th>4 ตัว</th><th>2บน</th><th>2ล่าง</th><th>3ตัว</th></tr></thead>
+        <tbody>${parsedRows}</tbody></table>
+      </div>
+      <h4 style="margin:12px 0 8px">Raw Chunks (ทุก occurrence)</h4>
+      ${rawHtml}
+    </div>`;
+  }catch(e){
+    out.innerHTML=`<div class="card"><div style="color:var(--error,#e74c3c);padding:12px">❌ ${e.message}</div></div>`;
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='🔍 Debug TNews Article'; }
+  }
+}
+
 /* ── Yeekee Auto ── */
 async function loadYeeKee(){
   try{
@@ -4215,7 +4276,9 @@ autoresult:()=>`
 </div>
 <div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
   <button class="btn btn-outline" onclick="loadAutoResult()">🔄 รีเฟรช</button>
-</div>`,
+  <button class="btn btn-outline" id="tnews-dbg-btn" onclick="runTNewsDebug(this)">🔍 Debug TNews Article</button>
+</div>
+<div id="tnews-debug-out" style="display:none;margin-bottom:16px"></div>`,
 
 promotions:()=>`
 <div class="filter-bar">
