@@ -903,7 +903,7 @@ window.API_BASE = (location.hostname === 'localhost' || location.hostname === '1
 // ══════════════════════════════════════════
 
 /* ─── State ─── */
-let curRate = 750, curBetType = '3top', curRoundId = null, otpTimer = null;
+let curRate = 750, curBetType = '3top', curRoundId = null, curLotteryId = null, otpTimer = null;
 
 /* ─── Global state (ต้องประกาศก่อน countdown เพื่อหลีกเลี่ยง TDZ) ─── */
 let _allRounds    = [];
@@ -1222,10 +1222,11 @@ const BET_CFG = {
 let buyCart = [];
 let buySelKeys = new Set();
 
-function openBuy(name, rate, roundId){
+function openBuy(name, rate, roundId, lotteryId){
   if(!window.currentUser){ openAuth('login'); return; }
   document.getElementById('buy-name').textContent = name;
-  if(roundId) curRoundId = roundId;
+  if(roundId)   curRoundId   = roundId;
+  if(lotteryId) curLotteryId = lotteryId;
   buyCart = [];
   buySelKeys.clear();
   document.querySelectorAll('.bet-type').forEach(b => b.classList.remove('on'));
@@ -1325,7 +1326,7 @@ function expandToBets(num, key, amount){
   return bets;
 }
 
-function addToBuyCart(){
+async function addToBuyCart(){
   if(buySelKeys.size === 0){ toast('แจ้งเตือน','กรุณาเลือกประเภทการแทงก่อน'); return; }
   const amt = parseFloat(document.getElementById('buy-amt').value)||0;
   if(amt < 1){ toast('แจ้งเตือน','จำนวนเงินต้องมากกว่า 0'); return; }
@@ -1339,6 +1340,7 @@ function addToBuyCart(){
     if(num.length !== requiredDigits){ toast('แจ้งเตือน',`ต้องกรอกเลข ${requiredDigits} หลัก`); return; }
   }
 
+  const newItems = [];
   buySelKeys.forEach(key => {
     const cfg = BET_CFG[key];
     const inputNum = cfg.digits === 0 ? '' : num;
@@ -1346,12 +1348,47 @@ function addToBuyCart(){
     const desc = cfg.digits === 0
       ? `${cfg.label} (${expanded.length} ใบ)`
       : `${cfg.label} [${inputNum}] (${expanded.length} ใบ)`;
-    buyCart.push({ key, desc, bets: expanded, amount: amt * expanded.length });
+    const item = { key, desc, bets: expanded, amount: amt * expanded.length };
+    buyCart.push(item);
+    newItems.push(item);
   });
 
   document.getElementById('buy-num').value = '';
   renderBuyCart();
   toast('เพิ่มแล้ว','เพิ่มรายการในตะกร้าแล้ว ✅');
+
+  // ─── Async rate check — ดึง rate จริงแล้ว update badges ───
+  await enrichCartRates(newItems);
+  renderBuyCart();
+}
+
+// ดึง rate_override สำหรับ bets ใน items[] แล้วเก็บไว้ที่ bet._rateInfo
+async function enrichCartRates(items){
+  if(!curLotteryId) return;
+  const checks = [];
+  items.forEach(item => {
+    item.bets.forEach(bet => {
+      if(bet.number) checks.push({ number: bet.number, bet_type: bet.bet_type });
+    });
+  });
+  if(!checks.length) return;
+  try {
+    const r = await fetch(`${window.API_BASE||'/api'}/number-limits/rate-check-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lottery_id: curLotteryId, round_id: curRoundId, checks })
+    });
+    const data = await r.json();
+    if(!data.success) return;
+    const rateMap = {};
+    data.results.forEach(res => { rateMap[`${res.number}:${res.bet_type}`] = res; });
+    items.forEach(item => {
+      item.bets.forEach(bet => {
+        const info = rateMap[`${bet.number}:${bet.bet_type}`];
+        if(info) bet._rateInfo = info;
+      });
+    });
+  } catch(e) { /* silent fail — rates just won't show */ }
 }
 
 function renderBuyCart(){
@@ -1370,19 +1407,29 @@ function renderBuyCart(){
   const buckets = { '3 ตัว': [], 'บน': [], 'ล่าง': [] };
 
   buyCart.forEach((item, i) => {
-    // จัดกลุ่ม bets ของ item นี้ตาม bet_type
+    // จัดกลุ่ม bets ของ item นี้ตาม bet_type — เก็บ bet object ทั้งหมด (มี _rateInfo)
     const sub = {};
     item.bets.forEach(bet => {
       const g = BET_GRP[bet.bet_type] || 'บน';
-      if(!sub[g]) sub[g] = { nums:[], amt:0 };
-      sub[g].nums.push(bet.number);
+      if(!sub[g]) sub[g] = { bets:[], amt:0 };
+      sub[g].bets.push(bet);
       sub[g].amt += bet.amount;
     });
     // เพิ่มลง buckets หลัก
     for(const [g, s] of Object.entries(sub)){
-      if(buckets[g]) buckets[g].push({ idx: i, nums: s.nums, amount: s.amt });
+      if(buckets[g]) buckets[g].push({ idx: i, bets: s.bets, amount: s.amt });
     }
   });
+
+  // helpers สร้าง badge อั้น
+  function _rateBadge(rateInfo){
+    if(!rateInfo) return '';
+    if(rateInfo.closed || rateInfo.tier === '3')
+      return `<span style="background:#c0392b;color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:2px;white-space:nowrap">❌ปิด</span>`;
+    if(rateInfo.rate_override !== null && rateInfo.rate_override !== undefined)
+      return `<span style="background:#e67e22;color:#fff;font-size:9px;font-weight:700;border-radius:4px;padding:1px 4px;margin-left:2px;white-space:nowrap">🔸อั้น ×${rateInfo.effective_rate}</span>`;
+    return '';
+  }
 
   let html = '';
   for(const grp of ['3 ตัว','บน','ล่าง']){
@@ -1390,8 +1437,8 @@ function renderBuyCart(){
     html += `<div style="margin:6px 0 3px;font-size:12px;font-weight:700;color:var(--gold)">${grp}</div>`;
     html += `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">`;
     buckets[grp].forEach(e => {
-      const numsHtml = e.nums.map(n =>
-        `<span style="font-weight:700;letter-spacing:1px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px">${n}</span>`
+      const numsHtml = e.bets.map(bet =>
+        `<span style="display:inline-flex;align-items:center;gap:2px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px;font-weight:700;letter-spacing:1px">${bet.number}${_rateBadge(bet._rateInfo)}</span>`
       ).join(' ');
       html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:4px 8px;font-size:13px">
         <span style="display:flex;flex-wrap:wrap;gap:3px;flex:1">${numsHtml}</span>
@@ -1574,7 +1621,7 @@ function _renderLotGroups(filterCode){
     const meta = LOT_TYPE_META[code] || { flag:'🎰' };
     const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
     const isUpcoming = r.status === 'upcoming';
-    const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})"`;
+    const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id},${r.lottery_id})"`;
     const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
     return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
       <div class="lot-card-top">${_tagFor(code)}${_statusFor(r)}</div>
@@ -1585,7 +1632,7 @@ function _renderLotGroups(filterCode){
                    : `<div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>`}
       <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
       ${isUpcoming ? `<button class="lot-btn" disabled style="opacity:.45;cursor:not-allowed">🕐 ยังไม่เปิดรับ</button>`
-                   : `<button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id})">🎰 ซื้อเลย</button>`}
+                   : `<button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id},${r.lottery_id})">🎰 ซื้อเลย</button>`}
     </div>`;
   };
 
@@ -1676,7 +1723,7 @@ function openHanoiSelector(){
       const isUpcoming = r.status === 'upcoming';
       const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
       return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;cursor:${isUpcoming?'not-allowed':'pointer'};opacity:${isUpcoming?.7:1};transition:.2s"
-        ${isUpcoming?'':` onclick="closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id})"`}>
+        ${isUpcoming?'':` onclick="closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id},${r.lottery_id})"`}>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
           <span style="font-size:13px;font-weight:700;color:${VN_COLOR[c]};background:rgba(255,255,255,.06);padding:3px 10px;border-radius:20px">🇻🇳 ${VN_LABEL[c]||c}</span>
           <span style="font-size:10px;color:${isUpcoming?'#ffa500':'#2ed573'};font-weight:700">${isUpcoming?'🕐 เร็วๆนี้':'● เปิดรับ'}</span>
@@ -1685,7 +1732,7 @@ function openHanoiSelector(){
         <div style="font-size:22px;font-weight:900;color:var(--gold2);margin-bottom:6px">฿${Number(r.rate_3top||720).toLocaleString()}x</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ปิดรับ: ${closeStr}</div>
         <div style="font-size:11px;color:var(--dim)">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
-        ${isUpcoming?'':`<button class="lot-btn" style="margin-top:10px" onclick="event.stopPropagation();closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id})">🎰 ซื้อเลย</button>`}
+        ${isUpcoming?'':`<button class="lot-btn" style="margin-top:10px" onclick="event.stopPropagation();closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id},${r.lottery_id})">🎰 ซื้อเลย</button>`}
       </div>`;
     }).join('');
   }).join('');

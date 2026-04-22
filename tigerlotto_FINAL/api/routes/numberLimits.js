@@ -57,6 +57,113 @@ router.get('/', authAdmin, async (req, res) => {
   res.json({ success: true, data: rows, total: cnt[0].c, page: pg, limit: perPage });
 });
 
+// ─── POST /api/number-limits/rate-check-batch ─────────────────────────────────
+// Public endpoint (no auth) — members call this to see effective payout rate
+// Body: { lottery_id, round_id, checks: [{number, bet_type}] }
+// Returns: { results: [{number, bet_type, tier, rate_override, closed, effective_rate}] }
+router.post('/rate-check-batch', async (req, res) => {
+  const { lottery_id, round_id = null, checks = [] } = req.body;
+  if (!lottery_id || !Array.isArray(checks) || checks.length === 0) {
+    return res.json({ success: true, results: [] });
+  }
+
+  // Fetch base rates for this lottery type
+  const ltRows = await query(
+    'SELECT rate_3top,rate_3tod,rate_2top,rate_2bot,rate_run_top,rate_run_bot FROM lottery_types WHERE id=?',
+    [parseInt(lottery_id)]
+  );
+  const lt = ltRows[0] || {};
+  const BASE_RATE = {
+    '3top': lt.rate_3top || 750, '3tod': lt.rate_3tod || 120,
+    '2top': lt.rate_2top || 95,  '2bot': lt.rate_2bot || 90,
+    'run_top': lt.rate_run_top || 3.2, 'run_bot': lt.rate_run_bot || 4.2,
+  };
+
+  // Fetch global caps (number='*') for this lottery+round — one per bet_type
+  const globalRows = await query(
+    `SELECT bet_type, current_tier,
+            tier2_rate, tier2_1_rate, tier2_2_rate, tier2_3_rate
+     FROM number_limits
+     WHERE lottery_id=? AND number='*'
+       AND (round_id=? OR round_id IS NULL)
+     ORDER BY (round_id IS NULL) ASC`,
+    [parseInt(lottery_id), round_id ? parseInt(round_id) : null]
+  );
+  // Build global map: bet_type → first (round-specific preferred)
+  const globalMap = {};
+  for (const g of globalRows) {
+    if (!globalMap[g.bet_type]) globalMap[g.bet_type] = g;
+  }
+
+  // Deduplicate checks to avoid N+1
+  const uniqueKeys = [...new Set(checks.map(c => `${c.number}:${c.bet_type}`))];
+
+  // Fetch all needed per-number rows in one query
+  if (uniqueKeys.length === 0) return res.json({ success: true, results: [] });
+  const numberList  = [...new Set(checks.map(c => c.number))];
+  const betTypeList = [...new Set(checks.map(c => c.bet_type))];
+
+  const placeholders = numberList.map(() => '?').join(',');
+  const btPlaceholders = betTypeList.map(() => '?').join(',');
+  const perNumRows = await query(
+    `SELECT number, bet_type, current_tier,
+            tier2_rate, tier2_1_rate, tier2_2_rate, tier2_3_rate
+     FROM number_limits
+     WHERE lottery_id=? AND number IN (${placeholders}) AND bet_type IN (${btPlaceholders})
+       AND (round_id=? OR round_id IS NULL)
+     ORDER BY (round_id IS NULL) ASC`,
+    [parseInt(lottery_id), ...numberList, ...betTypeList, round_id ? parseInt(round_id) : null]
+  );
+  // Build per-num map: "number:bet_type" → first row (round-specific preferred)
+  const perNumMap = {};
+  for (const r of perNumRows) {
+    const k = `${r.number}:${r.bet_type}`;
+    if (!perNumMap[k]) perNumMap[k] = r;
+  }
+
+  function getTierRate(row) {
+    if (!row) return null;
+    const t = row.current_tier;
+    if (t === '1') return null; // full rate
+    if (t === '2') return parseFloat(row.tier2_rate) || 100;
+    if (t === '2.1') return parseFloat(row.tier2_1_rate) || null;
+    if (t === '2.2') return parseFloat(row.tier2_2_rate) || null;
+    if (t === '2.3') return parseFloat(row.tier2_3_rate) || null;
+    if (t === '3') return 0; // closed
+    return null;
+  }
+
+  const results = checks.map(({ number, bet_type }) => {
+    const gRow = globalMap[bet_type] || null;
+    const nRow = perNumMap[`${number}:${bet_type}`] || null;
+
+    const gRate = getTierRate(gRow);
+    const nRate = getTierRate(nRow);
+
+    let rate_override = null;
+    if (gRate !== null && nRate !== null) rate_override = Math.min(gRate, nRate);
+    else if (gRate !== null) rate_override = gRate;
+    else if (nRate !== null) rate_override = nRate;
+
+    const closed = rate_override === 0 ||
+                   gRow?.current_tier === '3' || nRow?.current_tier === '3';
+
+    const base = BASE_RATE[bet_type] || null;
+    const effective_rate = closed ? 0
+      : (rate_override !== null && base !== null)
+        ? Math.round(base * rate_override / 100 * 100) / 100
+        : base;
+
+    const tier = closed ? '3'
+      : (nRow?.current_tier !== '1' && nRow?.current_tier ? nRow.current_tier
+        : (gRow?.current_tier !== '1' && gRow?.current_tier ? gRow.current_tier : '1'));
+
+    return { number, bet_type, tier, rate_override, closed, effective_rate, base_rate: base };
+  });
+
+  res.json({ success: true, results });
+});
+
 // ─── GET /api/number-limits/lottery-types ─────────────────────────────────────
 // Helper: list lottery types for dropdowns
 router.get('/lottery-types', authAdmin, async (req, res) => {
