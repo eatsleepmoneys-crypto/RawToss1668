@@ -2783,8 +2783,10 @@ function toast(t,m,dur=3500){
 }
 
 // ═══ MODAL ═══
-function openModal(html){
+function openModal(html, opts={}){
   document.getElementById('modal-body').innerHTML=html;
+  const box = document.querySelector('.modal');
+  if (box) box.style.maxWidth = opts.wide ? '900px' : '520px';
   document.getElementById('modal-bg').classList.add('on');
 }
 function closeModal(){document.getElementById('modal-bg').classList.remove('on');}
@@ -3765,6 +3767,7 @@ PAGES.numlimits = () => `
     <option value="run_top">วิ่งบน</option>
     <option value="run_bot">วิ่งล่าง</option>
   </select>
+
   <input id="nl-num-search" class="fi" placeholder="🔍 ค้นหาเลข..." style="width:160px" oninput="loadNumLimits()">
   <button class="btn-g" onclick="openNumLimitModal()">➕ เพิ่มอั้นหวย</button>
   <button class="btn-sec" onclick="openBulkNumLimitModal()">📋 เพิ่มหลายเลข</button>
@@ -3875,7 +3878,7 @@ async function loadNumLimits(page) {
     tbody.innerHTML = r.data.map(nl => `
       <tr>
         <td><b style="font-size:16px;color:var(--gold2)">${nl.number}</b></td>
-        <td><span style="background:var(--card2);padding:2px 7px;border-radius:5px;font-size:12px">${nl.bet_type}</span></td>
+        <td><span style="background:var(--card2);padding:2px 7px;border-radius:5px;font-size:12px">${BT_LABEL[nl.bet_type]||nl.bet_type}</span></td>
         <td>${tierBadge(nl.current_tier)}</td>
         <td style="font-size:12px">${fmtUsed(nl.tier1_used, nl.tier1_limit)}</td>
         <td style="font-size:12px">${fmtTierCell(nl.tier2_rate, nl.tier2_used, nl.tier2_limit)}</td>
@@ -3895,11 +3898,71 @@ async function loadNumLimits(page) {
   }
 }
 
+// ─── Thai labels for bet types ────────────────────────────────────────────────
+const BT_LABEL = {
+  '3top':'3 ตัวบน','3tod':'3 โต๊ด',
+  '2top':'2 ตัวบน','2bot':'2 ตัวล่าง',
+  'run_top':'วิ่งบน','run_bot':'วิ่งล่าง'
+};
+
+function _nlTierTableRows(group, existingRows) {
+  // existingRows: array of nl rows (one per bet_type) that already exist for this number
+  const ex = {};
+  (existingRows||[]).forEach(r => ex[r.bet_type] = r);
+  const thStyle = 'padding:7px 10px;text-align:center;font-size:11px;color:var(--muted);font-weight:600;white-space:nowrap;border-bottom:1px solid var(--border)';
+  const tdStyle = 'padding:4px 5px';
+  const inp = (bt, field, val, ph='') =>
+    `<input id="nl-m-${bt}-${field}" type="number" min="0" step="any"
+      style="width:72px;padding:5px 7px;background:var(--card3);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;text-align:center"
+      placeholder="${ph}" value="${val}">`;
+
+  const headerCols = [
+    'ประเภท',
+    '🟢 ถัง1<br><small>จำกัด</small>',
+    '🟡 ถัง2<br><small>Rate%</small>',
+    '🟡 ถัง2<br><small>จำกัด</small>',
+    'ถัง2.1<br><small>Rate%</small>',
+    'ถัง2.1<br><small>จำกัด</small>',
+    'ถัง2.2<br><small>Rate%</small>',
+    'ถัง2.2<br><small>จำกัด</small>',
+    'ถัง2.3<br><small>Rate%</small>',
+    'ถัง2.3<br><small>จำกัด</small>',
+  ];
+
+  const rows = group.map(bt => {
+    const d = ex[bt] || {};
+    return `<tr>
+      <td style="${tdStyle};padding-left:10px;font-weight:700;font-size:13px;white-space:nowrap">${BT_LABEL[bt]}</td>
+      <td style="${tdStyle}">${inp(bt,'t1l', d.tier1_limit??0)}</td>
+      <td style="${tdStyle}">${inp(bt,'t2r', d.tier2_rate??100)}</td>
+      <td style="${tdStyle}">${inp(bt,'t2l', d.tier2_limit??0)}</td>
+      <td style="${tdStyle}">${inp(bt,'t21r', d.tier2_1_rate??'','ว่าง')}</td>
+      <td style="${tdStyle}">${inp(bt,'t21l', d.tier2_1_limit??0)}</td>
+      <td style="${tdStyle}">${inp(bt,'t22r', d.tier2_2_rate??'','ว่าง')}</td>
+      <td style="${tdStyle}">${inp(bt,'t22l', d.tier2_2_limit??0)}</td>
+      <td style="${tdStyle}">${inp(bt,'t23r', d.tier2_3_rate??'','ว่าง')}</td>
+      <td style="${tdStyle}">${inp(bt,'t23l', d.tier2_3_limit??0)}</td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div style="overflow-x:auto;margin-bottom:12px">
+      <table style="width:100%;border-collapse:collapse;min-width:620px">
+        <thead><tr>${headerCols.map(h=>`<th style="${thStyle}">${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
 function openNumLimitModal(existingData) {
-  const d = existingData || {};
+  // existingData can be a single row (edit mode) or an array (multi-bet-type for same number)
+  const rows = Array.isArray(existingData) ? existingData : (existingData ? [existingData] : []);
+  const first = rows[0] || {};
+  const isEdit = rows.length > 0;
+
   openModal(`
-    <h3 style="margin-bottom:16px">${d.id ? '✏️ แก้ไขอั้นหวย' : '➕ เพิ่มอั้นหวย'}</h3>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <h3 style="margin-bottom:14px">${isEdit ? '✏️ แก้ไขอั้นหวย' : '➕ เพิ่มอั้นหวย'}</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px">
       <div class="fg"><label>ประเภทหวย *</label>
         <select id="nl-m-lt" class="fi-full" onchange="nlModalLoadRounds()">${_nlLotteryOptions()}</select>
       </div>
@@ -3907,54 +3970,29 @@ function openNumLimitModal(existingData) {
         <select id="nl-m-round" class="fi-full"><option value="">-- template ทุกงวด --</option></select>
       </div>
       <div class="fg"><label>เลข *</label>
-        <input id="nl-m-number" class="fi-full" placeholder="เช่น 999" value="${d.number||''}">
-      </div>
-      <div class="fg"><label>ประเภทการแทง *</label>
-        <select id="nl-m-bt" class="fi-full">
-          ${['3top','3tod','2top','2bot','run_top','run_bot'].map(bt=>`<option value="${bt}" ${d.bet_type===bt?'selected':''}>${bt}</option>`).join('')}
-        </select>
+        <input id="nl-m-number" class="fi-full" placeholder="เช่น 999" value="${first.number||''}">
       </div>
     </div>
-    <div style="background:var(--card2);border-radius:10px;padding:14px;margin:14px 0">
-      <div style="font-size:13px;color:var(--gold);font-weight:700;margin-bottom:10px">⚙️ ตั้งค่าถัง</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="fg"><label>🟢 ถัง 1 จำกัด (0=ไม่จำกัด)</label>
-          <input id="nl-m-t1l" class="fi-full" type="number" min="0" step="100" value="${d.tier1_limit||0}">
-        </div>
-        <div></div>
-        <div class="fg"><label>🟡 ถัง 2 Rate (%)</label>
-          <input id="nl-m-t2r" class="fi-full" type="number" min="1" max="100" step="5" value="${d.tier2_rate??100}">
-        </div>
-        <div class="fg"><label>🟡 ถัง 2 จำกัด (0=ไม่จำกัด)</label>
-          <input id="nl-m-t2l" class="fi-full" type="number" min="0" step="100" value="${d.tier2_limit||0}">
-        </div>
-        <div class="fg"><label>ถัง 2.1 Rate (%) — ว่าง=ข้าม</label>
-          <input id="nl-m-t21r" class="fi-full" type="number" min="1" max="100" step="5" placeholder="ว่าง=ไม่ใช้" value="${d.tier2_1_rate??''}">
-        </div>
-        <div class="fg"><label>ถัง 2.1 จำกัด</label>
-          <input id="nl-m-t21l" class="fi-full" type="number" min="0" step="100" value="${d.tier2_1_limit||0}">
-        </div>
-        <div class="fg"><label>ถัง 2.2 Rate (%)</label>
-          <input id="nl-m-t22r" class="fi-full" type="number" min="1" max="100" step="5" placeholder="ว่าง=ไม่ใช้" value="${d.tier2_2_rate??''}">
-        </div>
-        <div class="fg"><label>ถัง 2.2 จำกัด</label>
-          <input id="nl-m-t22l" class="fi-full" type="number" min="0" step="100" value="${d.tier2_2_limit||0}">
-        </div>
-        <div class="fg"><label>ถัง 2.3 Rate (%)</label>
-          <input id="nl-m-t23r" class="fi-full" type="number" min="1" max="100" step="5" placeholder="ว่าง=ไม่ใช้" value="${d.tier2_3_rate??''}">
-        </div>
-        <div class="fg"><label>ถัง 2.3 จำกัด</label>
-          <input id="nl-m-t23l" class="fi-full" type="number" min="0" step="100" value="${d.tier2_3_limit||0}">
-        </div>
-      </div>
+
+    <div style="background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">📋 3 ตัว</div>
+      ${_nlTierTableRows(['3top','3tod'], rows)}
     </div>
-    ${d.id ? `<input type="hidden" id="nl-m-id" value="${d.id}">` : ''}
-    <button class="btn-g" style="width:100%" onclick="saveNumLimit()">💾 บันทึก</button>
-  `);
-  if (d.id) {
-    // pre-select lottery
+
+    <div style="background:var(--card2);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px">📋 2 ตัว + วิ่ง</div>
+      ${_nlTierTableRows(['2top','2bot','run_top','run_bot'], rows)}
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+      💡 ถัง1 จำกัด = ยอดรวมก่อนขยับถัง (0=ไม่จำกัด) &nbsp;|&nbsp; ถัง2 Rate% = % จ่ายในถัง2 &nbsp;|&nbsp; ถัง2.1–2.3 = sub-tier (ว่าง=ข้าม)
+    </div>
+    <button class="btn-g" style="width:100%" onclick="saveNumLimit()">💾 บันทึกทั้งหมด</button>
+  `, { wide: true });
+
+  if (first.lottery_id) {
     const ltSel = document.getElementById('nl-m-lt');
-    if (ltSel && d.lottery_id) { ltSel.value = d.lottery_id; nlModalLoadRounds(d.round_id); }
+    if (ltSel) { ltSel.value = first.lottery_id; nlModalLoadRounds(first.round_id); }
   } else {
     nlModalLoadRounds();
   }
@@ -3988,42 +4026,60 @@ async function nlModalLoadRounds(preselect) {
 }
 
 async function saveNumLimit() {
-  const id       = document.getElementById('nl-m-id')?.value;
-  const payload  = {
-    lottery_id : document.getElementById('nl-m-lt')?.value,
-    round_id   : document.getElementById('nl-m-round')?.value || null,
-    number     : document.getElementById('nl-m-number')?.value?.trim(),
-    bet_type   : document.getElementById('nl-m-bt')?.value,
-    tier1_limit  : parseFloat(document.getElementById('nl-m-t1l')?.value) || 0,
-    tier2_rate   : parseFloat(document.getElementById('nl-m-t2r')?.value) || 100,
-    tier2_limit  : parseFloat(document.getElementById('nl-m-t2l')?.value) || 0,
-    tier2_1_rate : document.getElementById('nl-m-t21r')?.value !== '' ? parseFloat(document.getElementById('nl-m-t21r')?.value) : null,
-    tier2_1_limit: parseFloat(document.getElementById('nl-m-t21l')?.value) || 0,
-    tier2_2_rate : document.getElementById('nl-m-t22r')?.value !== '' ? parseFloat(document.getElementById('nl-m-t22r')?.value) : null,
-    tier2_2_limit: parseFloat(document.getElementById('nl-m-t22l')?.value) || 0,
-    tier2_3_rate : document.getElementById('nl-m-t23r')?.value !== '' ? parseFloat(document.getElementById('nl-m-t23r')?.value) : null,
-    tier2_3_limit: parseFloat(document.getElementById('nl-m-t23l')?.value) || 0,
-  };
-  if (!payload.lottery_id || !payload.number || !payload.bet_type) {
-    return toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบ','error');
+  const lottery_id = document.getElementById('nl-m-lt')?.value;
+  const round_id   = document.getElementById('nl-m-round')?.value || null;
+  const number     = document.getElementById('nl-m-number')?.value?.trim();
+  if (!lottery_id || !number) {
+    return toast('ผิดพลาด','กรุณาระบุประเภทหวยและเลข','error');
   }
-  try {
-    const r = id
-      ? await apiFetch('/number-limits/'+id, { method: 'PATCH', body: JSON.stringify(payload) }, 'admin')
-      : await apiFetch('/number-limits', { method: 'POST', body: JSON.stringify(payload) }, 'admin');
-    if (!r.success) throw new Error(r.message);
-    toast('สำเร็จ', id ? 'อัปเดตแล้ว' : 'เพิ่มแล้ว');
-    closeModal(); loadNumLimits();
-  } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
+
+  const ALL_BET_TYPES = ['3top','3tod','2top','2bot','run_top','run_bot'];
+  const v = (bt, field) => {
+    const el = document.getElementById(`nl-m-${bt}-${field}`);
+    return el ? el.value : '';
+  };
+  const fNum = (s, def=0) => s===''||s===undefined ? def : parseFloat(s)||def;
+  const fOpt = (s) => s===''||s===undefined ? null : parseFloat(s)||null;
+
+  let saved = 0, errors = [];
+  for (const bt of ALL_BET_TYPES) {
+    const payload = {
+      lottery_id, round_id, number, bet_type: bt,
+      tier1_limit  : fNum(v(bt,'t1l')),
+      tier2_rate   : fNum(v(bt,'t2r'), 100),
+      tier2_limit  : fNum(v(bt,'t2l')),
+      tier2_1_rate : fOpt(v(bt,'t21r')),
+      tier2_1_limit: fNum(v(bt,'t21l')),
+      tier2_2_rate : fOpt(v(bt,'t22r')),
+      tier2_2_limit: fNum(v(bt,'t22l')),
+      tier2_3_rate : fOpt(v(bt,'t23r')),
+      tier2_3_limit: fNum(v(bt,'t23l')),
+    };
+    try {
+      const r = await apiFetch('/number-limits', { method: 'POST', body: JSON.stringify(payload) }, 'admin');
+      if (!r.success) throw new Error(r.message);
+      saved++;
+    } catch(e) { errors.push(`${BT_LABEL[bt]}: ${e.message}`); }
+  }
+
+  if (errors.length) toast('บางรายการผิดพลาด', errors.join(' | '), 'error');
+  else toast('สำเร็จ', `บันทึก ${saved} ประเภทแล้ว`);
+  closeModal(); loadNumLimits();
 }
 
 async function editNumLimit(id) {
   try {
-    // fetch single row via list with tight filter
+    // fetch the clicked row first to get number + lottery_id + round_id
     const r = await apiFetch('/number-limits?page=1&limit=500', {}, 'admin');
-    const row = r.data?.find(x => x.id === id);
-    if (!row) { toast('ผิดพลาด','ไม่พบข้อมูล','error'); return; }
-    openNumLimitModal(row);
+    const clicked = r.data?.find(x => x.id === id);
+    if (!clicked) { toast('ผิดพลาด','ไม่พบข้อมูล','error'); return; }
+    // fetch all rows for same number+lottery+round so modal pre-fills all bet types
+    const allForNum = r.data.filter(x =>
+      x.number === clicked.number &&
+      x.lottery_id === clicked.lottery_id &&
+      String(x.round_id||'') === String(clicked.round_id||'')
+    );
+    openNumLimitModal(allForNum);
   } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
 }
 
@@ -4053,7 +4109,8 @@ function openBulkNumLimitModal() {
     </div>
     <div class="fg"><label>ประเภทการแทง *</label>
       <select id="nl-bm-bt" class="fi-full">
-        ${['3top','3tod','2top','2bot','run_top','run_bot'].map(bt=>`<option value="${bt}">${bt}</option>`).join('')}
+        <option value="">-- ทุกประเภท (บันทึกทั้ง 6) --</option>
+        ${Object.entries(BT_LABEL).map(([v,t])=>`<option value="${v}">${t}</option>`).join('')}
       </select>
     </div>
     <div class="fg"><label>เลขที่ต้องการอั้น * (คั่นด้วย , หรือ Enter)</label>
