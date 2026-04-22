@@ -921,7 +921,8 @@ select.fi option{background:var(--card2)}
     <div class="mpanel-tabs">
       <button class="mpanel-tab"    id="mpt-profile" onclick="mpTab('profile')">👤 ข้อมูล</button>
       <button class="mpanel-tab on" id="mpt-bets"    onclick="mpTab('bets')">🎫 ประวัติ</button>
-      <button class="mpanel-tab"    id="mpt-tx"      onclick="mpTab('tx')">💳 ฝาก-ถอน</button>
+      <button class="mpanel-tab"    id="mpt-wallet"  onclick="mpTab('wallet')">💳 ฝาก-ถอน</button>
+      <button class="mpanel-tab"    id="mpt-tx"      onclick="mpTab('tx')">📋 ธุรกรรม</button>
       <button class="mpanel-tab"    id="mpt-refer"   onclick="mpTab('refer')">🔗 แนะนำ</button>
       <button class="mpanel-tab"    id="mpt-notif"   onclick="mpTab('notif')">🔔<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
     </div>
@@ -932,6 +933,36 @@ select.fi option{background:var(--card2)}
       </div>
       <div class="mpanel-sec on" id="mps-bets">
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-wallet">
+        <div style="padding:8px 0 4px;display:flex;flex-direction:column;gap:14px">
+          <!-- เติมเงิน -->
+          <button onclick="closeMPanel();openDeposit();" style="
+            display:flex;align-items:center;justify-content:center;gap:12px;
+            width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(99,179,118,.45);
+            background:rgba(99,179,118,.10);cursor:pointer;
+            font-size:17px;font-weight:800;color:#86efac;letter-spacing:.5px;
+            transition:background .18s,border-color .18s">
+            <span style="font-size:26px">⬇️</span>
+            <div style="text-align:left">
+              <div>เติมเงิน</div>
+              <div style="font-size:12px;font-weight:500;color:#4ade80;opacity:.8;margin-top:2px">ฝากเงินเข้ากระเป๋า</div>
+            </div>
+          </button>
+          <!-- ถอนเงิน -->
+          <button onclick="closeMPanel();openWithdraw();" style="
+            display:flex;align-items:center;justify-content:center;gap:12px;
+            width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(212,160,23,.45);
+            background:rgba(212,160,23,.10);cursor:pointer;
+            font-size:17px;font-weight:800;color:var(--gold2);letter-spacing:.5px;
+            transition:background .18s,border-color .18s">
+            <span style="font-size:26px">⬆️</span>
+            <div style="text-align:left">
+              <div>ถอนเงิน</div>
+              <div style="font-size:12px;font-weight:500;color:var(--gold);opacity:.8;margin-top:2px">ถอนเงินออกจากกระเป๋า</div>
+            </div>
+          </button>
+        </div>
       </div>
       <div class="mpanel-sec" id="mps-tx">
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
@@ -2358,7 +2389,7 @@ function closeMPanel(){
 
 function mpTab(tab){
   _mpActive = tab;
-  ['profile','bets','tx','refer','notif'].forEach(t=>{
+  ['profile','bets','wallet','tx','refer','notif'].forEach(t=>{
     document.getElementById('mpt-'+t)?.classList.toggle('on', t===tab);
     document.getElementById('mps-'+t)?.classList.toggle('on', t===tab);
   });
@@ -2367,6 +2398,7 @@ function mpTab(tab){
   if(tab==='tx'      && !_mpLoaded.tx)      loadTxHistory();
   if(tab==='refer'   && !_mpLoaded.refer)   loadReferralPanel();
   if(tab==='notif'   && !_mpLoaded.notif)   loadNotifications();
+  // wallet tab: static content, no async load needed
 }
 
 /* ── Profile & Level Tab ── */
