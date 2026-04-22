@@ -2680,8 +2680,7 @@ async function runPressDebug(btn){
   out.style.display='block';
   out.innerHTML='<div class="card"><div style="color:var(--muted);padding:12px">⏳ กำลังดึงข้อมูลจาก press.in.th...</div></div>';
   try{
-    const r = await fetch('/api/admin/auto-results/press-debug', { headers: {'Authorization':'Bearer '+getToken()} });
-    const d = await r.json();
+    const d = await apiFetch('/admin/auto-results/press-debug', {}, 'admin');
     if(d.error){
       out.innerHTML=`<div class="card"><div style="color:var(--error,#e74c3c);padding:12px">❌ ${d.error}</div></div>`;
       return;
