@@ -2823,6 +2823,9 @@ async function submitFixResult(btn){
 
   const roundName = document.getElementById('fix-round')?.options[document.getElementById('fix-round').selectedIndex]?.text?.trim() || `งวด ${roundId}`;
 
+  // เก็บ pending fix ไว้ใน global variable — หลีกเลี่ยง JSON ใน onclick attribute
+  window._pendingFix = { roundId, payload };
+
   // Confirm dialog
   const confirmHtml = `
 <h3 style="margin-bottom:12px">⚠️ ยืนยัน FIX ผล</h3>
@@ -2834,22 +2837,26 @@ async function submitFixResult(btn){
 </div>
 <div style="display:flex;gap:8px;justify-content:flex-end">
   <button class="btn btn-outline" onclick="openFixResultModal()">⬅ กลับแก้ไข</button>
-  <button class="btn" style="background:var(--red);color:#fff" id="fix-confirm-final-btn" onclick="doFixResult(${roundId},${JSON.stringify(payload).replace(/'/g,"&#39;")})">✅ ยืนยัน FIX</button>
+  <button class="btn" style="background:var(--red);color:#fff" id="fix-confirm-final-btn" onclick="doFixResult(this)">✅ ยืนยัน FIX</button>
 </div>`;
   openModal(confirmHtml);
 }
 
-async function doFixResult(roundId, payload){
-  const btn = document.getElementById('fix-confirm-final-btn');
+async function doFixResult(btn){
+  if(!window._pendingFix){ toast('ผิดพลาด','ไม่พบข้อมูล FIX','error'); return; }
+  const { roundId, payload } = window._pendingFix;
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง FIX...'; }
   try{
     const d = await API.AdminAPI.fixResult(roundId, payload);
     closeModal();
     if(d.success){
+      window._pendingFix = null;
+      closeModal();
       toast('FIX สำเร็จ!', `จ่ายรางวัลใหม่แล้ว — ชนะ: ${d.winners||0} ราย / ยอดรวม: ฿${(d.total_payout||0).toLocaleString()}`, 'success');
       setTimeout(loadAutoResult, 1000);
     } else {
       toast('ผิดพลาด', d.message||'ไม่ทราบสาเหตุ', 'error');
+      if(btn){ btn.disabled=false; btn.textContent='✅ ยืนยัน FIX'; }
     }
   }catch(e){
     toast('ผิดพลาด', e.message, 'error');
