@@ -2614,6 +2614,248 @@ async function triggerAutoFetch(code, btn){
   finally{ if(btn){ btn.disabled=false; btn.textContent='⚡ Fetch ผลทันที'; } }
 }
 
+// ══════════════════════════════════════════════════════
+//  FIX ผลย้อนหลัง — แก้ผลที่ fetch มาผิด
+// ══════════════════════════════════════════════════════
+const FIX_LOTTERY_TYPES = [
+  { code:'TH_GOV', label:'🇹🇭 หวยรัฐบาลไทย' },
+  { code:'LA_GOV', label:'🇱🇦 ลาวพัฒนา' },
+  { code:'VN_HAN', label:'🇻🇳 ฮานอยปกติ' },
+  { code:'VN_HAN_SP', label:'🇻🇳 ฮานอยพิเศษ' },
+  { code:'VN_HAN_VIP', label:'🇻🇳 ฮานอย VIP' },
+];
+
+function openFixResultModal(){
+  const typeOpts = FIX_LOTTERY_TYPES.map(t=>`<option value="${t.code}">${t.label}</option>`).join('');
+  openModal(`
+<h3 style="margin-bottom:16px">🔧 FIX ผลย้อนหลัง</h3>
+<div class="alert" style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:16px;color:#ff9aa2">
+  ⚠️ ระบบจะ <b>ยกเลิกเงินรางวัลเดิม</b> และ <b>คำนวณใหม่</b> จากผลที่แก้ไข — กรุณาตรวจสอบให้ถี่ถ้วน
+</div>
+
+<div class="lg">
+  <label>ประเภทหวย</label>
+  <select id="fix-type" class="li" onchange="loadFixRounds(this.value)">
+    <option value="">— เลือกประเภทหวย —</option>
+    ${typeOpts}
+  </select>
+</div>
+
+<div class="lg">
+  <label>งวด (เฉพาะงวดที่ประกาศแล้ว)</label>
+  <select id="fix-round" class="li" disabled>
+    <option value="">— เลือกประเภทหวยก่อน —</option>
+  </select>
+</div>
+
+<div id="fix-round-result" style="display:none;background:rgba(255,215,0,.08);border:1px solid rgba(255,215,0,.2);border-radius:8px;padding:10px 14px;font-size:13px;margin-bottom:12px;color:var(--gold)"></div>
+
+<div id="fix-prize-fields" style="display:none">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+    <div class="lg" style="margin:0">
+      <label id="fix-p1-label">เลขที่ 1 (6 หลัก)</label>
+      <input type="text" id="fix-prize-1st" class="li" maxlength="6" placeholder="เช่น 288257" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    </div>
+    <div class="lg" style="margin:0">
+      <label id="fix-p2-label">เลขท้าย 2 ตัว</label>
+      <input type="text" id="fix-prize-last2" class="li" maxlength="2" placeholder="เช่น 57" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+    </div>
+  </div>
+  <div id="fix-extra-fields"></div>
+</div>
+
+<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+  <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+  <button class="btn" id="fix-submit-btn" style="background:var(--red);color:#fff" onclick="submitFixResult(this)" disabled>🔧 ยืนยัน FIX ผล</button>
+</div>
+  `);
+}
+
+async function loadFixRounds(type){
+  const sel = document.getElementById('fix-round');
+  const prizeFields = document.getElementById('fix-prize-fields');
+  const submitBtn = document.getElementById('fix-submit-btn');
+  const resultInfo = document.getElementById('fix-round-result');
+  if(!sel) return;
+
+  if(!type){
+    sel.innerHTML='<option value="">— เลือกประเภทหวยก่อน —</option>';
+    sel.disabled = true;
+    if(prizeFields) prizeFields.style.display='none';
+    if(submitBtn) submitBtn.disabled=true;
+    return;
+  }
+
+  sel.innerHTML='<option>⏳ กำลังโหลด...</option>';
+  sel.disabled=true;
+  if(prizeFields) prizeFields.style.display='none';
+  if(submitBtn) submitBtn.disabled=true;
+  if(resultInfo) resultInfo.style.display='none';
+
+  try{
+    const d = await API.AdminAPI.listRoundsAdmin({ lottery_type:type, status:'announced', limit:50 });
+    const rounds = d.data || [];
+    if(!rounds.length){
+      sel.innerHTML='<option value="">— ไม่มีงวดที่ประกาศแล้ว —</option>';
+      sel.disabled=true;
+      return;
+    }
+    sel.innerHTML = '<option value="">— เลือกงวด —</option>' +
+      rounds.map(r=>`<option value="${r.id}" data-name="${(r.name||r.round_name||'').replace(/"/g,'&quot;')}"
+        data-p1="${r.prize_1st||''}" data-p2="${r.prize_last_2||''}" data-p2bot="${r.prize_2bot||''}"
+        data-p3f="${(r.prize_front_3||[]).join(',')}" data-p3b="${(r.prize_last_3||[]).join(',')}"
+        data-type="${type}">
+        ${UI.formatDateOnly(r.draw_date)} — ${r.name||r.round_name||'งวด '+r.id}
+      </option>`).join('');
+    sel.disabled=false;
+    sel.onchange = () => onFixRoundChange(type);
+  }catch(e){
+    sel.innerHTML=`<option>❌ โหลดไม่ได้: ${e.message}</option>`;
+    sel.disabled=true;
+  }
+}
+
+function onFixRoundChange(type){
+  const sel = document.getElementById('fix-round');
+  const prizeFields = document.getElementById('fix-prize-fields');
+  const submitBtn = document.getElementById('fix-submit-btn');
+  const resultInfo = document.getElementById('fix-round-result');
+  const extraFields = document.getElementById('fix-extra-fields');
+  if(!sel) return;
+
+  const opt = sel.options[sel.selectedIndex];
+  const roundId = sel.value;
+
+  if(!roundId){
+    if(prizeFields) prizeFields.style.display='none';
+    if(submitBtn) submitBtn.disabled=true;
+    if(resultInfo) resultInfo.style.display='none';
+    return;
+  }
+
+  // Show current result info
+  const curP1 = opt.dataset.p1;
+  const curP2 = opt.dataset.p2;
+  const curP2bot = opt.dataset.p2bot;
+  if(resultInfo){
+    resultInfo.style.display='block';
+    resultInfo.innerHTML = `📋 ผลปัจจุบัน: <b style="font-size:16px;letter-spacing:2px">${curP1||'—'}</b>` +
+      (curP2bot ? ` &nbsp;|&nbsp; 2บน: <b>${curP2||'—'}</b> 2ล่าง: <b>${curP2bot||'—'}</b>`
+                : ` &nbsp;|&nbsp; ท้าย 2: <b>${curP2||'—'}</b>`);
+  }
+
+  // Pre-fill prize inputs with current values
+  const p1In = document.getElementById('fix-prize-1st');
+  const p2In = document.getElementById('fix-prize-last2');
+  if(p1In) p1In.value = curP1||'';
+  if(p2In) p2In.value = curP2||'';
+
+  // Extra fields for LA_GOV / TH_GOV / VN_HAN
+  if(extraFields){
+    if(type==='LA_GOV'){
+      extraFields.innerHTML=`
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+        💡 สำหรับลาว: <b>เลขที่ 1 = 4 ตัวบน</b> (6 หลัก เช่น 288257) → ระบบจะดึง 2บน=28 / 3ตัว=882 / 2ล่าง=57 อัตโนมัติ
+      </div>`;
+    } else if(type==='TH_GOV'){
+      const curP3f = opt.dataset.p3f;
+      const curP3b = opt.dataset.p3b;
+      extraFields.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div class="lg" style="margin:0">
+          <label>3 ตัวหน้า (คั่นด้วย ,)</label>
+          <input type="text" id="fix-prize-front3" class="li" placeholder="เช่น 123,456" value="${curP3f||''}">
+        </div>
+        <div class="lg" style="margin:0">
+          <label>3 ตัวหลัง (คั่นด้วย ,)</label>
+          <input type="text" id="fix-prize-last3" class="li" placeholder="เช่น 789,012" value="${curP3b||''}">
+        </div>
+      </div>`;
+    } else {
+      extraFields.innerHTML='';
+    }
+  }
+
+  // Update label for LA_GOV
+  const p1Label = document.getElementById('fix-p1-label');
+  const p2Label = document.getElementById('fix-p2-label');
+  if(type==='LA_GOV'){
+    if(p1Label) p1Label.textContent = 'เลขที่ 1 — 6 หลัก (ดึง 2บน/3ตัว/2ล่าง อัตโนมัติ)';
+    if(p2Label) p2Label.style.display='none';
+    const p2Wrap = p2In && p2In.closest('.lg');
+    if(p2Wrap) p2Wrap.style.display='none';
+  } else {
+    if(p1Label) p1Label.textContent = 'เลขที่ 1 (6 หลัก)';
+    if(p2Label){ p2Label.style.display=''; p2Label.textContent='เลขท้าย 2 ตัว'; }
+    const p2Wrap = p2In && p2In.closest('.lg');
+    if(p2Wrap) p2Wrap.style.display='';
+  }
+
+  if(prizeFields) prizeFields.style.display='block';
+  if(submitBtn) submitBtn.disabled=false;
+}
+
+async function submitFixResult(btn){
+  const type = document.getElementById('fix-type')?.value;
+  const roundId = document.getElementById('fix-round')?.value;
+  const prize1st = document.getElementById('fix-prize-1st')?.value.trim();
+  const prizeLast2 = document.getElementById('fix-prize-last2')?.value.trim();
+  const prizeFront3Raw = document.getElementById('fix-prize-front3')?.value.trim();
+  const prizeLast3Raw = document.getElementById('fix-prize-last3')?.value.trim();
+
+  if(!roundId){ toast('ข้อผิดพลาด','กรุณาเลือกงวด','error'); return; }
+  if(!prize1st || prize1st.length!==6){ toast('ข้อผิดพลาด','เลขที่ 1 ต้องมี 6 หลัก','error'); return; }
+  if(type!=='LA_GOV' && (!prizeLast2 || prizeLast2.length!==2)){
+    toast('ข้อผิดพลาด','เลขท้าย 2 ตัว ต้องมี 2 หลัก','error'); return;
+  }
+
+  // Build payload
+  const payload = { prize_1st: prize1st };
+  if(type==='LA_GOV'){
+    // Backend will derive 2bot/3top from prize_1st
+    payload.prize_last_2 = prize1st.slice(-2);
+  } else {
+    payload.prize_last_2 = prizeLast2;
+  }
+  if(prizeFront3Raw) payload.prize_front_3 = prizeFront3Raw.split(',').map(s=>s.trim()).filter(Boolean);
+  if(prizeLast3Raw)  payload.prize_last_3  = prizeLast3Raw.split(',').map(s=>s.trim()).filter(Boolean);
+
+  const roundName = document.getElementById('fix-round')?.options[document.getElementById('fix-round').selectedIndex]?.text?.trim() || `งวด ${roundId}`;
+
+  // Confirm dialog
+  const confirmHtml = `
+<h3 style="margin-bottom:12px">⚠️ ยืนยัน FIX ผล</h3>
+<div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
+  <div style="margin-bottom:6px">📅 งวด: <b>${roundName}</b></div>
+  <div style="margin-bottom:6px">🎯 ผลใหม่: <b style="font-size:20px;color:var(--gold);letter-spacing:3px">${prize1st}</b></div>
+  ${type!=='LA_GOV'?`<div style="margin-bottom:6px">ท้าย 2: <b>${prizeLast2}</b></div>`:''}
+  <div style="margin-top:8px;color:#ff9aa2;font-size:12px">ระบบจะยกเลิกเงินรางวัลเดิมและจ่ายใหม่ตามผลที่แก้ไข</div>
+</div>
+<div style="display:flex;gap:8px;justify-content:flex-end">
+  <button class="btn btn-outline" onclick="openFixResultModal()">⬅ กลับแก้ไข</button>
+  <button class="btn" style="background:var(--red);color:#fff" id="fix-confirm-final-btn" onclick="doFixResult(${roundId},${JSON.stringify(payload).replace(/'/g,"&#39;")})">✅ ยืนยัน FIX</button>
+</div>`;
+  openModal(confirmHtml);
+}
+
+async function doFixResult(roundId, payload){
+  const btn = document.getElementById('fix-confirm-final-btn');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลัง FIX...'; }
+  try{
+    const d = await API.AdminAPI.fixResult(roundId, payload);
+    closeModal();
+    if(d.success){
+      toast('FIX สำเร็จ!', `จ่ายรางวัลใหม่แล้ว — ชนะ: ${d.winners||0} ราย / ยอดรวม: ฿${(d.total_payout||0).toLocaleString()}`, 'success');
+      setTimeout(loadAutoResult, 1000);
+    } else {
+      toast('ผิดพลาด', d.message||'ไม่ทราบสาเหตุ', 'error');
+    }
+  }catch(e){
+    toast('ผิดพลาด', e.message, 'error');
+    if(btn){ btn.disabled=false; btn.textContent='✅ ยืนยัน FIX'; }
+  }
+}
+
 async function runTNewsDebug(btn){
   const out = document.getElementById('tnews-debug-out');
   if(!out) return;
@@ -4345,10 +4587,11 @@ autoresult:()=>`
 <div id="ar-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:16px">
   <div style="text-align:center;color:var(--muted);padding:40px">⏳ กำลังโหลด...</div>
 </div>
-<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px">
+<div style="display:flex;justify-content:flex-end;gap:8px;margin-bottom:8px;flex-wrap:wrap">
   <button class="btn btn-outline" onclick="loadAutoResult()">🔄 รีเฟรช</button>
   <button class="btn btn-outline" id="press-dbg-btn" onclick="runPressDebug(this)">🔍 Debug press.in.th</button>
   <button class="btn btn-outline" id="tnews-dbg-btn" onclick="runTNewsDebug(this)">🔍 Debug TNews Article</button>
+  <button class="btn" style="background:rgba(255,71,87,.15);border:1px solid rgba(255,71,87,.4);color:#ff6b7a" onclick="openFixResultModal()">🔧 FIX ผลย้อนหลัง</button>
 </div>
 <div id="press-debug-out" style="display:none;margin-bottom:16px"></div>
 <div id="tnews-debug-out" style="display:none;margin-bottom:16px"></div>`,

@@ -206,6 +206,7 @@ const AdminAPI = {
   createRound     : (data) => apiFetch('/lottery/admin/rounds', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
   closeRound      : (id) => apiFetch(`/lottery/admin/rounds/${id}/close`, { method: 'PATCH' }, 'admin'),
   announceResult  : (data) => apiFetch('/lottery/admin/results', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
+  fixResult       : (round_id, data) => apiFetch(`/lottery/admin/results/${round_id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
 
   // Bets admin
   listBets  : (params = {}) => apiFetch('/bets/admin/list?' + new URLSearchParams(params), {}, 'admin'),

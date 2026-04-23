@@ -366,6 +366,125 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
   }
 );
 
+// PATCH /api/lottery/admin/results/:round_id — แก้ไขผลที่ประกาศไปแล้ว (FIX)
+// 1. ยกเลิกการจ่ายเงินเดิม (reverse wins)
+// 2. รีเซ็ตทุก bet → waiting
+// 3. อัปเดตผล lottery_results
+// 4. คำนวณและจ่ายรางวัลใหม่ตามผลที่แก้ไข
+router.patch('/admin/results/:round_id', authAdmin, rbac.requirePerm('results.announce'),
+  body('prize_1st').isLength({ min: 6, max: 6 }).withMessage('รางวัลที่ 1 ต้องเป็น 6 หลัก'),
+  body('prize_last_2').isLength({ min: 2, max: 2 }),
+  async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
+
+    const round_id = parseInt(req.params.round_id);
+    const { prize_1st, prize_2nd, prize_3rd, prize_4th, prize_5th,
+            prize_near_1st, prize_front_3, prize_last_3, prize_last_2 } = req.body;
+
+    // ดึงงวดที่ประกาศแล้ว
+    const roundRows = await query(
+      `SELECT lr.*, lt.code AS lottery_code,
+              lt.rate_3top,lt.rate_3tod,lt.rate_2top,lt.rate_2bot,lt.rate_run_top,lt.rate_run_bot
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lr.lottery_id = lt.id
+       WHERE lr.id=? AND lr.status='announced'`, [round_id]);
+    if (!roundRows.length) return res.status(400).json({ success: false, message: 'ไม่พบงวดที่ประกาศแล้ว หรืองวดยังไม่ได้ประกาศ' });
+
+    const round = roundRows[0];
+    const lotteryCode = round.lottery_code;
+    const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
+    const isLaGov = lotteryCode === 'LA_GOV';
+    const effective_2bot = isLaGov ? prize_1st.slice(2, 4) : prize_last_2;
+    const effective_3top = isLaGov ? prize_1st.slice(3, 6) : prize_1st?.slice(-3);
+    const prize_2bot_store = USES_SEPARATE_2BOT.includes(lotteryCode) ? effective_2bot : null;
+
+    let fixWinCount = 0;
+    let fixTotalPayout = 0;
+
+    try {
+      await transaction(async (conn) => {
+        // 1. ดึง bets ที่เคย win แล้ว → คืนเงิน (reverse)
+        const [winBets] = await conn.execute(
+          'SELECT * FROM bets WHERE round_id=? AND status="win" AND win_amount > 0', [round_id]);
+        for (const bet of winBets) {
+          const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
+          const newBal = parseFloat(m.balance) - parseFloat(bet.win_amount);
+          await conn.execute('UPDATE members SET balance=?, total_win=GREATEST(0,total_win-?) WHERE id=?',
+            [newBal, bet.win_amount, bet.member_id]);
+          await conn.execute(
+            'INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+            [uuidv4(), bet.member_id, 'fix_reverse', -parseFloat(bet.win_amount), m.balance, newBal,
+             `แก้ไขผล: ยกเลิกรางวัล ${bet.number} (${bet.bet_type})`]);
+        }
+
+        // 2. รีเซ็ตทุก bet → waiting
+        await conn.execute('UPDATE bets SET status="waiting", win_amount=0 WHERE round_id=?', [round_id]);
+
+        // 3. อัปเดต lottery_results
+        await conn.execute(
+          `UPDATE lottery_results SET
+             prize_1st=?, prize_2nd=?, prize_3rd=?, prize_4th=?, prize_5th=?,
+             prize_near_1st=?, prize_front_3=?, prize_last_3=?, prize_last_2=?, prize_2bot=?,
+             announced_at=NOW(), announced_by=?
+           WHERE round_id=?`,
+          [prize_1st,
+           JSON.stringify(prize_2nd || []), JSON.stringify(prize_3rd || []),
+           JSON.stringify(prize_4th || []), JSON.stringify(prize_5th || []),
+           JSON.stringify(prize_near_1st || []),
+           JSON.stringify(prize_front_3 || []), JSON.stringify(prize_last_3 || []),
+           prize_last_2, prize_2bot_store, req.admin.id, round_id]);
+
+        // 4. คำนวณ winners ใหม่
+        const [allBets] = await conn.execute('SELECT * FROM bets WHERE round_id=? AND status="waiting"', [round_id]);
+        let winCount = 0;
+        let totalPayout = 0;
+        for (const bet of allBets) {
+          let won = false; let winAmt = 0;
+          const n = bet.number;
+          if (bet.bet_type === '3top' && effective_3top === n) { won = true; winAmt = bet.amount * round.rate_3top; }
+          else if (bet.bet_type === '3tod') {
+            const sorted = n.split('').sort().join('');
+            const p1s = effective_3top?.split('').sort().join('');
+            if (sorted === p1s) { won = true; winAmt = bet.amount * round.rate_3tod; }
+          }
+          else if (bet.bet_type === '2top' && prize_last_2 === n) { won = true; winAmt = bet.amount * round.rate_2top; }
+          else if (bet.bet_type === '2bot' && effective_2bot === n) { won = true; winAmt = bet.amount * round.rate_2bot; }
+          else if (bet.bet_type === 'run_top' && prize_1st?.includes(n)) { won = true; winAmt = bet.amount * round.rate_run_top; }
+          else if (bet.bet_type === 'run_bot' && effective_2bot?.includes(n)) { won = true; winAmt = bet.amount * round.rate_run_bot; }
+
+          const status = won ? 'win' : 'lose';
+          await conn.execute('UPDATE bets SET status=?, win_amount=? WHERE id=?', [status, winAmt, bet.id]);
+
+          if (won && winAmt > 0) {
+            winCount++;
+            totalPayout += winAmt;
+            const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
+            const newBal = parseFloat(m.balance) + winAmt;
+            await conn.execute('UPDATE members SET balance=?, total_win=total_win+? WHERE id=?', [newBal, winAmt, bet.member_id]);
+            await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+              [uuidv4(), bet.member_id, 'win', winAmt, m.balance, newBal, `[FIX] ถูกรางวัล: ${bet.number} (${bet.bet_type})`]);
+            await conn.execute('INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+              [bet.member_id, '🎉 ถูกรางวัล!', `เลข ${bet.number} ถูก! ได้รับเงิน ฿${winAmt.toLocaleString()}`, 'win']);
+          }
+        }
+
+        fixWinCount = winCount;
+        fixTotalPayout = totalPayout;
+
+        // 5. Log
+        await conn.execute('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+          [req.admin.id, 'result.fix', 'round', round_id,
+           `FIX prize_1st: ${prize_1st} (reversed ${winBets.length} wins, new wins: ${winCount}, total_payout: ${totalPayout})`, req.ip]);
+      });
+
+      res.json({ success: true, message: `แก้ไขผลสำเร็จ! ผลใหม่: ${prize_1st}`, winners: fixWinCount, total_payout: fixTotalPayout });
+    } catch (e) {
+      res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
 // ════════════════════════════════════
 //  ADMIN: Auto-round + fetcher control
 // ════════════════════════════════════
