@@ -165,6 +165,12 @@ const MemberAPI = {
   getNotifications     : (params = {}) => apiFetch('/members/notifications?' + new URLSearchParams(params)),
   getReferrals         : () => apiFetch('/members/referrals'),
   transferCommission   : (amount) => apiFetch('/members/commission/transfer', { method: 'POST', body: JSON.stringify({ amount }) }),
+
+  // Promotions
+  listPromotions : () => apiFetch('/promotions'),
+  myPromotions   : () => apiFetch('/promotions/my'),
+  claimPromotion : (promotion_id) => apiFetch('/promotions/claim', { method: 'POST', body: JSON.stringify({ promotion_id }) }),
+  cancelPromotion: (member_promo_id) => apiFetch(`/promotions/cancel/${member_promo_id}`, { method: 'POST' }),
 };
 
 /* ─── Admin APIs ─── */

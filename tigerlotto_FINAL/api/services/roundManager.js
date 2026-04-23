@@ -131,6 +131,8 @@ function buildRoundsForToday() {
   });
 
   // ── หวยหุ้นไทย SET (วันจันทร์–ศุกร์) ─────────────────────────
+  // รอบเช้า: SET morning session closes 12:30 → ปิดรับ 12:00, ดึงผล 12:30
+  // รอบบ่าย: SET afternoon session closes 16:30 → ปิดรับ 16:00, ดึงผล 16:30
   if (dow >= 1 && dow <= 5) {
     rounds.push({
       code:       'TH_STK',
@@ -147,6 +149,66 @@ function buildRoundsForToday() {
       draw_date:  dateStr,
       open_at:    `${dateStr} 13:00:00`,
       close_at:   `${dateStr} 16:00:00`,
+    });
+  }
+
+  // ── หวยหุ้นจีน Shanghai (วันจันทร์–ศุกร์) ──────────────────────
+  // Shanghai SSE: เช้า 10:30–11:30 TH, บ่าย 13:00–15:00 TH
+  // รอบเช้า: ปิดรับ 11:00, ดึงผล 11:30
+  // รอบบ่าย: ปิดรับ 14:00, ดึงผล 14:30
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'CN_STK',
+      round_code: `CNSTK-${compact}-1`,
+      round_name: `หวยหุ้นจีน ${dateThai} (รอบเช้า)`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 09:30:00`,
+      close_at:   `${dateStr} 11:00:00`,
+    });
+    rounds.push({
+      code:       'CN_STK',
+      round_code: `CNSTK-${compact}-2`,
+      round_name: `หวยหุ้นจีน ${dateThai} (รอบบ่าย)`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 12:00:00`,
+      close_at:   `${dateStr} 14:00:00`,
+    });
+  }
+
+  // ── หวยหุ้นมาเลย์ KLSE (วันจันทร์–ศุกร์) ───────────────────────
+  // KLSE: เปิด 09:00 TH, พัก 12:30–14:30 TH, ปิด 17:00 TH
+  // รอบเช้า: ปิดรับ 12:00, ดึงผล 12:30
+  // รอบบ่าย: ปิดรับ 16:30, ดึงผล 17:00
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'MY_STK',
+      round_code: `MYSTK-${compact}-1`,
+      round_name: `หวยหุ้นมาเลย์ ${dateThai} (รอบเช้า)`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 10:00:00`,
+      close_at:   `${dateStr} 12:00:00`,
+    });
+    rounds.push({
+      code:       'MY_STK',
+      round_code: `MYSTK-${compact}-2`,
+      round_name: `หวยหุ้นมาเลย์ ${dateThai} (รอบบ่าย)`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 14:00:00`,
+      close_at:   `${dateStr} 16:30:00`,
+    });
+  }
+
+  // ── หวยหุ้นสิงคโปร์ STI (วันจันทร์–ศุกร์) ──────────────────────
+  // SGX STI: เปิด 09:00 TH, ปิด 17:00 TH (รอบเดียว)
+  // ปิดรับ 16:30, ดึงผล 17:15
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'SG_STK',
+      round_code: `SGSTK-${compact}-1`,
+      round_name: `หวยหุ้นสิงคโปร์ ${dateThai}`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 10:00:00`,
+      close_at:   `${dateStr} 16:30:00`,
     });
   }
 

@@ -41,7 +41,8 @@ function initStatus(code) {
     lastRun: null, lastSuccess: null, lastError: null, retries: 0,
   };
 }
-['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP'].forEach(initStatus);
+['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP',
+ 'TH_STK','CN_STK','MY_STK','SG_STK'].forEach(initStatus);
 
 // ── ScraperAPI proxy support ───────────────────────────────────────
 // Railway servers are blocked by Thai/Lao sites at IP level.
@@ -2277,6 +2278,8 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
   console.log(`[FETCHER:${lotteryCode}] เริ่ม fetch...`);
 
   // Check if already announced today
+  // สำหรับประเภทที่มีหลายงวด/วัน (เช่น หวยหุ้น): ตรวจว่ายังมีงวดที่รอผลอยู่ไหม
+  // ถ้าออกผลบางงวดแล้วแต่ยังมีงวด closed ที่ไม่มีผล → ดำเนินการต่อ
   try {
     const today = new Date().toISOString().slice(0,10);
     const existing = await query(
@@ -2288,8 +2291,13 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
       [lotteryCode, today]
     );
     if (existing.length > 0) {
-      console.log(`[FETCHER:${lotteryCode}] ออกผลแล้ววันนี้ — ข้าม`);
-      return true;
+      // ตรวจว่ายังมีงวดที่ปิดแต่ไม่มีผลอยู่หรือเปล่า (รองรับหวยหุ้นหลายรอบ/วัน)
+      const pendingRound = await findClosedRound(lotteryCode);
+      if (!pendingRound) {
+        console.log(`[FETCHER:${lotteryCode}] ออกผลครบทุกงวดแล้ววันนี้ — ข้าม`);
+        return true;
+      }
+      console.log(`[FETCHER:${lotteryCode}] ออกผลบางงวดแล้ว แต่ยังมีงวด #${pendingRound.id} (${pendingRound.round_name}) รอผล → ดำเนินการต่อ`);
     }
   } catch(e) { /* non-fatal */ }
 
@@ -2402,6 +2410,103 @@ async function fetchVNHanoiVIP() {
   throw new Error('VN_HAN_VIP: ไม่พบผล — กรุณาตรวจสอบ press.in.th / TNews หรือ config DB sources ใน Admin Panel → API Sources');
 }
 
+// ── หวยหุ้น (Stock Lottery) ────────────────────────────────────────
+//
+// ที่มาข้อมูล: Yahoo Finance JSON API (ไม่บล็อก Railway IP)
+//   TH_STK  → ^SET.BK  (SET Composite Index — ตลาดหุ้นไทย)
+//   CN_STK  → 000001.SS (Shanghai SSE Composite — หุ้นจีน)
+//   MY_STK  → ^KLSE    (FTSE Bursa Malaysia KLCI — หุ้นมาเลย์)
+//   SG_STK  → ^STI     (Straits Times Index — หุ้นสิงคโปร์)
+//
+// วิธีคิดรางวัล (เหมือนกันทุก code):
+//   - ดึง regularMarketPrice (ราคาปัจจุบัน ณ เวลาที่ cron รัน)
+//   - แปลงเป็น integer (Math.round)
+//   - prize_1st  = ตัวเลข 6 หลัก (pad ซ้ายด้วย 0) เช่น 001452
+//   - prize_last_2 (2บน) = 2 หลักท้าย เช่น "52"
+//   - prize_last_3 (3บน) = 3 หลักท้าย เช่น "452"
+//
+// ถ้า Yahoo Finance ล้มเหลว → ลอง DB sources ที่ admin configure
+// ────────────────────────────────────────────────────────────────────
+
+const STOCK_SYMBOLS = {
+  TH_STK: '%5ESET.BK',    // SET Composite (^SET.BK URL-encoded)
+  CN_STK: '000001.SS',    // Shanghai SSE Composite
+  MY_STK: '%5EKLSE',      // FTSE Bursa Malaysia KLCI (^KLSE)
+  SG_STK: '%5ESTI',       // Straits Times Index (^STI)
+};
+
+/**
+ * ดึงราคาหุ้นจาก Yahoo Finance แล้วแปลงเป็น lottery result
+ * @param {string} code  — lottery code เช่น 'TH_STK'
+ * @returns {object}     — { prize_1st, prize_last_2, prize_front_3:[], prize_last_3:[] }
+ */
+async function fetchStockIndex(code) {
+  const symbol = STOCK_SYMBOLS[code];
+  if (!symbol) throw new Error(`fetchStockIndex: unknown code ${code}`);
+
+  // Yahoo Finance v8 chart API — ไม่ต้องการ auth, accessible จาก Railway
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d&includePrePost=false`;
+  const resp = await axios.get(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      'Accept':     'application/json',
+    },
+    timeout: 20000,
+  });
+
+  const meta  = resp.data?.chart?.result?.[0]?.meta;
+  if (!meta) throw new Error(`${code}: Yahoo Finance ไม่มี result`);
+
+  // ใช้ regularMarketPrice (ราคา ณ ปัจจุบัน / ราคาล่าสุดที่ trade)
+  const price = meta.regularMarketPrice ?? meta.chartPreviousClose;
+  if (!price || price <= 0) throw new Error(`${code}: Yahoo Finance price = ${price}`);
+
+  // แปลงเป็น integer (ตัดทศนิยม) แล้วดึง digit ท้ายๆ
+  const indexInt = Math.round(price);
+  const s        = String(indexInt);
+  const last2    = s.slice(-2).padStart(2, '0');
+  const last3    = s.slice(-3).padStart(3, '0');
+  const p1       = s.padStart(6, '0');   // ใช้เป็น prize_1st (6 หลัก)
+
+  console.log(`[FETCHER:${code}] Yahoo Finance: ${meta.exchangeName} price=${price} → last2=${last2} last3=${last3}`);
+
+  return {
+    prize_1st:    p1,
+    prize_last_2: last2,
+    prize_front_3: [],
+    prize_last_3:  [last3],
+  };
+}
+
+/**
+ * Generic STK fetch function — Yahoo Finance → DB sources → throw
+ */
+async function fetchSTK(code) {
+  // Source 1: Yahoo Finance (primary — ฟรี, ไม่บล็อก)
+  try {
+    const result = await fetchStockIndex(code);
+    if (result) return result;
+  } catch(e) {
+    console.warn(`[FETCHER:${code}] Yahoo Finance ล้มเหลว: ${e.message}`);
+  }
+
+  // Source 2: DB sources (Admin-configured เช่น URL scraper เฉพาะ)
+  try {
+    const dbResult = await fetchFromDbSources(code);
+    if (dbResult) {
+      console.log(`[FETCHER:${code}] DB source ✅`);
+      return dbResult;
+    }
+  } catch(e) { console.warn(`[FETCHER:${code}] DB source error: ${e.message}`); }
+
+  throw new Error(`${code}: ไม่พบผล — Yahoo Finance ล้มเหลวและไม่มี DB sources\nกรุณา config DB sources ใน Admin Panel → API Sources`);
+}
+
+async function fetchTHSTK() { return fetchSTK('TH_STK'); }
+async function fetchCNSTK() { return fetchSTK('CN_STK'); }
+async function fetchMYSTK() { return fetchSTK('MY_STK'); }
+async function fetchSGSTK() { return fetchSTK('SG_STK'); }
+
 // ── Export สำหรับ manual trigger ──────────────────────────────
 
 const FETCH_FUNCS = {
@@ -2410,6 +2515,10 @@ const FETCH_FUNCS = {
   VN_HAN:     fetchVNHanoi,
   VN_HAN_SP:  fetchVNHanoiSP,   // ฮานอยพิเศษ (Xổ Số miền Bắc thêm) — แยก source
   VN_HAN_VIP: fetchVNHanoiVIP,  // ฮานอย VIP — แยก source
+  TH_STK:     fetchTHSTK,       // หวยหุ้นไทย SET (2 รอบ/วัน จันทร์–ศุกร์)
+  CN_STK:     fetchCNSTK,       // หวยหุ้นจีน Shanghai (2 รอบ/วัน จันทร์–ศุกร์)
+  MY_STK:     fetchMYSTK,       // หวยหุ้นมาเลย์ KLSE (2 รอบ/วัน จันทร์–ศุกร์)
+  SG_STK:     fetchSGSTK,       // หวยหุ้นสิงคโปร์ STI (1 รอบ/วัน จันทร์–ศุกร์)
 };
 
 async function triggerFetch(lotteryCode) {
@@ -2627,12 +2736,109 @@ function startLotteryFetcher() {
     }
   }, { timezone: TIMEZONE });
 
+  // ── หวยหุ้นจีน CN_STK (จันทร์–ศุกร์) ─────────────────────────────
+  // รอบเช้า: Shanghai เปิด 10:30 TH → ดึงผล 11:30 TH (close_at 11:00)
+  // รอบบ่าย: Shanghai บ่าย → ดึงผล 14:30 TH (close_at 14:00)
+  cron.schedule('30 11 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: CN_STK รอบเช้า');
+    runFetcher('CN_STK', fetchCNSTK).catch(e =>
+      console.error('[FETCHER] CN_STK เช้า error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  cron.schedule('30 14 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: CN_STK รอบบ่าย');
+    runFetcher('CN_STK', fetchCNSTK).catch(e =>
+      console.error('[FETCHER] CN_STK บ่าย error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  // retry ถ้ายังมี closed round ที่ไม่มีผล
+  cron.schedule('0 12 * * 1-5', async () => {
+    const r = await findClosedRound('CN_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] CN_STK retry เช้า'); runFetcher('CN_STK', fetchCNSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+  cron.schedule('0 15 * * 1-5', async () => {
+    const r = await findClosedRound('CN_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] CN_STK retry บ่าย'); runFetcher('CN_STK', fetchCNSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+
+  // ── หวยหุ้นมาเลย์ MY_STK (จันทร์–ศุกร์) ──────────────────────────
+  // รอบเช้า: KLSE เปิด 09:00 TH, พัก 12:30 TH → ดึงผล 12:30 TH (close_at 12:00)
+  // รอบบ่าย: KLSE เปิดบ่าย 14:30 TH, ปิด 17:00 TH → ดึงผล 17:00 TH (close_at 16:30)
+  cron.schedule('30 12 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: MY_STK รอบเช้า');
+    runFetcher('MY_STK', fetchMYSTK).catch(e =>
+      console.error('[FETCHER] MY_STK เช้า error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  cron.schedule('0 17 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: MY_STK รอบบ่าย');
+    runFetcher('MY_STK', fetchMYSTK).catch(e =>
+      console.error('[FETCHER] MY_STK บ่าย error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  cron.schedule('0 13 * * 1-5', async () => {
+    const r = await findClosedRound('MY_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] MY_STK retry เช้า'); runFetcher('MY_STK', fetchMYSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+  cron.schedule('30 17 * * 1-5', async () => {
+    const r = await findClosedRound('MY_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] MY_STK retry บ่าย'); runFetcher('MY_STK', fetchMYSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+
+  // ── หวยหุ้นสิงคโปร์ SG_STK (จันทร์–ศุกร์) ─────────────────────────
+  // SGX STI ปิด 17:00 TH → ดึงผล 17:15 TH (close_at 16:30)
+  cron.schedule('15 17 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: SG_STK');
+    runFetcher('SG_STK', fetchSGSTK).catch(e =>
+      console.error('[FETCHER] SG_STK error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  cron.schedule('45 17 * * 1-5', async () => {
+    const r = await findClosedRound('SG_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] SG_STK retry'); runFetcher('SG_STK', fetchSGSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+
+  // ── หวยหุ้นไทย TH_STK (จันทร์–ศุกร์) ────────────────────────────
+  // SET รอบเช้าปิด 12:30 TH → ดึงผล 12:30 TH (close_at 12:00)
+  // SET รอบบ่ายปิด 16:30 TH → ดึงผล 16:30 TH (close_at 16:00)
+  cron.schedule('30 12 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: TH_STK รอบเช้า');
+    runFetcher('TH_STK', fetchTHSTK).catch(e =>
+      console.error('[FETCHER] TH_STK เช้า error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  cron.schedule('30 16 * * 1-5', () => {
+    console.log('[FETCHER] Trigger: TH_STK รอบบ่าย');
+    runFetcher('TH_STK', fetchTHSTK).catch(e =>
+      console.error('[FETCHER] TH_STK บ่าย error:', e.message)
+    );
+  }, { timezone: TIMEZONE });
+
+  cron.schedule('0 13 * * 1-5', async () => {
+    const r = await findClosedRound('TH_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] TH_STK retry เช้า'); runFetcher('TH_STK', fetchTHSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+  cron.schedule('0 17 * * 1-5', async () => {
+    const r = await findClosedRound('TH_STK').catch(() => null);
+    if (r) { console.log('[FETCHER] TH_STK retry บ่าย'); runFetcher('TH_STK', fetchTHSTK).catch(e => console.error(e.message)); }
+  }, { timezone: TIMEZONE });
+
   console.log('[FETCHER] Crons ลงทะเบียนแล้ว:');
   console.log('  TH_GOV      → วันที่ 1, 16 @ 15:30 (retry 16:00)');
   console.log('  LA_GOV      → จันทร์-ศุกร์ @ 20:45 (retry 21:15)');
   console.log('  VN_HAN_VIP  → ทุกวัน @ 17:15 (retry 17:45)');
   console.log('  VN_HAN_SP   → ทุกวัน @ 17:45 (retry 18:15)');
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
+  console.log('  TH_STK      → จันทร์-ศุกร์ @ 12:30 รอบเช้า, 16:30 รอบบ่าย');
+  console.log('  CN_STK      → จันทร์-ศุกร์ @ 11:30 รอบเช้า, 14:30 รอบบ่าย');
+  console.log('  MY_STK      → จันทร์-ศุกร์ @ 12:30 รอบเช้า, 17:00 รอบบ่าย');
+  console.log('  SG_STK      → จันทร์-ศุกร์ @ 17:15 รอบเดียว');
 }
 
 module.exports = { startLotteryFetcher, fetcherStatus, triggerFetch, testFetch, testSource, clearScraperApiKeyCache, debugTNewsRaw, debugPressInTh, fetchPressInThLao };

@@ -161,12 +161,28 @@ table.prize-tbl{width:100%;border-collapse:collapse}
 
 /* ─── PROMO BANNER ─── */
 .promo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
-.promo-card{background:var(--card);border:1px solid rgba(212,160,23,.25);border-radius:16px;padding:28px;position:relative;overflow:hidden}
+.promo-card{background:var(--card);border:1px solid rgba(212,160,23,.25);border-radius:16px;padding:28px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:6px}
 .promo-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(212,160,23,.06)}
-.promo-badge{font-size:28px;margin-bottom:10px}
-.promo-title{font-size:18px;font-weight:700;margin-bottom:8px}
-.promo-desc{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:16px}
+.promo-badge{font-size:28px;margin-bottom:4px}
+.promo-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.promo-desc{font-size:13px;color:var(--muted);line-height:1.7;flex:1}
 .promo-tag{display:inline-block;padding:4px 12px;background:var(--bgold2);border:1px solid var(--bgold);border-radius:20px;font-size:12px;font-weight:700;color:var(--gold)}
+.promo-btn-claim{margin-top:10px;padding:9px 20px;background:var(--grad);border:none;border-radius:10px;color:#000;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+.promo-btn-claim:hover{opacity:.85}
+.promo-btn-claim:disabled{opacity:.45;cursor:not-allowed}
+/* progress bar */
+.promo-progress-wrap{margin-top:8px}
+.promo-progress-label{font-size:12px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between}
+.promo-progress-bar{height:8px;background:rgba(255,255,255,.08);border-radius:20px;overflow:hidden}
+.promo-progress-fill{height:100%;background:var(--grad);border-radius:20px;transition:width .6s ease}
+.promo-status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.promo-status-badge.pending{background:rgba(212,160,23,.15);color:var(--gold)}
+.promo-status-badge.completed{background:rgba(100,200,100,.15);color:#7ddb7d}
+.promo-status-badge.cancelled{background:rgba(255,80,80,.1);color:#f97474}
+/* my-promos tab */
+.promo-tabs{display:flex;gap:8px;margin-bottom:20px}
+.promo-tab{padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:.2s}
+.promo-tab.active{background:var(--bgold2);border-color:var(--bgold);color:var(--gold)}
 
 /* ─── FOOTER ─── */
 footer{background:#020202;border-top:1px solid rgba(212,160,23,.2);padding:64px 24px 30px}
@@ -624,36 +640,30 @@ select.fi option{background:var(--card2)}
 <hr class="divider">
 
 <!-- ══════════ PROMOTIONS ══════════ -->
-<section class="section" style="background:var(--dark)">
+<section class="section" id="promotions" style="background:var(--dark)">
   <div class="container">
     <div class="sec-hdr">
       <h2><span>โปรโมชั่น</span>พิเศษ</h2>
       <p>สิทธิพิเศษสำหรับสมาชิก TigerLotto</p>
     </div>
-    <div class="promo-grid">
-      <div class="promo-card">
-        <div class="promo-badge">🎁</div>
-        <div class="promo-title">โบนัสต้อนรับ</div>
-        <p class="promo-desc">สมัครใหม่รับโบนัส 50 บาท ทันที! ไม่ต้องเติมเงิน เล่นได้เลย</p>
-        <div class="promo-tag">สำหรับสมาชิกใหม่</div>
+
+    <!-- tabs: แสดงทั้งหมด / โปรฯ ของฉัน -->
+    <div class="promo-tabs" id="promo-tabs">
+      <button class="promo-tab active" onclick="switchPromoTab('all',this)">🎁 โปรโมชั่นทั้งหมด</button>
+      <button class="promo-tab" id="my-promo-tab-btn" onclick="switchPromoTab('my',this)" style="display:none">⭐ โปรฯ ของฉัน</button>
+    </div>
+
+    <!-- all promotions -->
+    <div id="promo-all-list">
+      <div class="promo-grid" id="promo-grid-all">
+        <div style="color:var(--muted);padding:20px 0">กำลังโหลดโปรโมชั่น…</div>
       </div>
-      <div class="promo-card">
-        <div class="promo-badge">💸</div>
-        <div class="promo-title">คืนเงิน 5%</div>
-        <p class="promo-desc">ยิ่งแทงมาก ยิ่งได้คืนมาก รับ Cash back 5% ทุกยอดแทง ทุกงวด</p>
-        <div class="promo-tag">สมาชิกทุกระดับ</div>
-      </div>
-      <div class="promo-card">
-        <div class="promo-badge">👥</div>
-        <div class="promo-title">แนะนำเพื่อน</div>
-        <p class="promo-desc">แนะนำเพื่อนได้รับค่าคอมมิชชั่น 3% ตลอดชีพ ยิ่งแนะนำมากยิ่งได้มาก</p>
-        <div class="promo-tag">รับตลอดชีพ</div>
-      </div>
-      <div class="promo-card">
-        <div class="promo-badge">🥇</div>
-        <div class="promo-title">VIP สมาชิกเงิน/ทอง</div>
-        <p class="promo-desc">ยิ่งเล่นยิ่งได้อัพเกรด รับโบนัสพิเศษ, อัตราจ่ายสูงขึ้น, ลิมิตแทงเพิ่ม</p>
-        <div class="promo-tag">ระดับพรีเมียม</div>
+    </div>
+
+    <!-- my promotions -->
+    <div id="promo-my-list" style="display:none">
+      <div id="promo-grid-my" style="display:flex;flex-direction:column;gap:14px">
+        <div style="color:var(--muted);padding:20px 0">กำลังโหลด…</div>
       </div>
     </div>
   </div>
@@ -3010,7 +3020,214 @@ document.querySelectorAll('.overlay').forEach(ov=>{
   ov.addEventListener('click',function(e){if(e.target===this)this.classList.remove('on');});
 });
 
+// ══════════════════════════════════════════════
+//  PROMOTIONS — list / claim / my-progress
+// ══════════════════════════════════════════════
+
+const APPLY_TYPE_LABEL = { new_member:'สมาชิกใหม่', deposit:'โบนัสเติมเงิน', manual:'รับได้ทุกเมื่อ' };
+const PROMO_BADGE      = { new_member:'🎁', deposit:'💰', cashback:'💸', referral:'👥', manual:'⭐' };
+
+// cache ข้อมูล
+let _allPromos = [];
+let _myPromos  = [];
+
+// ── แสดงรายการโปรโมชั่นทั้งหมดจาก API ──────────────────────────
+async function loadAllPromos() {
+  const grid = document.getElementById('promo-grid-all');
+  if (!grid) return;
+  try {
+    const data = await API.MemberAPI.listPromotions();
+    const list = data.promotions || data || [];
+    _allPromos = list;
+    if (!list.length) {
+      grid.innerHTML = '<div style="color:var(--muted);padding:20px 0">ยังไม่มีโปรโมชั่นในขณะนี้</div>';
+      return;
+    }
+    grid.innerHTML = list.map(p => buildPromoCard(p)).join('');
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--muted);padding:20px 0">ไม่สามารถโหลดโปรโมชั่นได้</div>';
+  }
+}
+
+function buildPromoCard(p) {
+  const badge     = PROMO_BADGE[p.type] || '🎁';
+  const typeLabel = APPLY_TYPE_LABEL[p.apply_type] || p.apply_type || '';
+  const hasTO     = p.turnover_multiplier && parseFloat(p.turnover_multiplier) > 0;
+  const toLine    = hasTO ? `<div style="font-size:12px;color:var(--muted)">เทิร์น x${p.turnover_multiplier}</div>` : '';
+  const maxLine   = p.max_withdraw_bonus ? `<div style="font-size:12px;color:var(--muted)">ถอนสูงสุด ฿${fmtBaht(p.max_withdraw_bonus)}</div>` : '';
+  const loginBtn  = `<button class="promo-btn-claim" onclick="promptLoginForPromo()">เข้าสู่ระบบเพื่อรับโปรฯ</button>`;
+  const claimBtn  = `<button class="promo-btn-claim" id="promo-claim-${p.id}" onclick="claimPromo(${p.id})">รับโปรโมชั่น</button>`;
+  const isLoggedIn = !!localStorage.getItem('token');
+  return `
+  <div class="promo-card" id="promo-card-${p.id}">
+    <div class="promo-badge">${badge}</div>
+    <div class="promo-title">${p.name}</div>
+    <p class="promo-desc">${p.description || ''}</p>
+    ${toLine}${maxLine}
+    <div style="margin-top:6px"><span class="promo-tag">${typeLabel}</span></div>
+    ${isLoggedIn ? claimBtn : loginBtn}
+  </div>`;
+}
+
+// ── รับโปรโมชั่น ─────────────────────────────────────────────────
+async function claimPromo(promoId) {
+  const btn = document.getElementById(`promo-claim-${promoId}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังดำเนินการ…'; }
+  try {
+    const res = await API.MemberAPI.claimPromotion(promoId);
+    showToast(`✅ รับโปรโมชั่นสำเร็จ! โบนัส ฿${fmtBaht(res.bonus_amount||0)} เข้ากระเป๋าแล้ว`);
+    // reload my-promos + refresh balance
+    await loadMyPromos();
+    // แสดง tab "โปรฯ ของฉัน"
+    document.getElementById('my-promo-tab-btn').style.display = '';
+    switchPromoTab('my', document.querySelector('.promo-tab:not(.active)'));
+    // refresh wallet
+    const walletData = await API.MemberAPI.getWallet().catch(()=>null);
+    if (walletData) updateNavBalance(walletData.balance);
+  } catch(e) {
+    showToast('❌ ' + (e.message || 'ไม่สามารถรับโปรโมชั่นได้'), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'รับโปรโมชั่น'; }
+  }
+}
+
+function promptLoginForPromo() {
+  showToast('กรุณาเข้าสู่ระบบก่อนรับโปรโมชั่น');
+  document.querySelector('[onclick="openModal(\'login-modal\')"]')?.click();
+}
+
+// ── โปรโมชั่นของฉัน (progress เทิร์น) ───────────────────────────
+async function loadMyPromos() {
+  const wrap = document.getElementById('promo-grid-my');
+  if (!wrap) return;
+  try {
+    const data = await API.MemberAPI.myPromotions();
+    const list = data.promotions || data || [];
+    _myPromos = list;
+    if (!list.length) {
+      wrap.innerHTML = '<div style="color:var(--muted);padding:20px 0">คุณยังไม่มีโปรโมชั่นที่ active อยู่</div>';
+      return;
+    }
+    wrap.innerHTML = list.map(mp => buildMyPromoCard(mp)).join('');
+  } catch(e) {
+    wrap.innerHTML = '<div style="color:var(--muted);padding:20px 0">ไม่สามารถโหลดโปรโมชั่นของคุณได้</div>';
+  }
+}
+
+function buildMyPromoCard(mp) {
+  const pct       = mp.required_turnover > 0
+    ? Math.min(100, Math.round((mp.current_turnover / mp.required_turnover) * 100))
+    : 100;
+  const statusMap = { pending:'🟡 กำลังเทิร์น', completed:'✅ เสร็จสิ้น', cancelled:'❌ ยกเลิก', expired:'⏰ หมดอายุ' };
+  const statusCls = { pending:'pending', completed:'completed', cancelled:'cancelled', expired:'cancelled' };
+  const expLine   = mp.expires_at
+    ? `<div style="font-size:12px;color:var(--muted)">หมดอายุ: ${new Date(mp.expires_at).toLocaleDateString('th-TH')}</div>`
+    : '';
+  const maxLine   = mp.max_withdraw_bonus
+    ? `<div style="font-size:12px;color:var(--muted)">ถอนโบนัสได้สูงสุด ฿${fmtBaht(mp.max_withdraw_bonus)}</div>`
+    : '';
+  const cancelBtn = mp.status === 'pending'
+    ? `<button style="margin-top:8px;padding:6px 14px;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;color:#f97474;font-size:12px;cursor:pointer"
+        onclick="cancelMyPromo(${mp.id})">ยกเลิกโปรฯ</button>`
+    : '';
+  const needTO  = mp.required_turnover > 0;
+  const progressHtml = needTO ? `
+    <div class="promo-progress-wrap">
+      <div class="promo-progress-label">
+        <span>เทิร์น ฿${fmtBaht(mp.current_turnover)} / ฿${fmtBaht(mp.required_turnover)}</span>
+        <span>${pct}%</span>
+      </div>
+      <div class="promo-progress-bar">
+        <div class="promo-progress-fill" style="width:${pct}%"></div>
+      </div>
+    </div>` : '<div style="font-size:12px;color:var(--muted)">ไม่มีเงื่อนไขเทิร์น</div>';
+
+  return `
+  <div class="promo-card" id="my-promo-${mp.id}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="promo-title" style="font-size:16px">${mp.name || mp.promotion_name || 'โปรโมชั่น'}</div>
+        <div style="font-size:13px;color:var(--muted)">โบนัส ฿${fmtBaht(mp.bonus_amount)}</div>
+      </div>
+      <span class="promo-status-badge ${statusCls[mp.status]||'pending'}">${statusMap[mp.status]||mp.status}</span>
+    </div>
+    ${progressHtml}
+    ${maxLine}${expLine}
+    ${cancelBtn}
+  </div>`;
+}
+
+// ── ยกเลิกโปรโมชั่น ──────────────────────────────────────────────
+async function cancelMyPromo(memberPromoId) {
+  if (!confirm('ยืนยันยกเลิกโปรโมชั่น? โบนัสจะถูกหักออกจากกระเป๋า')) return;
+  try {
+    await API.MemberAPI.cancelPromotion(memberPromoId);
+    showToast('ยกเลิกโปรโมชั่นเรียบร้อย');
+    await loadMyPromos();
+    const walletData = await API.MemberAPI.getWallet().catch(()=>null);
+    if (walletData) updateNavBalance(walletData.balance);
+  } catch(e) {
+    showToast('❌ ' + (e.message || 'ไม่สามารถยกเลิกได้'), 'error');
+  }
+}
+
+// ── switch tab ───────────────────────────────────────────────────
+function switchPromoTab(tab, btn) {
+  document.querySelectorAll('.promo-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('promo-all-list').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('promo-my-list').style.display  = tab === 'my'  ? '' : 'none';
+  if (tab === 'my') loadMyPromos();
+}
+
+// ── helper: format บาท ───────────────────────────────────────────
+function fmtBaht(n) {
+  return parseFloat(n||0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ── helper: show toast ───────────────────────────────────���───────
+function showToast(msg, type = 'info') {
+  let toast = document.getElementById('_toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid rgba(212,160,23,.4);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:9999;transition:.3s;max-width:90vw;text-align:center';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.borderColor = type === 'error' ? 'rgba(255,80,80,.5)' : 'rgba(212,160,23,.4)';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3200);
+}
+
+// ── helper: update nav balance ───────────────────────────────────
+function updateNavBalance(balance) {
+  const el = document.getElementById('nav-balance');
+  if (el) el.textContent = fmtBaht(balance);
+}
+
+// ── init โปรโมชั่น ── เรียกหลัง login + on page load ────────────
+async function initPromoSection() {
+  await loadAllPromos();
+  // ถ้า login อยู่ → โหลด my-promos ด้วย และแสดง tab
+  if (localStorage.getItem('token')) {
+    document.getElementById('my-promo-tab-btn').style.display = '';
+    const myData = await API.MemberAPI.myPromotions().catch(() => ({ promotions: [] }));
+    const myList = myData.promotions || myData || [];
+    if (myList.length > 0) {
+      _myPromos = myList;
+      // pre-render silently (tab switch จะ reload อีกครั้ง)
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+// END PROMOTIONS
+// ══════════════════════════════════════════════
+
 init();
+// เรียก promo section หลัง init (ไม่บล็อก UI)
+initPromoSection().catch(() => {});
 </script>
 </body>
 </html>
