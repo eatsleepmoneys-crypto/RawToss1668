@@ -1717,94 +1717,242 @@ function filterPromos(q){
   );
   renderPromos(filtered);
 }
-const PROMO_TYPE_TH = { welcome:'ต้อนรับ', deposit:'เติมเงิน', cashback:'คืนยอด', referral:'แนะนำเพื่อน', manual:'กำหนดเอง' };
+const PROMO_TYPE_TH   = { welcome:'ต้อนรับ', deposit:'เติมเงิน', cashback:'คืนยอด', referral:'แนะนำเพื่อน', manual:'กำหนดเอง' };
+const PROMO_APPLY_TH  = { new_member:'สมาชิกใหม่', deposit:'ฝากเงิน', manual:'กำหนดเอง' };
+const PROMO_TURN_TH   = { bonus_only:'โบนัส × เท่า', deposit_and_bonus:'(ฝาก+โบนัส) × เท่า', bonus_x_deposit:'ฝาก × เท่า' };
+
 function renderPromos(rows){
   const tbody = document.getElementById('promos-tbody');
   if(!tbody) return;
   tbody.innerHTML = rows.length === 0
-    ? '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่พบโปรโมชั่น</td></tr>'
-    : rows.map(p => `<tr>
-      <td style="color:var(--muted)">${p.id}</td>
-      <td style="font-weight:600">${p.name}</td>
-      <td style="font-family:monospace;color:var(--gold)">${p.code||'-'}</td>
-      <td><span class="badge badge-blue">${PROMO_TYPE_TH[p.type]||p.type}</span></td>
-      <td style="font-weight:700;color:var(--green)">${p.is_percent?p.value+'%':'฿'+Number(p.value).toLocaleString()}</td>
-      <td style="color:var(--muted)">${p.usage_count||0}${p.usage_limit?'/'+p.usage_limit:''}</td>
-      <td><span class="badge ${p.is_active?'badge-green':'badge-red'}">${p.is_active?'เปิด':'ปิด'}</span></td>
-      <td>
-        <div style="display:flex;gap:4px">
-          <button class="act-btn" onclick="editPromoModal(${p.id},'${p.name.replace(/'/g,"\\'")}',${p.value},${p.is_percent},${p.min_deposit||0})">แก้ไข</button>
-          <button class="act-btn ${p.is_active?'act-red':'act-green'}" onclick="togglePromo(${p.id},${p.is_active?0:1})">${p.is_active?'ปิด':'เปิด'}</button>
-        </div>
-      </td>
-    </tr>`).join('');
+    ? '<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:20px">ไม่พบโปรโมชั่น</td></tr>'
+    : rows.map(p => {
+        const turnover = parseFloat(p.turnover_multiplier||0);
+        const turnoverTxt = turnover > 0
+          ? `<span style="color:var(--orange);font-weight:700">${turnover}x</span><span style="font-size:11px;color:var(--muted);display:block">${PROMO_TURN_TH[p.turnover_type]||''}</span>`
+          : `<span style="color:var(--muted);font-size:12px">ไม่มี</span>`;
+        return `<tr>
+        <td style="color:var(--muted)">${p.id}</td>
+        <td>
+          <div style="font-weight:600">${p.name}</div>
+          <div style="font-size:11px;color:var(--muted)">${p.code?'🏷️ '+p.code:''} ${p.description?'· '+p.description.substring(0,30)+'...':''}</div>
+        </td>
+        <td><span class="badge badge-blue">${PROMO_TYPE_TH[p.type]||p.type}</span><br><span style="font-size:10px;color:var(--muted)">${PROMO_APPLY_TH[p.apply_type]||p.apply_type||''}</span></td>
+        <td style="font-weight:700;color:var(--green)">${p.is_percent?p.value+'%':'฿'+Number(p.value).toLocaleString()}</td>
+        <td>${turnoverTxt}</td>
+        <td style="color:var(--muted)">${p.usage_count||0}${p.usage_limit?'/'+p.usage_limit:''}</td>
+        <td><span class="badge ${p.is_active?'badge-green':'badge-red'}">${p.is_active?'เปิด':'ปิด'}</span></td>
+        <td>
+          <div style="display:flex;gap:4px;flex-wrap:wrap">
+            <button class="act-btn" onclick="openEditPromoModal(${p.id})">แก้ไข</button>
+            <button class="act-btn" style="background:rgba(61,139,205,.15);color:var(--blue)" onclick="loadPromoClaims(${p.id})">📋 Claims</button>
+            <button class="act-btn ${p.is_active?'act-red':'act-green'}" onclick="togglePromo(${p.id},${p.is_active?0:1})">${p.is_active?'ปิด':'เปิด'}</button>
+          </div>
+        </td>
+      </tr>`;
+      }).join('');
 }
+
+// ── ฟอร์มเพิ่มโปรโมชั่น (รองรับเงื่อนไขเทิร์น) ──
+function _promoFormHtml(p = {}){
+  const isEdit = !!p.id;
+  return `
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+  <div class="fg" style="grid-column:1/-1"><label>ชื่อโปรโมชั่น *</label>
+    <input id="pf-name" class="fi-full" placeholder="เช่น โบนัสสมัครใหม่ 50 บาท" value="${p.name||''}">
+  </div>
+  <div class="fg"><label>โค้ดโปรโมชั่น</label>
+    <input id="pf-code" class="fi-full" placeholder="WELCOME50" style="text-transform:uppercase" value="${p.code||''}">
+  </div>
+  <div class="fg"><label>ใช้กับใคร</label>
+    <select id="pf-apply" class="fi-full">
+      <option value="new_member" ${(p.apply_type||'manual')==='new_member'?'selected':''}>👤 สมาชิกใหม่ (ภายใน 24 ชม.)</option>
+      <option value="deposit" ${p.apply_type==='deposit'?'selected':''}>💳 โบนัสฝากเงิน</option>
+      <option value="manual" ${(p.apply_type||'manual')==='manual'?'selected':''}>🎁 กำหนดเอง (ใช้โค้ด)</option>
+    </select>
+  </div>
+  <div class="fg"><label>ประเภทโปรโมชั่น</label>
+    <select id="pf-type" class="fi-full">
+      <option value="welcome" ${p.type==='welcome'?'selected':''}>ต้อนรับสมาชิกใหม่</option>
+      <option value="deposit" ${p.type==='deposit'?'selected':''}>โบนัสเติมเงิน</option>
+      <option value="cashback" ${p.type==='cashback'?'selected':''}>Cash Back</option>
+      <option value="referral" ${p.type==='referral'?'selected':''}>แนะนำเพื่อน</option>
+      <option value="manual" ${(p.type||'manual')==='manual'?'selected':''}>กำหนดเอง</option>
+    </select>
+  </div>
+  <div class="fg"><label>มูลค่าโบนัส *</label>
+    <input id="pf-value" class="fi-full" type="number" step="0.01" min="0" value="${p.value||50}">
+  </div>
+  <div class="fg"><label>หน่วย</label>
+    <select id="pf-percent" class="fi-full">
+      <option value="0" ${!p.is_percent?'selected':''}>บาท (฿)</option>
+      <option value="1" ${p.is_percent?'selected':''}>เปอร์เซ็นต์ (%)</option>
+    </select>
+  </div>
+  <div class="fg"><label>โบนัสสูงสุด (฿)</label>
+    <input id="pf-maxbonus" class="fi-full" type="number" min="0" placeholder="ว่าง = ไม่จำกัด" value="${p.max_bonus||''}">
+  </div>
+  <div class="fg"><label>ฝากขั้นต่ำ (฿)</label>
+    <input id="pf-min" class="fi-full" type="number" min="0" value="${p.min_deposit||0}">
+  </div>
+</div>
+<div style="background:rgba(255,165,2,.06);border:1px solid rgba(255,165,2,.2);border-radius:10px;padding:14px;margin-bottom:12px">
+  <div style="font-size:13px;font-weight:700;color:var(--orange);margin-bottom:10px">🔄 เงื่อนไขเทิร์นโอเวอร์</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div class="fg" style="margin:0">
+      <label>จำนวนเทิร์น (เท่า)</label>
+      <input id="pf-turn-mult" class="fi-full" type="number" step="0.5" min="0" value="${p.turnover_multiplier||0}" placeholder="0 = ไม่มีเงื่อนไข">
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">0 = ไม่มีเงื่อนไขเทิร์น</div>
+    </div>
+    <div class="fg" style="margin:0">
+      <label>คิดเทิร์นจาก</label>
+      <select id="pf-turn-type" class="fi-full">
+        <option value="bonus_only" ${(p.turnover_type||'bonus_only')==='bonus_only'?'selected':''}>โบนัส × เท่า เช่น 50 × 3 = 150</option>
+        <option value="deposit_and_bonus" ${p.turnover_type==='deposit_and_bonus'?'selected':''}>ฝาก+โบนัส × เท่า</option>
+        <option value="bonus_x_deposit" ${p.turnover_type==='bonus_x_deposit'?'selected':''}>ยอดฝาก × เท่า</option>
+      </select>
+    </div>
+    <div class="fg" style="margin:0">
+      <label>ถอนโบนัสได้สูงสุด (฿)</label>
+      <input id="pf-turn-maxwd" class="fi-full" type="number" min="0" placeholder="ว่าง = ไม่จำกัด" value="${p.max_withdraw_bonus||''}">
+    </div>
+    <div class="fg" style="margin:0">
+      <label>จำกัดจำนวนการใช้</label>
+      <input id="pf-limit" class="fi-full" type="number" min="0" placeholder="ว่าง = ไม่จำกัด" value="${p.usage_limit||''}">
+    </div>
+  </div>
+  <div style="margin-top:8px;display:flex;align-items:center;gap:8px">
+    <input type="checkbox" id="pf-once" ${(p.eligible_once===undefined||p.eligible_once)?'checked':''}>
+    <label for="pf-once" style="font-size:13px;cursor:pointer">รับได้แค่ครั้งเดียวต่อสมาชิก</label>
+  </div>
+</div>
+<div class="fg"><label>คำอธิบาย (แสดงให้ member)</label>
+  <input id="pf-desc" class="fi-full" placeholder="อธิบายเงื่อนไขให้สมาชิกเข้าใจ" value="${p.description||''}">
+</div>
+<div class="modal-footer">
+  <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+  <button class="btn btn-gold" onclick="${isEdit?'savePromoEdit('+p.id+')':'submitNewPromo()'}">${isEdit?'💾 บันทึก':'➕ เพิ่มโปรโมชั่น'}</button>
+</div>`;
+}
+
 function openAddPromotion(){
-  openModal(`<h3>➕ เพิ่มโปรโมชั่นใหม่</h3>
-    <div class="fg"><label>ชื่อโปรโมชั่น</label><input id="np-name" class="fi-full" placeholder="เช่น โบนัสต้อนรับ 50 บาท"></div>
-    <div class="fg"><label>โค้ด (ไม่บังคับ)</label><input id="np-code" class="fi-full" placeholder="เช่น WELCOME50" style="text-transform:uppercase"></div>
-    <div class="fg"><label>ประเภท</label><select id="np-type" class="fi-full">
-      <option value="welcome">ต้อนรับสมาชิกใหม่</option>
-      <option value="deposit">โบนัสเติมเงิน</option>
-      <option value="cashback">Cash Back</option>
-      <option value="referral">แนะนำเพื่อน</option>
-      <option value="manual">กำหนดเอง</option>
-    </select></div>
-    <div class="fi-row">
-      <div class="fg"><label>มูลค่า</label><input id="np-value" class="fi-full" type="number" step="0.01" min="0" value="50"></div>
-      <div class="fg"><label>หน่วย</label><select id="np-percent" class="fi-full"><option value="0">บาท (฿)</option><option value="1">เปอร์เซ็นต์ (%)</option></select></div>
-    </div>
-    <div class="fi-row">
-      <div class="fg"><label>ฝากขั้นต่ำ (฿)</label><input id="np-min" class="fi-full" type="number" min="0" value="0"></div>
-      <div class="fg"><label>จำกัดการใช้ (รวม)</label><input id="np-limit" class="fi-full" type="number" min="0" placeholder="ว่าง = ไม่จำกัด"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-gold" onclick="submitNewPromo()">เพิ่มโปรโมชั่น</button>
-    </div>`);
+  openModal('<h3 style="margin-bottom:14px">➕ เพิ่มโปรโมชั่นใหม่</h3>' + _promoFormHtml(), { wide: true });
 }
+
+function _readPromoForm(){
+  return {
+    name:               document.getElementById('pf-name')?.value?.trim(),
+    code:               document.getElementById('pf-code')?.value?.trim().toUpperCase() || null,
+    type:               document.getElementById('pf-type')?.value,
+    apply_type:         document.getElementById('pf-apply')?.value,
+    value:              parseFloat(document.getElementById('pf-value')?.value) || 0,
+    is_percent:         parseInt(document.getElementById('pf-percent')?.value) || 0,
+    min_deposit:        parseFloat(document.getElementById('pf-min')?.value) || 0,
+    max_bonus:          parseFloat(document.getElementById('pf-maxbonus')?.value) || null,
+    usage_limit:        parseInt(document.getElementById('pf-limit')?.value) || null,
+    turnover_multiplier:parseFloat(document.getElementById('pf-turn-mult')?.value) || 0,
+    turnover_type:      document.getElementById('pf-turn-type')?.value,
+    max_withdraw_bonus: parseFloat(document.getElementById('pf-turn-maxwd')?.value) || null,
+    eligible_once:      document.getElementById('pf-once')?.checked ? 1 : 0,
+    description:        document.getElementById('pf-desc')?.value?.trim() || null,
+  };
+}
+
 async function submitNewPromo(){
-  const name         = document.getElementById('np-name')?.value?.trim();
-  const code         = document.getElementById('np-code')?.value?.trim().toUpperCase() || null;
-  const type         = document.getElementById('np-type')?.value;
-  const value        = parseFloat(document.getElementById('np-value')?.value) || 0;
-  const is_percent   = parseInt(document.getElementById('np-percent')?.value) || 0;
-  const min_deposit  = parseFloat(document.getElementById('np-min')?.value) || 0;
-  const usage_limit  = parseInt(document.getElementById('np-limit')?.value) || null;
-  if(!name){ toast('ผิดพลาด','กรุณากรอกชื่อโปรโมชั่น','error'); return; }
+  const data = _readPromoForm();
+  if(!data.name){ toast('ผิดพลาด','กรุณากรอกชื่อโปรโมชั่น','error'); return; }
   try{
-    await API.AdminAPI.createPromotion({ name, code, type, value, is_percent, min_deposit, usage_limit });
+    await API.AdminAPI.createPromotion(data);
     closeModal(); toast('สำเร็จ','เพิ่มโปรโมชั่นสำเร็จ'); loadPromotions();
   } catch(e){ toast('ผิดพลาด',e.message,'error'); }
 }
-async function editPromoModal(id, name, value, is_percent, min_deposit){
-  openModal(`<h3>✏️ แก้ไขโปรโมชั่น</h3>
-    <div class="fg"><label>ชื่อ</label><input id="ep-name" class="fi-full" value="${name}"></div>
-    <div class="fi-row">
-      <div class="fg"><label>มูลค่า</label><input id="ep-value" class="fi-full" type="number" step="0.01" value="${value}"></div>
-      <div class="fg"><label>หน่วย</label><select id="ep-percent" class="fi-full"><option value="0" ${!is_percent?'selected':''}>บาท</option><option value="1" ${is_percent?'selected':''}>%</option></select></div>
-    </div>
-    <div class="fg"><label>ฝากขั้นต่ำ (฿)</label><input id="ep-min" class="fi-full" type="number" value="${min_deposit}"></div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-gold" onclick="savePromoEdit(${id})">บันทึก</button>
-    </div>`);
+
+function openEditPromoModal(id){
+  const p = (_allPromos||[]).find(x=>x.id===id);
+  if(!p){ toast('ผิดพลาด','ไม่พบโปรโมชั่น','error'); return; }
+  openModal('<h3 style="margin-bottom:14px">✏️ แก้ไขโปรโมชั่น</h3>' + _promoFormHtml(p), { wide: true });
 }
+
 async function savePromoEdit(id){
-  const name       = document.getElementById('ep-name')?.value?.trim();
-  const value      = parseFloat(document.getElementById('ep-value')?.value);
-  const is_percent = parseInt(document.getElementById('ep-percent')?.value);
-  const min_deposit= parseFloat(document.getElementById('ep-min')?.value)||0;
+  const data = _readPromoForm();
+  if(!data.name){ toast('ผิดพลาด','กรุณากรอกชื่อ','error'); return; }
   try{
-    await API.AdminAPI.updatePromotion(id,{name,value,is_percent,min_deposit});
+    await API.AdminAPI.updatePromotion(id, data);
     closeModal(); toast('สำเร็จ','อัพเดทโปรโมชั่นแล้ว'); loadPromotions();
   } catch(e){ toast('ผิดพลาด',e.message,'error'); }
 }
+
 async function togglePromo(id, is_active){
   try{
     await API.AdminAPI.updatePromotion(id,{is_active});
     toast('สำเร็จ', is_active?'เปิดโปรโมชั่นแล้ว':'ปิดโปรโมชั่นแล้ว'); loadPromotions();
   } catch(e){ toast('ผิดพลาด',e.message,'error'); }
+}
+
+// ── รายการ Claims ──
+const CLAIM_STATUS_TH = { pending:'⏳ ทำเทิร์นอยู่', completed:'✅ เสร็จแล้ว', cancelled:'❌ ยกเลิก', expired:'⌛ หมดอายุ' };
+const CLAIM_STATUS_COLOR = { pending:'badge-yellow', completed:'badge-green', cancelled:'badge-red', expired:'badge-gray' };
+async function loadPromoClaims(promoId){
+  openModal(`
+<h3 style="margin-bottom:12px">📋 รายการ Claims${promoId?' — โปรโมชั่น #'+promoId:''}</h3>
+<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+  <select id="pc-status" class="fi" style="min-width:160px" onchange="renderPromoClaims()">
+    <option value="">ทุกสถานะ</option>
+    <option value="pending" selected>⏳ ทำเทิร์นอยู่</option>
+    <option value="completed">✅ เสร็จแล้ว</option>
+    <option value="cancelled">❌ ยกเลิก</option>
+  </select>
+  <button class="btn btn-outline btn-sm" onclick="fetchPromoClaims(${promoId||0})">🔄 รีเฟรช</button>
+</div>
+<div id="pc-list"><div style="text-align:center;padding:20px;color:var(--muted)">⏳ กำลังโหลด...</div></div>
+  `, { wide: true });
+  await fetchPromoClaims(promoId||0);
+}
+
+let _claimsData = [];
+async function fetchPromoClaims(promoId){
+  const statusSel = document.getElementById('pc-status');
+  const status = statusSel?.value || 'pending';
+  try{
+    const d = await apiFetch(`/promotions/admin/claims?${promoId?'promotion_id='+promoId+'&':''}status=${status}&limit=100`, {}, 'admin');
+    _claimsData = d.data || [];
+    renderPromoClaims();
+  }catch(e){ document.getElementById('pc-list').innerHTML=`<div style="color:var(--red);padding:12px">❌ ${e.message}</div>`; }
+}
+function renderPromoClaims(){
+  const status = document.getElementById('pc-status')?.value;
+  const rows = status ? _claimsData.filter(c=>c.status===status) : _claimsData;
+  const el = document.getElementById('pc-list');
+  if(!el) return;
+  if(!rows.length){ el.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูล</div>'; return; }
+  el.innerHTML=`<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>สมาชิก</th><th>โปรโมชั่น</th><th>โบนัส</th><th>เทิร์น</th><th>Progress</th><th>สถานะ</th><th>วันที่</th></tr></thead>
+    <tbody>
+    ${rows.map(c=>{
+      const pct = Math.min(100, parseFloat(c.progress_pct||0));
+      const barColor = pct>=100?'var(--green)':pct>=50?'var(--orange)':'var(--gold)';
+      return `<tr>
+        <td><div style="font-weight:600">${c.member_name||'-'}</div><div style="font-size:11px;color:var(--muted)">${c.member_phone||''} · ${c.member_code||''}</div></td>
+        <td style="font-size:12px">${c.promo_name}<br><span style="color:var(--gold);font-family:monospace">${c.promo_code||''}</span></td>
+        <td style="font-weight:700;color:var(--green)">฿${Number(c.bonus_amount).toLocaleString()}</td>
+        <td style="font-size:12px">
+          ${parseFloat(c.required_turnover)>0
+            ? `฿${Number(c.current_turnover).toLocaleString()} / ฿${Number(c.required_turnover).toLocaleString()}`
+            : '<span style="color:var(--muted)">ไม่มีเงื่อนไข</span>'}
+        </td>
+        <td style="min-width:100px">
+          ${parseFloat(c.required_turnover)>0?`
+          <div style="background:var(--card3);border-radius:4px;height:8px;overflow:hidden">
+            <div style="width:${pct}%;background:${barColor};height:100%;transition:.3s"></div>
+          </div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${pct}%</div>`:'—'}
+        </td>
+        <td><span class="badge ${CLAIM_STATUS_COLOR[c.status]||'badge-gray'}">${CLAIM_STATUS_TH[c.status]||c.status}</span></td>
+        <td style="font-size:11px;color:var(--muted)">${c.claimed_at?UI.formatDate(c.claimed_at):'—'}</td>
+      </tr>`;
+    }).join('')}
+    </tbody>
+  </table></div>`;
 }
 
 /* ── Hot Numbers ── */
@@ -4607,13 +4755,14 @@ autoresult:()=>`
 promotions:()=>`
 <div class="filter-bar">
   <input class="fi" id="promo-search" placeholder="🔍 ค้นหาโปรโมชั่น..." style="flex:1" oninput="filterPromos(this.value)">
+  <button class="btn btn-outline" onclick="loadPromoClaims(0)">📋 ดู Claims ทั้งหมด</button>
   <button class="btn btn-gold" onclick="openAddPromotion()">+ เพิ่มโปรโมชั่น</button>
 </div>
 <div class="card">
   <h3>🎁 รายการโปรโมชั่น</h3>
   <div class="tbl-wrap">
     <table class="tbl">
-      <thead><tr><th>#</th><th>ชื่อ</th><th>โค้ด</th><th>ประเภท</th><th>มูลค่า</th><th>ใช้แล้ว</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
+      <thead><tr><th>#</th><th>ชื่อ / รายละเอียด</th><th>ประเภท / ใช้กับ</th><th>มูลค่า</th><th>เทิร์น</th><th>ใช้แล้ว</th><th>สถานะ</th><th>จัดการ</th></tr></thead>
       <tbody id="promos-tbody"><tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
     </table>
   </div>

@@ -295,21 +295,35 @@ router.post('/promotions', authAdmin, rbac.requirePerm('settings.view'),
   async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
-    const { name, type, value, code, is_percent=0, min_deposit=0, max_bonus=null, usage_limit=null, start_at=null, end_at=null } = req.body;
+    const {
+      name, type, apply_type='manual', value, code, is_percent=0, min_deposit=0,
+      max_bonus=null, usage_limit=null, start_at=null, end_at=null,
+      turnover_multiplier=0, turnover_type='bonus_only', max_withdraw_bonus=null,
+      eligible_once=1, description=null
+    } = req.body;
     await query(
-      `INSERT INTO promotions (code,name,type,value,is_percent,min_deposit,max_bonus,usage_limit,start_at,end_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?)`,
-      [code||null, name, type, value, is_percent?1:0, min_deposit, max_bonus||null, usage_limit||null, start_at||null, end_at||null]
+      `INSERT INTO promotions
+         (code,name,type,apply_type,value,is_percent,min_deposit,max_bonus,usage_limit,
+          turnover_multiplier,turnover_type,max_withdraw_bonus,eligible_once,description,start_at,end_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [code||null, name, type, apply_type, value, is_percent?1:0, min_deposit,
+       max_bonus||null, usage_limit||null,
+       turnover_multiplier||0, turnover_type||'bonus_only', max_withdraw_bonus||null,
+       eligible_once?1:0, description||null, start_at||null, end_at||null]
     );
     await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
-      [req.admin.id, 'promotion.create', `สร้างโปรโมชั่น: ${name}`, req.ip]);
+      [req.admin.id, 'promotion.create', `สร้างโปรโมชั่น: ${name} (เทิร์น ${turnover_multiplier}x)`, req.ip]);
     res.status(201).json({ success: true, message: 'สร้างโปรโมชั่นสำเร็จ' });
   }
 );
 
 router.patch('/promotions/:id', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
   // Build dynamic SET clause — only update fields that were actually sent
-  const allowed = ['name','value','is_percent','min_deposit','max_bonus','usage_limit','is_active','start_at','end_at'];
+  const allowed = [
+    'name','code','type','apply_type','value','is_percent','min_deposit','max_bonus',
+    'usage_limit','is_active','start_at','end_at',
+    'turnover_multiplier','turnover_type','max_withdraw_bonus','eligible_once','description'
+  ];
   const sets = []; const params = [];
   for (const key of allowed) {
     if (req.body[key] !== undefined) {

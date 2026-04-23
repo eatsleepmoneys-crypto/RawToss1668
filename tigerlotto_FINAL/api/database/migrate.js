@@ -893,6 +893,32 @@ async function migrate() {
     `ALTER TABLE \`commissions\` MODIFY COLUMN \`level\`          TINYINT NULL DEFAULT NULL`,
     `ALTER TABLE \`commissions\` MODIFY COLUMN \`status\`         VARCHAR(20) NULL DEFAULT NULL`,
     `ALTER TABLE \`commissions\` MODIFY COLUMN \`paid_at\`        DATETIME NULL DEFAULT NULL`,
+
+    // ── Promotions: เพิ่มฟิลด์เงื่อนไขเทิร์น ──
+    `ALTER TABLE \`promotions\` ADD COLUMN \`apply_type\` ENUM('new_member','deposit','manual') NOT NULL DEFAULT 'manual' COMMENT 'ใช้กับใคร' AFTER \`type\``,
+    `ALTER TABLE \`promotions\` ADD COLUMN \`turnover_multiplier\` DECIMAL(5,2) NOT NULL DEFAULT 0 COMMENT 'เทิร์นกี่เท่า (0=ไม่มีเงื่อนไข)' AFTER \`max_bonus\``,
+    `ALTER TABLE \`promotions\` ADD COLUMN \`turnover_type\` ENUM('bonus_only','deposit_and_bonus','bonus_x_deposit') NOT NULL DEFAULT 'bonus_only' COMMENT 'คำนวณเทิร์นจาก' AFTER \`turnover_multiplier\``,
+    `ALTER TABLE \`promotions\` ADD COLUMN \`max_withdraw_bonus\` DECIMAL(10,2) DEFAULT NULL COMMENT 'ถอนโบนัสได้สูงสุดกี่บาท (null=ไม่จำกัด)' AFTER \`turnover_type\``,
+    `ALTER TABLE \`promotions\` ADD COLUMN \`eligible_once\` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'รับได้แค่ครั้งเดียวต่อสมาชิก' AFTER \`max_withdraw_bonus\``,
+    `ALTER TABLE \`promotions\` ADD COLUMN \`description\` TEXT DEFAULT NULL COMMENT 'คำอธิบายโปรโมชั่นสำหรับ member' AFTER \`eligible_once\``,
+
+    // ── member_promotions: ติดตามการ claim + progress เทิร์น ──
+    `CREATE TABLE IF NOT EXISTS \`member_promotions\` (
+      \`id\`                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      \`member_id\`         INT UNSIGNED NOT NULL,
+      \`promotion_id\`      INT UNSIGNED NOT NULL,
+      \`bonus_amount\`      DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+      \`required_turnover\` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+      \`current_turnover\`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
+      \`deposit_amount\`    DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'ยอดฝากที่ใช้คำนวณเทิร์น',
+      \`status\`            ENUM('pending','completed','cancelled','expired') NOT NULL DEFAULT 'pending',
+      \`claimed_at\`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      \`completed_at\`      DATETIME DEFAULT NULL,
+      \`expires_at\`        DATETIME DEFAULT NULL,
+      INDEX \`idx_mp_member\` (\`member_id\`),
+      INDEX \`idx_mp_promo\`  (\`promotion_id\`),
+      INDEX \`idx_mp_status\` (\`status\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

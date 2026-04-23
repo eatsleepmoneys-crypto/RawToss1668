@@ -244,6 +244,32 @@ router.post('/', authMember,
         }
       }
 
+      // ─── Turnover: อัปเดต member_promotions ที่ pending ────────────────
+      const [pendingPromos] = await conn.execute(
+        `SELECT * FROM member_promotions WHERE member_id=? AND status='pending'`,
+        [req.member.id]
+      );
+      for (const mp of pendingPromos) {
+        const newTurnover = parseFloat(mp.current_turnover) + totalAmount;
+        if (newTurnover >= parseFloat(mp.required_turnover)) {
+          // เทิร์นครบ → completed, โบนัสถอนได้แล้ว
+          await conn.execute(
+            `UPDATE member_promotions SET current_turnover=?, status='completed', completed_at=NOW() WHERE id=?`,
+            [newTurnover, mp.id]
+          );
+          // แจ้งเตือน member
+          await conn.execute(
+            'INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+            [req.member.id, '🎉 ทำเทิร์นครบแล้ว!', `คุณทำเทิร์นครบตามเงื่อนไขโปรโมชั่นแล้ว สามารถถอนได้เลย`, 'system']
+          );
+        } else {
+          await conn.execute(
+            `UPDATE member_promotions SET current_turnover=? WHERE id=?`,
+            [newTurnover, mp.id]
+          );
+        }
+      }
+
       return { bets: placedBets, balance: newBal };
     });
 

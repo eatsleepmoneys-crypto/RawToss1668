@@ -205,9 +205,38 @@ router.post('/withdraw', authMember,
     const [pending] = await query('SELECT id FROM withdrawals WHERE member_id=? AND status IN ("pending","processing")', [req.member.id]);
     if (pending) return res.status(400).json({ success: false, message: 'มีรายการถอนที่รอดำเนินการอยู่' });
 
-    const [m] = await query('SELECT balance, bank_code, bank_account, bank_name FROM members WHERE id=?', [req.member.id]);
+    const [m] = await query('SELECT balance, bank_code, bank_account, bank_name, bonus_balance FROM members WHERE id=?', [req.member.id]);
     if (!m.bank_account) return res.status(400).json({ success: false, message: 'กรุณาผูกบัญชีธนาคารก่อนถอน' });
     if (parseFloat(m.balance) < amount) return res.status(400).json({ success: false, message: `ยอดเงินไม่เพียงพอ (มี ฿${m.balance})` });
+
+    // ── ตรวจสอบเทิร์นโปรโมชั่นที่ยังค้างอยู่ ──────────────────────────────
+    const pendingPromos = await query(
+      `SELECT mp.id, mp.bonus_amount, mp.required_turnover, mp.current_turnover,
+              p.name as promo_name, p.max_withdraw_bonus
+       FROM member_promotions mp
+       JOIN promotions p ON p.id = mp.promotion_id
+       WHERE mp.member_id=? AND mp.status='pending'`,
+      [req.member.id]
+    );
+    if (pendingPromos.length > 0) {
+      const pp = pendingPromos[0];
+      const remaining = Math.max(0, parseFloat(pp.required_turnover) - parseFloat(pp.current_turnover));
+      const bonusBal  = parseFloat(m.bonus_balance || 0);
+      // ถ้า balance ที่จะถอน > (balance - bonus_balance) → ยังไม่พอเทิร์น
+      const withdrawableBalance = Math.max(0, parseFloat(m.balance) - bonusBal);
+      if (amount > withdrawableBalance) {
+        return res.status(400).json({
+          success: false,
+          message: `ต้องทำเทิร์นอีก ฿${remaining.toLocaleString()} ก่อนถอนได้ (โปรโมชั่น: ${pp.promo_name})`,
+          data: {
+            required_turnover: pp.required_turnover,
+            current_turnover:  pp.current_turnover,
+            remaining_turnover: remaining,
+            promo_name: pp.promo_name
+          }
+        });
+      }
+    }
 
     // ── ตรวจสอบ auto-withdraw + KBank settings ก่อน transaction ──────────
     const settingRows = await query(
