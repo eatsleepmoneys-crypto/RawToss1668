@@ -217,11 +217,12 @@ router.patch('/admin/types/:id', authAdmin, rbac.requirePerm('lottery.manage'), 
 
 // GET /api/lottery/admin/rounds
 router.get('/admin/rounds', authAdmin, rbac.requirePerm('rounds.view'), async (req, res) => {
-  const { status, lottery_id } = req.query;
+  const { status, lottery_id, lottery_type } = req.query;
   const where = [];
   const params = [];
-  if (status)     { where.push('lr.status=?'); params.push(status); }
-  if (lottery_id) { where.push('lr.lottery_id=?'); params.push(lottery_id); }
+  if (status)       { where.push('lr.status=?'); params.push(status); }
+  if (lottery_id)   { where.push('lr.lottery_id=?'); params.push(lottery_id); }
+  if (lottery_type) { where.push('lt.code=?'); params.push(lottery_type); }
   const rows = await query(
     `SELECT lr.*,lt.name as lottery_name,lt.flag,lt.code
      FROM lottery_rounds lr JOIN lottery_types lt ON lr.lottery_id=lt.id

@@ -2693,7 +2693,8 @@ async function loadFixRounds(type){
   if(resultInfo) resultInfo.style.display='none';
 
   try{
-    const d = await API.AdminAPI.listRoundsAdmin({ lottery_type:type, status:'announced', limit:50 });
+    // ส่ง lottery_type (code) ตรงๆ — backend รองรับแล้ว
+    const d = await API.AdminAPI.listRoundsAdmin({ lottery_type: type, status:'announced', limit:50 });
     const rounds = d.data || [];
     if(!rounds.length){
       sel.innerHTML='<option value="">— ไม่มีงวดที่ประกาศแล้ว —</option>';
