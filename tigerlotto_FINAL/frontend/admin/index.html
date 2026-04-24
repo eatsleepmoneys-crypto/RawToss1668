@@ -6607,7 +6607,7 @@ async function saveAdminPhone(id){
   const phone = document.getElementById('adm-phone-in')?.value?.trim();
   if(!phone){ toast('ผิดพลาด','กรุณากรอกเบอร์โทร'); return; }
   try{
-    await apiFetch(`/admin/admins/${id}/phone`, { method:'PATCH', body: JSON.stringify({ phone }) });
+    await apiFetch(`/admin/admins/${id}/phone`, { method:'PATCH', body: JSON.stringify({ phone }) }, 'admin');
     closeModal();
     toast('สำเร็จ','ตั้งค่าเบอร์โทรสำเร็จ');
     loadAdmins();

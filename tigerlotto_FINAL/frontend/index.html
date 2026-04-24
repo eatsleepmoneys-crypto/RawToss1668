@@ -1226,7 +1226,7 @@ async function doLogin(){
 
     // ── Superadmin login: redirect ไป Admin Panel ──
     if(data.role === 'admin' && data.redirect){
-      localStorage.setItem('admin_token', data.token);
+      localStorage.setItem('tl_admin_token', data.token);
       toast('เข้าสู่ระบบสำเร็จ', 'ยินดีต้อนรับ '+data.admin.name+' 🛡️');
       setTimeout(() => { window.location.href = data.redirect; }, 800);
       return;
