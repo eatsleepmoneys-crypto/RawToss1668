@@ -945,34 +945,7 @@ select.fi option{background:var(--card2)}
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
       </div>
       <div class="mpanel-sec" id="mps-wallet">
-        <div style="padding:8px 0 4px;display:flex;flex-direction:column;gap:14px">
-          <!-- เติมเงิน -->
-          <button onclick="closeMPanel();openDeposit();" style="
-            display:flex;align-items:center;justify-content:center;gap:12px;
-            width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(99,179,118,.45);
-            background:rgba(99,179,118,.10);cursor:pointer;
-            font-size:17px;font-weight:800;color:#86efac;letter-spacing:.5px;
-            transition:background .18s,border-color .18s">
-            <span style="font-size:26px">⬇️</span>
-            <div style="text-align:left">
-              <div>เติมเงิน</div>
-              <div style="font-size:12px;font-weight:500;color:#4ade80;opacity:.8;margin-top:2px">ฝากเงินเข้ากระเป๋า</div>
-            </div>
-          </button>
-          <!-- ถอนเงิน -->
-          <button onclick="closeMPanel();openWithdraw();" style="
-            display:flex;align-items:center;justify-content:center;gap:12px;
-            width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(212,160,23,.45);
-            background:rgba(212,160,23,.10);cursor:pointer;
-            font-size:17px;font-weight:800;color:var(--gold2);letter-spacing:.5px;
-            transition:background .18s,border-color .18s">
-            <span style="font-size:26px">⬆️</span>
-            <div style="text-align:left">
-              <div>ถอนเงิน</div>
-              <div style="font-size:12px;font-weight:500;color:var(--gold);opacity:.8;margin-top:2px">ถอนเงินออกจากกระเป๋า</div>
-            </div>
-          </button>
-        </div>
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
       </div>
       <div class="mpanel-sec" id="mps-tx">
         <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
@@ -2433,7 +2406,7 @@ function openMemberPanel(tab){
   document.getElementById('mpanel-ov').classList.add('on');
   document.body.style.overflow = 'hidden';
   // Reset load state so fresh data on each open
-  _mpLoaded = {bets:false, tx:false, refer:false, notif:false};
+  _mpLoaded = {bets:false, wallet:false, tx:false, refer:false, notif:false, profile:false};
   _mpBetsPage = 1; _mpTxPage = 1;
   mpTab(tab || _mpActive);
 }
@@ -2453,10 +2426,88 @@ function mpTab(tab){
   });
   if(tab==='profile' && !_mpLoaded.profile) loadProfilePanel();
   if(tab==='bets'    && !_mpLoaded.bets)    loadBetHistory();
+  if(tab==='wallet'  && !_mpLoaded.wallet)  loadWalletTab();
   if(tab==='tx'      && !_mpLoaded.tx)      loadTxHistory();
   if(tab==='refer'   && !_mpLoaded.refer)   loadReferralPanel();
   if(tab==='notif'   && !_mpLoaded.notif)   loadNotifications();
-  // wallet tab: static content, no async load needed
+}
+
+/* ── helper: ปุ่ม Go-to-portal สำหรับ admin/agent ── */
+function _portalBtn(href, label, color){
+  return `<div style="text-align:center;padding:32px 16px">
+    <div style="font-size:40px;margin-bottom:12px">🔗</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px">ข้อมูลนี้อยู่ใน ${label}</div>
+    <a href="${href}" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:${color};border-radius:12px;color:#fff;font-size:14px;font-weight:700;text-decoration:none">
+      เปิด ${label}
+    </a>
+  </div>`;
+}
+
+/* ── Wallet Tab ── */
+async function loadWalletTab(){
+  _mpLoaded.wallet = true;
+  const el = document.getElementById('mps-wallet');
+  const u  = window.currentUser;
+
+  // Admin wallet
+  if(u?.is_admin){
+    el.innerHTML = `
+    <div style="padding:4px 0;display:flex;flex-direction:column;gap:12px">
+      <div style="background:linear-gradient(135deg,rgba(26,35,126,.25),rgba(40,53,147,.2));border:1px solid rgba(57,73,171,.4);border-radius:14px;padding:20px;text-align:center">
+        <div style="font-size:12px;color:#90caf9;font-weight:700;margin-bottom:6px">💰 ยอดคงเหลือ</div>
+        <div style="font-size:32px;font-weight:900;color:#fff">฿${UI.formatMoney(u.balance||0)}</div>
+      </div>
+      ${_portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)')}
+    </div>`;
+    return;
+  }
+
+  // Agent wallet
+  if(u?.is_agent){
+    el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const d  = await API.AgentAPI.wallet();
+      const w  = d.data;
+      const commBal = parseFloat(w.commission_balance || 0);
+      el.innerHTML = `
+      <div style="padding:4px 0;display:flex;flex-direction:column;gap:12px">
+        <div style="background:linear-gradient(135deg,rgba(27,94,32,.25),rgba(46,125,50,.2));border:1px solid rgba(67,160,71,.4);border-radius:14px;padding:16px">
+          <div style="font-size:12px;color:#a5d6a7;font-weight:700;margin-bottom:10px">💰 กระเป๋าเงิน</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e2a1e;font-size:13px">
+            <span style="color:#888">ยอดคงเหลือ</span>
+            <span style="color:#fff;font-weight:800;font-size:18px">฿${UI.formatMoney(w.balance)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e2a1e;font-size:13px">
+            <span style="color:#888">ค่าคอมสะสม</span>
+            <span style="color:#a5d6a7;font-weight:700">฿${UI.formatMoney(commBal)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
+            <span style="color:#888">รอการอนุมัติ</span>
+            <span style="color:#fbbf24">${w.pending_deposit?.count||0} รายการ (฿${UI.formatMoney(w.pending_deposit?.total||0)})</span>
+          </div>
+        </div>
+        <a href="/agent/" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:14px;font-weight:700;text-decoration:none">
+          ⬇️ ฝาก / ถอน ใน Agent Portal
+        </a>
+      </div>`;
+    }catch(e){
+      el.innerHTML = `<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+    }
+    return;
+  }
+
+  // Member wallet — แสดง static buttons ปกติ
+  el.innerHTML = `
+  <div style="padding:8px 0 4px;display:flex;flex-direction:column;gap:14px">
+    <button onclick="closeMPanel();openDeposit();" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(99,179,118,.45);background:rgba(99,179,118,.10);cursor:pointer;font-size:17px;font-weight:800;color:#86efac;letter-spacing:.5px;transition:background .18s,border-color .18s">
+      <span style="font-size:26px">⬇️</span>
+      <div style="text-align:left"><div>เติมเงิน</div><div style="font-size:12px;font-weight:500;color:#4ade80;opacity:.8;margin-top:2px">ฝากเงินเข้ากระเป๋า</div></div>
+    </button>
+    <button onclick="closeMPanel();openWithdraw();" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(212,160,23,.45);background:rgba(212,160,23,.10);cursor:pointer;font-size:17px;font-weight:800;color:var(--gold2);letter-spacing:.5px;transition:background .18s,border-color .18s">
+      <span style="font-size:26px">⬆️</span>
+      <div style="text-align:left"><div>ถอนเงิน</div><div style="font-size:12px;font-weight:500;color:var(--gold);opacity:.8;margin-top:2px">ถอนเงินออกจากกระเป๋า</div></div>
+    </button>
+  </div>`;
 }
 
 /* ── Profile & Level Tab ── */
@@ -2727,6 +2778,35 @@ function _renderBills(bills){
 
 async function loadBetHistory(append=false){
   const el = document.getElementById('mps-bets');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.bets=true; return; }
+  if(u?.is_agent){
+    if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const d    = await API.AgentAPI.bets({ limit:50, page:_mpBetsPage });
+      const rows = d.data || [];
+      _mpLoaded.bets = true;
+      if(!append && rows.length===0){ el.innerHTML='<div class="mp-empty"><div class="mp-empty-icon">🎫</div>ยังไม่มีประวัติการแทง</div>'; return; }
+      const html = rows.map(b=>`<div class="tx-row">
+        <div class="tx-icon">🎫</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700">${b.lottery_name||b.round_id||'-'}</div>
+          <div style="font-size:12px;color:var(--muted)">${b.number||''} · ${b.bet_type||''}</div>
+          <div style="font-size:11px;color:var(--dim)">${UI.formatDate(b.created_at)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="tx-neg">-฿${UI.formatMoney(b.amount)}</div>
+          <div style="font-size:11px;color:${b.status==='won'?'var(--green)':b.status==='lost'?'var(--red)':'var(--dim)'}">${b.status==='won'?'✅ ถูก':b.status==='lost'?'❌ ไม่ถูก':b.status==='pending'?'⏳ รอผล':'➕ ยกเลิก'}</div>
+        </div>
+      </div>`).join('');
+      if(!append) el.innerHTML=html; else el.querySelector('.mp-load-more')?.remove(),el.insertAdjacentHTML('beforeend',html);
+      if(rows.length===50){
+        const btn=document.createElement('button'); btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+        btn.onclick=()=>{_mpBetsPage++;loadBetHistory(true);}; el.appendChild(btn);
+      }
+    }catch(e){ el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`; }
+    return;
+  }
   if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
   try{
     const d    = await API.BetsAPI.history({ limit: 100, page: _mpBetsPage });
@@ -2754,6 +2834,39 @@ async function loadBetHistory(append=false){
 /* ── Transaction History ── */
 async function loadTxHistory(append=false){
   const el = document.getElementById('mps-tx');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.tx=true; return; }
+  if(u?.is_agent){
+    if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const d    = await API.AgentAPI.walletTransactions({ limit:MP_PAGE_SIZE, page:_mpTxPage });
+      const rows = d.data || [];
+      _mpLoaded.tx = true;
+      const TX_AGENT_MAP = { deposit:'ฝากเงิน', withdraw:'ถอนเงิน', commission:'ค่าคอม', credit:'เครดิต', debit:'หักเงิน', transfer:'โอนค่าคอม' };
+      if(!append && rows.length===0){ el.innerHTML='<div class="mp-empty"><div class="mp-empty-icon">💳</div>ยังไม่มีประวัติธุรกรรม</div>'; return; }
+      const html = rows.map(t=>{
+        const pos = parseFloat(t.amount)>0;
+        return `<div class="tx-row">
+          <div class="tx-icon">${pos?'⬇️':'⬆️'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600">${TX_AGENT_MAP[t.type]||t.type}</div>
+            <div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||''}</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:2px">${UI.formatDate(t.created_at)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="${pos?'tx-pos':'tx-neg'}">${pos?'+':'-'}฿${UI.formatMoney(Math.abs(t.amount))}</div>
+            <div style="font-size:11px;color:var(--dim)">คงเหลือ ฿${UI.formatMoney(t.balance_after||0)}</div>
+          </div>
+        </div>`;
+      }).join('');
+      if(!append) el.innerHTML=html; else el.querySelector('.mp-load-more')?.remove(),el.insertAdjacentHTML('beforeend',html);
+      if(rows.length===MP_PAGE_SIZE){
+        const btn=document.createElement('button'); btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+        btn.onclick=()=>{_mpTxPage++;loadTxHistory(true);}; el.appendChild(btn);
+      }
+    }catch(e){ el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`; }
+    return;
+  }
   if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
   try{
     const d    = await API.TransactionsAPI.history({ limit: MP_PAGE_SIZE, page: _mpTxPage });
@@ -2794,6 +2907,9 @@ async function loadTxHistory(append=false){
 /* ── Notifications ── */
 async function loadNotifications(){
   const el = document.getElementById('mps-notif');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.notif=true; return; }
+  if(u?.is_agent){ el.innerHTML = _portalBtn('/agent/', 'Agent Portal', 'linear-gradient(135deg,#1b5e20,#2e7d32)'); _mpLoaded.notif=true; return; }
   el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
   try{
     const d    = await API.MemberAPI.getNotifications({ limit:50 });
@@ -2822,6 +2938,51 @@ async function loadNotifications(){
 /* ── Referral Panel ── */
 async function loadReferralPanel(){
   const el = document.getElementById('mps-refer');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.refer=true; return; }
+  if(u?.is_agent){
+    el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const [dash, aff] = await Promise.all([API.AgentAPI.dashboard(), API.AgentAPI.affiliate()]);
+      const d = dash.data; const affCode = aff.data?.aff_code || '';
+      const affLink = affCode ? `${location.origin}/?aff=${affCode}` : '-';
+      el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:22px;font-weight:900;color:#fff">${d.member_count||0}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">สมาชิกทั้งหมด</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:22px;font-weight:900;color:#4ade80">${d.new_members_today||0}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">สมาชิกใหม่วันนี้</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:18px;font-weight:800;color:var(--gold)">฿${UI.formatMoney(d.commission_this_month||0)}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">ค่าคอมเดือนนี้</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:18px;font-weight:800;color:#a5d6a7">${d.commission_rate||0}%</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">อัตราค่าคอม</div>
+          </div>
+        </div>
+        <!-- Affiliate link -->
+        ${affCode ? `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:12px;color:#888;margin-bottom:6px">🔗 ลิ้งค์แนะนำ</div>
+          <div style="font-size:11px;color:#a5d6a7;word-break:break-all;margin-bottom:8px">${affLink}</div>
+          <button onclick="navigator.clipboard.writeText('${affLink}').then(()=>toast('คัดลอกแล้ว',''))" style="padding:7px 16px;background:rgba(67,160,71,.2);border:1px solid rgba(67,160,71,.4);border-radius:8px;color:#a5d6a7;font-size:12px;font-weight:700;cursor:pointer">คัดลอกลิ้งค์</button>
+        </div>` : ''}
+        <!-- Go to portal -->
+        <a href="/agent/" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-decoration:none">
+          🎯 ดูรายชื่อสมาชิกใน Agent Portal
+        </a>
+      </div>`;
+      _mpLoaded.refer = true;
+    }catch(e){ el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`; }
+    return;
+  }
   el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
   try{
     const d    = await API.MemberAPI.getReferrals();

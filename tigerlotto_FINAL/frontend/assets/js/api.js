@@ -315,6 +315,19 @@ const AdminAPI = {
     apiFetch(`/settings/admin/lottery-sources/${id}/test`, { method: 'POST' }, 'admin'),
 };
 
+/* ─── Agent API (ใช้ agent_token) ─── */
+const AgentAPI = {
+  dashboard          : ()       => apiFetch('/agent/dashboard', {}, 'agent'),
+  wallet             : ()       => apiFetch('/agent/wallet', {}, 'agent'),
+  walletTransactions : (p={})   => apiFetch('/agent/wallet/transactions?' + new URLSearchParams(p), {}, 'agent'),
+  walletDeposits     : (p={})   => apiFetch('/agent/wallet/deposits?' + new URLSearchParams(p), {}, 'agent'),
+  walletWithdrawals  : (p={})   => apiFetch('/agent/wallet/withdrawals?' + new URLSearchParams(p), {}, 'agent'),
+  members            : (p={})   => apiFetch('/agent/members?' + new URLSearchParams(p), {}, 'agent'),
+  commissions        : (p={})   => apiFetch('/agent/commissions?' + new URLSearchParams(p), {}, 'agent'),
+  bets               : (p={})   => apiFetch('/agent/lottery/bets?' + new URLSearchParams(p), {}, 'agent'),
+  affiliate          : ()       => apiFetch('/agent/affiliate', {}, 'agent'),
+};
+
 /* ─── UI Helpers ─── */
 const UI = {
   toast(msg, type = 'success', duration = 3000) {
@@ -418,7 +431,7 @@ async function initAdminSession() {
 }
 
 /* ─── Export globals ─── */
-window.API        = { AuthAPI, AdminAuthAPI, LotteryAPI, BetsAPI, TransactionsAPI, MemberAPI, AdminAPI, PublicAPI };
+window.API        = { AuthAPI, AdminAuthAPI, LotteryAPI, BetsAPI, TransactionsAPI, MemberAPI, AdminAPI, AgentAPI, PublicAPI };
 window.Token      = Token;
 window.UI         = UI;
 window.initMemberSession = initMemberSession;
