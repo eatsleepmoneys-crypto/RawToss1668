@@ -108,8 +108,8 @@ const Agent = {
 // ── ADMIN ─────────────────────────────────────────────────────
 const Admin = {
   dashboard:      ()       => get('/admin/dashboard'),
-  users:          (q)      => get('/admin/users'        + (q ? '?' + new URLSearchParams(q) : '')),
-  userStatus:     (id, d)  => put(`/admin/users/${id}/status`, d),
+  users:          (q)      => get('/members/admin/list'  + (q ? '?' + new URLSearchParams(q) : '')),
+  userStatus:     (id, d)  => patch(`/members/admin/${id}/status`, d),
   // Transactions
   transactions:   (q)      => get('/transactions/admin/deposits' + (q ? '?' + new URLSearchParams(q) : '')),
   withdrawals:    (q)      => get('/transactions/admin/withdrawals' + (q ? '?' + new URLSearchParams(q) : '')),

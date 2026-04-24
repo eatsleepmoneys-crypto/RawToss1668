@@ -40,13 +40,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
 async function loadBadges() {
   try {
-    const [dep, wit, kyc] = await Promise.all([
-      Admin.transactions({ type:'deposit',  status:'pending', limit:1 }),
-      Admin.transactions({ type:'withdraw', status:'pending', limit:1 }),
-      Admin.kycList({ status:'pending', limit:1 }),
-    ]);
-    // totals require count — use data length as approx or add header later
-    // For now just set > 0 indicator
     const setBadge = (id, data) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -54,11 +47,10 @@ async function loadBadges() {
       el.textContent = count > 99 ? '99+' : count;
       el.style.display = count > 0 ? '' : 'none';
     };
-    // Re-fetch full counts
     const [depFull, witFull, kycFull] = await Promise.all([
-      Admin.transactions({ type:'deposit',  status:'pending', limit:200 }),
-      Admin.transactions({ type:'withdraw', status:'pending', limit:200 }),
-      Admin.kycList({ status:'pending', limit:200 }),
+      Admin.transactions({ status:'pending', limit:200 }).catch(() => ({ data: [] })),
+      Admin.withdrawals({ status:'pending', limit:200 }).catch(() => ({ data: [] })),
+      Admin.kycList({ status:'pending', limit:200 }).catch(() => ({ data: [] })),
     ]);
     setBadge('badge-deposits',   depFull);
     setBadge('badge-withdrawals', witFull);
@@ -139,55 +131,69 @@ async function renderUsers(el) {
     </div>
     <div class="card" style="padding:8px;overflow-x:auto">
       <table>
-        <thead><tr><th>ชื่อ</th><th>เบอร์</th><th>Role</th><th>VIP</th><th>ยืนยัน</th><th>สมัคร</th><th>จัดการ</th></tr></thead>
-        <tbody>${users.map(u => `
+        <thead><tr><th>ชื่อ</th><th>เบอร์</th><th>รหัส</th><th>ระดับ</th><th>ยอดเงิน</th><th>สถานะ</th><th>สมัคร</th><th>จัดการ</th></tr></thead>
+        <tbody>${users.map(u => {
+          const isActive = u.status === 'active';
+          return `
           <tr>
-            <td style="color:#ccc;font-weight:600">${u.first_name||''} ${u.last_name||''}</td>
+            <td style="color:#ccc;font-weight:600">${u.name||''}</td>
             <td style="font-family:'JetBrains Mono',monospace;font-size:10px">${u.phone||''}</td>
-            <td><span class="badge ${u.role==='superadmin'||u.role==='admin'?'b-ok':u.role==='agent'?'b-pend':''}">
-              ${u.role}</span></td>
-            <td style="color:var(--gold)">⭐ ${u.vip_tier||'bronze'}</td>
-            <td>${u.is_verified ? '<span class="badge b-ok">✓</span>' : '<span class="badge b-fail">✕</span>'}</td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#555">${u.member_code||''}</td>
+            <td style="color:var(--gold)">⭐ ${u.level||'bronze'}</td>
+            <td style="font-size:12px;font-weight:700;color:var(--green)">฿${parseFloat(u.balance||0).toLocaleString()}</td>
+            <td><span class="badge ${isActive?'b-ok':'b-fail'}">${u.status||''}</span></td>
             <td style="font-size:10px;color:#555">${new Date(u.created_at).toLocaleDateString('th-TH')}</td>
             <td style="display:flex;gap:4px">
-              <button onclick="toggleUser(${u.id},${u.is_active})"
+              <button onclick="toggleUser(${u.id},'${u.status}')"
                 style="padding:2px 7px;border-radius:4px;font-size:8px;font-weight:700;cursor:pointer;font-family:inherit;
-                       background:${u.is_active?'#1a0a0a':'#0a1a0a'};border:1px solid ${u.is_active?'#D85A3033':'#3BD44133'};
-                       color:${u.is_active?'var(--red)':'var(--green)'}">
-                ${u.is_active ? 'ระงับ' : 'เปิด'}
+                       background:${isActive?'#1a0a0a':'#0a1a0a'};border:1px solid ${isActive?'#D85A3033':'#3BD44133'};
+                       color:${isActive?'var(--red)':'var(--green)'}">
+                ${isActive ? 'ระงับ' : 'เปิด'}
               </button>
             </td>
-          </tr>`).join('')}
+          </tr>`;
+        }).join('')}
         </tbody>
       </table>
     </div>`;
 }
 
-async function toggleUser(id, isActive) {
+async function toggleUser(id, currentStatus) {
+  const newStatus = currentStatus === 'active' ? 'banned' : 'active';
   try {
-    await Admin.userStatus(id, { is_active: isActive ? 0 : 1, is_banned: 0 });
-    toast((isActive ? '🚫 ระงับ' : '✅ เปิด') + ' สมาชิก #' + id);
+    await Admin.userStatus(id, { status: newStatus });
+    toast((newStatus === 'banned' ? '🚫 ระงับ' : '✅ เปิด') + ' สมาชิก #' + id);
     navTo('users');
   } catch(e) { toast(e.message, 'err'); }
 }
 
 // ── TRANSACTIONS ──────────────────────────────────────────────
 async function renderTransactions(el) {
-  const res = await Admin.transactions({ limit: 30 });
-  const txs = res.data || [];
+  // Fetch deposits + withdrawals in parallel, then merge & sort
+  const [depRes, wdRes] = await Promise.all([
+    Admin.transactions({ limit: 30 }).catch(() => ({ data: [] })),
+    Admin.withdrawals({ limit: 30 }).catch(() => ({ data: [] })),
+  ]);
+  const deposits    = (depRes.data || []).map(t => ({ ...t, _type: 'deposit' }));
+  const withdrawals = (wdRes.data  || []).map(t => ({ ...t, _type: 'withdraw' }));
+  const txs = [...deposits, ...withdrawals].sort((a, b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 60);
+
   el.innerHTML = `
-    <div class="pg-title">💳 ธุรกรรม</div>
+    <div class="pg-title">💳 ธุรกรรม
+      <span style="font-size:12px;font-weight:400;color:#555">${txs.length} รายการล่าสุด</span>
+    </div>
     <div class="card" style="padding:8px;overflow-x:auto">
       <table>
         <thead><tr><th>REF</th><th>สมาชิก</th><th>ประเภท</th><th>จำนวน</th><th>สถานะ</th><th>เวลา</th></tr></thead>
         <tbody>${txs.map(tx => `
           <tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
-            <td style="font-size:11px;color:#ccc">${tx.first_name||''} ${tx.last_name||''}</td>
-            <td><span class="badge ${tx.type==='deposit'||tx.type==='win'?'b-ok':tx.type==='withdraw'?'b-fail':'b-pend'}">${tx.type}</span></td>
-            <td style="font-size:12px;font-weight:700;color:${['deposit','win','bonus'].includes(tx.type)?'var(--green)':'var(--red)'}">
-              ${['deposit','win','bonus'].includes(tx.type)?'+':'-'}฿${parseFloat(tx.amount||0).toLocaleString()}</td>
-            <td><span class="badge ${tx.status==='success'?'b-ok':tx.status==='pending'?'b-pend':'b-fail'}">${tx.status}</span></td>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#666">${(tx.uuid||'').slice(0,8)}</td>
+            <td style="font-size:11px;color:#ccc">${tx.name||''}<br>
+              <span style="font-size:9px;color:#555">${tx.phone||''}</span></td>
+            <td><span class="badge ${tx._type==='deposit'?'b-ok':'b-fail'}">${tx._type==='deposit'?'ฝาก':'ถอน'}</span></td>
+            <td style="font-size:12px;font-weight:700;color:${tx._type==='deposit'?'var(--green)':'var(--red)'}">
+              ${tx._type==='deposit'?'+':'-'}฿${parseFloat(tx.amount||0).toLocaleString()}</td>
+            <td><span class="badge ${tx.status==='approved'||tx.status==='completed'?'b-ok':tx.status==='pending'?'b-pend':'b-fail'}">${tx.status}</span></td>
             <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
           </tr>`).join('')}
         </tbody>
@@ -246,12 +252,12 @@ async function renderDeposits(el) {
         </tr></thead>
         <tbody>${txs.map(tx => `
           <tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
-            <td style="color:#ccc">${tx.first_name||''} ${tx.last_name||''}<br>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#666">${(tx.uuid||'').slice(0,8)}</td>
+            <td style="color:#ccc">${tx.name||''}<br>
               <span style="font-size:9px;color:#555">${tx.phone||''}</span>
             </td>
             <td style="font-size:14px;font-weight:900;color:var(--green)">+฿${parseFloat(tx.amount||0).toLocaleString()}</td>
-            <td style="font-size:10px;color:#78BAFF">${tx.payment_method||'bank_transfer'}</td>
+            <td style="font-size:10px;color:#78BAFF">${tx.member_bank||tx.bank_code||'bank_transfer'}</td>
             <td>${tx.slip_image
               ? `<button onclick="viewSlip(${tx.id})" style="padding:4px 10px;border-radius:6px;background:#1A1200;border:1px solid var(--gold2);color:var(--gold);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit">🖼 ดูสลิป</button>`
               : '<span style="font-size:10px;color:#555">ไม่มีสลิป</span>'
@@ -275,7 +281,7 @@ async function renderDeposits(el) {
 
 // ── WITHDRAWALS ───────────────────────────────────────────────
 async function renderWithdrawals(el) {
-  const res = await Admin.transactions({ type:'withdraw', status:'pending', limit:50 });
+  const res = await Admin.withdrawals({ status:'pending', limit:50 });
   const txs = res.data || [];
   const badge = document.getElementById('badge-withdrawals');
   if (badge) badge.textContent = txs.length;
@@ -287,14 +293,15 @@ async function renderWithdrawals(el) {
     ${txs.length ? `<div class="card" style="padding:8px;overflow-x:auto">
       <table>
         <thead><tr>
-          <th>REF</th><th>สมาชิก</th><th>จำนวน</th><th>วันที่</th><th style="min-width:140px">จัดการ</th>
+          <th>REF</th><th>สมาชิก</th><th>บัญชี</th><th>จำนวน</th><th>วันที่</th><th style="min-width:140px">จัดการ</th>
         </tr></thead>
         <tbody>${txs.map(tx => `
           <tr>
-            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#444">${tx.ref_no||''}</td>
-            <td style="color:#ccc">${tx.first_name||''} ${tx.last_name||''}<br>
+            <td style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#666">${(tx.uuid||'').slice(0,8)}</td>
+            <td style="color:#ccc">${tx.name||''}<br>
               <span style="font-size:9px;color:#555">${tx.phone||''}</span>
             </td>
+            <td style="font-size:10px;color:#78BAFF">${tx.bank_code||''} ${tx.bank_account||''}</td>
             <td style="font-size:14px;font-weight:900;color:var(--gold)">฿${parseFloat(tx.amount||0).toLocaleString()}</td>
             <td style="font-size:10px;color:#555">${new Date(tx.created_at).toLocaleDateString('th-TH',{hour:'2-digit',minute:'2-digit'})}</td>
             <td style="display:flex;gap:6px;padding:8px 4px">
@@ -316,7 +323,7 @@ async function renderWithdrawals(el) {
 async function approveTx(id, type) {
   if (!confirm(`ยืนยันอนุมัติ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'}?`)) return;
   try {
-    await Admin.approveTx(id);
+    await Admin.approveTx(id, type);
     toast(`✅ อนุมัติ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'}แล้ว`);
     navTo(type==='deposit'?'deposits':'withdrawals');
   } catch(e) { toast(e.message, 'err'); }
