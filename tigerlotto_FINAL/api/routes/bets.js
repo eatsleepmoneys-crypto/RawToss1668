@@ -62,6 +62,7 @@ router.post('/', authMember,
       };
 
       // 1. Global limit (number='*') — ครอบคลุมทุกเลขของ bet_type นี้
+      // ใช้ query ปกติ (pre-check) — final enforcement อยู่ใน transaction ด้วย FOR UPDATE
       const [globalRow] = await query(
         `SELECT * FROM number_limits
          WHERE lottery_id=? AND number='*' AND bet_type=?
@@ -117,6 +118,12 @@ router.post('/', authMember,
       totalAmount += parseFloat(bet.amount);
     }
 
+    // Pre-check balance (non-locking, ปฏิเสธเร็วก่อน transaction จริง)
+    const [mPreCheck] = await query('SELECT balance FROM members WHERE id=?', [req.member.id]);
+    if (parseFloat(mPreCheck.balance) < totalAmount) {
+      return res.status(400).json({ success: false, message: `ยอดเงินไม่เพียงพอ (มี ฿${mPreCheck.balance} ต้องการ ฿${totalAmount})` });
+    }
+
     // Load member's referrer info + global referral rate (ก่อน transaction — read-only)
     const [memberInfo] = await query(
       'SELECT ref_by, agent_id FROM members WHERE id=?', [req.member.id]
@@ -128,18 +135,16 @@ router.post('/', authMember,
     const globalCommRate = parseFloat(rateSetting?.value || 0);
 
     // Place bets in transaction
-    // NOTE: ตรวจ balance ภายใน transaction พร้อม FOR UPDATE เท่านั้น
-    // ห้ามตรวจ balance นอก transaction เพราะ FOR UPDATE ไม่มีผลนอก BEGIN/COMMIT
-    // → ป้องกัน double-spend race condition
+    // Final balance check ภายใน transaction พร้อม FOR UPDATE (ป้องกัน double-spend race condition)
     let result;
     try {
       result = await transaction(async (conn) => {
-        // ล็อก row ด้วย FOR UPDATE ก่อนอ่าน balance — ป้องกัน concurrent request ผ่านพร้อมกัน
         const [[member]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [req.member.id]);
         if (parseFloat(member.balance) < totalAmount) {
-          const insufErr = new Error(`ยอดเงินไม่เพียงพอ (มี ฿${parseFloat(member.balance).toFixed(2)} ต้องการ ฿${totalAmount.toFixed(2)})`);
-          insufErr.code = 'INSUFFICIENT_BALANCE';
-          throw insufErr;
+          throw Object.assign(
+            new Error(`ยอดเงินไม่เพียงพอ (มี ฿${parseFloat(member.balance).toFixed(2)} ต้องการ ฿${totalAmount.toFixed(2)})`),
+            { statusCode: 400, code: 'INSUFFICIENT_BALANCE' }
+          );
         }
         const newBal = parseFloat(member.balance) - totalAmount;
 
@@ -156,9 +161,10 @@ router.post('/', authMember,
            bet.payout, 'waiting']);
         placedBets.push({ uuid: betUuid, ...bet });
 
-        // ─── อั้นหวย: อัปเดต tier_used และ escalate ────────────────────────
-        // helper ใช้ร่วมกัน
+        // ─── อั้นหวย: อัปเดต tier_used และ escalate (ใช้ FOR UPDATE ก่อน UPDATE ป้องกัน race) ─
         const _updateNlUsed = async (nlId) => {
+          // Lock row ก่อน เพื่อป้องกัน concurrent bets อัปเดตพร้อมกัน
+          await conn.execute('SELECT id FROM number_limits WHERE id=? FOR UPDATE', [nlId]);
           await conn.execute(
             `UPDATE number_limits SET
                tier1_used   = tier1_used   + IF(current_tier='1',   ?, 0),
@@ -170,7 +176,7 @@ router.post('/', authMember,
             [bet.amount, bet.amount, bet.amount, bet.amount, bet.amount, nlId]
           );
           const [[nl]] = await conn.execute(
-            'SELECT * FROM number_limits WHERE id=? FOR UPDATE', [nlId]
+            'SELECT * FROM number_limits WHERE id=?', [nlId]
           );
           if (nl) {
             let newTier = nl.current_tier;
@@ -287,6 +293,11 @@ router.post('/', authMember,
     }
 
     res.status(201).json({ success: true, message: 'แทงหวยสำเร็จ', data: result });
+  } catch (err) {
+    const status = err.statusCode || 500;
+    const msg = status < 500 ? err.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+    if (status >= 500) console.error('[BETS] unhandled error:', err);
+    return res.status(status).json({ success: false, message: msg });
   }
 );
 

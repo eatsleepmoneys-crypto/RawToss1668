@@ -206,6 +206,42 @@ router.post('/withdraw', authMember,
     const [m] = await query('SELECT bank_code, bank_account, bank_name FROM members WHERE id=?', [req.member.id]);
     if (!m.bank_account) return res.status(400).json({ success: false, message: 'กรุณาผูกบัญชีธนาคารก่อนถอน' });
 
+    // ── ตรวจสอบเทิร์นโปรโมชั่นที่ยังค้างอยู่ (ตรวจทุก pending promo) ────────
+    const pendingPromos = await query(
+      `SELECT mp.id, mp.bonus_amount, mp.required_turnover, mp.current_turnover,
+              p.name as promo_name, p.max_withdraw_bonus
+       FROM member_promotions mp
+       JOIN promotions p ON p.id = mp.promotion_id
+       WHERE mp.member_id=? AND mp.status='pending'`,
+      [req.member.id]
+    );
+    if (pendingPromos.length > 0) {
+      const bonusBal = parseFloat(m.bonus_balance || 0);
+      const withdrawableBalance = Math.max(0, parseFloat(m.balance) - bonusBal);
+      let worstPromo = null;
+      let maxRemaining = 0;
+      for (const pp of pendingPromos) {
+        const remaining = Math.max(0, parseFloat(pp.required_turnover) - parseFloat(pp.current_turnover));
+        if (remaining > 0 && remaining > maxRemaining) {
+          maxRemaining = remaining;
+          worstPromo = pp;
+        }
+      }
+      if (worstPromo && amount > withdrawableBalance) {
+        return res.status(400).json({
+          success: false,
+          message: `ต้องทำเทิร์นอีก ฿${maxRemaining.toLocaleString()} ก่อนถอนได้ (โปรโมชั่น: ${worstPromo.promo_name})`,
+          data: {
+            required_turnover:  worstPromo.required_turnover,
+            current_turnover:   worstPromo.current_turnover,
+            remaining_turnover: maxRemaining,
+            promo_name:         worstPromo.promo_name,
+            pending_count:      pendingPromos.length
+          }
+        });
+      }
+    }
+
     // ── อ่าน settings ก่อน transaction (read-only, ไม่มี race condition) ──────
     const settingRows = await query(
       "SELECT `key`,value FROM settings WHERE `key` IN " +
@@ -338,10 +374,21 @@ router.post('/withdraw', authMember,
         return res.status(201).json({ success: true, message: '✅ ถอนเงินสำเร็จ! เงินโอนเข้าบัญชีแล้ว', auto: true, kbank: true });
       } else {
         // ❌ KBank โอนไม่สำเร็จ — เปลี่ยนกลับเป็น pending ให้ Admin จัดการ
-        await query(
-          "UPDATE withdrawals SET status='pending', note=? WHERE uuid=?",
-          [`KBank โอนไม่สำเร็จ: ${kbResult.reason||kbResult.error||'unknown'} — รอ Admin โอนเอง`, wdUuid]
-        ).catch(() => {});
+        try {
+          await query(
+            "UPDATE withdrawals SET status='pending', note=? WHERE uuid=?",
+            [`KBank โอนไม่สำเร็จ: ${kbResult.reason||kbResult.error||'unknown'} — รอ Admin โอนเอง`, wdUuid]
+          );
+        } catch (updateErr) {
+          // UPDATE ล้มเหลว — คืนเงินให้สมาชิกทันทีเพื่อความปลอดภัย
+          console.error('[AutoWD] CRITICAL: withdrawal update failed, refunding member:', updateErr.message);
+          await query('UPDATE members SET balance=balance+? WHERE id=?', [amount, req.member.id]).catch(() => {});
+          await query(
+            'INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+            [uuidv4(), req.member.id, 'refund', amount, 0, 0, `คืนเงินอัตโนมัติ — KBank ล้มเหลวและ DB error`]
+          ).catch(() => {});
+          return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด กรุณาลองใหม่หรือติดต่อทีมงาน' });
+        }
         await query(
           'INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
           [req.member.id,

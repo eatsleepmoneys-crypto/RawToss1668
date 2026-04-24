@@ -34,7 +34,10 @@ const sendOTP = async (phone, type) => {
   await query('DELETE FROM otps WHERE phone = ? AND type = ?', [phone, type]);
   await query('INSERT INTO otps (phone, code, type, expires_at) VALUES (?,?,?,?)', [phone, code, type, expires]);
   // In production: send via SMS API
-  console.log(`📱 OTP for ${phone}: ${code}`);
+  // ⚠️ Dev only — ห้าม log OTP ใน production (security risk)
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`📱 [DEV] OTP for ${phone}: ${code}`);
+  }
   return code;
 };
 

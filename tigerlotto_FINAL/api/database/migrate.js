@@ -914,6 +914,7 @@ async function migrate() {
       \`required_turnover\` DECIMAL(15,2) NOT NULL DEFAULT 0.00,
       \`current_turnover\`  DECIMAL(15,2) NOT NULL DEFAULT 0.00,
       \`deposit_amount\`    DECIMAL(10,2) NOT NULL DEFAULT 0.00 COMMENT 'ยอดฝากที่ใช้คำนวณเทิร์น',
+      \`deposit_ref_id\`    INT UNSIGNED DEFAULT NULL COMMENT 'FK → deposits.id ป้องกันใช้ deposit ซ้ำ',
       \`status\`            ENUM('pending','completed','cancelled','expired') NOT NULL DEFAULT 'pending',
       \`claimed_at\`        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
       \`completed_at\`      DATETIME DEFAULT NULL,
@@ -922,6 +923,29 @@ async function migrate() {
       INDEX \`idx_mp_promo\`  (\`promotion_id\`),
       INDEX \`idx_mp_status\` (\`status\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+    // member_promotions: เพิ่ม deposit_ref_id ถ้าตารางมีอยู่แล้ว
+    `ALTER TABLE \`member_promotions\` ADD COLUMN \`deposit_ref_id\` INT UNSIGNED DEFAULT NULL COMMENT 'FK → deposits.id' AFTER \`deposit_amount\``,
+
+    // ── Performance indexes — high-traffic queries ──────────────────────────
+    // bets: filter by member + status (bet history, win check)
+    `ALTER TABLE \`bets\` ADD INDEX \`idx_bets_member_status\` (\`member_id\`, \`status\`)`,
+    // bets: filter by round + status (announce result, FIX endpoint)
+    `ALTER TABLE \`bets\` ADD INDEX \`idx_bets_round_status\` (\`round_id\`, \`status\`)`,
+    // transactions: filter by member + type + date (wallet history)
+    `ALTER TABLE \`transactions\` ADD INDEX \`idx_tx_member_type\` (\`member_id\`, \`type\`)`,
+    `ALTER TABLE \`transactions\` ADD INDEX \`idx_tx_created\` (\`created_at\`)`,
+    // deposits: filter by member + status (deposit history)
+    `ALTER TABLE \`deposits\` ADD INDEX \`idx_dep_member_status\` (\`member_id\`, \`status\`)`,
+    // withdrawals: filter by member + status (withdraw history + pending check)
+    `ALTER TABLE \`withdrawals\` ADD INDEX \`idx_wd_member_status\` (\`member_id\`, \`status\`)`,
+    // lottery_rounds: filter by lottery_id + status + draw_date (round lookup)
+    `ALTER TABLE \`lottery_rounds\` ADD INDEX \`idx_lr_lottery_status\` (\`lottery_id\`, \`status\`)`,
+    `ALTER TABLE \`lottery_rounds\` ADD INDEX \`idx_lr_draw_date\` (\`draw_date\`)`,
+    // members: filter by agent_id (agent member list), ref_by (referral)
+    `ALTER TABLE \`members\` ADD INDEX \`idx_members_agent\` (\`agent_id\`)`,
+    `ALTER TABLE \`members\` ADD INDEX \`idx_members_ref\` (\`ref_by\`)`,
+    // notifications: filter by member + read status (unread count)
+    `ALTER TABLE \`notifications\` ADD INDEX \`idx_notif_member_read\` (\`member_id\`, \`is_read\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

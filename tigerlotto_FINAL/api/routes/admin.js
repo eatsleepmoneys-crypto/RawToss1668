@@ -283,8 +283,9 @@ router.get('/logs', authAdmin, rbac.requirePerm('logs.view'), async (req, res) =
 // ══════════════════════════════════════
 //  PROMOTIONS CRUD
 // ══════════════════════════════════════
-router.get('/promotions', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
-  const rows = await query('SELECT * FROM promotions ORDER BY id DESC');
+router.get('/promotions', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+  const rows = await query('SELECT * FROM promotions ORDER BY id DESC LIMIT ?', [limit]);
   res.json({ success: true, data: rows });
 });
 

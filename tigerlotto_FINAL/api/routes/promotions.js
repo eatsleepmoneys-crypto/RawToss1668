@@ -76,6 +76,24 @@ router.post('/claim', authMember, async (req, res) => {
         const dep = parseFloat(deposit_amount);
         if (dep < parseFloat(promo.min_deposit || 0))
           throw new Error(`ต้องฝากขั้นต่ำ ฿${promo.min_deposit} เพื่อรับโปรนี้`);
+
+        // ตรวจสอบว่ามีฝากเงินจริง (approved) ในวันนี้ที่มีมูลค่าไม่ต่ำกว่า deposit_amount
+        const [[latestDeposit]] = await conn.execute(
+          `SELECT id, amount FROM deposits
+           WHERE member_id=? AND status='approved' AND amount >= ?
+             AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
+           ORDER BY id DESC LIMIT 1`,
+          [req.member.id, dep]
+        );
+        if (!latestDeposit) throw new Error('ไม่พบรายการฝากเงินที่ตรงเงื่อนไข กรุณาฝากเงินก่อนรับโปรโมชั่นนี้');
+
+        // ตรวจว่า deposit นี้ไม่เคยใช้กับโปรโมชั่นอื่นแล้ว
+        const [[depositUsed]] = await conn.execute(
+          `SELECT id FROM member_promotions
+           WHERE member_id=? AND deposit_ref_id=? AND status IN ('pending','completed')`,
+          [req.member.id, latestDeposit.id]
+        ).catch(() => [[null]]);
+        if (depositUsed) throw new Error('รายการฝากนี้ได้ใช้กับโปรโมชั่นอื่นแล้ว');
       }
 
       // 4. คำนวณโบนัส
@@ -115,11 +133,12 @@ router.post('/claim', authMember, async (req, res) => {
 
       // 7. สร้าง member_promotions record
       const status = requiredTurnover === 0 ? 'completed' : 'pending';
+      const depositRefId = promo.apply_type === 'deposit' ? (latestDeposit?.id || null) : null;
       await conn.execute(
         `INSERT INTO member_promotions
-           (member_id, promotion_id, bonus_amount, required_turnover, current_turnover, deposit_amount, status, completed_at)
-         VALUES (?,?,?,?,0,?,?, IF(?='completed',NOW(),NULL))`,
-        [req.member.id, promo.id, bonusAmt, requiredTurnover, parseFloat(deposit_amount), status, status]
+           (member_id, promotion_id, bonus_amount, required_turnover, current_turnover, deposit_amount, deposit_ref_id, status, completed_at)
+         VALUES (?,?,?,?,0,?,?, ?, IF(?='completed',NOW(),NULL))`,
+        [req.member.id, promo.id, bonusAmt, requiredTurnover, parseFloat(deposit_amount), depositRefId, status, status]
       );
 
       // เพิ่ม usage count

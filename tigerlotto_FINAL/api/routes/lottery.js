@@ -141,10 +141,17 @@ router.post('/check', async (req, res) => {
   // Safe JSON array parser — handles mysql2 auto-parse (Array) and raw JSON string
   const safeArr = (v) => {
     if (!v) return [];
-    if (Array.isArray(v)) return v;
+    if (Array.isArray(v)) return v.map(String).filter(Boolean);
     if (typeof v !== 'string') return [String(v)];
-    try { const r = JSON.parse(v); return Array.isArray(r) ? r : [String(r)]; }
-    catch { return String(v).split(',').map(s => s.trim()).filter(Boolean); }
+    const s = v.trim();
+    if (s === '' || s === 'null' || s === '[]') return [];
+    try {
+      const r = JSON.parse(s);
+      return Array.isArray(r) ? r.map(String).filter(Boolean) : [String(r)];
+    } catch {
+      // JSON parse ล้มเหลว — fallback split แต่กรองเฉพาะตัวเลข
+      return s.split(',').map(x => x.trim()).filter(x => /^\d+$/.test(x));
+    }
   };
 
   const n = number.trim();
