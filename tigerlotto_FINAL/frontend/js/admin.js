@@ -328,7 +328,7 @@ async function rejectTx(id, type) {
   const note = prompt(`เหตุผลปฏิเสธ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'} (ไม่บังคับ):`);
   if (note === null) return; // cancel
   try {
-    await Admin.rejectTx(id, note || 'ถูกปฏิเสธโดย Admin');
+    await Admin.rejectTx(id, note || 'ถูกปฏิเสธโดย Admin', type);
     toast(`❌ ปฏิเสธ${type==='deposit'?'ฝากเงิน':'ถอนเงิน'}แล้ว${type==='withdraw'?' เงินคืนอัตโนมัติ':''}`);
     navTo(type==='deposit'?'deposits':'withdrawals');
   } catch(e) { toast(e.message, 'err'); }
@@ -603,20 +603,35 @@ async function renderReport(el) {
 }
 
 // ── ROUNDS ────────────────────────────────────────────────────
-async function renderRounds(el) {
+async function renderRounds(el, activeTab) {
+  activeTab = activeTab || 'main'; // 'main' | 'yeekee'
+
   // Load lottery types (for create form)
   let types = [];
   try { const r = await Lottery.types(); types = Array.isArray(r) ? r : (r.data||[]); } catch {}
-  // Load all rounds (admin view — all statuses)
-  let rounds = [];
-  try { const r = await Admin.adminRounds({ limit:60 }); rounds = r.data||[]; } catch {}
 
-  const S_COLOR = { open:'#3BD441', closed:'#FFD700', resulted:'#78BAFF', upcoming:'#888', cancelled:'#D85A30' };
-  const S_LABEL = { open:'รับแทง', closed:'ปิดรับ', resulted:'ออกผลแล้ว', upcoming:'รอเปิด', cancelled:'ยกเลิก' };
+  // Load rounds — แยก yeekee vs อื่นๆ เพื่อไม่ให้ yeekee ท่วม
+  let allRounds = [];
+  try {
+    // ดึง 50 งวดล่าสุด (ไม่กรอง type — กรองฝั่ง client)
+    const r = await Admin.adminRounds({ limit: 50 });
+    allRounds = r.data || [];
+  } catch(e) { console.warn('adminRounds error:', e.message); }
+
+  const mainRounds   = allRounds.filter(r => (r.code || r.lottery_code || '').toUpperCase() !== 'YEEKEE');
+  const yeekeeRounds = allRounds.filter(r => (r.code || r.lottery_code || '').toUpperCase() === 'YEEKEE');
+  const rounds = activeTab === 'yeekee' ? yeekeeRounds : mainRounds;
+
+  const S_COLOR = { open:'#3BD441', closed:'#FFD700', resulted:'#78BAFF', announced:'#78BAFF', upcoming:'#888', cancelled:'#D85A30' };
+  const S_LABEL = { open:'รับแทง', closed:'ปิดรับ', resulted:'ออกผลแล้ว', announced:'ออกผลแล้ว', upcoming:'รอเปิด', cancelled:'ยกเลิก' };
+
+  const tabStyle = (key) => key === activeTab
+    ? 'padding:7px 18px;border-radius:8px 8px 0 0;background:var(--dark3);border:1px solid #333;border-bottom:1px solid var(--dark3);color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:-1px'
+    : 'padding:7px 18px;border-radius:8px 8px 0 0;background:transparent;border:1px solid transparent;border-bottom:1px solid #333;color:#555;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:-1px';
 
   el.innerHTML = `
     <div class="pg-title">📅 จัดการงวดหวย
-      <button onclick="renderRounds(document.getElementById('mainContent'))"
+      <button onclick="renderRounds(document.getElementById('mainContent'),'${activeTab}')"
         style="padding:5px 12px;border-radius:7px;background:var(--dark3);border:1.5px solid #1e1e1e;color:#888;font-size:11px;cursor:pointer;font-family:inherit">
         🔄 รีเฟรช
       </button>
@@ -653,17 +668,24 @@ async function renderRounds(el) {
       </button>
     </div>
 
-    <!-- ── รายการงวดทั้งหมด ── -->
-    <div class="card" style="padding:0;overflow:hidden">
-      <div class="card-title" style="padding:10px 14px;border-bottom:1px solid #1e1e1e">
-        📋 งวดทั้งหมด &nbsp;<span style="color:#555;font-weight:400">${rounds.length} งวด</span>
-      </div>
+    <!-- ── Tabs ── -->
+    <div style="display:flex;gap:4px;margin-bottom:0;border-bottom:1px solid #333">
+      <button onclick="renderRounds(document.getElementById('mainContent'),'main')" style="${tabStyle('main')}">
+        🏮 หวยทั่วไป <span style="font-size:9px;color:#666;font-weight:400">${mainRounds.length}</span>
+      </button>
+      <button onclick="renderRounds(document.getElementById('mainContent'),'yeekee')" style="${tabStyle('yeekee')}">
+        🎲 ยี่กี่ <span style="font-size:9px;color:#666;font-weight:400">${yeekeeRounds.length}</span>
+      </button>
+    </div>
+
+    <!-- ── รายการงวด ── -->
+    <div class="card" style="padding:0;overflow:hidden;border-top-left-radius:0;border-top-right-radius:0;margin-top:0">
       <div style="overflow-x:auto">
         <table>
           <thead><tr>
             <th style="padding:8px 14px">งวด / รหัส</th>
-            <th>เปิด</th><th>ปิด</th>
-            <th>ยอดแทง</th><th>สถานะ</th><th>Action</th>
+            <th>ปิดรับ</th>
+            <th>ยอดแทง (฿)</th><th>บิล</th><th>สถานะ</th><th>Action</th>
           </tr></thead>
           <tbody>
             ${rounds.length ? rounds.map(r => {
@@ -673,23 +695,24 @@ async function renderRounds(el) {
               const actClose = r.status==='open' ?
                 `<button onclick="closeRound(${r.id})"
                   style="padding:3px 9px;border-radius:6px;background:#1a0a0a;border:1px solid #D85A3033;color:var(--red);font-size:10px;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px">
-                  🔒 ปิดรับ</button>` : '';
+                  ปิดรับ</button>` : '';
               const actResult = r.status==='closed' ?
                 `<button onclick="navTo('enter_result')"
                   style="padding:3px 9px;border-radius:6px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:10px;font-weight:900;cursor:pointer;font-family:inherit">
                   🏆 กรอกผล</button>` : '';
+              const flag = r.flag || '';
               return `<tr>
                 <td style="padding:8px 14px">
-                  <div style="font-size:12px;font-weight:700;color:#fff">${r.lottery_name||'-'}</div>
+                  <div style="font-size:12px;font-weight:700;color:#fff">${flag} ${r.lottery_name||'-'}</div>
                   <div style="font-size:9px;color:#555;font-family:'JetBrains Mono',monospace;margin-top:2px">${r.round_code||'-'}</div>
                 </td>
-                <td style="font-size:10px;color:#666">${r.open_at ? dtFmt(r.open_at) : '-'}</td>
                 <td style="font-size:10px;color:#666">${r.close_at ? dtFmt(r.close_at) : '-'}</td>
-                <td style="font-size:12px;font-weight:700;color:var(--gold)">฿${parseFloat(r.total_bet_amount||0).toLocaleString()}</td>
+                <td style="font-size:12px;font-weight:700;color:var(--gold)">฿${parseFloat(r.total_bet||r.total_bet_amount||0).toLocaleString()}</td>
+                <td style="font-size:11px;color:#888">${r.bet_count||0}</td>
                 <td><span class="badge" style="color:${sc};background:${sc}22;border:1px solid ${sc}44">${sl}</span></td>
                 <td style="white-space:nowrap">${actClose}${actResult}</td>
               </tr>`;
-            }).join('') : `<tr><td colspan="6" style="text-align:center;padding:30px;color:#444">ยังไม่มีงวด — สร้างงวดแรกด้านบน</td></tr>`}
+            }).join('') : `<tr><td colspan="6" style="text-align:center;padding:30px;color:#444">ไม่มีงวดในหมวดนี้</td></tr>`}
           </tbody>
         </table>
       </div>

@@ -3,7 +3,7 @@
  * เชื่อมต่อ Backend API จริงทุก endpoint
  */
 
-const API_BASE = 'https://rawtoss1668-production.up.railway.app/api/v1';
+const API_BASE = 'https://rawtoss1668-production.up.railway.app/api';
 
 // ── HTTP Helper ───────────────────────────────────────────────
 async function http(method, path, body = null, multipart = false) {
@@ -27,11 +27,12 @@ async function http(method, path, body = null, multipart = false) {
   return data;
 }
 
-const get  = (path)        => http('GET',    path);
-const post = (path, body)  => http('POST',   path, body);
-const put  = (path, body)  => http('PUT',    path, body);
-const del  = (path)        => http('DELETE', path);
-const postForm = (path, fd) => http('POST',  path, fd, true);
+const get      = (path)        => http('GET',    path);
+const post     = (path, body)  => http('POST',   path, body);
+const put      = (path, body)  => http('PUT',    path, body);
+const patch    = (path, body)  => http('PATCH',  path, body);
+const del      = (path)        => http('DELETE', path);
+const postForm = (path, fd)    => http('POST',   path, fd, true);
 
 // ── AUTH ──────────────────────────────────────────────────────
 const Auth = {
@@ -109,17 +110,31 @@ const Admin = {
   dashboard:      ()       => get('/admin/dashboard'),
   users:          (q)      => get('/admin/users'        + (q ? '?' + new URLSearchParams(q) : '')),
   userStatus:     (id, d)  => put(`/admin/users/${id}/status`, d),
-  transactions:   (q)      => get('/admin/transactions' + (q ? '?' + new URLSearchParams(q) : '')),
-  approveWD:      (id)     => put(`/admin/transactions/${id}/approve`),
-  approveDeposit: (id)     => put(`/admin/transactions/${id}/approve-deposit`),
-  slipUrl:        (id)     => `${API_BASE}/admin/transactions/${id}/slip`,
-  enterResult:    (rid, d) => post(`/admin/lottery/rounds/${rid}/result`, d),
+  // Transactions
+  transactions:   (q)      => get('/transactions/admin/deposits' + (q ? '?' + new URLSearchParams(q) : '')),
+  withdrawals:    (q)      => get('/transactions/admin/withdrawals' + (q ? '?' + new URLSearchParams(q) : '')),
+  approveDeposit: (id)     => patch(`/transactions/admin/deposits/${id}/approve`),
+  rejectDeposit:  (id, note) => patch(`/transactions/admin/deposits/${id}/reject`, { note }),
+  approveWD:      (id)     => patch(`/transactions/admin/withdrawals/${id}/process`),
+  rejectWD:       (id, note) => patch(`/transactions/admin/withdrawals/${id}/reject`, { note }),
+  approveTx:      (id, type) => type === 'withdraw'
+    ? patch(`/transactions/admin/withdrawals/${id}/process`)
+    : patch(`/transactions/admin/deposits/${id}/approve`),
+  rejectTx:       (id, note, type) => type === 'withdraw'
+    ? patch(`/transactions/admin/withdrawals/${id}/reject`, { note })
+    : patch(`/transactions/admin/deposits/${id}/reject`,   { note }),
+  slipUrl:        (id)     => `${API_BASE}/transactions/admin/deposits/${id}/slip`,
+  // Lottery / Rounds
+  adminRounds:    (q)      => get('/lottery/admin/rounds' + (q ? '?' + new URLSearchParams(q) : '')),
+  enterResult:    (rid, d) => post(`/lottery/admin/rounds/${rid}/result`, d),
+  // KYC
   kycList:        (q)      => get('/admin/kyc'          + (q ? '?' + new URLSearchParams(q) : '')),
   approveKYC:     (id)     => put(`/admin/kyc/${id}/approve`),
   rejectKYC:      (id, d)  => put(`/admin/kyc/${id}/reject`, d),
+  // Misc
   hotNumbers:     (q)      => get('/admin/hot-numbers'  + (q ? '?' + new URLSearchParams(q) : '')),
-  settings:       ()       => get('/admin/settings'),
-  updateSetting:  (k, v)   => put(`/admin/settings/${k}`, { value: v }),
+  settings:       ()       => get('/settings'),
+  updateSetting:  (k, v)   => put(`/settings/${k}`,    { value: v }),
   report:         (q)      => get('/admin/reports/monthly' + (q ? '?' + new URLSearchParams(q) : '')),
 };
 
