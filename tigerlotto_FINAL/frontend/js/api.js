@@ -38,8 +38,8 @@ const postForm = (path, fd)    => http('POST',   path, fd, true);
 const Auth = {
   register: (d)      => post('/auth/register',   d),
   login:    (d)      => post('/auth/login',       d),
-  sendOTP:  (d)      => post('/auth/otp/send',    d),
-  verifyOTP:(d)      => post('/auth/otp/verify',  d),
+  sendOTP:  (d)      => post('/auth/send-otp',    d),   // backend: POST /auth/send-otp
+  verifyOTP:(d)      => post('/auth/verify-otp',  d),   // backend: POST /auth/verify-otp
 };
 
 // ── ME ────────────────────────────────────────────────────────
