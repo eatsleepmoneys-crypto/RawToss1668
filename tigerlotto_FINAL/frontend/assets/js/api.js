@@ -375,7 +375,7 @@ async function initMemberSession() {
         phone   : admin.phone || '',
         is_admin: 1,
         is_agent: 0,
-        balance : 0,
+        balance : parseFloat(admin.balance || 0),
       };
       window.currentUser = adminUser;
       return adminUser;

@@ -164,6 +164,7 @@ router.post('/login', loginLimit,
             id: adminByPhone.id, uuid: adminByPhone.uuid,
             name: adminByPhone.name, email: adminByPhone.email,
             phone: adminByPhone.phone,
+            balance: adminByPhone.balance,
             role: adminByPhone.role,
           },
           redirect: '/admin/'
