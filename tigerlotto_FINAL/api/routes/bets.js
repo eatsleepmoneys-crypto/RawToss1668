@@ -18,6 +18,7 @@ router.post('/', authMember,
   async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+  try {
 
     const { round_id, bets } = req.body;
 
@@ -298,6 +299,7 @@ router.post('/', authMember,
     const msg = status < 500 ? err.message : 'เกิดข้อผิดพลาด กรุณาลองใหม่';
     if (status >= 500) console.error('[BETS] unhandled error:', err);
     return res.status(status).json({ success: false, message: msg });
+  }
   }
 );
 
