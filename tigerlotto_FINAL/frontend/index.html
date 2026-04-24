@@ -586,7 +586,7 @@ select.fi option{background:var(--card2)}
             <th>อัตราจ่าย (ต่อบาท)</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody id="payout-rates-tbody">
           <tr><td class="p1">🏆 รางวัลที่ 1</td><td>1</td><td class="p1">6,000,000 บาท</td><td class="p1">1:75</td></tr>
           <tr><td>รางวัลที่ 2</td><td>5</td><td>200,000 บาท</td><td>1:2,500</td></tr>
           <tr><td>รางวัลที่ 3</td><td>10</td><td>80,000 บาท</td><td>1:1,000</td></tr>
@@ -3240,8 +3240,31 @@ async function init(){
   loadTicker();
   loadLineContact();
   initLineWidgetState();
+  loadPayoutRatesTable();
   // ── Affiliate link tracking ──
   _initAffiliateTracking();
+}
+
+// ── ตารางอัตราการจ่ายรางวัล — โหลดจาก API ──────────────────────────────────
+async function loadPayoutRatesTable(){
+  try {
+    const d = await API.PublicAPI.payoutRates();
+    const rows = d.data || [];
+    if (!rows.length) return;
+    const tbody = document.getElementById('payout-rates-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = rows.map((r, i) => {
+      const cls = i === 0 ? ' class="p1"' : '';
+      return `<tr>
+        <td${cls}>${r.label||''}</td>
+        <td>${r.prize_count||'-'}</td>
+        <td${cls}>${r.prize_value||''}</td>
+        <td${cls}>${r.payout_display||''}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    // silent — hardcoded fallback already visible
+  }
 }
 
 function _initAffiliateTracking(){

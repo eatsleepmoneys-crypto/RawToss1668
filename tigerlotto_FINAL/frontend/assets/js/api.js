@@ -158,7 +158,8 @@ const TransactionsAPI = {
 
 /* ─── Members API ─── */
 const PublicAPI = {
-  getSettings: () => apiFetch('/settings'),
+  getSettings  : () => apiFetch('/settings'),
+  payoutRates  : () => apiFetch('/lottery/payout-rates'),
 };
 
 const MemberAPI = {
@@ -211,8 +212,11 @@ const AdminAPI = {
     apiFetch(`/admin/admins/${id}/reset-password`, { method: 'PATCH', body: JSON.stringify({ new_password }) }, 'admin'),
 
   // Lottery admin
-  getLotteryTypes : () => apiFetch('/lottery/admin/types', {}, 'admin'),
-  updateLotteryType: (id, data) => apiFetch(`/lottery/admin/types/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  getLotteryTypes   : () => apiFetch('/lottery/admin/types', {}, 'admin'),
+  updateLotteryType : (id, data) => apiFetch(`/lottery/admin/types/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
+  // Payout rates admin
+  listPayoutRates   : () => apiFetch('/lottery/admin/payout-rates', {}, 'admin'),
+  updatePayoutRate  : (id, data) => apiFetch(`/lottery/admin/payout-rates/${id}`, { method: 'PATCH', body: JSON.stringify(data) }, 'admin'),
   listRoundsAdmin : (params = {}) => apiFetch('/lottery/admin/rounds?' + new URLSearchParams(params), {}, 'admin'),
   createRound     : (data) => apiFetch('/lottery/admin/rounds', { method: 'POST', body: JSON.stringify(data) }, 'admin'),
   closeRound      : (id) => apiFetch(`/lottery/admin/rounds/${id}/close`, { method: 'PATCH' }, 'admin'),

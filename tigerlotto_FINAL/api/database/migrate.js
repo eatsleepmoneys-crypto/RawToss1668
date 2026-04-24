@@ -485,6 +485,18 @@ const CREATES = [
     \`created_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+
+  // payout_rates — ตารางอัตราการจ่ายรางวัลที่แสดงบนหน้าเว็บ (แก้ไขได้ผ่าน Admin)
+  `CREATE TABLE IF NOT EXISTS \`payout_rates\` (
+    \`id\`             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`label\`          VARCHAR(100) NOT NULL COMMENT 'ชื่อประเภทรางวัล',
+    \`prize_count\`    VARCHAR(20)  NOT NULL DEFAULT '-' COMMENT 'จำนวนรางวัล เช่น 1, 100, -',
+    \`prize_value\`    VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'มูลค่า/ใบ หรือ คำอธิบาย',
+    \`payout_display\` VARCHAR(100) NOT NULL DEFAULT '' COMMENT 'อัตราจ่าย (ต่อบาท) ที่แสดง',
+    \`sort_order\`     TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    \`bet_key\`        VARCHAR(20)  DEFAULT NULL COMMENT 'ถ้า map กับ BET_CFG key เช่น 3top, run_bot',
+    \`updated_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ตารางอัตราการจ่ายรางวัลที่แสดงบนหน้าเว็บ'`,
 ];
 
 // ─── Seed data ───────────────────────────────────────────────────────────────
@@ -522,6 +534,19 @@ const SEEDS = [
     (2,'Silver',   5000,       '#a8a9ad','🥈','รับโบนัสพิเศษ 5%'),
     (3,'Gold',    20000,       '#ffd700','🥇','รับโบนัสพิเศษ 10% + สิทธิ์ถอนเร็ว'),
     (4,'Platinum',100000,      '#e8e8e8','💎','รับโบนัสพิเศษ 15% + บริการ VIP')`,
+
+  // payout_rates seed — ตารางอัตราจ่ายรางวัลที่แสดงบนหน้าหลัก (INSERT IGNORE = ข้ามถ้ามีแล้ว)
+  `INSERT IGNORE INTO \`payout_rates\` (id,label,prize_count,prize_value,payout_display,sort_order,bet_key) VALUES
+    (1,'🏆 รางวัลที่ 1','1','6,000,000 บาท','1:75',1,NULL),
+    (2,'รางวัลที่ 2','5','200,000 บาท','1:2,500',2,NULL),
+    (3,'รางวัลที่ 3','10','80,000 บาท','1:1,000',3,NULL),
+    (4,'รางวัลที่ 4','50','40,000 บาท','1:500',4,NULL),
+    (5,'รางวัลที่ 5','100','20,000 บาท','1:250',5,NULL),
+    (6,'เลขหน้า 3 ตัว','2','4,000 บาท','1:500 (ตรง) / 1:160 (โต๊ด)',6,NULL),
+    (7,'เลขท้าย 3 ตัว','2','4,000 บาท','1:500 (ตรง) / 1:160 (โต๊ด)',7,'3top'),
+    (8,'เลขท้าย 2 ตัว','1','2,000 บาท','1:95 (บน) / 1:90 (ล่าง)',8,'2top'),
+    (9,'วิ่งบน','-','ตัวเลขใดๆในรางวัลที่1','1:3.2',9,'run_top'),
+    (10,'วิ่งล่าง','-','ตัวเลขใดๆในเลขท้าย2ตัว','1:4.2',10,'run_bot')`,
 
   // อัปเดตชื่อหวยที่เปลี่ยนแปลง (สำหรับ DB ที่มีอยู่แล้ว)
   `UPDATE \`lottery_types\` SET \`name\`='ลาวพัฒนา' WHERE \`code\`='LA_GOV' AND \`name\`='หวยลาว'`,

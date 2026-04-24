@@ -258,6 +258,7 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('autoresult')"><span class="ic">🤖</span>ดึงผลหวยออโต้</div>
     <div class="sb-item" onclick="nav('bets')"><span class="ic">📋</span>รายการแทง</div>
     <div class="sb-item" onclick="nav('numlimits')"><span class="ic">🚦</span>อั้นหวย</div>
+    <div class="sb-item" onclick="nav('payoutrates')"><span class="ic">💰</span>อัตราจ่ายรางวัล</div>
     <div class="sb-item" onclick="nav('memberlevels')"><span class="ic">🏅</span>ระดับสมาชิก</div>
 
     <div class="sb-sec">การเงิน</div>
@@ -481,7 +482,7 @@ function startNotifPolling() {
 // ═══ ROUTER ═══
 const PAGE_TITLES={
   dashboard:'📊 Dashboard',members:'👥 สมาชิก',agents:'🤝 เอเยนต์',admins:'🛡️ แอดมิน',
-  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',numlimits:'🚦 อั้นหวย',memberlevels:'🏅 ระดับสมาชิก',
+  lottery:'🎰 ประเภทหวย',rounds:'📅 งวดหวย',results:'🏆 ออกผลรางวัล',yeekee:'🎲 ยี่กีอัตโนมัติ',autoresult:'🤖 ดึงผลหวยออโต้',bets:'📋 รายการแทง',numlimits:'🚦 อั้นหวย',payoutrates:'💰 อัตราจ่ายรางวัล',memberlevels:'🏅 ระดับสมาชิก',
   bankaccounts:'🏦 บัญชีรับเงิน',
   deposits:'💰 รายการฝากเงิน',withdrawals:'🏧 รายการถอนเงิน',winpay:'🎁 จ่ายรางวัล',credits:'💳 เพิ่ม/ลด เครดิต',
   promotions:'🎁 โปรโมชั่น',
@@ -656,6 +657,7 @@ async function afterNav(page){
     else if(page==='agentwithdrawals') await loadAgentWithdrawals();
     else if(page==='referral') await loadReferralAdmin();
     else if(page==='numlimits')    await loadNumLimits();
+    else if(page==='payoutrates')  await loadPayoutRates();
     else if(page==='memberlevels') await loadMemberLevels();
     else if(page==='bankaccounts') await loadBankAccounts();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
@@ -6006,6 +6008,114 @@ async function saveBulkNumLimit() {
     toast('สำเร็จ', `บันทึก ${r.count} เลขแล้ว`);
     closeModal(); loadNumLimits();
   } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
+}
+
+// ═══ PAYOUT RATES PAGE ═══
+PAGES.payoutrates = () => `
+<div class="alert" style="background:rgba(245,197,24,.08);border:1px solid rgba(245,197,24,.25);color:var(--text);margin-bottom:16px;padding:12px 16px;border-radius:8px;font-size:13px">
+  💡 แก้ไขตาราง <b>อัตราการจ่ายรางวัล</b> ที่แสดงบนหน้าหลักของเว็บ — การเปลี่ยนแปลงจะมีผลทันทีกับผู้เล่นทุกคน
+</div>
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="margin:0;font-size:15px">💰 อัตราการจ่ายรางวัล</h3>
+    <small style="color:var(--muted)">คลิก ✏️ เพื่อแก้ไขแต่ละแถว</small>
+  </div>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th>ประเภทรางวัล</th>
+          <th style="width:100px">จำนวนรางวัล</th>
+          <th>มูลค่า/ใบ</th>
+          <th>อัตราจ่าย (ต่อบาท)</th>
+          <th style="width:80px">แก้ไข</th>
+        </tr>
+      </thead>
+      <tbody id="payout-rates-admin-tbody">
+        <tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>`;
+
+let _allPayoutRates = [];
+async function loadPayoutRates(){
+  document.getElementById('page-content').innerHTML = PAGES.payoutrates();
+  try {
+    const d = await API.AdminAPI.listPayoutRates();
+    _allPayoutRates = d.data || [];
+    renderPayoutRates(_allPayoutRates);
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+  }
+}
+
+function renderPayoutRates(rows){
+  const tbody = document.getElementById('payout-rates-admin-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">ไม่พบข้อมูล</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="color:var(--muted);font-size:12px">${r.sort_order}</td>
+      <td style="font-weight:600">${r.label}</td>
+      <td style="text-align:center">${r.prize_count}</td>
+      <td style="color:var(--muted);font-size:13px">${r.prize_value}</td>
+      <td style="color:var(--gold2);font-weight:700">${r.payout_display}</td>
+      <td><button class="act-btn" onclick="editPayoutRate(${r.id})">✏️ แก้ไข</button></td>
+    </tr>`).join('');
+}
+
+function editPayoutRate(id){
+  const r = _allPayoutRates.find(x => x.id === id);
+  if (!r) { toast('ผิดพลาด', 'ไม่พบข้อมูล', 'error'); return; }
+  openModal(`
+    <h3>✏️ แก้ไขอัตราจ่ายรางวัล — แถวที่ ${r.sort_order}</h3>
+    <div class="fg">
+      <label>ประเภทรางวัล</label>
+      <input id="epr-label" class="fi-full" value="${r.label||''}">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="fg">
+        <label>จำนวนรางวัล <small style="color:var(--muted)">(เช่น 1, 100, -)</small></label>
+        <input id="epr-count" class="fi-full" value="${r.prize_count||'-'}">
+      </div>
+      <div class="fg">
+        <label>มูลค่า/ใบ <small style="color:var(--muted)">(เช่น 6,000,000 บาท)</small></label>
+        <input id="epr-value" class="fi-full" value="${r.prize_value||''}">
+      </div>
+    </div>
+    <div class="fg">
+      <label>อัตราจ่าย (ต่อบาท) <small style="color:var(--muted)">(เช่น 1:75, 1:500 (ตรง) / 1:160 (โต๊ด))</small></label>
+      <input id="epr-payout" class="fi-full" value="${r.payout_display||''}">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitEditPayoutRate(${id})">💾 บันทึก</button>
+    </div>`);
+}
+
+async function submitEditPayoutRate(id){
+  const payload = {
+    label          : document.getElementById('epr-label')?.value?.trim(),
+    prize_count    : document.getElementById('epr-count')?.value?.trim() || '-',
+    prize_value    : document.getElementById('epr-value')?.value?.trim() || '',
+    payout_display : document.getElementById('epr-payout')?.value?.trim() || '',
+  };
+  if (!payload.label) { toast('ผิดพลาด', 'กรุณากรอกชื่อประเภทรางวัล', 'error'); return; }
+  try {
+    const d = await API.AdminAPI.updatePayoutRate(id, payload);
+    const idx = _allPayoutRates.findIndex(r => r.id === id);
+    if (idx > -1) Object.assign(_allPayoutRates[idx], payload);
+    closeModal();
+    renderPayoutRates(_allPayoutRates);
+    toast('สำเร็จ', 'บันทึกอัตราจ่ายรางวัลแล้ว');
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+  }
 }
 
 // ═══ MEMBER LEVELS PAGE ═══

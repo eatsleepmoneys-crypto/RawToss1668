@@ -594,4 +594,47 @@ router.get('/admin/rounds/today', authAdmin, rbac.requirePerm('rounds.view'), as
   }
 });
 
+// ─── GET /api/lottery/payout-rates — ดึงตารางอัตราจ่ายรางวัล (public) ─────────
+router.get('/payout-rates', async (req, res) => {
+  try {
+    const rows = await query(
+      'SELECT id, label, prize_count, prize_value, payout_display, sort_order, bet_key FROM payout_rates ORDER BY sort_order ASC'
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/lottery/admin/payout-rates — admin ดูตารางอัตราจ่าย ─────────────
+router.get('/admin/payout-rates', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  try {
+    const rows = await query(
+      'SELECT id, label, prize_count, prize_value, payout_display, sort_order, bet_key, updated_at FROM payout_rates ORDER BY sort_order ASC'
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── PATCH /api/lottery/admin/payout-rates/:id — admin แก้ไขแถวในตาราง ────────
+router.patch('/admin/payout-rates/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { label, prize_count, prize_value, payout_display } = req.body;
+    if (!label || label.trim() === '') {
+      return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อประเภทรางวัล' });
+    }
+    await query(
+      'UPDATE payout_rates SET label=?, prize_count=?, prize_value=?, payout_display=? WHERE id=?',
+      [label.trim(), (prize_count || '-').trim(), (prize_value || '').trim(), (payout_display || '').trim(), id]
+    );
+    const [updated] = await query('SELECT * FROM payout_rates WHERE id=?', [id]);
+    res.json({ success: true, message: 'บันทึกอัตราจ่ายสำเร็จ', data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
