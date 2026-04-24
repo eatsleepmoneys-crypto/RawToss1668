@@ -201,44 +201,12 @@ router.post('/withdraw', authMember,
     if (amount < min) return res.status(400).json({ success: false, message: `ถอนขั้นต่ำ ฿${min}` });
     if (amount > max) return res.status(400).json({ success: false, message: `ถอนสูงสุด ฿${max.toLocaleString()}` });
 
-    // Check pending withdraw
-    const [pending] = await query('SELECT id FROM withdrawals WHERE member_id=? AND status IN ("pending","processing")', [req.member.id]);
-    if (pending) return res.status(400).json({ success: false, message: 'มีรายการถอนที่รอดำเนินการอยู่' });
-
-    const [m] = await query('SELECT balance, bank_code, bank_account, bank_name, bonus_balance FROM members WHERE id=?', [req.member.id]);
+    // NOTE: ตรวจ pending + balance ทำใน transaction ข้างล่าง (FOR UPDATE)
+    // ห้ามตรวจนอก transaction — 2 request พร้อมกันจะผ่านทั้งคู่ก่อน record แรกถูก INSERT
+    const [m] = await query('SELECT bank_code, bank_account, bank_name FROM members WHERE id=?', [req.member.id]);
     if (!m.bank_account) return res.status(400).json({ success: false, message: 'กรุณาผูกบัญชีธนาคารก่อนถอน' });
-    if (parseFloat(m.balance) < amount) return res.status(400).json({ success: false, message: `ยอดเงินไม่เพียงพอ (มี ฿${m.balance})` });
 
-    // ── ตรวจสอบเทิร์นโปรโมชั่นที่ยังค้างอยู่ ──────────────────────────────
-    const pendingPromos = await query(
-      `SELECT mp.id, mp.bonus_amount, mp.required_turnover, mp.current_turnover,
-              p.name as promo_name, p.max_withdraw_bonus
-       FROM member_promotions mp
-       JOIN promotions p ON p.id = mp.promotion_id
-       WHERE mp.member_id=? AND mp.status='pending'`,
-      [req.member.id]
-    );
-    if (pendingPromos.length > 0) {
-      const pp = pendingPromos[0];
-      const remaining = Math.max(0, parseFloat(pp.required_turnover) - parseFloat(pp.current_turnover));
-      const bonusBal  = parseFloat(m.bonus_balance || 0);
-      // ถ้า balance ที่จะถอน > (balance - bonus_balance) → ยังไม่พอเทิร์น
-      const withdrawableBalance = Math.max(0, parseFloat(m.balance) - bonusBal);
-      if (amount > withdrawableBalance) {
-        return res.status(400).json({
-          success: false,
-          message: `ต้องทำเทิร์นอีก ฿${remaining.toLocaleString()} ก่อนถอนได้ (โปรโมชั่น: ${pp.promo_name})`,
-          data: {
-            required_turnover: pp.required_turnover,
-            current_turnover:  pp.current_turnover,
-            remaining_turnover: remaining,
-            promo_name: pp.promo_name
-          }
-        });
-      }
-    }
-
-    // ── ตรวจสอบ auto-withdraw + KBank settings ก่อน transaction ──────────
+    // ── อ่าน settings ก่อน transaction (read-only, ไม่มี race condition) ──────
     const settingRows = await query(
       "SELECT `key`,value FROM settings WHERE `key` IN " +
       "('auto_withdraw_enabled','auto_withdraw_max','kbank_enabled')"
@@ -250,15 +218,57 @@ router.post('/withdraw', authMember,
     const autoMax      = parseFloat(stMap['auto_withdraw_max'] || 0);
     const kbankEnabled = stMap['kbank_enabled'] === 'true';
     const doAuto       = autoEnabled && (autoMax === 0 || parseFloat(amount) <= autoMax);
-    // ถ้า KBank เปิด → สถานะเริ่มต้นเป็น 'processing' (รอ API ยืนยัน)
-    // ถ้าไม่มี KBank  → ถ้า autoEnabled = 'completed' (admin โอนเอง), ไม่งั้น 'pending'
     const initStatus   = doAuto ? (kbankEnabled ? 'processing' : 'completed') : 'pending';
 
     const wdUuid  = uuidv4();
     const autoRef = doAuto ? ('AUTO-' + Date.now()) : null;
 
+    // ── Transaction: ล็อก member row → ตรวจ pending → ตรวจ balance → INSERT ──
+    // ทุกอย่างอยู่ใน transaction เดียว + FOR UPDATE ป้องกัน double-submit race condition
+    let wdError = null;
     await transaction(async (conn) => {
-      const [[member]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [req.member.id]);
+      // 1. ล็อก row ทั้งหมดที่เกี่ยวข้อง
+      const [[member]] = await conn.execute(
+        'SELECT balance, bonus_balance FROM members WHERE id=? FOR UPDATE',
+        [req.member.id]
+      );
+
+      // 2. ตรวจ pending withdrawal (ข้างใน transaction หลังล็อก)
+      const [[existPending]] = await conn.execute(
+        'SELECT id FROM withdrawals WHERE member_id=? AND status IN ("pending","processing") LIMIT 1 FOR UPDATE',
+        [req.member.id]
+      );
+      if (existPending) {
+        const e = new Error('มีรายการถอนที่รอดำเนินการอยู่');
+        e.code = 'WD_PENDING'; throw e;
+      }
+
+      // 3. ตรวจ balance
+      if (parseFloat(member.balance) < parseFloat(amount)) {
+        const e = new Error(`ยอดเงินไม่เพียงพอ (มี ฿${parseFloat(member.balance).toFixed(2)})`);
+        e.code = 'INSUFFICIENT'; throw e;
+      }
+
+      // 4. ตรวจเทิร์นโปรโมชั่น (SELECT ไม่ต้อง lock — ล็อก member row แล้ว)
+      const [pendingPromos] = await conn.execute(
+        `SELECT mp.id, mp.required_turnover, mp.current_turnover, p.name as promo_name
+         FROM member_promotions mp JOIN promotions p ON p.id=mp.promotion_id
+         WHERE mp.member_id=? AND mp.status='pending' LIMIT 1`,
+        [req.member.id]
+      );
+      if (pendingPromos) {
+        const pp = pendingPromos;
+        const remaining = Math.max(0, parseFloat(pp.required_turnover) - parseFloat(pp.current_turnover));
+        const withdrawable = Math.max(0, parseFloat(member.balance) - parseFloat(member.bonus_balance || 0));
+        if (parseFloat(amount) > withdrawable) {
+          const e = new Error(`ต้องทำเทิร์นอีก ฿${remaining.toLocaleString()} ก่อนถอนได้ (โปรโมชั่น: ${pp.promo_name})`);
+          e.code = 'TURNOVER_REQUIRED';
+          e.data = { required_turnover: pp.required_turnover, current_turnover: pp.current_turnover, remaining_turnover: remaining, promo_name: pp.promo_name };
+          throw e;
+        }
+      }
+
+      // 5. ตัดเงิน + INSERT withdrawal
       const newBal = parseFloat(member.balance) - parseFloat(amount);
       await conn.execute('UPDATE members SET balance=? WHERE id=?', [newBal, req.member.id]);
       if (doAuto) {
@@ -275,7 +285,15 @@ router.post('/withdraw', authMember,
       }
       await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
         [uuidv4(), req.member.id, 'withdraw', -amount, member.balance, newBal, `ถอนเงิน ฿${amount}`]);
-    });
+    }).catch(err => { wdError = err; });
+
+    if (wdError) {
+      if (['WD_PENDING','INSUFFICIENT','TURNOVER_REQUIRED'].includes(wdError.code)) {
+        return res.status(400).json({ success: false, message: wdError.message, data: wdError.data });
+      }
+      console.error('[WITHDRAW] transaction error:', wdError.message);
+      return res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดในการถอน กรุณาลองใหม่' });
+    }
 
     // ── LINE Notification helper for withdrawal (fire-and-forget) ──────────
     const _lineNotifyWd = (method) => {

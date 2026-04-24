@@ -147,11 +147,13 @@ app.get('*', (req, res) => {
 
 // ─── Error Handler ────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error('❌ Error:', err.message);
+  console.error('❌ Error:', err.stack || err.message);
   const status = err.status || 500;
+  const isProd = process.env.NODE_ENV === 'production';
   res.status(status).json({
     success: false,
-    message: err.message, // TODO: hide in production after debugging
+    // production: generic message เท่านั้น (ไม่เปิดเผย stack/detail)
+    message: isProd && status === 500 ? 'เกิดข้อผิดพลาดภายใน กรุณาลองใหม่อีกครั้ง' : err.message,
   });
 });
 
@@ -173,18 +175,39 @@ async function startServer() {
     console.warn('⚠️  Migration warning (continuing):', err.message);
   }
 
-  // ─── Always ensure superadmin exists with correct password ───────────────────
+  // ─── Ensure superadmin row exists — INSERT IGNORE only (never overwrite password) ──
+  // รหัสผ่านเริ่มต้นอ่านจาก env ADMIN_PASSWORD ถ้าไม่มีใช้ค่าสุ่ม (แสดงใน log ครั้งแรกเท่านั้น)
   try {
     const bcrypt = require('bcryptjs');
+    const crypto = require('crypto');
     const { query } = require('./config/db');
-    const hash = await bcrypt.hash('Admin@1234', 12);
-    await query(
-      `INSERT INTO admins (uuid, name, email, password, role, is_active, login_attempts)
-       VALUES ('00000000-0000-0000-0000-000000000001','Super Admin','superadmin@tigerlotto.com',?,\'superadmin\',1,0)
-       ON DUPLICATE KEY UPDATE password=?, login_attempts=0, locked_until=NULL, is_active=1`,
-      [hash, hash]
+
+    // ตรวจว่า superadmin มีอยู่แล้วหรือยัง
+    const [existing] = await query(
+      "SELECT id FROM admins WHERE email='superadmin@tigerlotto.com' LIMIT 1"
     );
-    console.log('✅ Superadmin seed OK');
+
+    if (!existing) {
+      // สร้างครั้งแรกเท่านั้น — รหัสผ่านมาจาก env หรือสุ่มถ้าไม่ได้ตั้ง
+      const initPass = process.env.ADMIN_PASSWORD || crypto.randomBytes(12).toString('hex');
+      const hash = await bcrypt.hash(initPass, 12);
+      await query(
+        `INSERT IGNORE INTO admins (uuid,name,email,password,role,is_active,login_attempts)
+         VALUES ('00000000-0000-0000-0000-000000000001','Super Admin','superadmin@tigerlotto.com',?,'superadmin',1,0)`,
+        [hash]
+      );
+      if (!process.env.ADMIN_PASSWORD) {
+        console.log(`🔑 Superadmin created — initial password: ${initPass}  (ตั้ง ADMIN_PASSWORD env เพื่อเลือกรหัสเอง)`);
+      } else {
+        console.log('✅ Superadmin created with ADMIN_PASSWORD from env');
+      }
+    } else {
+      // มีอยู่แล้ว — reset lockout เฉยๆ ไม่แตะ password
+      await query(
+        "UPDATE admins SET login_attempts=0, locked_until=NULL, is_active=1 WHERE email='superadmin@tigerlotto.com'"
+      );
+      console.log('✅ Superadmin seed OK (existing — password unchanged)');
+    }
   } catch (e) {
     console.warn('⚠️  Superadmin seed failed (table may not exist yet):', e.message);
   }

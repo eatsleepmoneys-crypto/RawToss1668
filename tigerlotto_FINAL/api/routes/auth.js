@@ -112,10 +112,8 @@ router.post('/register', validateRegister, async (req, res) => {
         [uuidv4(), newId, 'bonus', bonus, 0, bonus, 'โบนัสสมัครสมาชิกใหม่']);
     }
 
-    // Commission to member referrer (ref_code)
-    if (refId) {
-      await conn.execute('SELECT value FROM settings WHERE `key`="referral_commission"').catch(()=>{});
-    }
+    // หมายเหตุ: ค่าคอมสำหรับผู้แนะนำ (ref_code) ถูกจ่ายตอนสมาชิกแทงหวย (bets.js)
+    // ไม่ใช่ตอนสมัคร — ลบ dead code ออก (เคยดึง setting แต่ไม่ได้ใช้)
 
     const [newMember] = await conn.execute('SELECT id,uuid,name,phone,member_code,balance,bonus_balance,level,bank_code,bank_account,bank_name FROM members WHERE id=?', [newId]);
     return newMember[0];
