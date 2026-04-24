@@ -227,7 +227,7 @@ router.post('/', authMember,
           if (memberInfo?.ref_by) {
             const [[refMember]] = await conn.execute(
               'SELECT commission_balance FROM members WHERE id=? FOR UPDATE', [memberInfo.ref_by]
-            ).catch(() => [[null]]);
+            );
             if (refMember) {
               const newCommBal = parseFloat(refMember.commission_balance || 0) + commAmount;
               await conn.execute('UPDATE members SET commission_balance=? WHERE id=?', [newCommBal, memberInfo.ref_by]);
@@ -242,7 +242,7 @@ router.post('/', authMember,
           if (memberInfo?.agent_id && !memberInfo?.ref_by) {
             const [[refAgent]] = await conn.execute(
               'SELECT commission_balance FROM agents WHERE id=? FOR UPDATE', [memberInfo.agent_id]
-            ).catch(() => [[null]]);
+            );
             if (refAgent) {
               const newAgCommBal = parseFloat(refAgent.commission_balance || 0) + commAmount;
               await conn.execute('UPDATE agents SET commission_balance=?, total_commission=total_commission+? WHERE id=?',
@@ -305,16 +305,22 @@ router.post('/', authMember,
 
 // ─── GET /api/bets/:uuid — single bet ────────────
 router.get('/:uuid', authMember, async (req, res) => {
-  const [bet] = await query(
-    `SELECT b.*,lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag
-     FROM bets b JOIN lottery_rounds lr ON b.round_id=lr.id JOIN lottery_types lt ON lr.lottery_id=lt.id
-     WHERE b.uuid=? AND b.member_id=?`, [req.params.uuid, req.member.id]);
-  if (!bet) return res.status(404).json({ success: false, message: 'ไม่พบรายการแทง' });
-  res.json({ success: true, data: bet });
+  try {
+    const [bet] = await query(
+      `SELECT b.*,lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag
+       FROM bets b JOIN lottery_rounds lr ON b.round_id=lr.id JOIN lottery_types lt ON lr.lottery_id=lt.id
+       WHERE b.uuid=? AND b.member_id=?`, [req.params.uuid, req.member.id]);
+    if (!bet) return res.status(404).json({ success: false, message: 'ไม่พบรายการแทง' });
+    res.json({ success: true, data: bet });
+  } catch (e) {
+    console.error('[BETS] GET /:uuid error:', e.message);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+  }
 });
 
 // ─── ADMIN: GET /api/bets/admin/list ─────────────
 router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, res) => {
+  try {
   const lim    = Math.min(Math.max(parseInt(req.query.limit) || 30, 1), 100);
   const pg     = Math.max(parseInt(req.query.page)  || 1, 1);
   const offset = (pg - 1) * lim;
@@ -358,21 +364,30 @@ router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, 
 
   const cnt = cntRows[0];
   res.json({ success: true, data: rows, total: cnt.c, total_amount: cnt.total_amount, page: pg, limit: lim });
+  } catch (e) {
+    console.error('[BETS] admin/list error:', e.message);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+  }
 });
 
 // ─── ADMIN: PATCH /api/bets/admin/:id/cancel ─────
 router.patch('/admin/:id/cancel', authAdmin, rbac.requirePerm('bets.cancel'), async (req, res) => {
-  const [bet] = await query('SELECT * FROM bets WHERE id=? AND status="waiting"', [req.params.id]);
-  if (!bet) return res.status(400).json({ success: false, message: 'ไม่พบรายการหรือยกเลิกไม่ได้' });
-  await transaction(async (conn) => {
-    await conn.execute('UPDATE bets SET status="cancelled" WHERE id=?', [bet.id]);
-    const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
-    const newBal = parseFloat(m.balance) + parseFloat(bet.amount);
-    await conn.execute('UPDATE members SET balance=? WHERE id=?', [newBal, bet.member_id]);
-    await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
-      [uuidv4(), bet.member_id, 'refund', bet.amount, m.balance, newBal, `คืนเงินจากการยกเลิก bet ${bet.id}`]);
-  });
-  res.json({ success: true, message: 'ยกเลิกและคืนเงินแล้ว' });
+  try {
+    const [bet] = await query('SELECT * FROM bets WHERE id=? AND status="waiting"', [req.params.id]);
+    if (!bet) return res.status(400).json({ success: false, message: 'ไม่พบรายการหรือยกเลิกไม่ได้' });
+    await transaction(async (conn) => {
+      await conn.execute('UPDATE bets SET status="cancelled" WHERE id=?', [bet.id]);
+      const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
+      const newBal = parseFloat(m.balance) + parseFloat(bet.amount);
+      await conn.execute('UPDATE members SET balance=? WHERE id=?', [newBal, bet.member_id]);
+      await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+        [uuidv4(), bet.member_id, 'refund', bet.amount, m.balance, newBal, `คืนเงินจากการยกเลิก bet ${bet.id}`]);
+    });
+    res.json({ success: true, message: 'ยกเลิกและคืนเงินแล้ว' });
+  } catch (e) {
+    console.error('[BETS] admin cancel error:', e.message);
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาด กรุณาลองใหม่' });
+  }
 });
 
 module.exports = router;
