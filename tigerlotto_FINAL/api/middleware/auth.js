@@ -34,7 +34,7 @@ const authAdmin = async (req, res, next) => {
     if (decoded.type !== 'admin') return res.status(401).json({ success: false, message: 'Token ไม่ถูกต้อง' });
 
     const [admin] = await query(
-      'SELECT id, uuid, name, email, role, is_active FROM admins WHERE id = ? AND is_active = 1',
+      'SELECT id, uuid, name, email, phone, role, is_active FROM admins WHERE id = ? AND is_active = 1',
       [decoded.id]
     );
     if (!admin) return res.status(401).json({ success: false, message: 'บัญชี Admin ไม่พบ' });

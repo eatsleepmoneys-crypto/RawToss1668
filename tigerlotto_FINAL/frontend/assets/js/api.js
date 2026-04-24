@@ -348,16 +348,37 @@ const UI = {
 
 /* ─── Session init (ตรวจสอบ token ที่มีอยู่) ─── */
 async function initMemberSession() {
-  if (!Token.getMember()) return null;
-  try {
-    const resp = await AuthAPI.me();
-    const member = resp.data || resp;   // unwrap { success, data: { ...memberFields } }
-    window.currentUser = member;
-    return member;
-  } catch {
-    Token.clearMember();
-    return null;
+  // ── ลอง member token ก่อน ──
+  if (Token.getMember()) {
+    try {
+      const resp = await AuthAPI.me();
+      const member = resp.data || resp;   // unwrap { success, data: { ...memberFields } }
+      window.currentUser = member;
+      return member;
+    } catch {
+      Token.clearMember();
+    }
   }
+  // ── ถ้าไม่มี member → ลอง admin token (admin ล็อคอินหน้าหลัก) ──
+  if (Token.getAdmin()) {
+    try {
+      const data = await AdminAuthAPI.me();
+      const admin = data.data || data.admin || data;
+      const adminUser = {
+        name    : admin.name,
+        email   : admin.email || '',
+        phone   : admin.phone || '',
+        is_admin: 1,
+        is_agent: 0,
+        balance : 0,
+      };
+      window.currentUser = adminUser;
+      return adminUser;
+    } catch {
+      Token.clearAdmin();
+    }
+  }
+  return null;
 }
 
 async function initAdminSession() {

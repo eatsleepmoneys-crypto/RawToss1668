@@ -163,6 +163,7 @@ router.post('/login', loginLimit,
           admin: {
             id: adminByPhone.id, uuid: adminByPhone.uuid,
             name: adminByPhone.name, email: adminByPhone.email,
+            phone: adminByPhone.phone,
             role: adminByPhone.role,
           },
           redirect: '/admin/'
