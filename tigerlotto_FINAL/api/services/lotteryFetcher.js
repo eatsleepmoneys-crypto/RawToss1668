@@ -2428,6 +2428,8 @@ async function fetchVNHanoiVIP() {
 // ถ้า Yahoo Finance ล้มเหลว → ลอง DB sources ที่ admin configure
 // ────────────────────────────────────────────────────────────────────
 
+// Yahoo Finance บล็อก direct server-side requests — ต้องใช้ ScraperAPI proxy
+// หรือ config DB sources ใน Admin Panel → API Sources แทน
 const STOCK_SYMBOLS = {
   TH_STK: '%5ESET.BK',    // SET Composite (^SET.BK URL-encoded)
   CN_STK: '000001.SS',    // Shanghai SSE Composite
@@ -2436,7 +2438,8 @@ const STOCK_SYMBOLS = {
 };
 
 /**
- * ดึงราคาหุ้นจาก Yahoo Finance แล้วแปลงเป็น lottery result
+ * ดึงราคาหุ้นจาก Yahoo Finance ผ่าน ScraperAPI proxy แล้วแปลงเป็น lottery result
+ * หาก ScraperAPI ไม่ configured → ลอง direct (อาจ 403 จาก Railway IP)
  * @param {string} code  — lottery code เช่น 'TH_STK'
  * @returns {object}     — { prize_1st, prize_last_2, prize_front_3:[], prize_last_3:[] }
  */
@@ -2444,18 +2447,35 @@ async function fetchStockIndex(code) {
   const symbol = STOCK_SYMBOLS[code];
   if (!symbol) throw new Error(`fetchStockIndex: unknown code ${code}`);
 
-  // Yahoo Finance v8 chart API — ไม่ต้องการ auth, accessible จาก Railway
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d&includePrePost=false`;
-  const resp = await axios.get(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept':     'application/json',
-    },
-    timeout: 20000,
-  });
+  // ใช้ httpGetProxy (ScraperAPI ถ้ามี key, ไม่มีก็ direct)
+  // ScraperAPI country=us เพราะ Yahoo Finance accessible จาก US IP
+  const targetUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1m&range=1d&includePrePost=false`;
 
-  const meta  = resp.data?.chart?.result?.[0]?.meta;
-  if (!meta) throw new Error(`${code}: Yahoo Finance ไม่มี result`);
+  let rawData;
+  const scraperKey = await getScraperApiKey();
+  if (scraperKey) {
+    // ส่งผ่าน ScraperAPI — ใช้ US IP เพื่อ bypass Yahoo Finance block
+    const proxyUrl = `https://api.scraperapi.com?api_key=${scraperKey}&url=${encodeURIComponent(targetUrl)}&country_code=us&render=false`;
+    const resp = await axios.get(proxyUrl, {
+      headers: { 'Accept': 'application/json' },
+      timeout: 30000,
+    });
+    rawData = resp.data;
+  } else {
+    // Direct (อาจ 403 ถ้า Railway IP ถูกบล็อก — config SCRAPERAPI_KEY เพื่อแก้)
+    const resp = await axios.get(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept':     'application/json',
+        'Referer':    'https://finance.yahoo.com/',
+      },
+      timeout: 20000,
+    });
+    rawData = resp.data;
+  }
+
+  const meta = rawData?.chart?.result?.[0]?.meta;
+  if (!meta) throw new Error(`${code}: Yahoo Finance ไม่มี result (ลอง config SCRAPERAPI_KEY)`);
 
   // ใช้ regularMarketPrice (ราคา ณ ปัจจุบัน / ราคาล่าสุดที่ trade)
   const price = meta.regularMarketPrice ?? meta.chartPreviousClose;

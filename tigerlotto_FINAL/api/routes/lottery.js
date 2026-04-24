@@ -507,7 +507,8 @@ router.post('/admin/force-rounds', authAdmin, rbac.requirePerm('rounds.manage'),
 // POST /api/lottery/admin/trigger-fetch/:code — manually trigger result fetch
 router.post('/admin/trigger-fetch/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
   const { code } = req.params;
-  const validCodes = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','YEEKEE'];
+  const validCodes = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','YEEKEE',
+                      'TH_STK','CN_STK','MY_STK','SG_STK'];
   if (!validCodes.includes(code)) {
     return res.status(400).json({ success: false, message: `ไม่รู้จัก lottery code: ${code}` });
   }
@@ -520,6 +521,23 @@ router.post('/admin/trigger-fetch/:code', authAdmin, rbac.requirePerm('results.a
     res.json({ success: true, message: `กำลังดึงผล ${code}...` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/lottery/admin/test-fetch/:code — dry-run fetch (ไม่บันทึก DB, return ผลทันที)
+router.get('/admin/test-fetch/:code', authAdmin, rbac.requirePerm('lottery.view'), async (req, res) => {
+  const { code } = req.params;
+  const validCodes = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP',
+                      'TH_STK','CN_STK','MY_STK','SG_STK'];
+  if (!validCodes.includes(code)) {
+    return res.status(400).json({ success: false, message: `ไม่รู้จัก lottery code: ${code}` });
+  }
+  try {
+    const fetcher = getFetcher();
+    const result  = await fetcher.testFetch(code);
+    res.json({ success: true, code, result });
+  } catch (err) {
+    res.status(500).json({ success: false, code, error: err.message });
   }
 });
 
