@@ -10,10 +10,13 @@ const API_BASE = window.API_BASE || 'http://localhost:3000/api';
 const Token = {
   getMember : () => localStorage.getItem('tl_member_token'),
   getAdmin  : () => localStorage.getItem('tl_admin_token'),
+  getAgent  : () => localStorage.getItem('agent_token'),       // agent portal uses 'agent_token'
   setMember : (t) => localStorage.setItem('tl_member_token', t),
   setAdmin  : (t) => localStorage.setItem('tl_admin_token', t),
+  setAgent  : (t) => localStorage.setItem('agent_token', t),
   clearMember: () => localStorage.removeItem('tl_member_token'),
   clearAdmin : () => localStorage.removeItem('tl_admin_token'),
+  clearAgent : () => localStorage.removeItem('agent_token'),
   getVerified: () => sessionStorage.getItem('tl_verified_token'),
   setVerified: (t) => sessionStorage.setItem('tl_verified_token', t),
   clearVerified: () => sessionStorage.removeItem('tl_verified_token'),
@@ -21,7 +24,9 @@ const Token = {
 
 /* ─── Core Fetch ─── */
 async function apiFetch(path, options = {}, tokenType = 'member') {
-  const token = tokenType === 'admin' ? Token.getAdmin() : Token.getMember();
+  const token = tokenType === 'admin' ? Token.getAdmin()
+              : tokenType === 'agent' ? Token.getAgent()
+              : Token.getMember();
   const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -376,6 +381,25 @@ async function initMemberSession() {
       return adminUser;
     } catch {
       Token.clearAdmin();
+    }
+  }
+  // ── ถ้าไม่มี admin → ลอง agent token (agent ล็อคอินหน้าหลัก) ──
+  if (Token.getAgent()) {
+    try {
+      const data = await apiFetch('/auth/agent/me', {}, 'agent');
+      const agent = data.data || data;
+      const agentUser = {
+        name    : agent.name,
+        phone   : agent.phone || '',
+        email   : agent.email || '',
+        is_admin: 0,
+        is_agent: 1,
+        balance : parseFloat(agent.balance || 0),
+      };
+      window.currentUser = agentUser;
+      return agentUser;
+    } catch {
+      Token.clearAgent();
     }
   }
   return null;

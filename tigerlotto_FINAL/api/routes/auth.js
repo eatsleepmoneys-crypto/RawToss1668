@@ -171,6 +171,30 @@ router.post('/login', loginLimit,
       });
     }
 
+    // ── ตรวจ agents — agent login ผ่านหน้าหลัก ───────────────────────
+    const [agentByPhone] = await query(
+      'SELECT id, uuid, name, phone, email, password, commission_rate, balance, total_commission, status FROM agents WHERE phone=?',
+      [phone]
+    );
+    if (agentByPhone) {
+      if (agentByPhone.status !== 'active')
+        return res.status(403).json({ success: false, message: 'บัญชีถูกระงับ กรุณาติดต่อ Admin' });
+      const agentMatch = await bcrypt.compare(password, agentByPhone.password);
+      if (!agentMatch)
+        return res.status(401).json({ success: false, message: 'เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง' });
+      const agentToken = signAgentToken(agentByPhone);
+      const { password: _pw, ...agentData } = agentByPhone;
+      return res.json({
+        success: true, message: 'เข้าสู่ระบบสำเร็จ',
+        data: {
+          token: agentToken,
+          role: 'agent',
+          agent: agentData,
+          redirect: '/agent/'
+        }
+      });
+    }
+
     // ── ตรวจ members ──────────────────────────────────────────────────
     const [member] = await query('SELECT * FROM members WHERE phone=?', [phone]);
 
