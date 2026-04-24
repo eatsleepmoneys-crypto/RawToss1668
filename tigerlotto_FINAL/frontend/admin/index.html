@@ -1588,11 +1588,15 @@ async function loadAdmins(){
       <td style="font-weight:600">${a.name}</td>
       <td style="color:var(--muted);font-size:12px">${a.email}</td>
       <td><span class="badge ${a.role==='superadmin'?'badge-gold':a.role==='admin'?'badge-blue':'badge-gray'}">${a.role}</span></td>
-      <td><span class="badge ${a.is_active?'badge-green':'badge-red'}">${a.is_active?'Active':'Inactive'}</span></td>
+      <td>
+        <span class="badge ${a.is_active?'badge-green':'badge-red'}">${a.is_active?'Active':'Inactive'}</span>
+        ${a.phone?`<div style="font-size:11px;color:var(--gold);margin-top:3px">📱 ${a.phone}</div>`:'<div style="font-size:11px;color:var(--muted);margin-top:3px">ไม่มีเบอร์</div>'}
+      </td>
       <td style="font-size:12px;color:var(--muted)">${a.last_login_at?UI.formatDate(a.last_login_at):'-'}</td>
       <td>
-        <div style="display:flex;gap:4px">
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
           <button class="act-btn" onclick="editAdminModal(${a.id},'${a.name}','${a.role}',${a.is_active})">แก้ไข</button>
+          <button class="act-btn" style="background:rgba(212,160,23,.15);color:var(--gold)" onclick="setAdminPhoneModal(${a.id},'${a.name}','${a.phone||''}')">📱 เบอร์</button>
           ${a.role!=='superadmin'?`<button class="act-btn act-red" onclick="resetAdminPw(${a.id},'${a.name}')">รีเซ็ต PW</button>`:''}
         </div>
       </td>
@@ -6587,6 +6591,27 @@ async function confirmResetAdminPw(id, name){
   closeModal();
   try{ await API.AdminAPI.resetAdminPassword(id,pw); toast('สำเร็จ',`รีเซ็ตรหัสผ่าน ${name} แล้ว`); }
   catch(e){ toast('ผิดพลาด',e.message); }
+}
+
+// ── ตั้ง phone สำหรับ login หน้าหลัก ──
+function setAdminPhoneModal(id, name, currentPhone){
+  openModal(`<h3>📱 ตั้งเบอร์โทรสำหรับ Login หน้าหลัก</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Admin: <b style="color:#fff">${name}</b><br>เมื่อตั้งแล้ว สามารถ login ผ่านหน้าหลักด้วยเบอร์โทร + รหัสผ่าน Admin แล้วระบบจะ redirect มา Admin Panel</p>
+    <div class="fg"><label>เบอร์โทรศัพท์</label><input id="adm-phone-in" class="fi-full" type="tel" placeholder="0812345678" value="${currentPhone}"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="saveAdminPhone(${id})">💾 บันทึกเบอร์</button>
+    </div>`);
+}
+async function saveAdminPhone(id){
+  const phone = document.getElementById('adm-phone-in')?.value?.trim();
+  if(!phone){ toast('ผิดพลาด','กรุณากรอกเบอร์โทร'); return; }
+  try{
+    await apiFetch(`/admin/admins/${id}/phone`, { method:'PATCH', body: JSON.stringify({ phone }) });
+    closeModal();
+    toast('สำเร็จ','ตั้งค่าเบอร์โทรสำเร็จ');
+    loadAdmins();
+  } catch(e){ toast('ผิดพลาด', e.message); }
 }
 // ── legacy mock stubs removed — real functions defined above ──
 // viewMember, openCreditModal, submitCredit, openAddMember, submitNewMember,

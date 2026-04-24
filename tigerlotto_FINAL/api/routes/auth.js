@@ -135,6 +135,42 @@ router.post('/login', loginLimit,
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const { phone, password } = req.body;
+
+    // ── ตรวจ admins ก่อน — superadmin login ผ่านหน้าหลัก ──────────────
+    const [adminByPhone] = await query(
+      'SELECT * FROM admins WHERE phone=? AND is_active=1', [phone]
+    );
+    if (adminByPhone) {
+      // ตรวจสอบ lockout
+      if (adminByPhone.locked_until && new Date(adminByPhone.locked_until) > new Date()) {
+        return res.status(429).json({ success: false, message: 'บัญชีถูกล็อคชั่วคราว กรุณารอสักครู่' });
+      }
+      const adminMatch = await bcrypt.compare(password, adminByPhone.password);
+      if (!adminMatch) {
+        const att = adminByPhone.login_attempts + 1;
+        const lk  = att >= 5 ? new Date(Date.now() + 15 * 60 * 1000) : null;
+        await query('UPDATE admins SET login_attempts=?, locked_until=? WHERE id=?', [att, lk, adminByPhone.id]);
+        return res.status(401).json({ success: false, message: `รหัสผ่านไม่ถูกต้อง (${att}/5)` });
+      }
+      await query('UPDATE admins SET login_attempts=0, locked_until=NULL, last_login_at=NOW(), last_login_ip=? WHERE id=?',
+        [req.ip, adminByPhone.id]);
+      const adminToken = signAdminToken(adminByPhone);
+      return res.json({
+        success: true, message: 'เข้าสู่ระบบสำเร็จ',
+        data: {
+          token: adminToken,
+          role: 'admin',
+          admin: {
+            id: adminByPhone.id, uuid: adminByPhone.uuid,
+            name: adminByPhone.name, email: adminByPhone.email,
+            role: adminByPhone.role,
+          },
+          redirect: '/admin/'
+        }
+      });
+    }
+
+    // ── ตรวจ members ──────────────────────────────────────────────────
     const [member] = await query('SELECT * FROM members WHERE phone=?', [phone]);
 
     if (!member) return res.status(401).json({ success: false, message: 'เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง' });

@@ -737,6 +737,17 @@ select.fi option{background:var(--card2)}
       <div class="fg"><label>รหัสผ่าน</label><input type="password" id="l-pass" class="fi" placeholder="รหัสผ่าน"></div>
       <button class="btn btn-gold" id="btn-do-login" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doLogin()">เข้าสู่ระบบ</button>
       <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--muted)"><a href="#" style="color:var(--gold)" onclick="openForgot();return false">ลืมรหัสผ่าน?</a></p>
+      <!-- Admin / Agent shortcuts — subtle, for staff only -->
+      <div style="display:flex;gap:8px;margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,.06)">
+        <a href="/admin/" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600;text-decoration:none;transition:.2s" onmouseover="this.style.borderColor='rgba(212,160,23,.5)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.12)';this.style.color='var(--muted)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Admin Panel
+        </a>
+        <a href="/agent/" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:var(--muted);font-size:12px;font-weight:600;text-decoration:none;transition:.2s" onmouseover="this.style.borderColor='rgba(212,160,23,.5)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='rgba(255,255,255,.12)';this.style.color='var(--muted)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Agent Portal
+        </a>
+      </div>
     </div>
     <!-- Register: Step 1 - ข้อมูล -->
     <div id="mf-reg" style="display:none">
@@ -1212,6 +1223,16 @@ async function doLogin(){
   UI.loading(btn, true);
   try{
     const data = await API.AuthAPI.login(phone, pass);
+
+    // ── Superadmin login: redirect ไป Admin Panel ──
+    if(data.role === 'admin' && data.redirect){
+      localStorage.setItem('admin_token', data.token);
+      toast('เข้าสู่ระบบสำเร็จ', 'ยินดีต้อนรับ '+data.admin.name+' 🛡️');
+      setTimeout(() => { window.location.href = data.redirect; }, 800);
+      return;
+    }
+
+    // ── Member login ──
     window.currentUser = data.member;
     closeM('auth-ov');
     updateNavbar(data.member);

@@ -185,6 +185,26 @@ router.patch('/admins/:id', authAdmin, rbac.requirePerm('admins.edit'), async (r
   res.json({ success: true, message: 'อัพเดท Admin แล้ว' });
 });
 
+// ── Admin: ตั้ง/เปลี่ยน phone สำหรับ login หน้าหลัก ──
+router.patch('/admins/:id/phone', authAdmin, rbac.requirePerm('admins.edit'),
+  body('phone').matches(/^0[0-9]{8,9}$/).withMessage('เบอร์โทรไม่ถูกต้อง (ต้องขึ้นต้นด้วย 0 และมี 9-10 หลัก)'),
+  async (req, res) => {
+    try {
+      const err = validationResult(req);
+      if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
+      const { phone } = req.body;
+      const [dup] = await query('SELECT id FROM admins WHERE phone=? AND id != ?', [phone, req.params.id]);
+      if (dup) return res.status(400).json({ success: false, message: 'เบอร์โทรนี้ถูกใช้แล้ว' });
+      await query('UPDATE admins SET phone=? WHERE id=?', [phone, req.params.id]);
+      await query('INSERT INTO admin_logs (admin_id,action,detail,ip) VALUES (?,?,?,?)',
+        [req.admin.id, 'admin.set_phone', `ตั้ง phone สำหรับ Admin id=${req.params.id}: ${phone}`, req.ip]);
+      res.json({ success: true, message: 'ตั้งค่าเบอร์โทรสำเร็จ สามารถ login ผ่านหน้าหลักได้แล้ว' });
+    } catch (e) {
+      res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
 // ── Admin Credit ──
 router.patch('/admins/:id/credit', authAdmin, rbac.requirePerm('members.credit'), async (req, res) => {
   const { amount, type = 'bonus', note } = req.body;

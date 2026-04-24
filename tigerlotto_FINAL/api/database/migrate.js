@@ -946,6 +946,9 @@ async function migrate() {
     `ALTER TABLE \`members\` ADD INDEX \`idx_members_ref\` (\`ref_by\`)`,
     // notifications: filter by member + read status (unread count)
     `ALTER TABLE \`notifications\` ADD INDEX \`idx_notif_member_read\` (\`member_id\`, \`is_read\`)`,
+    // admins: เพิ่ม phone สำหรับ login ผ่านหน้าหลัก (superadmin)
+    `ALTER TABLE \`admins\` ADD COLUMN \`phone\` VARCHAR(20) DEFAULT NULL UNIQUE COMMENT 'เบอร์โทรสำหรับ login ผ่านหน้าหลัก (superadmin)' AFTER \`email\``,
+    `ALTER TABLE \`admins\` ADD INDEX \`idx_admins_phone\` (\`phone\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
