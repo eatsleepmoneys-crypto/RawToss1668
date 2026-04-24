@@ -1304,19 +1304,39 @@ async function getTNewsData() {
 /**
  * ดึงผล TNews สำหรับ lottery type ที่ระบุ
  * @param {string} lotteryType  'VN_HAN' | 'VN_HAN_SP' | 'VN_HAN_VIP'
+ *
+ * Cross-validation: ถ้า prize_1st ตรงกับผลเมื่อวาน → บทความ TNews น่าจะเป็น stale (morning article)
+ * → return null เพื่อให้ runFetcher ไปใช้ Vietnamese sources ต่อ
  */
 async function fetchTNewsVNHanoi(lotteryType) {
   const data = await getTNewsData();
   if (!data) return null;
 
   const r = data[lotteryType];
-  if (r) {
-    console.log(`[FETCHER:${lotteryType}] TNews ✅ main=${r.prize_1st} top2=${r.prize_last_2} bot2=${r.prize_2bot||'?'} top3=${(r.prize_last_3||[])[0]||'?'}`);
-    return r;
+  if (!r) {
+    console.warn(`[FETCHER:${lotteryType}] TNews: section ไม่พบหรือยังไม่ออกผล`);
+    return null;
   }
 
-  console.warn(`[FETCHER:${lotteryType}] TNews: section ไม่พบหรือยังไม่ออกผล`);
-  return null;
+  // ── Cross-validate: ถ้าผลเหมือนเมื่อวาน → stale morning article → skip ──
+  try {
+    const bkkNow   = new Date(Date.now() + 7 * 3600 * 1000);
+    const bkkYest  = new Date(bkkNow - 86400 * 1000).toISOString().slice(0, 10);
+    const prev = await query(
+      `SELECT res.prize_1st FROM lottery_results res
+       JOIN lottery_rounds lr ON lr.id = res.round_id
+       JOIN lottery_types lt ON lr.lottery_id = lt.id
+       WHERE lt.code = ? AND DATE(lr.close_at) = ? LIMIT 1`,
+      [lotteryType, bkkYest]
+    );
+    if (prev.length && prev[0].prize_1st === r.prize_1st) {
+      console.warn(`[FETCHER:${lotteryType}] TNews ⚠️ prize_1st "${r.prize_1st}" ตรงกับผลเมื่อวาน (${bkkYest}) → บทความเก่า → ข้าม TNews`);
+      return null;  // fall through to Vietnamese sources
+    }
+  } catch(e) { /* non-fatal — cross-check DB error, ใช้ผล TNews ต่อ */ }
+
+  console.log(`[FETCHER:${lotteryType}] TNews ✅ main=${r.prize_1st} top2=${r.prize_last_2} bot2=${r.prize_2bot||'?'} top3=${(r.prize_last_3||[])[0]||'?'}`);
+  return r;
 }
 
 // ── TNews Lao Lottery ──────────────────────────────────────────────────────
@@ -2690,19 +2710,28 @@ function startLotteryFetcher() {
   }, { timezone: TIMEZONE });
 
   // ── หวยลาว (จันทร์–ศุกร์ เท่านั้น) ──────────────────────────────
-  // ออกผล ~20:00-20:30 → fetch 20:45
-  cron.schedule('45 20 * * 1-5', () => {
+  // ออกผล ~20:30 → fetch 21:00 (เลื่อนจาก 20:45 เพราะ websites update ช้า)
+  cron.schedule('0 21 * * 1-5', () => {
     console.log('[FETCHER] Trigger: LA_GOV');
     runFetcher('LA_GOV', fetchLAGov).catch(e =>
       console.error('[FETCHER] LA_GOV error:', e.message)
     );
   }, { timezone: TIMEZONE });
 
-  // Retry 21:15 (Mon-Fri เท่านั้น)
-  cron.schedule('15 21 * * 1-5', async () => {
+  // Retry 21:30
+  cron.schedule('30 21 * * 1-5', async () => {
     const status = fetcherStatus['LA_GOV'];
     if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
-      console.log('[FETCHER] LA_GOV retry @ 21:15');
+      console.log('[FETCHER] LA_GOV retry @ 21:30');
+      runFetcher('LA_GOV', fetchLAGov).catch(e => console.error('[FETCHER] LA_GOV retry:', e.message));
+    }
+  }, { timezone: TIMEZONE });
+
+  // Retry 22:00 (last resort)
+  cron.schedule('0 22 * * 1-5', async () => {
+    const status = fetcherStatus['LA_GOV'];
+    if (!status?.lastSuccess || new Date(status.lastSuccess).toDateString() !== new Date().toDateString()) {
+      console.log('[FETCHER] LA_GOV retry @ 22:00');
       runFetcher('LA_GOV', fetchLAGov).catch(e => console.error('[FETCHER] LA_GOV retry:', e.message));
     }
   }, { timezone: TIMEZONE });
@@ -2851,7 +2880,7 @@ function startLotteryFetcher() {
 
   console.log('[FETCHER] Crons ลงทะเบียนแล้ว:');
   console.log('  TH_GOV      → วันที่ 1, 16 @ 15:30 (retry 16:00)');
-  console.log('  LA_GOV      → จันทร์-ศุกร์ @ 20:45 (retry 21:15)');
+  console.log('  LA_GOV      → จันทร์-ศุกร์ @ 21:00 (retry 21:30, 22:00)');
   console.log('  VN_HAN_VIP  → ทุกวัน @ 17:15 (retry 17:45)');
   console.log('  VN_HAN_SP   → ทุกวัน @ 17:45 (retry 18:15)');
   console.log('  VN_HAN      → ทุกวัน @ 18:45 (retry 19:15)');
