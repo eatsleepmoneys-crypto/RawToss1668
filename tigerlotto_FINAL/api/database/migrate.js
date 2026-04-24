@@ -902,6 +902,9 @@ async function migrate() {
     `ALTER TABLE \`promotions\` ADD COLUMN \`eligible_once\` TINYINT(1) NOT NULL DEFAULT 1 COMMENT 'รับได้แค่ครั้งเดียวต่อสมาชิก' AFTER \`max_withdraw_bonus\``,
     `ALTER TABLE \`promotions\` ADD COLUMN \`description\` TEXT DEFAULT NULL COMMENT 'คำอธิบายโปรโมชั่นสำหรับ member' AFTER \`eligible_once\``,
 
+    // members: is_admin flag — สำหรับแสดงปุ่มเข้า Admin Panel บน main website
+    `ALTER TABLE \`members\` ADD COLUMN \`is_admin\` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1=เป็น Admin (มีปุ่มเข้า admin panel ใน profile)' AFTER \`agent_id\``,
+
     // ── member_promotions: ติดตามการ claim + progress เทิร์น ──
     `CREATE TABLE IF NOT EXISTS \`member_promotions\` (
       \`id\`                INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

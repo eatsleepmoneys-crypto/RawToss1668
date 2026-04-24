@@ -2486,6 +2486,22 @@ async function loadProfilePanel(){
       ${_infoRow('📅 วันที่สมัคร', m.created_at ? new Date(m.created_at).toLocaleDateString('th-TH') : '-')}
     </div>
 
+    ${(m.is_admin || m.is_agent) ? `
+    <!-- Shortcut: Admin / Agent panel (แสดงเฉพาะ admin/agent เท่านั้น) -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:800;color:#888;margin-bottom:10px;letter-spacing:.5px">⚡ ทางลัด</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${m.is_admin ? `
+        <a href="/admin.html" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1a237e,#283593);border:1px solid #3949ab;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          🔧 Admin Panel
+        </a>` : ''}
+        ${m.is_agent ? `
+        <button onclick="navTo('agent')" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          🎯 Agent Portal
+        </button>` : ''}
+      </div>
+    </div>` : ''}
+
     <!-- ธนาคาร -->
     <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
       <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">🏦 บัญชีธนาคาร</div>

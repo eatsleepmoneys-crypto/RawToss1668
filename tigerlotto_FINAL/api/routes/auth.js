@@ -156,6 +156,9 @@ router.post('/login', loginLimit,
     await query('UPDATE members SET login_attempts=0, locked_until=NULL, last_login_at=NOW(), last_login_ip=? WHERE id=?',
       [req.ip, member.id]);
 
+    // Check if this member is also an agent (phone match in agents table)
+    const [agentRow] = await query('SELECT id FROM agents WHERE phone=? AND status="active" LIMIT 1', [member.phone]);
+
     const token = signMemberToken(member);
     res.json({
       success: true, message: 'เข้าสู่ระบบสำเร็จ',
@@ -166,6 +169,8 @@ router.post('/login', loginLimit,
           balance: member.balance, bonus_balance: member.bonus_balance,
           level: member.level, member_code: member.member_code,
           bank_code: member.bank_code, bank_account: member.bank_account, bank_name: member.bank_name,
+          is_admin: member.is_admin ? 1 : 0,
+          is_agent: agentRow ? 1 : 0,
         }
       }
     });
@@ -223,9 +228,13 @@ router.post('/admin/login', loginLimit,
 // ─── GET /api/auth/me ─────────────────────────────
 router.get('/me', authMember, async (req, res) => {
   const [m] = await query(
-    'SELECT id,uuid,name,phone,email,bank_code,bank_account,bank_name,balance,bonus_balance,level,member_code,created_at FROM members WHERE id=?',
+    'SELECT id,uuid,name,phone,email,bank_code,bank_account,bank_name,balance,bonus_balance,level,member_code,is_admin,created_at FROM members WHERE id=?',
     [req.member.id]
   );
+  if (!m) return res.status(404).json({ success: false, message: 'ไม่พบสมาชิก' });
+  // Check agent status
+  const [agentRow] = await query('SELECT id FROM agents WHERE phone=? AND status="active" LIMIT 1', [m.phone]);
+  m.is_agent = agentRow ? 1 : 0;
   res.json({ success: true, data: m });
 });
 
