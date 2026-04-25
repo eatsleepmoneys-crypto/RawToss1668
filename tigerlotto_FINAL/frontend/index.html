@@ -2705,12 +2705,12 @@ function _infoRow(label, value){
 
 /* ── Bet History (Bill View) ── */
 function _groupBetsIntoBills(rows){
-  // group bets ที่ซื้อพร้อมกัน (lottery + round + ช่วงนาทีเดียวกัน) เป็น 1 บิล
+  // group บิลโดยใช้ bill_no (ถ้ามี) หรือ fallback lottery+round+minute
   const billMap = new Map();
   rows.forEach(b => {
-    const minute = (b.created_at||'').slice(0,16); // yyyy-mm-dd hh:mm
-    const key = `${b.lottery_name||''}__${b.round_name||''}__${minute}`;
-    if(!billMap.has(key)) billMap.set(key, { key, bets:[], lottery_name:b.lottery_name, flag:b.flag||'', round_name:b.round_name, draw_date:b.draw_date, created_at:b.created_at });
+    const minute = (b.created_at||'').slice(0,16);
+    const key = b.bill_no || `${b.lottery_name||''}__${b.round_name||''}__${minute}`;
+    if(!billMap.has(key)) billMap.set(key, { key, bill_no:b.bill_no||null, bets:[], lottery_name:b.lottery_name, flag:b.flag||'', round_name:b.round_name, draw_date:b.draw_date, created_at:b.created_at });
     billMap.get(key).bets.push(b);
   });
   return [...billMap.values()];
@@ -2765,7 +2765,8 @@ function _renderBills(bills){
           </div>
           <div style="font-size:14px;font-weight:700">${_dbFlag(bill.flag)}${bill.lottery_name}</div>
           <div style="font-size:12px;color:var(--muted);margin-top:2px">${bill.round_name||''} · ${dateStr}</div>
-          <div style="font-size:12px;color:var(--dim);margin-top:3px">${bill.bets.length} รายการ</div>
+          ${bill.bill_no?`<div style="font-size:11px;font-family:monospace;color:var(--gold2);margin-top:3px;letter-spacing:.5px">${bill.bill_no}</div>`:''}
+          <div style="font-size:12px;color:var(--dim);margin-top:2px">${bill.bets.length} รายการ</div>
         </div>
         <div style="text-align:right;flex-shrink:0;padding-left:10px">
           <div style="font-size:12px;color:var(--muted)">รวมแทง</div>

@@ -131,7 +131,7 @@ router.get('/bet-history', authMember, async (req, res) => {
   const params = status ? [req.member.id, status] : [req.member.id];
 
   const bets = await query(
-    `SELECT b.id,b.uuid,b.bet_type,b.number,b.amount,b.rate,b.payout,b.win_amount,b.status,b.created_at,
+    `SELECT b.id,b.uuid,b.bill_no,b.bet_type,b.number,b.amount,b.rate,b.payout,b.win_amount,b.status,b.created_at,
             lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag
      FROM bets b
      JOIN lottery_rounds lr ON b.round_id=lr.id
