@@ -169,8 +169,8 @@ router.post('/', authMember,
       for (const bet of validated) {
         const betUuid = uuidv4();
         await conn.execute(
-          'INSERT INTO bets (uuid,bill_no,member_id,round_id,bet_type,number,amount,rate,rate_override,payout,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
-          [betUuid, billNo, req.member.id, round_id, bet.bet_type, bet.number, bet.amount, bet.rate,
+          'INSERT INTO bets (uuid,member_id,round_id,bet_type,number,amount,rate,rate_override,payout,status) VALUES (?,?,?,?,?,?,?,?,?,?)',
+          [betUuid, req.member.id, round_id, bet.bet_type, bet.number, bet.amount, bet.rate,
            bet.rate_override !== undefined ? bet.rate_override : null,
            bet.payout, 'waiting']);
         placedBets.push({ uuid: betUuid, ...bet });
@@ -305,6 +305,17 @@ router.post('/', authMember,
           );
         }
       }
+
+        // UPDATE bill_no — resilient: ถ้า column ยังไม่มี (migration pending) ไม่ crash
+        if (placedBets.length > 0) {
+          try {
+            const uuids = placedBets.map(b => b.uuid);
+            await conn.execute(
+              `UPDATE bets SET bill_no=? WHERE uuid IN (${uuids.map(()=>'?').join(',')})`,
+              [billNo, ...uuids]
+            );
+          } catch(e) { /* column may not exist yet — non-fatal */ }
+        }
 
         return { bets: placedBets, balance: newBal };
       });
