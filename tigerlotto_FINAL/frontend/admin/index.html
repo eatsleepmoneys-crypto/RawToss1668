@@ -1415,6 +1415,7 @@ async function toggleLotteryStatus(id, open, el){
 
 /* ── Rounds ── */
 let _allRounds = [];
+let _hideYeekee = true; // ซ่อนยี่กีโดย default
 async function loadRounds(){
   // ดึง 300 งวดล่าสุด (ยี่กีวันเดียว ~90 งวด × 3 วัน + หวยประเภทอื่น)
   const d = await API.AdminAPI.listRoundsAdmin({ limit:300 });
@@ -1431,7 +1432,7 @@ async function loadRounds(){
     ltSel.innerHTML = '<option value="">ทุกประเภท</option>' + opts;
   }
 
-  renderRounds(_allRounds);
+  filterRounds();
 
   // Populate result round select — ดึงเฉพาะ closed (แยก call เพื่อไม่ให้ยี่กีกลบ)
   await _refreshResultRoundSel();
@@ -1558,13 +1559,35 @@ function filterRounds(q){
   const search = (q !== undefined ? q : (document.getElementById('round-search')?.value||'')).toLowerCase();
   const ltId   = document.getElementById('round-lt-filter')?.value || '';
   const status = document.getElementById('round-status-filter')?.value || '';
-  renderRounds(_allRounds.filter(r=>{
-    if(ltId   && String(r.lottery_id) !== ltId)   return false;
-    if(status && r.status !== status)              return false;
+  const filtered = _allRounds.filter(r=>{
+    if(_hideYeekee && r.code === 'YEEKEE')         return false;
+    if(ltId   && String(r.lottery_id) !== ltId)    return false;
+    if(status && r.status !== status)               return false;
     if(search && !(r.lottery_name||'').toLowerCase().includes(search)
               && !(r.round_name||'').toLowerCase().includes(search)) return false;
     return true;
-  }));
+  });
+  // อัปเดต badge บนปุ่มยี่กี
+  const ykBtn = document.getElementById('yk-toggle-btn');
+  if(ykBtn){
+    const ykCount = _allRounds.filter(r=>r.code==='YEEKEE').length;
+    if(_hideYeekee){
+      ykBtn.textContent = `🎰 แสดงยี่กี (${ykCount})`;
+      ykBtn.style.background = 'rgba(108,92,231,0.15)';
+      ykBtn.style.color = '#a29bfe';
+      ykBtn.style.border = '1px solid #6c5ce7';
+    } else {
+      ykBtn.textContent = `🎰 ซ่อนยี่กี (${ykCount})`;
+      ykBtn.style.background = 'rgba(108,92,231,0.35)';
+      ykBtn.style.color = '#fff';
+      ykBtn.style.border = '1px solid #a29bfe';
+    }
+  }
+  renderRounds(filtered);
+}
+function toggleYeekee(){
+  _hideYeekee = !_hideYeekee;
+  filterRounds();
 }
 function renderRounds(rows){
   const tbody = document.getElementById('rounds-tbody');
@@ -4552,8 +4575,8 @@ lottery:()=>`
 </div>`,
 
 rounds:()=>`
-<div class="filter-bar">
-  <input class="fi" id="round-search" placeholder="🔍 ค้นหางวด..." style="flex:1" oninput="filterRounds(this.value)">
+<div class="filter-bar" style="flex-wrap:wrap;gap:8px">
+  <input class="fi" id="round-search" placeholder="🔍 ค้นหางวด..." style="flex:1;min-width:160px" oninput="filterRounds(this.value)">
   <select class="fi fi-sm" id="round-lt-filter" onchange="filterRounds()">
     <option value="">ทุกประเภท</option>
   </select>
@@ -4563,6 +4586,10 @@ rounds:()=>`
     <option value="closed">ปิดแล้ว</option>
     <option value="announced">ประกาศแล้ว</option>
   </select>
+  <button id="yk-toggle-btn" class="btn" onclick="toggleYeekee()"
+    style="background:rgba(108,92,231,0.15);color:#a29bfe;border:1px solid #6c5ce7;transition:all .2s">
+    🎰 แสดงยี่กี
+  </button>
   <button class="btn btn-gold" onclick="openAddRound()">+ เปิดงวดใหม่</button>
   <button class="btn" style="background:#6c5ce7;color:#fff" onclick="seedHistoryRounds(this)">📥 เพิ่มงวดย้อนหลัง</button>
 </div>
