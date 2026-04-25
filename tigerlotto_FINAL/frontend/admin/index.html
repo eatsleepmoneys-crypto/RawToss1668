@@ -707,10 +707,19 @@ async function loadDashboard(){
         </div>`).join('');
   }
 
-  // Revenue 7-day chart
-  if(s.revenue_7days && window._dashChart){
-    window._dashChart.data.labels = s.revenue_7days.map(r => r.d);
-    window._dashChart.data.datasets[0].data = s.revenue_7days.map(r => parseFloat(r.total||0));
+  // Revenue 7-day chart (ฝาก + ยอดแทง + ถอน)
+  if(window._dashChart){
+    // รวม label ทุกวันจากทั้ง 3 datasets แล้วเรียง
+    const dep7  = s.revenue_7days || [];
+    const bet7  = s.bet_7days     || [];
+    const wd7   = s.wd_7days      || [];
+    const allDates = [...new Set([...dep7.map(r=>r.d), ...bet7.map(r=>r.d), ...wd7.map(r=>r.d)])].sort();
+    const toMap = arr => Object.fromEntries(arr.map(r=>[r.d, parseFloat(r.total||0)]));
+    const depMap = toMap(dep7), betMap = toMap(bet7), wdMap = toMap(wd7);
+    window._dashChart.data.labels               = allDates;
+    window._dashChart.data.datasets[0].data     = allDates.map(d => depMap[d] || 0);
+    window._dashChart.data.datasets[1].data     = allDates.map(d => betMap[d] || 0);
+    window._dashChart.data.datasets[2].data     = allDates.map(d => wdMap[d]  || 0);
     window._dashChart.update();
   }
 
@@ -3406,11 +3415,16 @@ async function loadReports(){
     }
 
     // Charts
-    const daily = s.daily || [];
+    const daily     = s.daily      || [];
+    const dailyBets = s.daily_bets || [];
     const dailyChart = window._charts?.['chart-daily'];
     if(dailyChart){
-      dailyChart.data.labels = daily.map(r=>r.d);
-      dailyChart.data.datasets[0].data = daily.map(r=>parseFloat(r.dep||0));
+      const allDates = [...new Set([...daily.map(r=>r.d), ...dailyBets.map(r=>r.d)])].sort();
+      const depMap  = Object.fromEntries(daily.map(r=>[r.d, parseFloat(r.dep||0)]));
+      const betMap  = Object.fromEntries(dailyBets.map(r=>[r.d, parseFloat(r.bet||0)]));
+      dailyChart.data.labels               = allDates;
+      dailyChart.data.datasets[0].data     = allDates.map(d => depMap[d] || 0);
+      dailyChart.data.datasets[1].data     = allDates.map(d => betMap[d] || 0);
       dailyChart.update();
     }
     const pieChart = window._charts?.['chart-pie'];
@@ -4319,7 +4333,7 @@ dashboard:()=>`
 </div>
 <div class="g2" style="margin-bottom:18px">
   <div class="card card-gold">
-    <h3>📈 รายได้ 7 วันย้อนหลัง</h3>
+    <h3>📈 รายได้ & ยอดแทง 7 วันย้อนหลัง</h3>
     <div class="chart-wrap"><canvas id="chart-revenue"></canvas></div>
   </div>
   <div class="card card-gold">
@@ -5271,7 +5285,7 @@ reports:()=>`
   <div class="stat-card"><div class="sc-icon">👥</div><div class="sc-label">สมาชิกใหม่</div><div class="sc-val" id="rpt-newmem">—</div></div>
 </div>
 <div class="g2" style="margin-bottom:18px">
-  <div class="card card-gold"><h3>📈 ฝากเงินรายวัน</h3><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
+  <div class="card card-gold"><h3>📈 ฝาก & ยอดแทงรายวัน</h3><div class="chart-wrap"><canvas id="chart-daily"></canvas></div></div>
   <div class="card card-gold"><h3>🥧 สัดส่วนยอดแทงแยกหวย</h3><div class="chart-wrap"><canvas id="chart-pie"></canvas></div></div>
 </div>
 <div class="g2">
@@ -6723,7 +6737,11 @@ function initPageCharts(page){
     if(page==='dashboard'){
       const rCtx=document.getElementById('chart-revenue');
       const lCtx=document.getElementById('chart-lottery');
-      if(rCtx){ if(window._dashChart) window._dashChart.destroy(); window._dashChart = new Chart(rCtx,{type:'line',data:{labels:[],datasets:[{label:'รายได้',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.1)',tension:.4,fill:true,pointBackgroundColor:'#ffd700'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'#222'}}}}});}
+      if(rCtx){ if(window._dashChart) window._dashChart.destroy(); window._dashChart = new Chart(rCtx,{type:'line',data:{labels:[],datasets:[
+        {label:'ฝากเงิน',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.08)',tension:.4,fill:false,pointBackgroundColor:'#ffd700',pointRadius:3},
+        {label:'ยอดแทง',data:[],borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,.08)',tension:.4,fill:false,pointBackgroundColor:'#4ade80',pointRadius:3},
+        {label:'ถอนเงิน',data:[],borderColor:'#f87171',backgroundColor:'rgba(248,113,113,.05)',tension:.4,fill:false,pointBackgroundColor:'#f87171',pointRadius:3,borderDash:[4,3]},
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#aaa',font:{size:11},boxWidth:14,padding:12}}},scales:{x:{ticks:{color:'#777'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'rgba(255,255,255,.04)'}}}}});}
       if(lCtx){ if(window._lotteryChart) window._lotteryChart.destroy(); window._lotteryChart = new Chart(lCtx,{type:'bar',data:{labels:[],datasets:[{data:[],backgroundColor:['rgba(212,160,23,.8)','rgba(255,215,0,.6)','rgba(184,134,11,.7)','rgba(212,160,23,.5)','rgba(255,215,0,.4)','rgba(184,134,11,.4)']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777'},grid:{color:'#222'}}}}});}
     }
     if(page==='reports'){
@@ -6731,7 +6749,10 @@ function initPageCharts(page){
       const dCtx=document.getElementById('chart-daily');
       const pCtx=document.getElementById('chart-pie');
       if(dCtx){ if(window._charts['chart-daily']) window._charts['chart-daily'].destroy();
-        window._charts['chart-daily'] = new Chart(dCtx,{type:'line',data:{labels:[],datasets:[{label:'ฝากเงิน',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.08)',tension:.4,fill:true,pointBackgroundColor:'#ffd700'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#777'},grid:{color:'#222'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'#222'}}}}}); }
+        window._charts['chart-daily'] = new Chart(dCtx,{type:'line',data:{labels:[],datasets:[
+          {label:'ฝากเงิน',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.08)',tension:.4,fill:false,pointBackgroundColor:'#ffd700',pointRadius:3},
+          {label:'ยอดแทง',data:[],borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,.06)',tension:.4,fill:false,pointBackgroundColor:'#4ade80',pointRadius:3},
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#aaa',font:{size:11},boxWidth:14,padding:10}}},scales:{x:{ticks:{color:'#777'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'rgba(255,255,255,.04)'}}}}}}); }
       if(pCtx){ if(window._charts['chart-pie']) window._charts['chart-pie'].destroy();
         window._charts['chart-pie'] = new Chart(pCtx,{type:'doughnut',data:{labels:[],datasets:[{data:[],backgroundColor:['#d4a017','#ffd700','#b8860b','#c89020','#8b6914','#d4801a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#777',font:{size:11}}}}}}); }
     }

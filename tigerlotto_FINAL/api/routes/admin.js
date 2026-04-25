@@ -31,11 +31,18 @@ router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req
     safe('SELECT COUNT(*) c FROM lottery_rounds WHERE status="open"',                                          { c: 0 }),
   ]);
 
-  // Revenue 7 days
-  const revenue7 = await safeAll(`
-    SELECT DATE(approved_at) d, SUM(amount) total
-    FROM deposits WHERE status='approved' AND approved_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-    GROUP BY DATE(approved_at) ORDER BY d ASC`);
+  // Revenue 7 days (deposits + bets + withdrawals)
+  const [revenue7, bet7, wd7] = await Promise.all([
+    safeAll(`SELECT DATE(approved_at) d, COALESCE(SUM(amount),0) total
+             FROM deposits WHERE status='approved' AND approved_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             GROUP BY DATE(approved_at) ORDER BY d ASC`),
+    safeAll(`SELECT DATE(created_at) d, COALESCE(SUM(amount),0) total
+             FROM bets WHERE created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             GROUP BY DATE(created_at) ORDER BY d ASC`),
+    safeAll(`SELECT DATE(processed_at) d, COALESCE(SUM(amount),0) total
+             FROM withdrawals WHERE status='completed' AND processed_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+             GROUP BY DATE(processed_at) ORDER BY d ASC`),
+  ]);
 
   // Bet by lottery type today
   const betByType = await safeAll(`
@@ -67,6 +74,8 @@ router.get('/dashboard', authAdmin, rbac.requirePerm('reports.view'), async (req
       pending_wd_amt:  pendWd.total,
       open_rounds:     openRounds.c,
       revenue_7days:   revenue7,
+      bet_7days:       bet7,
+      wd_7days:        wd7,
       bet_by_type:     betByType,
       top_bettors:     topBettors,
     }
@@ -255,10 +264,14 @@ router.get('/reports/summary', authAdmin, rbac.requirePerm('reports.view'), asyn
   const [wins]   = await query('SELECT COALESCE(SUM(win_amount),0) t FROM bets WHERE status="win" AND DATE(updated_at) BETWEEN ? AND ?', [dateFrom, dateTo]);
   const [newMem] = await query('SELECT COUNT(*) c FROM members WHERE DATE(created_at) BETWEEN ? AND ?', [dateFrom, dateTo]);
 
-  const daily = await query(`
-    SELECT DATE(approved_at) d, SUM(amount) dep
-    FROM deposits WHERE status='approved' AND DATE(approved_at) BETWEEN ? AND ?
-    GROUP BY DATE(approved_at) ORDER BY d`, [dateFrom, dateTo]);
+  const [daily, dailyBets] = await Promise.all([
+    query(`SELECT DATE(approved_at) d, COALESCE(SUM(amount),0) dep
+           FROM deposits WHERE status='approved' AND DATE(approved_at) BETWEEN ? AND ?
+           GROUP BY DATE(approved_at) ORDER BY d`, [dateFrom, dateTo]),
+    query(`SELECT DATE(created_at) d, COALESCE(SUM(amount),0) bet
+           FROM bets WHERE DATE(created_at) BETWEEN ? AND ?
+           GROUP BY DATE(created_at) ORDER BY d`, [dateFrom, dateTo]),
+  ]);
 
   const byLottery = await query(`
     SELECT lt.name, lt.flag, COALESCE(SUM(b.amount),0) total, COUNT(b.id) cnt
@@ -279,6 +292,7 @@ router.get('/reports/summary', authAdmin, rbac.requirePerm('reports.view'), asyn
       profit:         parseFloat(dep.t) - parseFloat(wd.t),
       new_members:    newMem.c,
       daily,
+      daily_bets:     dailyBets,
       by_lottery:     byLottery,
     }
   });
