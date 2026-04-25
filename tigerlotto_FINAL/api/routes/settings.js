@@ -548,7 +548,7 @@ router.post('/admin/favicon', authAdmin, rbac.requirePerm('settings.manage'), as
     // Allow empty string to reset to default
     if (data === '') {
       await query(
-        'INSERT INTO settings (`key`, value, type, category) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',
+        'INSERT INTO settings (`key`, value, type, `group`) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',
         ['site_favicon_data', '', 'string', 'general', '']
       );
       return res.json({ success: true, message: 'รีเซ็ต Favicon เป็นค่าเริ่มต้นแล้ว' });
@@ -562,7 +562,7 @@ router.post('/admin/favicon', authAdmin, rbac.requirePerm('settings.manage'), as
     if (data.length > 280000) return res.status(400).json({ success: false, message: 'ไฟล์ใหญ่เกินไป (สูงสุด 200KB)' });
 
     await query(
-      'INSERT INTO settings (`key`, value, type, category) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',
+      'INSERT INTO settings (`key`, value, type, `group`) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',
       ['site_favicon_data', data, 'string', 'general', data]
     );
     res.json({ success: true, message: 'บันทึก Favicon เรียบร้อย' });
