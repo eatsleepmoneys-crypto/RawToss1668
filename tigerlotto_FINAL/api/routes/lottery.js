@@ -285,8 +285,8 @@ router.delete('/admin/rounds/:id', authAdmin, rbac.requirePerm('rounds.manage'),
 // POST /api/lottery/admin/results — announce result + auto payout
 router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
   body('round_id').isInt(),
-  body('prize_1st').isLength({ min: 6, max: 6 }).withMessage('รางวัลที่ 1 ต้องเป็น 6 หลัก'),
-  body('prize_last_2').isLength({ min: 2, max: 2 }),
+  body('prize_1st').isLength({ min: 4, max: 6 }).withMessage('รางวัลที่ 1 ต้องมี 4-6 หลัก'),
+  body('prize_last_2').optional({ checkFalsy: true }).isLength({ min: 2, max: 2 }),
   async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
@@ -388,7 +388,7 @@ router.patch('/admin/results/:round_id', authAdmin, rbac.requirePerm('results.an
 
     const round_id = parseInt(req.params.round_id);
     const { prize_1st, prize_2nd, prize_3rd, prize_4th, prize_5th,
-            prize_near_1st, prize_front_3, prize_last_3, prize_last_2 } = req.body;
+            prize_near_1st, prize_front_3, prize_last_3, prize_last_2, prize_2bot: prize_2bot_input } = req.body;
 
     // ดึงงวดที่ประกาศแล้ว
     const roundRows = await query(
@@ -402,9 +402,16 @@ router.patch('/admin/results/:round_id', authAdmin, rbac.requirePerm('results.an
     const round = roundRows[0];
     const lotteryCode = round.lottery_code;
     const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
-    const isLaGov = lotteryCode === 'LA_GOV';
-    const effective_2bot = isLaGov ? prize_1st.slice(2, 4) : prize_last_2;
-    const effective_3top = isLaGov ? prize_1st.slice(3, 6) : prize_1st?.slice(-3);
+    const isLaGov  = lotteryCode === 'LA_GOV';
+    const isVnType = ['VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'].includes(lotteryCode);
+    // VN: 2bot แยกต่างหากจาก prize_last_2 (2top)
+    // LA_GOV: ดึง 2bot จาก prize_1st ตำแหน่ง 3-4
+    // อื่น: prize_last_2 ใช้ทั้ง 2top และ 2bot
+    const effective_2bot = isLaGov  ? prize_1st.slice(2, 4)
+                         : isVnType ? (prize_2bot_input || prize_last_2)
+                         : prize_last_2;
+    const effective_3top = isLaGov  ? prize_1st.slice(3, 6)
+                         : prize_1st?.slice(-3);
     const prize_2bot_store = USES_SEPARATE_2BOT.includes(lotteryCode) ? effective_2bot : null;
 
     let fixWinCount = 0;

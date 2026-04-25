@@ -3004,21 +3004,44 @@ function onFixRoundChange(type){
           <input type="text" id="fix-prize-last3" class="li" placeholder="เช่น 789,012" value="${curP3b||''}">
         </div>
       </div>`;
+    } else if(['VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(type)){
+      const cur2bot = opt.dataset.p2bot || '';
+      extraFields.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:10px">
+        <div class="lg" style="margin:0">
+          <label>เลขท้าย 2 ตัว <b style="color:var(--gold)">(2ล่าง / 2bot)</b></label>
+          <input type="text" id="fix-prize-2bot" class="li" maxlength="2" placeholder="เช่น 50"
+            value="${cur2bot}" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
+        💡 VN ฮานอย: <b>เลขที่ 1 = 4 หลัก</b> / <b>ท้าย 2 (บน)</b> = 2 หลักขวาสุด / <b>2ล่าง</b> = แยกต่างหาก
+      </div>`;
     } else {
       extraFields.innerHTML='';
     }
   }
 
-  // Update label for LA_GOV
+  // Update label + maxlength ตามประเภทหวย
   const p1Label = document.getElementById('fix-p1-label');
   const p2Label = document.getElementById('fix-p2-label');
+  const p1Input = document.getElementById('fix-prize-1st');
+  const isVnType = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(type);
   if(type==='LA_GOV'){
     if(p1Label) p1Label.textContent = 'เลขที่ 1 — 6 หลัก (ดึง 2บน/3ตัว/2ล่าง อัตโนมัติ)';
+    if(p1Input) p1Input.maxLength = 6;
     if(p2Label) p2Label.style.display='none';
     const p2Wrap = p2In && p2In.closest('.lg');
     if(p2Wrap) p2Wrap.style.display='none';
+  } else if(isVnType){
+    if(p1Label) p1Label.textContent = 'เลขที่ 1 (4 หลัก — ฮานอย)';
+    if(p1Input) p1Input.maxLength = 4;
+    if(p2Label){ p2Label.style.display=''; p2Label.textContent='เลขท้าย 2 ตัว (2บน)'; }
+    const p2Wrap = p2In && p2In.closest('.lg');
+    if(p2Wrap) p2Wrap.style.display='';
   } else {
     if(p1Label) p1Label.textContent = 'เลขที่ 1 (6 หลัก)';
+    if(p1Input) p1Input.maxLength = 6;
     if(p2Label){ p2Label.style.display=''; p2Label.textContent='เลขท้าย 2 ตัว'; }
     const p2Wrap = p2In && p2In.closest('.lg');
     if(p2Wrap) p2Wrap.style.display='';
@@ -3036,19 +3059,30 @@ async function submitFixResult(btn){
   const prizeFront3Raw = document.getElementById('fix-prize-front3')?.value.trim();
   const prizeLast3Raw = document.getElementById('fix-prize-last3')?.value.trim();
 
+  const isVnType = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'].includes(type);
+  const expectedLen = isVnType ? 4 : 6;
   if(!roundId){ toast('ข้อผิดพลาด','กรุณาเลือกงวด','error'); return; }
-  if(!prize1st || prize1st.length!==6){ toast('ข้อผิดพลาด','เลขที่ 1 ต้องมี 6 หลัก','error'); return; }
+  if(!prize1st || prize1st.length !== expectedLen){
+    toast('ข้อผิดพลาด', `เลขที่ 1 ต้องมี ${expectedLen} หลัก (ได้ ${prize1st?.length||0})`, 'error'); return;
+  }
   if(type!=='LA_GOV' && (!prizeLast2 || prizeLast2.length!==2)){
-    toast('ข้อผิดพลาด','เลขท้าย 2 ตัว ต้องมี 2 หลัก','error'); return;
+    toast('ข้อผิดพลาด','เลขท้าย 2 ตัว (2บน) ต้องมี 2 หลัก','error'); return;
+  }
+  if(isVnType){
+    const prize2bot = document.getElementById('fix-prize-2bot')?.value.trim();
+    if(!prize2bot || prize2bot.length!==2){ toast('ข้อผิดพลาด','เลขท้าย 2 ตัว (2ล่าง) ต้องมี 2 หลัก','error'); return; }
   }
 
   // Build payload
   const payload = { prize_1st: prize1st };
   if(type==='LA_GOV'){
-    // Backend will derive 2bot/3top from prize_1st
     payload.prize_last_2 = prize1st.slice(-2);
   } else {
     payload.prize_last_2 = prizeLast2;
+  }
+  if(isVnType){
+    const prize2bot = document.getElementById('fix-prize-2bot')?.value.trim();
+    if(prize2bot) payload.prize_2bot = prize2bot;
   }
   if(prizeFront3Raw) payload.prize_front_3 = prizeFront3Raw.split(',').map(s=>s.trim()).filter(Boolean);
   if(prizeLast3Raw)  payload.prize_last_3  = prizeLast3Raw.split(',').map(s=>s.trim()).filter(Boolean);
@@ -3064,7 +3098,9 @@ async function submitFixResult(btn){
 <div style="background:rgba(255,71,87,.08);border:1px solid rgba(255,71,87,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:13px">
   <div style="margin-bottom:6px">📅 งวด: <b>${roundName}</b></div>
   <div style="margin-bottom:6px">🎯 ผลใหม่: <b style="font-size:20px;color:var(--gold);letter-spacing:3px">${prize1st}</b></div>
-  ${type!=='LA_GOV'?`<div style="margin-bottom:6px">ท้าย 2: <b>${prizeLast2}</b></div>`:''}
+  ${isVnType
+      ? `<div style="margin-bottom:6px">2บน: <b>${prizeLast2}</b> &nbsp;|&nbsp; 2ล่าง: <b>${document.getElementById('fix-prize-2bot')?.value.trim()||'—'}</b></div>`
+      : type!=='LA_GOV' ? `<div style="margin-bottom:6px">ท้าย 2: <b>${prizeLast2}</b></div>` : ''}
   <div style="margin-top:8px;color:#ff9aa2;font-size:12px">ระบบจะยกเลิกเงินรางวัลเดิมและจ่ายใหม่ตามผลที่แก้ไข</div>
 </div>
 <div style="display:flex;gap:8px;justify-content:flex-end">
