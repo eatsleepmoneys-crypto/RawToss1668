@@ -497,7 +497,7 @@ select.fi option{background:var(--card2)}
         <button class="tab" onclick="setChk(this,2)">2 ตัว</button>
       </div>
       <div class="chk-row">
-        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
+        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
         <button class="chk-btn" onclick="doCheck()">ตรวจสอบ</button>
       </div>
       <div id="chk-res" style="display:none" class="chk-result"></div>
@@ -1533,10 +1533,17 @@ function toggleAnPanel(){
 }
 
 // ซ่อน toggle button เมื่อ buy modal ปิด
-// Clear checker input — fires AFTER bfcache restore (Chrome/Edge form-state replay)
-function _clearChkInp(){ const el = document.getElementById('chk-inp'); if(el) el.value = ''; }
-window.addEventListener('pageshow', _clearChkInp);          // bfcache restore path
-window.addEventListener('load',     _clearChkInp);          // normal load path
+// Clear checker input — Chrome may restore form values async after all events
+function _clearChkInp(){
+  const el = document.getElementById('chk-inp');
+  if(!el) return;
+  el.value = '';                           // immediate
+  setTimeout(() => { el.value = ''; }, 50);   // after microtasks
+  setTimeout(() => { el.value = ''; }, 300);  // after bfcache async restore
+  setTimeout(() => { el.value = ''; }, 800);  // final safety net
+}
+window.addEventListener('pageshow', _clearChkInp);
+window.addEventListener('load',     _clearChkInp);
 
 document.addEventListener('DOMContentLoaded', ()=>{
 
