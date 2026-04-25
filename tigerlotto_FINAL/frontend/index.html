@@ -1533,10 +1533,12 @@ function toggleAnPanel(){
 }
 
 // ซ่อน toggle button เมื่อ buy modal ปิด
+// Clear checker input — fires AFTER bfcache restore (Chrome/Edge form-state replay)
+function _clearChkInp(){ const el = document.getElementById('chk-inp'); if(el) el.value = ''; }
+window.addEventListener('pageshow', _clearChkInp);          // bfcache restore path
+window.addEventListener('load',     _clearChkInp);          // normal load path
+
 document.addEventListener('DOMContentLoaded', ()=>{
-  // Force-clear checker input on every page load (Chrome ignores autocomplete="off")
-  const chkInp = document.getElementById('chk-inp');
-  if(chkInp) chkInp.value = '';
 
   const buyOv = document.getElementById('buy-ov');
   if(buyOv){
