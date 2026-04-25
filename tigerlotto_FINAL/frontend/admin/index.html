@@ -6809,8 +6809,12 @@ async function confirmResetAdminPw(id, name){
 // ── ตั้ง phone สำหรับ login หน้าหลัก ──
 function setAdminPhoneModal(id, name, currentPhone){
   openModal(`<h3>📱 ตั้งเบอร์โทรสำหรับ Login หน้าหลัก</h3>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Admin: <b style="color:#fff">${name}</b><br>เมื่อตั้งแล้ว สามารถ login ผ่านหน้าหลักด้วยเบอร์โทร + รหัสผ่าน Admin แล้วระบบจะ redirect มา Admin Panel</p>
-    <div class="fg"><label>เบอร์โทรศัพท์</label><input id="adm-phone-in" class="fi-full" type="tel" placeholder="0812345678" value="${currentPhone}"></div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:12px">Admin: <b style="color:#fff">${name}</b><br>เมื่อตั้งแล้ว สามารถ login ผ่านหน้าหลักด้วยเบอร์โทร + รหัสผ่าน Admin แล้วระบบจะ redirect มา Admin Panel อัตโนมัติ</p>
+    <div class="fg">
+      <label>เบอร์โทรศัพท์</label>
+      <input id="adm-phone-in" class="fi-full" type="tel" placeholder="0812345678" value="${currentPhone}" maxlength="10">
+      <small style="color:var(--muted);font-size:11px">ต้องขึ้นต้นด้วย 0 และมี 9-10 หลัก เช่น 0812345678</small>
+    </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
       <button class="btn btn-gold" onclick="saveAdminPhone(${id})">💾 บันทึกเบอร์</button>
@@ -6819,10 +6823,11 @@ function setAdminPhoneModal(id, name, currentPhone){
 async function saveAdminPhone(id){
   const phone = document.getElementById('adm-phone-in')?.value?.trim();
   if(!phone){ toast('ผิดพลาด','กรุณากรอกเบอร์โทร'); return; }
+  if(!/^0[0-9]{8,9}$/.test(phone)){ toast('ผิดพลาด','เบอร์ต้องขึ้นต้นด้วย 0 และมี 9-10 หลัก เช่น 0812345678'); return; }
   try{
-    await apiFetch(`/admin/admins/${id}/phone`, { method:'PATCH', body: JSON.stringify({ phone }) }, 'admin');
+    await API.AdminAPI.setAdminPhone(id, phone);
     closeModal();
-    toast('สำเร็จ','ตั้งค่าเบอร์โทรสำเร็จ');
+    toast('สำเร็จ','บันทึกเบอร์โทรสำเร็จ ✅ ตอนนี้ login ผ่านหน้าหลักด้วยเบอร์นี้ได้เลย');
     loadAdmins();
   } catch(e){ toast('ผิดพลาด', e.message); }
 }

@@ -1188,21 +1188,12 @@ async function doLogin(){
   try{
     const data = await API.AuthAPI.login(phone, pass);
 
-    // ── Admin login: อยู่หน้าหลัก → ไปแอดมินผ่านปุ่มใน Profile ──
+    // ── Admin login: อยู่หน้าหลัก → redirect ไป Admin Panel ──
     if(data.role === 'admin'){
       localStorage.setItem('tl_admin_token', data.token);
-      const adminUser = {
-        name    : data.admin.name,
-        email   : data.admin.email || '',
-        phone   : data.admin.phone || '',
-        is_admin: 1,
-        is_agent: 0,
-        balance : parseFloat(data.admin.balance || 0),
-      };
-      window.currentUser = adminUser;
       closeM('auth-ov');
-      updateNavbar(adminUser);
-      toast('เข้าสู่ระบบสำเร็จ','ยินดีต้อนรับ '+data.admin.name+' 🛡️');
+      toast('เข้าสู่ระบบสำเร็จ','กำลังพาไปยัง Admin Panel... 🛡️');
+      setTimeout(() => { window.location.href = '/admin/'; }, 800);
       return;
     }
 

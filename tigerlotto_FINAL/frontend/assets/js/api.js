@@ -210,6 +210,8 @@ const AdminAPI = {
   deleteAdmin         : (id) => apiFetch(`/admin/admins/${id}`, { method: 'DELETE' }, 'admin'),
   resetAdminPassword  : (id, new_password) =>
     apiFetch(`/admin/admins/${id}/reset-password`, { method: 'PATCH', body: JSON.stringify({ new_password }) }, 'admin'),
+  setAdminPhone       : (id, phone) =>
+    apiFetch(`/admin/admins/${id}/phone`, { method: 'PATCH', body: JSON.stringify({ phone }) }, 'admin'),
 
   // Lottery admin
   getLotteryTypes   : () => apiFetch('/lottery/admin/types', {}, 'admin'),

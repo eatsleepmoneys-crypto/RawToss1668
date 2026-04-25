@@ -154,7 +154,7 @@ router.patch('/agents/:id/credit', authAdmin, rbac.requirePerm('members.credit')
 //  ADMIN USERS (Multi-level)
 // ══════════════════════════════════════
 router.get('/admins', authAdmin, rbac.requirePerm('admins.view'), async (req, res) => {
-  const rows = await query('SELECT id,uuid,name,email,role,is_active,two_fa_enabled,last_login_at,created_at FROM admins ORDER BY id ASC');
+  const rows = await query('SELECT id,uuid,name,email,phone,role,is_active,two_fa_enabled,last_login_at,created_at FROM admins ORDER BY id ASC');
   res.json({ success: true, data: rows });
 });
 
