@@ -277,7 +277,7 @@ const AdminAPI = {
   getAutoResultStatus     : () => apiFetch('/admin/auto-results/status', {}, 'admin'),
   triggerAutoFetch        : (code) => apiFetch(`/admin/auto-results/trigger/${code}`, { method: 'POST' }, 'admin'),
 
-  // Settings
+  // Settings — General
   getSettings    : () => apiFetch('/settings/admin/all', {}, 'admin'),
   updateSettings : (settings) =>
     apiFetch('/settings/admin', { method: 'PUT', body: JSON.stringify(settings) }, 'admin'),
@@ -286,6 +286,34 @@ const AdminAPI = {
     apiFetch('/settings/admin/api-keys', { method: 'PUT', body: JSON.stringify(keys) }, 'admin'),
   setMaintenance : (enabled, message) =>
     apiFetch('/settings/admin/maintenance', { method: 'POST', body: JSON.stringify({ enabled, message }) }, 'admin'),
+
+  // Settings — Favicon
+  uploadFavicon  : (data) =>
+    apiFetch('/settings/admin/favicon', { method: 'POST', body: JSON.stringify({ data }) }, 'admin'),
+  resetFavicon   : () =>
+    apiFetch('/settings/admin/favicon', { method: 'POST', body: JSON.stringify({ data: '' }) }, 'admin'),
+
+  // Settings — SlipOK
+  getSlipOK      : () => apiFetch('/settings/admin/slipok', {}, 'admin'),
+  updateSlipOK   : (settings) =>
+    apiFetch('/settings/admin/slipok', { method: 'PUT', body: JSON.stringify(settings) }, 'admin'),
+  testSlipOK     : (image_url) =>
+    apiFetch('/settings/admin/slipok/test', { method: 'POST', body: JSON.stringify({ image_url }) }, 'admin'),
+
+  // Settings — KBank
+  getKBank       : () => apiFetch('/settings/admin/kbank', {}, 'admin'),
+  updateKBank    : (settings) =>
+    apiFetch('/settings/admin/kbank', { method: 'PUT', body: JSON.stringify(settings) }, 'admin'),
+  testKBank      : () =>
+    apiFetch('/settings/admin/kbank/test', { method: 'POST' }, 'admin'),
+
+  // Settings — LINE Notify
+  getLineNotify        : () => apiFetch('/settings/admin/line-notify', {}, 'admin'),
+  updateLineNotify     : (settings) =>
+    apiFetch('/settings/admin/line-notify', { method: 'PUT', body: JSON.stringify(settings) }, 'admin'),
+  testLineNotify       : (message) =>
+    apiFetch('/settings/admin/line-notify/test', { method: 'POST', body: JSON.stringify({ message }) }, 'admin'),
+  getLineWebhookLog    : () => apiFetch('/settings/admin/line-notify/webhook-log', {}, 'admin'),
 
   // ScraperAPI proxy key
   saveScraperApiKey : (key) =>

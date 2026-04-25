@@ -2497,10 +2497,7 @@ async function saveFavicon(){
   if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...'; }
   if(msg){ msg.style.display='none'; }
   try{
-    const res = await apiFetch('/settings/admin/favicon', {
-      method:'POST',
-      body: JSON.stringify({ data: _faviconDataUrl })
-    }, 'admin');
+    const res = await API.AdminAPI.uploadFavicon(_faviconDataUrl);
     if(!res.success) throw new Error(res.message || 'บันทึกไม่สำเร็จ');
     // Update preview + browser tab icon
     const prevImg = document.getElementById('fav-preview-img');
@@ -2524,11 +2521,7 @@ async function saveFavicon(){
 async function resetFaviconToDefault(){
   if(!confirm('รีเซ็ตกลับเป็น Favicon เสือเดิมใช่ไหม?')) return;
   try{
-    // Save empty string → backend will redirect to static SVG
-    await apiFetch('/settings/admin/favicon', {
-      method:'POST',
-      body: JSON.stringify({ data: '' })
-    }, 'admin');
+    await API.AdminAPI.resetFavicon();
     const prevImg = document.getElementById('fav-preview-img');
     if(prevImg){ prevImg.src='/assets/favicon.svg?t='+Date.now(); }
     const faviconLink = document.getElementById('favicon-link');
@@ -3508,7 +3501,7 @@ async function loadApiSettings(){
 
 async function loadSlipOKSettings(){
   try {
-    const d = await apiFetch('/settings/admin/slipok', {}, 'admin');
+    const d = await API.AdminAPI.getSlipOK();
     if(!d.data) return;
     const enabledEl      = document.getElementById('slipok-enabled');
     const labelEl        = document.getElementById('slipok-enabled-label');
@@ -3531,16 +3524,13 @@ async function saveSlipOKSettings(){
   const verifySender  = document.getElementById('slipok-verify-sender')?.checked ?? true;
   const requireBank   = document.getElementById('slipok-require-bank')?.checked ?? true;
   try {
-    await apiFetch('/settings/admin/slipok', {
-      method: 'PUT',
-      body: JSON.stringify({
-        api_key: apiKey || undefined,
-        branch_id: branchId,
-        enabled,
-        verify_sender: verifySender,
-        require_bank: requireBank,
-      })
-    }, 'admin');
+    await API.AdminAPI.updateSlipOK({
+      api_key: apiKey || undefined,
+      branch_id: branchId,
+      enabled,
+      verify_sender: verifySender,
+      require_bank: requireBank,
+    });
     toast('สำเร็จ', 'บันทึกการตั้งค่า SlipOK แล้ว');
     document.getElementById('slipok-api-key').value = '';
     const labelEl = document.getElementById('slipok-enabled-label');
@@ -3553,7 +3543,7 @@ async function testSlipOKConnection(){
   const statusEl = document.getElementById('slipok-status');
   if(statusEl) statusEl.innerHTML = '⏳ กำลังทดสอบ...';
   try {
-    const d = await apiFetch('/settings/admin/slipok/test', { method:'POST' }, 'admin');
+    const d = await API.AdminAPI.testSlipOK();
     if(statusEl){
       statusEl.innerHTML = d.success
         ? `<span style="color:#5cdb5c">${d.message}</span>`
@@ -3567,7 +3557,7 @@ async function testSlipOKConnection(){
 // ── KBank Settings ─────────────────────────────────────────────────────────
 async function loadKBankSettings(){
   try {
-    const d = await apiFetch('/settings/admin/kbank', {}, 'admin');
+    const d = await API.AdminAPI.getKBank();
     const s = d.data || {};
     const enabledEl  = document.getElementById('kbank-enabled');
     const sandboxEl  = document.getElementById('kbank-sandbox');
@@ -3594,7 +3584,7 @@ async function saveKBankSettings(){
     account_name: document.getElementById('kbank-account-name')?.value?.trim()  || '',
   };
   try {
-    await apiFetch('/settings/admin/kbank', { method:'PUT', body: JSON.stringify(payload) }, 'admin');
+    await API.AdminAPI.updateKBank(payload);
     toast('สำเร็จ', 'บันทึกการตั้งค่า KBank API แล้ว');
     document.getElementById('kbank-client-secret').value = '';
     const lbl = document.getElementById('kbank-enabled-label');
@@ -3607,7 +3597,7 @@ async function testKBankConnection(){
   const statusEl = document.getElementById('kbank-status');
   if(statusEl) statusEl.innerHTML = '⏳ กำลังทดสอบการเชื่อมต่อ KBank...';
   try {
-    const d = await apiFetch('/settings/admin/kbank/test', { method:'POST' }, 'admin');
+    const d = await API.AdminAPI.testKBank();
     if(statusEl){
       statusEl.innerHTML = d.success
         ? `<span style="color:#1dbe72">${d.message}</span>${d.accountNo?' · บัญชีต้นทาง: '+d.accountNo:''}`
@@ -3638,7 +3628,7 @@ async function refreshLineGroupId() {
   const el = document.getElementById('line-group-detected');
   if(el) el.innerHTML = '⏳ กำลังตรวจสอบ...';
   try {
-    const d = await apiFetch('/settings/admin/line-notify/webhook-log', {}, 'admin');
+    const d = await API.AdminAPI.getLineWebhookLog();
     const gid = d.group_id || '';
     const ev  = d.last_event;
     _detectedGroupId = gid;
@@ -3666,7 +3656,7 @@ function useDetectedGroupId() {
 
 async function loadLineSettings(){
   try {
-    const d = await apiFetch('/settings/admin/line-notify', {}, 'admin');
+    const d = await API.AdminAPI.getLineNotify();
     const s = d.data || {};
     // แสดง Webhook URL
     const wuEl = document.getElementById('line-webhook-url');
@@ -3695,7 +3685,7 @@ async function saveLineSettings(){
     notify_withdraw : document.getElementById('line-notify-withdraw')?.checked ?? true,
   };
   try {
-    await apiFetch('/settings/admin/line-notify', { method:'PUT', body: JSON.stringify(payload) }, 'admin');
+    await API.AdminAPI.updateLineNotify(payload);
     toast('สำเร็จ', 'บันทึกการตั้งค่า LINE แล้ว');
     document.getElementById('line-notify-token').value = '';
     document.getElementById('line-bot-token').value    = '';
@@ -3707,7 +3697,7 @@ async function testLineNotify(){
   const statusEl = document.getElementById('line-status');
   if(statusEl) statusEl.innerHTML = '⏳ กำลังส่งข้อความทดสอบ...';
   try {
-    const d = await apiFetch('/settings/admin/line-notify/test', { method:'POST' }, 'admin');
+    const d = await API.AdminAPI.testLineNotify();
     if(statusEl){
       statusEl.innerHTML = d.success
         ? `<span style="color:#06c755">${d.message}</span>`
