@@ -3485,7 +3485,7 @@ async function loadApiSettings(){
     });
     // Set default webhook url if empty
     const wh = document.getElementById('api-line-webhook');
-    if(wh && !wh.value) wh.value = `${window.location.origin.replace(/\/admin.*$/,'')}/api/line/webhook`;
+    if(wh && !wh.value) wh.value = `${window.location.origin.replace(/\/admin.*$/,'')}/api/webhooks/line`;
     // Load ScraperAPI key (masked)
     const skRow = (d.data||[]).find(r => r.key === 'scraperapi_key');
     const skEl  = document.getElementById('api-scraperapi-status');
