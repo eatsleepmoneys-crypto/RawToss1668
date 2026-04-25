@@ -380,8 +380,8 @@ router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
 // 3. อัปเดตผล lottery_results
 // 4. คำนวณและจ่ายรางวัลใหม่ตามผลที่แก้ไข
 router.patch('/admin/results/:round_id', authAdmin, rbac.requirePerm('results.announce'),
-  body('prize_1st').isLength({ min: 6, max: 6 }).withMessage('รางวัลที่ 1 ต้องเป็น 6 หลัก'),
-  body('prize_last_2').isLength({ min: 2, max: 2 }),
+  body('prize_1st').isLength({ min: 4, max: 6 }).withMessage('รางวัลที่ 1 ต้องมี 4-6 หลัก'),
+  body('prize_last_2').optional({ checkFalsy: true }).isLength({ min: 2, max: 2 }),
   async (req, res) => {
     const err = validationResult(req);
     if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
