@@ -1,5 +1,14 @@
 # TigerLotto / RawToss1668 — Project Context
 
+## เริ่ม Session ใหม่ (copy ไปวางได้เลย)
+```
+โปรเจค TigerLotto อยู่ที่ GitHub: https://github.com/eatsleepmoneys-crypto/RawToss1668
+clone repo แล้วอ่าน CLAUDE.md จากนั้นช่วยทำ [สิ่งที่ต้องการ]
+```
+Claude จะ: `git clone` → อ่าน CLAUDE.md → เข้าใจระบบทั้งหมด → ทำงานได้เลย
+
+---
+
 ## URLs
 - **Production**: https://rawtoss1668.com
 - **Railway (direct)**: https://rawtoss1668-production.up.railway.app
