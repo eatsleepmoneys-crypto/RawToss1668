@@ -6752,7 +6752,7 @@ function initPageCharts(page){
         window._charts['chart-daily'] = new Chart(dCtx,{type:'line',data:{labels:[],datasets:[
           {label:'ฝากเงิน',data:[],borderColor:'#ffd700',backgroundColor:'rgba(255,215,0,.08)',tension:.4,fill:false,pointBackgroundColor:'#ffd700',pointRadius:3},
           {label:'ยอดแทง',data:[],borderColor:'#4ade80',backgroundColor:'rgba(74,222,128,.06)',tension:.4,fill:false,pointBackgroundColor:'#4ade80',pointRadius:3},
-        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#aaa',font:{size:11},boxWidth:14,padding:10}}},scales:{x:{ticks:{color:'#777'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'rgba(255,255,255,.04)'}}}}}}); }
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#aaa',font:{size:11},boxWidth:14,padding:10}}},scales:{x:{ticks:{color:'#777'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#777',callback:v=>'฿'+v.toLocaleString()},grid:{color:'rgba(255,255,255,.04)'}}}}}); }
       if(pCtx){ if(window._charts['chart-pie']) window._charts['chart-pie'].destroy();
         window._charts['chart-pie'] = new Chart(pCtx,{type:'doughnut',data:{labels:[],datasets:[{data:[],backgroundColor:['#d4a017','#ffd700','#b8860b','#c89020','#8b6914','#d4801a'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#777',font:{size:11}}}}}}); }
     }
