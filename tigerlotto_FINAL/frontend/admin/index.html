@@ -495,6 +495,7 @@ const PAGE_TITLES={
 };
 // ═══ AUTO-REFRESH POLLING ═══
 let _autoRefreshInterval  = null;
+let _hotRefreshInterval   = null;
 let _autoRefreshPage      = null;
 let _lastDepPendingCount  = -1;
 let _lastWdPendingCount   = -1;
@@ -526,6 +527,10 @@ function stopAutoRefresh() {
   if (_autoRefreshInterval) { clearInterval(_autoRefreshInterval); _autoRefreshInterval = null; }
   _autoRefreshPage = null;
   stopNlAutoRefresh();
+  stopHotRefresh();
+}
+function stopHotRefresh() {
+  if (_hotRefreshInterval) { clearInterval(_hotRefreshInterval); _hotRefreshInterval = null; }
 }
 
 function updateRefreshIndicator(sec, page) {
@@ -628,6 +633,7 @@ function nav(page){
   afterNav(page); // ← load real API data
   if(['deposits','withdrawals','agentdeposits','agentwithdrawals'].includes(page)) startAutoRefresh(page);
   if(page === 'numlimits') startNlAutoRefresh();
+  if(page === 'hotnumbers') startHotRefresh();
 }
 
 // ═══ REAL API LOADER per page ═══
@@ -1974,24 +1980,42 @@ function renderPromoClaims(){
 
 /* ── Hot Numbers ── */
 const ROUND_STATUS_TH = { open:'🟢 เปิด', closed:'🔴 ปิด', announced:'🏆 ออกผลแล้ว', cancelled:'🚫 ยกเลิก' };
-async function loadHotNumbers(){
+// ─── Hot Numbers auto-refresh ────────────────────────────────────────────────
+function startHotRefresh() {
+  stopHotRefresh();
+  _hotRefreshInterval = setInterval(() => loadHotNumbers(true), 10000);
+}
+
+async function loadHotNumbers(silent = false){
   const tbody = document.getElementById('hn-tbody');
   if(!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
-  // โหลดรายการรอบมาใส่ dropdown ก่อน (ถ้ายังไม่มี)
+  if(!silent){
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr>';
+  }
+
+  // โหลด/รีเฟรช dropdown รอบ (รวมรอบที่กำลังเปิดอยู่)
   const roundSel = document.getElementById('hn-round');
-  if(roundSel && roundSel.options.length <= 1){
+  if(roundSel){
+    const prevVal = roundSel.value;
     try{
       const rd = await API.AdminAPI.listHotRounds();
-      (rd.data||[]).forEach(r=>{
+      const rounds = rd.data || [];
+      // รีบิลด์ dropdown เพื่อให้รอบใหม่โผล่ทันที
+      while(roundSel.options.length > 1) roundSel.remove(1);
+      rounds.forEach(r=>{
+        const isOpen = r.status === 'open';
         const opt = document.createElement('option');
         opt.value = r.id;
-        opt.textContent = `${r.lottery_type} — ${r.draw_date?.slice(0,10)||'-'} (${ROUND_STATUS_TH[r.status]||r.status})`;
+        opt.textContent = `${isOpen ? '🟢 ' : ''}${r.lottery_type} — ${r.draw_date?.slice(0,10)||'-'} (${ROUND_STATUS_TH[r.status]||r.status})`;
+        if(isOpen) opt.style.color = '#4caf50';
         roundSel.appendChild(opt);
       });
+      // คืนค่าที่เลือกก่อนหน้า
+      if(prevVal) roundSel.value = prevVal;
     }catch(e){ console.warn('listHotRounds error',e.message); }
   }
-  // โหลดประเภทแทงจริงจาก DB
+
+  // โหลดประเภทแทง (ครั้งแรกเท่านั้น)
   const btSel = document.getElementById('hn-bet-type');
   if(btSel && btSel.options.length <= 1){
     try{
@@ -2003,20 +2027,39 @@ async function loadHotNumbers(){
       });
     }catch(e){ console.warn('listHotBetTypes error',e.message); }
   }
+
   const round_id  = roundSel?.value || '';
   const limit     = document.getElementById('hn-limit')?.value || 50;
-  const bet_type  = document.getElementById('hn-bet-type')?.value || '';
+  const bet_type  = btSel?.value || '';
   const date_from = document.getElementById('hn-date-from')?.value || '';
   const date_to   = document.getElementById('hn-date-to')?.value || '';
+
   try{
     const d = await API.AdminAPI.listHotNumbers({ round_id, limit, bet_type, date_from, date_to });
     const rows = d.data || [];
+
+    // อัปเดต last-updated timestamp
+    const tsEl = document.getElementById('hn-last-updated');
+    if(tsEl){
+      const now = new Date();
+      const hh = String(now.getHours()).padStart(2,'0');
+      const mm = String(now.getMinutes()).padStart(2,'0');
+      const ss = String(now.getSeconds()).padStart(2,'0');
+      tsEl.textContent = `อัปเดตล่าสุด: ${hh}:${mm}:${ss}`;
+    }
+
+    // ตรวจสอบว่ามีรอบที่เปิดอยู่ในผลลัพธ์ไหม
+    const hasLive = rows.some(h => h.round_status === 'open');
+    const liveEl  = document.getElementById('hn-live-badge');
+    if(liveEl) liveEl.style.display = hasLive ? 'inline-flex' : 'none';
+
     if(!rows.length){
       tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">ไม่มีข้อมูลตัวเลขฮอต</td></tr>';
       return;
     }
-    tbody.innerHTML = rows.map((h,i)=>`
-      <tr>
+    tbody.innerHTML = rows.map((h,i)=>{
+      const isOpen = h.round_status === 'open';
+      return `<tr style="${isOpen ? 'background:rgba(76,175,80,0.06)' : ''}">
         <td>${i+1}</td>
         <td><span style="font-size:22px;font-weight:700;color:var(--gold2);letter-spacing:2px">${h.number}</span></td>
         <td>${h.lottery_type||'-'}</td>
@@ -2024,10 +2067,13 @@ async function loadHotNumbers(){
         <td>${h.draw_date?.slice(0,10)||'-'}</td>
         <td><span style="font-weight:600">${Number(h.bet_count).toLocaleString()}</span></td>
         <td style="color:var(--red);font-weight:700">฿${Number(h.total_amount).toLocaleString('th',{minimumFractionDigits:2})}</td>
-        <td>${ROUND_STATUS_TH[h.round_status]||h.round_status||'-'}</td>
-      </tr>`).join('');
+        <td>${isOpen ? '<span style="color:#4caf50;font-weight:700;animation:hn-blink 1.4s infinite">🟢 กำลังเปิด</span>' : (ROUND_STATUS_TH[h.round_status]||h.round_status||'-')}</td>
+      </tr>`;
+    }).join('');
   }catch(e){
-    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:20px">❌ ${e.message}</td></tr>`;
+    if(!silent){
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;color:var(--red);padding:20px">❌ ${e.message}</td></tr>`;
+    }
   }
 }
 
@@ -4891,6 +4937,12 @@ promotions:()=>`
 </div>`,
 
 hotnumbers:()=>`
+<style>
+@keyframes hn-blink { 0%,100%{opacity:1} 50%{opacity:0.35} }
+#hn-live-badge { display:none; align-items:center; gap:5px; background:rgba(76,175,80,0.15);
+  border:1px solid #4caf50; border-radius:20px; padding:3px 10px; font-size:12px;
+  color:#4caf50; font-weight:700; animation:hn-blink 1.4s infinite; }
+</style>
 <div class="filter-bar" style="flex-wrap:wrap;gap:8px">
   <select id="hn-round" class="fi" style="min-width:180px" onchange="loadHotNumbers()">
     <option value="">— ทุกรอบ —</option>
@@ -4914,7 +4966,12 @@ hotnumbers:()=>`
   <button class="btn btn-outline" onclick="loadHotNumbers()">🔄 รีเฟรช</button>
 </div>
 <div class="card">
-  <h3>🔥 ตัวเลขที่ถูกแทงมากที่สุด</h3>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap">
+    <h3 style="margin:0">🔥 ตัวเลขที่ถูกแทงมากที่สุด</h3>
+    <span id="hn-live-badge">🔴 LIVE กำลังเปิดรับแทง</span>
+    <span id="hn-last-updated" style="font-size:11px;color:var(--muted);margin-left:auto"></span>
+    <span style="font-size:11px;color:var(--muted)">🔁 auto-refresh ทุก 10 วิ</span>
+  </div>
   <div class="tbl-wrap">
     <table class="tbl">
       <thead><tr><th>#</th><th>เลข</th><th>ประเภทหวย</th><th>ประเภทแทง</th><th>วันออกรางวัล</th><th>จำนวนครั้ง</th><th>ยอดรวม (฿)</th><th>สถานะรอบ</th></tr></thead>

@@ -416,14 +416,20 @@ router.get('/hot-numbers/bet-types', authAdmin, rbac.requirePerm('reports.view')
   res.json({ success: true, data: data.map(r => r.name) });
 });
 
-// GET /api/admin/hot-numbers/rounds — รายการรอบที่มีข้อมูล
+// GET /api/admin/hot-numbers/rounds — รายการรอบที่มีข้อมูล + รอบที่กำลังเปิดอยู่
 router.get('/hot-numbers/rounds', authAdmin, rbac.requirePerm('reports.view'), async (req, res) => {
   const data = await query(
-    `SELECT DISTINCT lr.id, lr.draw_date, lr.status, lt.name AS lottery_type
+    `SELECT lr.id, lr.draw_date, lr.status, lt.name AS lottery_type
+     FROM lottery_rounds lr
+     JOIN lottery_types lt ON lr.lottery_type_id = lt.id
+     WHERE lr.status = 'open'
+     UNION
+     SELECT DISTINCT lr.id, lr.draw_date, lr.status, lt.name AS lottery_type
      FROM hot_numbers h
      JOIN lottery_rounds lr ON h.round_id = lr.id
      JOIN lottery_types lt ON h.lottery_type_id = lt.id
-     ORDER BY lr.draw_date DESC LIMIT 50`
+     ORDER BY draw_date DESC, id DESC
+     LIMIT 80`
   );
   res.json({ success: true, data });
 });
