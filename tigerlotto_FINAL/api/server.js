@@ -88,6 +88,9 @@ app.use('/api/number-limits', require('./routes/numberLimits'));
 app.use('/api/promotions',   require('./routes/promotions'));
 app.use('/api/webhooks/line', require('./routes/lineWebhook'));
 
+// ─── Favicon shortcut (public) ───────────────────
+app.get('/api/favicon', (req, res) => res.redirect(307, '/api/settings/favicon'));
+
 // ─── Health Check ─────────────────────────────────
 app.get('/api/health', (req, res) => {
   res.json({ success: true, message: 'TigerLotto API running', ts: new Date().toISOString() });

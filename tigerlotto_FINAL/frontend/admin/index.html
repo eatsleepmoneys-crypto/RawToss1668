@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TigerLotto Admin</title>
-<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
-<link rel="shortcut icon" href="/assets/favicon.svg">
+<link rel="icon" id="favicon-link" type="image/svg+xml" href="/api/favicon">
+<link rel="shortcut icon" href="/api/favicon">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -2461,6 +2461,80 @@ function removeQR(){
   document.getElementById('br-qr-url').value = '';
   const f = document.getElementById('br-qr-file'); if(f) f.value = '';
   updateQRPreview();
+}
+
+// ───── Favicon ─────
+let _faviconDataUrl = null;
+
+function handleFaviconUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  const maxBytes = 200 * 1024;
+  if(file.size > maxBytes){ toast('ผิดพลาด','ไฟล์ใหญ่เกินไป (สูงสุด 200KB)','error'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    _faviconDataUrl = e.target.result;
+    const newImg  = document.getElementById('fav-new-img');
+    const newWrap = document.getElementById('fav-new-wrap');
+    const newName = document.getElementById('fav-new-name');
+    const newSize = document.getElementById('fav-new-size');
+    const saveBtn = document.getElementById('fav-save-btn');
+    const resetBtn= document.getElementById('fav-reset-btn');
+    if(newImg) newImg.src = _faviconDataUrl;
+    if(newWrap){ newWrap.style.display='flex'; }
+    if(newName) newName.textContent = file.name;
+    if(newSize) newSize.textContent = (file.size/1024).toFixed(1) + ' KB · ' + file.type;
+    if(saveBtn){ saveBtn.style.display=''; }
+    if(resetBtn){ resetBtn.style.display=''; }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveFavicon(){
+  if(!_faviconDataUrl){ toast('ผิดพลาด','กรุณาเลือกไฟล์ก่อน','error'); return; }
+  const btn = document.getElementById('fav-save-btn');
+  const msg = document.getElementById('fav-msg');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ กำลังบันทึก...'; }
+  if(msg){ msg.style.display='none'; }
+  try{
+    const res = await apiFetch('/settings/admin/favicon', {
+      method:'POST',
+      body: JSON.stringify({ data: _faviconDataUrl })
+    }, 'admin');
+    if(!res.success) throw new Error(res.message || 'บันทึกไม่สำเร็จ');
+    // Update preview + browser tab icon
+    const prevImg = document.getElementById('fav-preview-img');
+    if(prevImg) prevImg.src = _faviconDataUrl;
+    const faviconLink = document.getElementById('favicon-link');
+    if(faviconLink){ faviconLink.href = _faviconDataUrl; }
+    if(msg){ msg.style.display=''; msg.style.color='#4caf50'; msg.textContent='✅ บันทึก Favicon เรียบร้อยแล้ว'; }
+    toast('สำเร็จ','🖼️ Favicon อัปเดตแล้ว');
+    _faviconDataUrl = null;
+    const inp = document.getElementById('fav-file-input'); if(inp) inp.value='';
+    const newWrap = document.getElementById('fav-new-wrap'); if(newWrap) newWrap.style.display='none';
+    if(btn) btn.style.display='none';
+  }catch(e){
+    if(msg){ msg.style.display=''; msg.style.color='#ff6b81'; msg.textContent='❌ '+e.message; }
+    toast('ผิดพลาด', e.message,'error');
+  }finally{
+    if(btn){ btn.disabled=false; btn.textContent='💾 บันทึก Favicon'; }
+  }
+}
+
+async function resetFaviconToDefault(){
+  if(!confirm('รีเซ็ตกลับเป็น Favicon เสือเดิมใช่ไหม?')) return;
+  try{
+    // Save empty string → backend will redirect to static SVG
+    await apiFetch('/settings/admin/favicon', {
+      method:'POST',
+      body: JSON.stringify({ data: '' })
+    }, 'admin');
+    const prevImg = document.getElementById('fav-preview-img');
+    if(prevImg){ prevImg.src='/assets/favicon.svg?t='+Date.now(); }
+    const faviconLink = document.getElementById('favicon-link');
+    if(faviconLink){ faviconLink.href = '/api/favicon?t='+Date.now(); }
+    toast('สำเร็จ','🐯 รีเซ็ต Favicon เป็นเสือเดิมแล้ว');
+  }catch(e){ toast('ผิดพลาด',e.message,'error'); }
 }
 async function saveBranding(){
   const name    = document.getElementById('br-site-name')?.value?.trim();
@@ -5277,6 +5351,43 @@ branding:()=>`
       <div style="display:flex;gap:8px">
         <input id="br-qr-url" class="fi-full" placeholder="https://..." style="flex:1" oninput="updateQRPreview()">
         <button class="btn" style="padding:9px 12px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff6b81;border-radius:8px;font-size:12px;white-space:nowrap" onclick="removeQR()">🗑️ ลบ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Favicon -->
+  <div class="card" style="grid-column:1/-1">
+    <h3>🖼️ Favicon (ไอคอนแท็บเบราว์เซอร์)</h3>
+    <div style="display:flex;align-items:flex-start;gap:24px;flex-wrap:wrap">
+      <!-- Current preview -->
+      <div style="flex-shrink:0;text-align:center">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:600">ปัจจุบัน</div>
+        <div id="fav-preview-wrap" style="width:64px;height:64px;border-radius:12px;background:var(--bg);border:2px dashed rgba(212,160,23,.4);display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <img id="fav-preview-img" src="/api/favicon" alt="favicon" style="width:48px;height:48px;object-fit:contain" onerror="this.src='/assets/favicon.svg'">
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">32×32 หรือ SVG</div>
+      </div>
+      <!-- New upload -->
+      <div style="flex:1;min-width:240px">
+        <div class="fg" style="margin-bottom:12px">
+          <label>อัปโหลด Favicon ใหม่ <span style="font-size:11px;color:#888">(PNG/SVG/ICO/WebP ไม่เกิน 200KB)</span></label>
+          <input type="file" id="fav-file-input" accept="image/png,image/svg+xml,image/x-icon,image/webp,image/gif"
+            class="fi-full" style="padding:8px" onchange="handleFaviconUpload(this)">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div id="fav-new-wrap" style="display:none;width:48px;height:48px;border-radius:10px;background:var(--bg);border:1px solid var(--border);overflow:hidden;display:none;align-items:center;justify-content:center">
+            <img id="fav-new-img" style="width:40px;height:40px;object-fit:contain" alt="new favicon">
+          </div>
+          <div>
+            <div id="fav-new-name" style="font-size:13px;font-weight:600;color:var(--text)"></div>
+            <div id="fav-new-size" style="font-size:11px;color:var(--muted)"></div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
+          <button id="fav-save-btn" class="btn btn-gold" style="padding:10px 22px;font-size:14px;display:none" onclick="saveFavicon()">💾 บันทึก Favicon</button>
+          <button class="btn" style="padding:10px 18px;font-size:13px;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);color:#ff6b81;border-radius:8px;display:none" id="fav-reset-btn" onclick="resetFaviconToDefault()">🔄 ใช้ Tiger เดิม</button>
+        </div>
+        <div id="fav-msg" style="margin-top:10px;font-size:13px;display:none"></div>
       </div>
     </div>
   </div>

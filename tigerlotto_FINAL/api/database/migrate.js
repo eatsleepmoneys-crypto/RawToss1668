@@ -583,6 +583,7 @@ const SEEDS = [
     ('referral_commission','3','number','promotion'),
     ('site_tagline','OFFICIAL','string','general'),
     ('site_logo_url','','string','general'),
+    ('site_favicon_data','','string','general'),
     ('line_id','@tigerlotto','string','contact'),
     ('line_url','https://line.me/R/ti/p/@tigerlotto','string','contact'),
     ('line_qr_url','','string','contact'),

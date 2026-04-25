@@ -519,4 +519,56 @@ router.post('/admin/lottery-sources/:id/test', authAdmin, rbac.requirePerm('api.
   }
 });
 
+// GET /api/favicon — serve favicon from DB (public, no auth)
+router.get('/favicon', async (req, res) => {
+  try {
+    const rows = await query('SELECT value FROM settings WHERE `key`=? LIMIT 1', ['site_favicon_data']);
+    const data = rows[0]?.value || '';
+    if (!data) {
+      // Redirect to static SVG fallback
+      return res.redirect('/assets/favicon.svg');
+    }
+    // data is like: "data:image/svg+xml;base64,AAA..." or "data:image/png;base64,AAA..."
+    const match = data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) return res.redirect('/assets/favicon.svg');
+    const mime = match[1];
+    const buf  = Buffer.from(match[2], 'base64');
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    return res.send(buf);
+  } catch (err) {
+    return res.redirect('/assets/favicon.svg');
+  }
+});
+
+// POST /api/admin/favicon — upload new favicon (base64 body)
+router.post('/admin/favicon', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  try {
+    const { data } = req.body; // expects { data: "data:image/...;base64,..." }
+    // Allow empty string to reset to default
+    if (data === '') {
+      await query(
+        'INSERT INTO settings (`key`, value, type, category) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',
+        ['site_favicon_data', '', 'string', 'general', '']
+      );
+      return res.json({ success: true, message: 'รีเซ็ต Favicon เป็นค่าเริ่มต้นแล้ว' });
+    }
+
+    // Validate data URI
+    const match = data.match(/^data:(image\/(?:svg\+xml|png|jpeg|gif|webp|x-icon));base64,(.+)$/);
+    if (!match) return res.status(400).json({ success: false, message: 'รูปแบบไฟล์ไม่รองรับ' });
+
+    // Max ~200KB base64
+    if (data.length > 280000) return res.status(400).json({ success: false, message: 'ไฟล์ใหญ่เกินไป (สูงสุด 200KB)' });
+
+    await query(
+      'INSERT INTO settings (`key`, value, type, category) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE value=?',
+      ['site_favicon_data', data, 'string', 'general', data]
+    );
+    res.json({ success: true, message: 'บันทึก Favicon เรียบร้อย' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
