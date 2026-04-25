@@ -385,8 +385,8 @@ router.get('/hot-numbers', authAdmin, rbac.requirePerm('reports.view'), async (r
   const params = [];
   if (round_id)  { where.push('h.round_id=?');              params.push(parseInt(round_id)); }
   if (bet_type)  { where.push('bt.name=?');                  params.push(bet_type); }
-  if (date_from) { where.push('DATE(h.updated_at) >= ?');    params.push(date_from); }
-  if (date_to)   { where.push('DATE(h.updated_at) <= ?');    params.push(date_to); }
+  if (date_from) { where.push('DATE(lr.draw_date) >= ?');    params.push(date_from); }
+  if (date_to)   { where.push('DATE(lr.draw_date) <= ?');    params.push(date_to); }
   const whereClause = where.length ? ' WHERE ' + where.join(' AND ') : '';
   const sql = `
     SELECT h.id, h.number, h.bet_count, h.total_amount, h.max_payout,

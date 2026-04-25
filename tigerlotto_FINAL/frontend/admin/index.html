@@ -2051,11 +2051,23 @@ async function loadHotNumbers(silent = false){
     }catch(e){ console.warn('listHotBetTypes error',e.message); }
   }
 
+  // Default date range: -30d ถึง +90d (ครั้งแรกที่เปิดหน้า)
+  const dfEl = document.getElementById('hn-date-from');
+  const dtEl = document.getElementById('hn-date-to');
+  if(dfEl && !dfEl.value && dtEl && !dtEl.value){
+    const now = new Date();
+    const pad = n=>String(n).padStart(2,'0');
+    const fmt = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    const past = new Date(now); past.setDate(past.getDate()-30);
+    const future = new Date(now); future.setDate(future.getDate()+90);
+    dfEl.value = fmt(past);
+    dtEl.value = fmt(future);
+  }
   const round_id  = roundSel?.value || '';
   const limit     = document.getElementById('hn-limit')?.value || 50;
   const bet_type  = btSel?.value || '';
-  const date_from = document.getElementById('hn-date-from')?.value || '';
-  const date_to   = document.getElementById('hn-date-to')?.value || '';
+  const date_from = dfEl?.value || '';
+  const date_to   = dtEl?.value || '';
 
   try{
     const d = await API.AdminAPI.listHotNumbers({ round_id, limit, bet_type, date_from, date_to });
@@ -4978,7 +4990,7 @@ hotnumbers:()=>`
     <option value="">— ทุกประเภท —</option>
   </select>
   <div style="display:flex;align-items:center;gap:6px">
-    <span style="font-size:12px;color:var(--muted);white-space:nowrap">วันที่แทง:</span>
+    <span style="font-size:12px;color:var(--muted);white-space:nowrap">วันออกรางวัล:</span>
     <input type="date" id="hn-date-from" class="fi" style="width:140px" onchange="loadHotNumbers()">
     <span style="color:var(--muted)">–</span>
     <input type="date" id="hn-date-to" class="fi" style="width:140px" onchange="loadHotNumbers()">
