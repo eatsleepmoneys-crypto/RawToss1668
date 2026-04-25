@@ -486,7 +486,7 @@ select.fi option{background:var(--card2)}
   </div>
 
   <!-- Checker (inline in hero) -->
-  <div class="checker-wrap" style="margin:0 auto 28px">
+  <div id="check" class="checker-wrap" style="margin:0 auto 28px">
     <div class="checker-box" style="padding:24px 28px">
       <div style="text-align:center;margin-bottom:16px">
         <span style="font-size:17px;font-weight:800;color:var(--gold2)">🔍 ตรวจผลรางวัล</span>
@@ -497,7 +497,7 @@ select.fi option{background:var(--card2)}
         <button class="tab" onclick="setChk(this,2)">2 ตัว</button>
       </div>
       <div class="chk-row">
-        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
+        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
         <button class="chk-btn" onclick="doCheck()">ตรวจสอบ</button>
       </div>
       <div id="chk-res" style="display:none" class="chk-result"></div>
