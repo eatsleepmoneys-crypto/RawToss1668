@@ -978,6 +978,9 @@ async function migrate() {
     // members: LINE User ID สำหรับ LINE Bot reply (ผูกบัญชีผ่านคำสั่ง /ผูก)
     `ALTER TABLE \`members\` ADD COLUMN \`line_user_id\` VARCHAR(100) DEFAULT NULL UNIQUE COMMENT 'LINE userId สำหรับ Bot reply' AFTER \`is_admin\``,
     `ALTER TABLE \`members\` ADD INDEX \`idx_members_line_uid\` (\`line_user_id\`)`,
+    // bets: bill_no สำหรับจัดกลุ่มบิล + ค้นหา
+    `ALTER TABLE \`bets\` ADD COLUMN \`bill_no\` VARCHAR(20) DEFAULT NULL COMMENT 'เลขบิล เช่น BL-20260425-A3B2' AFTER \`uuid\``,
+    `ALTER TABLE \`bets\` ADD INDEX \`idx_bets_bill_no\` (\`bill_no\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

@@ -1166,8 +1166,8 @@ function renderBillView(rows){
   // Group by member_id + round_id
   const groups = {};
   rows.forEach(b => {
-    const key = `${b.member_name||'-'}__${b.round_name||'-'}__${b.lottery_name||'-'}`;
-    if(!groups[key]) groups[key] = { member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, bets:[], total:0 };
+    const key = `${b.bill_no||b.member_name||'-'}__${b.round_name||'-'}__${b.lottery_name||'-'}`;
+    if(!groups[key]) groups[key] = { bill_no:b.bill_no, member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, created_at:b.created_at, bets:[], total:0 };
     groups[key].bets.push(b);
     groups[key].total += parseFloat(b.amount||0);
   });
@@ -1209,6 +1209,10 @@ function renderBillView(rows){
         <div style="flex:1;min-width:140px">
           <div style="font-size:11px;color:var(--muted)">${g.lottery_name||''}</div>
           <div style="font-size:12px">${g.round_name||'-'}</div>
+        </div>
+        <div style="text-align:right;margin-right:8px">
+          <div style="font-size:11px;font-weight:700;color:var(--gold2)">${g.bill_no||'-'}</div>
+          <div style="font-size:10px;color:var(--muted)">${g.created_at?UI.formatDate(g.created_at):'-'}</div>
         </div>
         <div style="text-align:right;margin-right:8px">
           <div style="font-size:11px;color:var(--muted)">${g.bets.length} รายการ</div>
@@ -1305,7 +1309,10 @@ async function loadBets(page){
       } else {
         tbody.innerHTML = rows.map(b => `
           <tr>
-            <td style="font-size:11px;color:var(--muted)">${b.id}</td>
+            <td>
+              <div style="font-size:11px;font-weight:700;color:var(--gold2);letter-spacing:.5px">${b.bill_no||'-'}</div>
+              <div style="font-size:10px;color:var(--muted)">#${b.id}</div>
+            </td>
             <td>
               <div style="font-weight:600">${b.member_name||'-'}</div>
               <div style="font-size:11px;color:var(--muted)">${b.phone||''}</div>
@@ -4801,7 +4808,7 @@ agentwithdrawals:()=>`
 bets:()=>`
 <div class="filter-bar" style="flex-wrap:wrap;gap:8px">
   <input class="fi" id="bets-search" placeholder="🔍 ค้นหาชื่อสมาชิก เบอร์โทร เลขที่แทง..." style="flex:1;min-width:180px"
-    oninput="debounceBetsSearch()" onkeydown="if(event.key==='Enter')loadBets(1)">
+    oninput="debounceBetsSearch()" onkeydown="if(event.key==='Enter')loadBets(1)" placeholder="🔍 ชื่อ / เบอร์ / เลขที่แทง / เลขบิล BL-...">
   <select class="fi fi-sm" id="bets-lottery-sel" onchange="loadBets(1)">
     <option value="">🎰 ทุกประเภทหวย</option>
   </select>
@@ -4840,7 +4847,7 @@ bets:()=>`
       <table class="tbl">
         <thead>
           <tr>
-            <th>#</th>
+            <th>เลขบิล</th>
             <th>สมาชิก</th>
             <th>หวย</th>
             <th>งวด</th>

@@ -141,6 +141,13 @@ router.post('/', authMember,
     ).catch(() => [null]);
     const globalCommRate = parseFloat(rateSetting?.value || 0);
 
+    // Generate bill_no — เลขบิลเดียวกันสำหรับทุก bet ในการแทงครั้งนี้
+    const _now = new Date();
+    const _p = n=>String(n).padStart(2,'0');
+    const billNo = 'BL-' + _now.getFullYear() + _p(_now.getMonth()+1) + _p(_now.getDate())
+                  + '-' + _p(_now.getHours()) + _p(_now.getMinutes()) + _p(_now.getSeconds())
+                  + '-' + String(req.member.id).padStart(4,'0').slice(-4);
+
     // Place bets in transaction
     // Final balance check ภายใน transaction พร้อม FOR UPDATE (ป้องกัน double-spend race condition)
     let result;
@@ -162,8 +169,8 @@ router.post('/', authMember,
       for (const bet of validated) {
         const betUuid = uuidv4();
         await conn.execute(
-          'INSERT INTO bets (uuid,member_id,round_id,bet_type,number,amount,rate,rate_override,payout,status) VALUES (?,?,?,?,?,?,?,?,?,?)',
-          [betUuid, req.member.id, round_id, bet.bet_type, bet.number, bet.amount, bet.rate,
+          'INSERT INTO bets (uuid,bill_no,member_id,round_id,bet_type,number,amount,rate,rate_override,payout,status) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+          [betUuid, billNo, req.member.id, round_id, bet.bet_type, bet.number, bet.amount, bet.rate,
            bet.rate_override !== undefined ? bet.rate_override : null,
            bet.payout, 'waiting']);
         placedBets.push({ uuid: betUuid, ...bet });
@@ -341,16 +348,17 @@ router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, 
   const pg     = Math.max(parseInt(req.query.page)  || 1, 1);
   const offset = (pg - 1) * lim;
 
-  const { round_id, member_id, status, bet_type, search, lottery_code, date_from, date_to } = req.query;
+  const { round_id, member_id, status, bet_type, search, lottery_code, date_from, date_to, bill_no } = req.query;
   const where = []; const params = [];
   if (round_id)     { where.push('b.round_id=?');  params.push(parseInt(round_id)); }
   if (member_id)    { where.push('b.member_id=?'); params.push(parseInt(member_id)); }
   if (status)       { where.push('b.status=?');    params.push(status); }
   if (bet_type)     { where.push('b.bet_type=?');  params.push(bet_type); }
   if (lottery_code) { where.push('lt.code=?');     params.push(lottery_code); }
+  if (bill_no)      { where.push('b.bill_no=?');   params.push(bill_no); }
   if (search) {
-    where.push('(m.name LIKE ? OR m.phone LIKE ? OR b.number LIKE ?)');
-    params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    where.push('(m.name LIKE ? OR m.phone LIKE ? OR b.number LIKE ? OR b.bill_no LIKE ?)');
+    params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
   if (date_from) { where.push('DATE(b.created_at) >= ?'); params.push(date_from); }
   if (date_to)   { where.push('DATE(b.created_at) <= ?'); params.push(date_to); }
@@ -358,7 +366,7 @@ router.get('/admin/list', authAdmin, rbac.requirePerm('bets.view'), async (req, 
 
   // ใช้ inline LIMIT/OFFSET (ปลอดภัย — parseInt แล้ว) เพื่อหลีกเลี่ยง mysql2 prepared-statement bug
   const rows = await query(
-    `SELECT b.id, b.uuid, b.bet_type, b.number, b.amount, b.rate, b.payout, b.win_amount, b.status, b.created_at,
+    `SELECT b.id, b.uuid, b.bill_no, b.bet_type, b.number, b.amount, b.rate, b.payout, b.win_amount, b.status, b.created_at,
             m.name AS member_name, m.phone,
             lr.round_name, lr.draw_date,
             lt.name AS lottery_name, lt.code AS lottery_code, lt.flag AS lottery_flag
