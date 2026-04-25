@@ -125,11 +125,17 @@ router.post('/', authMember,
       return res.status(400).json({ success: false, message: `ยอดเงินไม่เพียงพอ (มี ฿${mPreCheck.balance} ต้องการ ฿${totalAmount})` });
     }
 
-    // Load member's referrer info + global referral rate (ก่อน transaction — read-only)
+    // Load member's referrer info + referral_rate ของ referrer (ก่อน transaction — read-only)
     const [memberInfo] = await query(
-      'SELECT ref_by, agent_id FROM members WHERE id=?', [req.member.id]
+      `SELECT m.ref_by, m.agent_id,
+              ref.referral_rate AS ref_member_rate,
+              ag.referral_rate  AS ref_agent_rate
+       FROM members m
+       LEFT JOIN members ref ON m.ref_by   = ref.id
+       LEFT JOIN agents  ag  ON m.agent_id = ag.id
+       WHERE m.id=?`, [req.member.id]
     );
-    // อ่าน global referral_commission rate จาก settings (ใช้อัตราเดียวทุกคน)
+    // อ่าน global referral_commission rate จาก settings (fallback ถ้า referrer ไม่มี rate ส่วนตัว)
     const [rateSetting] = await query(
       "SELECT value FROM settings WHERE `key`='referral_commission'"
     ).catch(() => [null]);
@@ -218,13 +224,15 @@ router.post('/', authMember,
       await conn.execute('UPDATE lottery_rounds SET total_bet=total_bet+?, bet_count=bet_count+? WHERE id=?',
         [totalAmount, validated.length, round_id]);
 
-      // ─── จ่ายค่าคอมด้วยอัตรา global (referral_commission setting) ────────────
-      if (globalCommRate > 0) {
-        const commAmount = parseFloat((totalAmount * globalCommRate / 100).toFixed(2));
-        if (commAmount > 0) {
-
-          // ผู้แนะนำ = สมาชิก (ref_by) — เข้า commission_balance (ไม่ใช่ balance หลัก)
-          if (memberInfo?.ref_by) {
+      // ─── จ่ายค่าคอม (ใช้ referral_rate ของ referrer ถ้าตั้งไว้, fallback global) ──────
+      // ผู้แนะนำ = สมาชิก (ref_by) — เข้า commission_balance (ไม่ใช่ balance หลัก)
+      if (memberInfo?.ref_by) {
+        const effectiveRate = parseFloat(memberInfo.ref_member_rate || 0) > 0
+          ? parseFloat(memberInfo.ref_member_rate)
+          : globalCommRate;
+        if (effectiveRate > 0) {
+          const commAmount = parseFloat((totalAmount * effectiveRate / 100).toFixed(2));
+          if (commAmount > 0) {
             const [[refMember]] = await conn.execute(
               'SELECT commission_balance FROM members WHERE id=? FOR UPDATE', [memberInfo.ref_by]
             );
@@ -233,13 +241,21 @@ router.post('/', authMember,
               await conn.execute('UPDATE members SET commission_balance=? WHERE id=?', [newCommBal, memberInfo.ref_by]);
               await conn.execute(
                 'INSERT INTO commissions (uuid,earner_type,earner_id,from_member_id,bet_id,bet_amount,rate,amount,description) VALUES (?,?,?,?,?,?,?,?,?)',
-                [uuidv4(), 'member', memberInfo.ref_by, req.member.id, 0, totalAmount, globalCommRate, commAmount,
-                 `ค่าคอม ${globalCommRate}% จากสมาชิก id=${req.member.id}`]);
+                [uuidv4(), 'member', memberInfo.ref_by, req.member.id, 0, totalAmount, effectiveRate, commAmount,
+                 `ค่าคอม ${effectiveRate}% จากสมาชิก id=${req.member.id}`]);
             }
           }
+        }
+      }
 
-          // ผู้แนะนำ = agent (agent_id) — เข้า commission_balance (ไม่ใช่ balance หลัก)
-          if (memberInfo?.agent_id && !memberInfo?.ref_by) {
+      // ผู้แนะนำ = agent (agent_id) — เข้า commission_balance ถ้าไม่มี ref_by
+      if (memberInfo?.agent_id && !memberInfo?.ref_by) {
+        const effectiveRate = parseFloat(memberInfo.ref_agent_rate || 0) > 0
+          ? parseFloat(memberInfo.ref_agent_rate)
+          : globalCommRate;
+        if (effectiveRate > 0) {
+          const commAmount = parseFloat((totalAmount * effectiveRate / 100).toFixed(2));
+          if (commAmount > 0) {
             const [[refAgent]] = await conn.execute(
               'SELECT commission_balance FROM agents WHERE id=? FOR UPDATE', [memberInfo.agent_id]
             );
@@ -249,8 +265,8 @@ router.post('/', authMember,
                 [newAgCommBal, commAmount, memberInfo.agent_id]);
               await conn.execute(
                 'INSERT INTO commissions (uuid,earner_type,earner_id,from_member_id,bet_id,bet_amount,rate,amount,description) VALUES (?,?,?,?,?,?,?,?,?)',
-                [uuidv4(), 'agent', memberInfo.agent_id, req.member.id, 0, totalAmount, globalCommRate, commAmount,
-                 `ค่าคอม ${globalCommRate}% จากสมาชิก id=${req.member.id}`]);
+                [uuidv4(), 'agent', memberInfo.agent_id, req.member.id, 0, totalAmount, effectiveRate, commAmount,
+                 `ค่าคอม ${effectiveRate}% จากสมาชิก id=${req.member.id}`]);
             }
           }
         }

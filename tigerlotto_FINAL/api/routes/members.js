@@ -168,17 +168,19 @@ router.get('/referrals', authMember, async (req, res) => {
   `, [req.member.id]).catch(() => []);
 
   // ดึงข้อมูลสมาชิก + global referral rate จาก settings
-  const [me] = await query('SELECT member_code, commission_balance FROM members WHERE id=?', [req.member.id]);
+  const [me] = await query('SELECT member_code, commission_balance, referral_rate FROM members WHERE id=?', [req.member.id]);
   const [rateSetting] = await query(
     "SELECT value FROM settings WHERE `key`='referral_commission'"
   ).catch(() => [null]);
   const globalRate = parseFloat(rateSetting?.value || 0);
+  // ใช้ rate ส่วนตัวถ้าตั้งไว้ ไม่งั้น fallback global
+  const effectiveRate = parseFloat(me?.referral_rate || 0) > 0 ? parseFloat(me.referral_rate) : globalRate;
 
   res.json({
     success: true,
     data: {
       member_code:        me?.member_code || '',
-      referral_rate:      globalRate,
+      referral_rate:      effectiveRate,
       commission_balance: parseFloat(me?.commission_balance || 0),
       referrals:          refs,
       total_commission:       parseFloat(totals?.total_all || 0),
