@@ -4938,9 +4938,10 @@ api:()=>`
     <div class="fg"><label>Channel ID</label><input id="api-line-channel-id" class="fi-full" placeholder="Channel ID"></div>
     <div class="fg"><label>Webhook URL (ระบบสร้างให้)</label><input class="fi-full" id="api-line-webhook" readonly style="color:var(--muted)"></div>
   </div>
-  <div style="display:flex;gap:8px">
+  <div id="line-status" style="margin-top:6px;font-size:12px;min-height:18px"></div>
+  <div style="display:flex;gap:8px;margin-top:8px">
     <button class="btn btn-gold" onclick="saveApiGroup('line')">บันทึก</button>
-    <button class="btn btn-outline" onclick="toast('ทดสอบ','ส่ง Test Message สำเร็จ','info')">ทดสอบการเชื่อมต่อ</button>
+    <button class="btn btn-outline" onclick="testLineNotify()">🧪 ทดสอบการเชื่อมต่อ</button>
   </div>
 </div>
 
