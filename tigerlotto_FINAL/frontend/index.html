@@ -497,7 +497,7 @@ select.fi option{background:var(--card2)}
         <button class="tab" onclick="setChk(this,2)">2 ตัว</button>
       </div>
       <div class="chk-row">
-        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" autocomplete="off" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
+        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" autocomplete="new-password" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
         <button class="chk-btn" onclick="doCheck()">ตรวจสอบ</button>
       </div>
       <div id="chk-res" style="display:none" class="chk-result"></div>
@@ -1534,6 +1534,10 @@ function toggleAnPanel(){
 
 // ซ่อน toggle button เมื่อ buy modal ปิด
 document.addEventListener('DOMContentLoaded', ()=>{
+  // Force-clear checker input on every page load (Chrome ignores autocomplete="off")
+  const chkInp = document.getElementById('chk-inp');
+  if(chkInp) chkInp.value = '';
+
   const buyOv = document.getElementById('buy-ov');
   if(buyOv){
     buyOv.addEventListener('click', e => {
