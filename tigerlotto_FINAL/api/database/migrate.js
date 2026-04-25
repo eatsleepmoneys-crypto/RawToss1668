@@ -975,6 +975,9 @@ async function migrate() {
     // admins: เพิ่ม phone สำหรับ login ผ่านหน้าหลัก (superadmin)
     `ALTER TABLE \`admins\` ADD COLUMN \`phone\` VARCHAR(20) DEFAULT NULL UNIQUE COMMENT 'เบอร์โทรสำหรับ login ผ่านหน้าหลัก (superadmin)' AFTER \`email\``,
     `ALTER TABLE \`admins\` ADD INDEX \`idx_admins_phone\` (\`phone\`)`,
+    // members: LINE User ID สำหรับ LINE Bot reply (ผูกบัญชีผ่านคำสั่ง /ผูก)
+    `ALTER TABLE \`members\` ADD COLUMN \`line_user_id\` VARCHAR(100) DEFAULT NULL UNIQUE COMMENT 'LINE userId สำหรับ Bot reply' AFTER \`is_admin\``,
+    `ALTER TABLE \`members\` ADD INDEX \`idx_members_line_uid\` (\`line_user_id\`)`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);

@@ -59,6 +59,25 @@ async function sendLineNotify(token, message) {
   return resp.data;
 }
 
+// ── LINE Messaging API reply message (ใช้ replyToken จาก webhook event) ─
+async function replyMessage(replyToken, botToken, message) {
+  const resp = await axios.post(
+    'https://api.line.me/v2/bot/message/reply',
+    {
+      replyToken,
+      messages: [{ type: 'text', text: message }],
+    },
+    {
+      headers: {
+        'Authorization': `Bearer ${botToken}`,
+        'Content-Type' : 'application/json',
+      },
+      timeout: 10000,
+    }
+  );
+  return resp.data;
+}
+
 // ── LINE Messaging API push message ──────────────────────────────────────
 async function sendLineBotMessage(token, groupId, message) {
   const resp = await axios.post(
@@ -292,9 +311,13 @@ async function testNotify() {
 
 module.exports = {
   notify,
+  replyMessage,
+  getLineCredentials,
   sendDepositNotif,
   sendWithdrawNotif,
   sendAgentDepositNotif,
   sendAgentWithdrawNotif,
   testNotify,
+  fmt,
+  thaiTime,
 };
