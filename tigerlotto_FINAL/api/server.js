@@ -229,6 +229,28 @@ async function startServer() {
     console.warn('⚠️  Lottery type name update failed:', e.message);
   }
 
+  // ─── Backfill bill_no สำหรับบิลเก่าที่ยังไม่มี ────────────────────
+  try {
+    const { query } = require('./config/db');
+    // group โดย member_id + round_id + minute(created_at) → bill_no เดียวกัน
+    const backfillResult = await query(`
+      UPDATE bets
+      SET bill_no = CONCAT(
+        'BL-',
+        DATE_FORMAT(created_at, '%Y%m%d'),
+        '-',
+        DATE_FORMAT(created_at, '%H%i%s'),
+        '-',
+        LPAD(member_id, 4, '0')
+      )
+      WHERE bill_no IS NULL
+    `);
+    if (backfillResult.affectedRows > 0)
+      console.log(`✅ Backfilled bill_no for ${backfillResult.affectedRows} bets`);
+  } catch (e) {
+    console.warn('⚠️  bill_no backfill skipped:', e.message);
+  }
+
   // ─── Start Round Manager (auto-open/close/announce) ─────────────
   try {
     const { startRoundManager } = require('./services/roundManager');

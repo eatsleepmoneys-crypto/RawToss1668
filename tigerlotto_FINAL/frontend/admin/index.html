@@ -1116,7 +1116,7 @@ function rejectAgentWithdrawal(id){
 let _betsPage = 1;
 let _betsTimer = null;
 
-let _betsViewMode = 'list'; // 'list' | 'bill'
+let _betsViewMode = 'bill'; // 'list' | 'bill'
 
 function setBetsView(mode){
   _betsViewMode = mode;
@@ -4832,8 +4832,8 @@ bets:()=>`
   <input type="date" class="fi fi-sm" id="bets-date-to"   onchange="loadBets(1)" title="วันที่สิ้นสุด">
   <button class="btn btn-outline btn-xs" onclick="clearBetsDates()" title="ล้างวันที่">✕ ล้างวัน</button>
   <div style="display:flex;gap:4px;background:var(--card2);border-radius:8px;padding:2px">
-    <button id="bets-view-list" class="btn btn-xs on" onclick="setBetsView('list')" style="padding:4px 10px;font-size:12px">📋 รายการ</button>
-    <button id="bets-view-bill" class="btn btn-xs"    onclick="setBetsView('bill')" style="padding:4px 10px;font-size:12px">🧾 บิล</button>
+    <button id="bets-view-list" class="btn btn-xs"    onclick="setBetsView('list')" style="padding:4px 10px;font-size:12px">📋 รายการ</button>
+    <button id="bets-view-bill" class="btn btn-xs on" onclick="setBetsView('bill')" style="padding:4px 10px;font-size:12px">🧾 บิล</button>
   </div>
   <button class="btn btn-outline" onclick="loadBets(1)">🔄 รีเฟรช</button>
 </div>
@@ -4842,7 +4842,7 @@ bets:()=>`
     <div id="bets-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</div>
     <div id="bets-pager" style="display:flex;gap:6px"></div>
   </div>
-  <div id="bets-list-view">
+  <div id="bets-list-view" style="display:none">
     <div class="tbl-wrap">
       <table class="tbl">
         <thead>
@@ -4866,7 +4866,7 @@ bets:()=>`
       </table>
     </div>
   </div>
-  <div id="bets-bill-view" style="display:none">
+  <div id="bets-bill-view" style="display:block">
     <div id="bets-bills-container">
       <div style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</div>
     </div>
