@@ -131,6 +131,28 @@ app.post('/api/debug/migrate', async (req, res) => {
   }
 });
 
+// ─── HuayDragon Admin Routes ──────────────────────
+app.get('/api/admin/hd-status', async (req, res) => {
+  try {
+    const { getHdStatus } = require('./services/huayDragonFetcher');
+    res.json({ success: true, ...getHdStatus() });
+  } catch (e) {
+    res.json({ success: false, error: 'HD Fetcher not loaded' });
+  }
+});
+
+app.post('/api/admin/hd-fetch-now', async (req, res) => {
+  try {
+    const { runHdFetch } = require('./services/huayDragonFetcher');
+    const ict = new Date(Date.now() + 7 * 3600 * 1000);
+    const dateStr = req.body?.date || `${ict.getUTCFullYear()}-${String(ict.getUTCMonth()+1).padStart(2,'0')}-${String(ict.getUTCDate()).padStart(2,'0')}`;
+    const result = await runHdFetch(dateStr);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // ─── SPA Fallback: admin ──────────────────────────
 app.get('/admin', (req, res) => {
   const adminPath = path.join(FRONTEND_PATH, 'admin/index.html');
@@ -267,6 +289,35 @@ async function startServer() {
     console.log('✅ Lottery Fetcher started (TH_GOV/LA_GOV/VN_HAN auto-fetch ON)');
   } catch (e) {
     console.warn('⚠️  Lottery Fetcher start failed:', e.message);
+  }
+
+
+  // ─── Start HuayDragon Fetcher (stock / hanoi / lao auto-fetch) ──
+  try {
+    if (process.env.HUAYDRAGON_TOKEN) {
+      const { startHdScheduler } = require('./services/huayDragonFetcher');
+      const { autoCreateAllHdRoundsForDate } = require('./services/hdRoundCreator');
+      const _ictNow = () => new Date(Date.now() + 7 * 3600 * 1000);
+      const _ictStr = (d) => `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+      // สร้างงวดวันนี้ทันที
+      autoCreateAllHdRoundsForDate(_ictStr(_ictNow())).catch(e =>
+        console.error('[HD] Initial round create error:', e.message)
+      );
+      // สร้างงวดใหม่ทุกวันเวลา 00:05 ICT
+      setInterval(() => {
+        const ict = _ictNow();
+        if (ict.getUTCHours() === 0 && ict.getUTCMinutes() === 5)
+          autoCreateAllHdRoundsForDate(_ictStr(ict)).catch(e =>
+            console.error('[HD] Daily round create error:', e.message)
+          );
+      }, 60_000);
+      startHdScheduler();
+      console.log('✅ HuayDragon Fetcher started (stock/hanoi/lao auto-fetch ON)');
+    } else {
+      console.log('ℹ️  HuayDragon Fetcher skipped — HUAYDRAGON_TOKEN not set');
+    }
+  } catch (e) {
+    console.warn('⚠️  HuayDragon Fetcher start failed:', e.message);
   }
 
   app.listen(PORT, () => {
