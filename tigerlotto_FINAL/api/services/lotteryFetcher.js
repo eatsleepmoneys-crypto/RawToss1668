@@ -1674,7 +1674,8 @@ async function announceResult(lotteryCode, result) {
   } = result;
 
   // LA_GOV: 2bot = ตำแหน่ง 3-4, VN_*: 2bot = last 2 ของ Giải Nhất (G1)
-  const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
+  // VN_HAN_SP / VN_HAN_VIP ไม่มี 2ตัวล่าง — มีแค่ 4ตัว + 3ตัวบน + 2ตัวบน
+  const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN'];
   // ถ้า lotteryCode ใช้ 2bot แยก และมี prize_2bot → เก็บเสมอ (แม้จะเท่ากับ prize_last_2)
   // เพราะ G1 last 2 อาจตรงกับ GDB last 2 ได้ (เช่น GDB=41528, G1=xxxxx28 → 2bot='28'=2top)
   const prize_2bot_store = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
@@ -1845,25 +1846,6 @@ async function announceResult(lotteryCode, result) {
   });
 
   console.log(`[FETCHER:${lotteryCode}] ✅ ออกผลสำเร็จ: งวด #${round.id} (${prize_1st})`);
-
-  // ── Auto-sync: VN_HAN_SP และ VN_HAN_VIP ใช้ผลเดียวกับ VN_HAN เสมอ ──
-  // ทั้ง 3 ประเภทออกผลจากการจับสลากเดียวกัน (Xổ Số Kiến Thiết Hà Nội)
-  if (lotteryCode === 'VN_HAN') {
-    for (const sibCode of ['VN_HAN_SP', 'VN_HAN_VIP']) {
-      try {
-        const sibRound = await findClosedRound(sibCode);
-        if (sibRound) {
-          await announceResult(sibCode, result);
-          console.log(`[FETCHER:${sibCode}] ✅ auto-sync จาก VN_HAN สำเร็จ (งวด #${sibRound.id})`);
-        } else {
-          console.log(`[FETCHER:${sibCode}] ไม่มีงวดรอผล — ข้าม auto-sync`);
-        }
-      } catch(e) {
-        console.warn(`[FETCHER:${sibCode}] auto-sync จาก VN_HAN ล้มเหลว: ${e.message}`);
-      }
-    }
-  }
-
   return round.id;
 }
 
