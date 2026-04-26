@@ -2401,10 +2401,15 @@ async function loadResultsHistory(){
     // Build filter tabs จาก typeResults (ครบทุก type เสมอ)
     const filterEl = document.getElementById('res-filter');
     if(filterEl){
-      const codes = [...new Set(typeResults.map(r => r.code).filter(Boolean))];
+      const codeToRes = {};
+      typeResults.forEach(r => { if(r.code && !codeToRes[r.code]) codeToRes[r.code] = r; });
+      const codes = Object.keys(codeToRes);
       const extraTabs = codes.map(code => {
-        const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
-        return `<button class="res-ftab" data-code="${code}" onclick="filterResults(this,'${code}')">${meta.flag} ${meta.label}</button>`;
+        const r0 = codeToRes[code];
+        const meta = LOT_TYPE_META[code];
+        const flag = meta ? meta.flag : (STK_FLAG_MAP[code] || r0?.flag || '🎰');
+        const label = meta ? meta.label : (r0?.lottery_name || code);
+        return `<button class="res-ftab" data-code="${code}" onclick="filterResults(this,'${code}')">${flag} ${label}</button>`;
       }).join('');
       filterEl.innerHTML = `<button class="res-ftab on" data-code="ALL" onclick="filterResults(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
     }
