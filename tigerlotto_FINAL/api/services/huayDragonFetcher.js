@@ -221,8 +221,8 @@ async function enterHdResult(code, resultObj, dateStr) {
     await transaction(async (conn) => {
       await conn.execute(
         `INSERT INTO lottery_results
-           (round_id, prize_1st, prize_last_2, prize_2bot, announced_at)
-         VALUES (?, ?, ?, ?, NOW())`,
+           (round_id, prize_1st, prize_last_2, prize_2bot)
+         VALUES (?, ?, ?, ?)`,
         [round.id, rd.result_first, rd.result_2_back, rd.result_2_back]
       );
       await conn.execute(
