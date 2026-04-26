@@ -171,7 +171,7 @@ async function enterHdResult(code, resultObj, dateStr) {
     let round = await queryOne(
       `SELECT r.* FROM lottery_rounds r
        WHERE r.lottery_id = ? AND DATE(r.close_at) = ?
-         AND r.status IN ('closed','resulted','open')
+         AND r.status IN ('closed','announced','open')
        ORDER BY r.close_at DESC LIMIT 1`,
       [lt.id, dateStr]
     );
@@ -184,7 +184,7 @@ async function enterHdResult(code, resultObj, dateStr) {
         round = await queryOne(
           `SELECT r.* FROM lottery_rounds r
            WHERE r.lottery_id = ? AND DATE(r.close_at) = ?
-             AND r.status IN ('closed','resulted','open')
+             AND r.status IN ('closed','announced','open')
            ORDER BY r.close_at DESC LIMIT 1`,
           [lt.id, dateStr]
         );
@@ -221,14 +221,12 @@ async function enterHdResult(code, resultObj, dateStr) {
     await transaction(async (conn) => {
       await conn.execute(
         `INSERT INTO lottery_results
-           (round_id, result_first, result_2_back, result_3_back1, result_3_back2,
-            result_3_front1, result_3_front2, source, entered_by, entered_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, 'huaydragon', NULL, NOW())`,
-        [round.id, rd.result_first, rd.result_2_back,
-         rd.result_3_back1, rd.result_3_back2, rd.result_3_front1, rd.result_3_front2]
+           (round_id, prize_1st, prize_last_2, prize_2bot, announced_at)
+         VALUES (?, ?, ?, ?, NOW())`,
+        [round.id, rd.result_first, rd.result_2_back, rd.result_2_back]
       );
       await conn.execute(
-        "UPDATE lottery_rounds SET status='resulted', result_at=NOW() WHERE id=?",
+        "UPDATE lottery_rounds SET status='announced', announced_at=NOW() WHERE id=?",
         [round.id]
       );
     });
