@@ -811,7 +811,7 @@ async function getPressInThData() {
       return;
     }
 
-    const main  = mainCell.replace(/\D/g, '').padStart(4, '0');
+    const main  = mainCell.replace(/\D/g, '').padStart(5, '0');
     if (!main || main.length < 4) return;
 
     const top3  = top3Cell.replace(/\D/g, '').padStart(3, '0') || main.slice(-3);
@@ -1239,8 +1239,8 @@ function parseTNewsSections(html) {
         const chunkEnd = nextBoundary(idx);
         const chunk = bodyText.slice(idx, chunkEnd);
 
-        // เลข 4 ตัว : XXXX
-        const m4  = chunk.match(/เลข\s*4\s*ตัว\s*[:\-]?\s*(\d{3,5})/i);
+        // เลข 4/5 ตัว : XXXX (รองรับทั้ง 4 และ 5 หลัก)
+        const m4  = chunk.match(/เลข\s*[45]\s*ตัว\s*[:\-]?\s*(\d{4,6})/i);
         if (!m4) continue; // occurrence นี้ไม่มีเลข → ลอง occurrence ถัดไป
 
         // เลข 3 ตัวบน : XXX
@@ -1250,7 +1250,7 @@ function parseTNewsSections(html) {
         // เลข 2 ตัวล่าง : XX
         const m2b = chunk.match(/เลข\s*2\s*ตัวล่าง\s*[:\-]?\s*(\d{1,3})/i);
 
-        const main = m4[1].padStart(4, '0');
+        const main = m4[1].length >= 5 ? m4[1] : m4[1].padStart(5, '0');
         const top3 = m3  ? m3[1].padStart(3, '0') : main.slice(-3);
         const top2 = m2t ? m2t[1].padStart(2, '0') : main.slice(-2);
         const bot2 = m2b ? m2b[1].padStart(2, '0') : null;
@@ -1674,8 +1674,7 @@ async function announceResult(lotteryCode, result) {
   } = result;
 
   // LA_GOV: 2bot = ตำแหน่ง 3-4, VN_*: 2bot = last 2 ของ Giải Nhất (G1)
-  // VN_HAN_SP / VN_HAN_VIP ไม่มี 2ตัวล่าง — มีแค่ 4ตัว + 3ตัวบน + 2ตัวบน
-  const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN'];
+  const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
   // ถ้า lotteryCode ใช้ 2bot แยก และมี prize_2bot → เก็บเสมอ (แม้จะเท่ากับ prize_last_2)
   // เพราะ G1 last 2 อาจตรงกับ GDB last 2 ได้ (เช่น GDB=41528, G1=xxxxx28 → 2bot='28'=2top)
   const prize_2bot_store = (USES_SEPARATE_2BOT.includes(lotteryCode) && prize_2bot)
@@ -2363,10 +2362,20 @@ async function runFetcher(lotteryCode, fetchFn, { simulate = false } = {}) {
 }
 
 /**
- * ฮานอยพิเศษ (VN_HAN_SP) = "Xổ Số miền Bắc thêm" — ออกผลทุกวัน ~17:30 น.
- * เป็นหวยเอกชนเวียดนาม (ไม่ใช่ XSMB รัฐบาล) ออกผลก่อน XSMB ปกติ
+ * ฮานอยพิเศษ (VN_HAN_SP) — ออกผลทุกวัน ~17:30 น.
+ * รูปแบบ: 5ตัว + 3ตัวบน + 2ตัวบน (last 2 ของ GDB) + 2ตัวล่าง (last 2 ของ G1)
  */
 async function fetchVNHanoiSP() {
+  function vn(gdb, g1) {
+    return {
+      prize_1st:    gdb,
+      prize_last_2: gdb.slice(-2),
+      prize_2bot:   g1 ? g1.slice(-2) : null,
+      prize_front_3: [],
+      prize_last_3:  [gdb.slice(-3)],
+    };
+  }
+
   // Source 1: TNews.co.th — primary ✅
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_SP');
@@ -2376,7 +2385,7 @@ async function fetchVNHanoiSP() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] TNews error:', e.message); }
 
-  // Source 2: press.in.th — secondary (JS-rendered, may not work server-side)
+  // Source 2: press.in.th
   try {
     const result = await fetchPressInThHanoi('VN_HAN_SP');
     if (result) {
@@ -2385,13 +2394,47 @@ async function fetchVNHanoiSP() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] press.in.th error:', e.message); }
 
-  // Source 3: DB sources (Admin-configured) — fallback
+  // Source 3: xosomiennam.net — Vietnamese source (ดึงตรงจากเวียดนาม)
+  try {
+    const res = await httpGetProxy('https://xosomiennam.net/ket-qua-xo-so-mien-bac-dac-biet', 30000, 'sg');
+    const $ = cheerio.load(res.data);
+    let gdb = '', g1 = '';
+    $('tr,li').each((_, el) => {
+      const rowText = $(el).text();
+      if (/nh[aấ]t|g\.?1/i.test(rowText) && !g1) {
+        const m = rowText.match(/\d{5}/); if (m) g1 = m[0];
+      }
+      if (/đặc biệt|dac biet/i.test(rowText) && !gdb) {
+        const m = rowText.match(/\d{5}/); if (m) gdb = m[0];
+      }
+    });
+    if (!gdb) {
+      const nums = []; $('td,span,div').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g,'');
+        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
+      });
+      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN_SP] xosomiennam GDB=%s G1=%s', gdb, g1||'?');
+      return vn(gdb, g1||null);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] xosomiennam error:', e.message); }
+
+  // Source 4: xskt RSS
+  try {
+    const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-dac-biet-xsmbd.rss', 15000);
+    const parsed = extractGdbG1(String(res.data));
+    if (parsed) {
+      console.log('[FETCHER:VN_HAN_SP] xskt RSS GDB=%s G1=%s', parsed.gdb, parsed.g1||'?');
+      return vn(parsed.gdb, parsed.g1);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_SP] xskt RSS error:', e.message); }
+
+  // Source 5: DB sources (Admin-configured)
   try {
     const dbResult = await fetchFromDbSources('VN_HAN_SP');
-    if (dbResult) {
-      console.log('[FETCHER:VN_HAN_SP] DB source ✅');
-      return dbResult;
-    }
+    if (dbResult) { console.log('[FETCHER:VN_HAN_SP] DB source ✅'); return dbResult; }
   } catch(e) { console.warn('[FETCHER:VN_HAN_SP] DB source error:', e.message); }
 
   throw new Error('VN_HAN_SP: ไม่พบผล — กรุณาตรวจสอบ press.in.th / TNews หรือ config DB sources ใน Admin Panel → API Sources');
@@ -2399,8 +2442,19 @@ async function fetchVNHanoiSP() {
 
 /**
  * ฮานอย VIP (VN_HAN_VIP) — ออกผลทุกวัน ~19:00 น.
+ * รูปแบบ: 5ตัว + 3ตัวบน + 2ตัวบน (last 2 ของ GDB) + 2ตัวล่าง (last 2 ของ G1)
  */
 async function fetchVNHanoiVIP() {
+  function vn(gdb, g1) {
+    return {
+      prize_1st:    gdb,
+      prize_last_2: gdb.slice(-2),
+      prize_2bot:   g1 ? g1.slice(-2) : null,
+      prize_front_3: [],
+      prize_last_3:  [gdb.slice(-3)],
+    };
+  }
+
   // Source 1: TNews.co.th — primary ✅
   try {
     const result = await fetchTNewsVNHanoi('VN_HAN_VIP');
@@ -2410,7 +2464,7 @@ async function fetchVNHanoiVIP() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] TNews error:', e.message); }
 
-  // Source 2: press.in.th — secondary (JS-rendered, may not work server-side)
+  // Source 2: press.in.th
   try {
     const result = await fetchPressInThHanoi('VN_HAN_VIP');
     if (result) {
@@ -2419,13 +2473,53 @@ async function fetchVNHanoiVIP() {
     }
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] press.in.th error:', e.message); }
 
-  // Source 3: DB sources (Admin-configured) — fallback
+  // Source 3: ketqua.tv (VIP section) — Vietnamese source
+  try {
+    const res = await httpGetProxy('https://ketqua.tv/xo-so-mien-bac-vip.html', 30000, 'sg');
+    const $ = cheerio.load(res.data);
+    let gdb = '', g1 = '';
+    $('[class*="giai-db"],[class*="giaidb"],[class*="dac-biet"],[class*="dacbiet"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (t.length >= 4 && !gdb) gdb = t.slice(-5).padStart(5,'0');
+    });
+    $('[class*="giai-nhat"],[class*="giainhat"],[class*="prize1"]').each((_, el) => {
+      const t = $(el).text().trim().replace(/\D/g,'');
+      if (t.length >= 4 && !g1) g1 = t.slice(-5).padStart(5,'0');
+    });
+    if (!gdb) {
+      $('tr,li').each((_, el) => {
+        const rowText = $(el).text();
+        if (/nh[aấ]t|g\.?1/i.test(rowText) && !g1) { const m = rowText.match(/\d{5}/); if (m) g1 = m[0]; }
+        if (/đặc biệt|dac biet/i.test(rowText) && !gdb) { const m = rowText.match(/\d{5}/); if (m) gdb = m[0]; }
+      });
+    }
+    if (!gdb) {
+      const nums = []; $('td,span').each((_, el) => {
+        const t = $(el).text().trim().replace(/\D/g,'');
+        if (/^\d{5}$/.test(t) && nums.length < 2) nums.push(t);
+      });
+      if (nums[0]) { gdb = nums[0]; if (nums[1] && !g1) g1 = nums[1]; }
+    }
+    if (gdb) {
+      console.log('[FETCHER:VN_HAN_VIP] ketqua.tv GDB=%s G1=%s', gdb, g1||'?');
+      return vn(gdb, g1||null);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] ketqua.tv error:', e.message); }
+
+  // Source 4: xskt RSS
+  try {
+    const res = await httpGet('https://xskt.com.vn/rss-feed/mien-bac-vip-xsmbv.rss', 15000);
+    const parsed = extractGdbG1(String(res.data));
+    if (parsed) {
+      console.log('[FETCHER:VN_HAN_VIP] xskt RSS GDB=%s G1=%s', parsed.gdb, parsed.g1||'?');
+      return vn(parsed.gdb, parsed.g1);
+    }
+  } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] xskt RSS error:', e.message); }
+
+  // Source 5: DB sources (Admin-configured)
   try {
     const dbResult = await fetchFromDbSources('VN_HAN_VIP');
-    if (dbResult) {
-      console.log('[FETCHER:VN_HAN_VIP] DB source ✅');
-      return dbResult;
-    }
+    if (dbResult) { console.log('[FETCHER:VN_HAN_VIP] DB source ✅'); return dbResult; }
   } catch(e) { console.warn('[FETCHER:VN_HAN_VIP] DB source error:', e.message); }
 
   throw new Error('VN_HAN_VIP: ไม่พบผล — กรุณาตรวจสอบ press.in.th / TNews หรือ config DB sources ใน Admin Panel → API Sources');

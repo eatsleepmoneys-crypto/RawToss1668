@@ -2363,8 +2363,8 @@ function _renderResultsList(filterCode){
     const last3  = _parseJsonArr(r.prize_last_3);
     const front3 = _parseJsonArr(r.prize_front_3);
     // LA_GOV และ VN_HAN* มี 2ตัวล่าง (prize_2bot) แยกจาก 2ตัวบน
-    // VN_HAN_SP / VN_HAN_VIP ไม่มี 2ตัวล่าง — แสดง 2bot เฉพาะ LA_GOV และ VN_HAN เท่านั้น
-    const has2bot = r.prize_2bot && (r.code === 'LA_GOV' || r.code === 'VN_HAN');
+    // LA_GOV + VN_* ทุกประเภทมี 2ตัวล่าง (prize_2bot)
+    const has2bot = r.prize_2bot && (r.code === 'LA_GOV' || (r.code && r.code.startsWith('VN_')));
     return `<div class="res-row">
       <div>
         <div class="res-type">${_dbFlag(r.flag)||'🎰'} ${r.lottery_name}</div>
