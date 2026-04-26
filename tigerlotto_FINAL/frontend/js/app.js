@@ -16,8 +16,6 @@ let STATE = {
   buyItems:   [],         // [{number,bet_type_id,bet_type_name,payout_rate,amount}]
   cancelTarget: null,
   cdIntervals: {},
-  pollInterval: null,     // 60-second polling interval for buy tab
-  pendingReload: false,   // guard against duplicate reload triggers
 };
 
 const TABS = [
@@ -277,36 +275,80 @@ async function renderBuy() {
     return;
   }
 
-  el.innerHTML = STATE.rounds.map(r => {
+  // แยกกลุ่ม: หวยหุ้น vs หวยปกติ
+  const STOCK_CODES = new Set([
+    'thai_am','thai_noon','thai_pm','thai_eve',
+    'bank_stock','gsb',
+    'stock_nk_am','stock_nk_pm','stock_hk_am','stock_hk_pm',
+    'stock_cn_am','stock_cn_pm','stock_tw','stock_kr','stock_sg',
+    'stock_eg','stock_de','stock_ru','stock_in','stock_dj','stock_my','stock_uk',
+    'lao_set','hanoi_set','malay_set',
+  ]);
+
+  const normalRounds = STATE.rounds.filter(r => !STOCK_CODES.has(r.code));
+  const stockRounds  = STATE.rounds.filter(r =>  STOCK_CODES.has(r.code));
+
+  function cdBadge(r) {
     const tl = new Date(r.close_at) - Date.now();
     const mins = Math.floor(tl / 60000);
     const secs = Math.floor((tl % 60000) / 1000);
-    const cdClass = tl < 5*60*1000 ? 'cd-hot' : tl < 15*60*1000 ? 'cd-warn' : 'cd-ok';
+    const cdClass  = tl < 5*60*1000 ? 'cd-hot' : tl < 15*60*1000 ? 'cd-warn' : 'cd-ok';
     const dotColor = tl < 5*60*1000 ? '#FF8A5A' : tl < 15*60*1000 ? '#FFD700' : '#3BD441';
+    return { tl, cdClass, dotColor, mins, secs };
+  }
+
+  // ── หวยปกติ (full card) ──────────────────────────────────────
+  const normalHtml = normalRounds.map(r => {
+    const { tl, cdClass, dotColor, mins, secs } = cdBadge(r);
     return `
     <div class="card" style="cursor:pointer;transition:border-color .2s"
       onmouseenter="this.style.borderColor='#B8860B55'" onmouseleave="this.style.borderColor='#1e1e1e'"
-      onclick="openBuySlip('${r.id}','${r.name || r.round_code}')">
+      onclick="openBuySlip('${r.id}','${r.round_name || r.round_code}')">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:44px;height:44px;border-radius:11px;background:#1A1200;border:1px solid #B8860B33;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${r.icon || '🎯'}</div>
+        <div style="width:44px;height:44px;border-radius:11px;background:#1A1200;border:1px solid #B8860B33;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">${r.flag || r.icon || '🎯'}</div>
         <div style="flex:1">
-          <div style="font-size:13px;font-weight:900;color:var(--gold)">${r.name || r.round_code}</div>
+          <div style="font-size:13px;font-weight:900;color:var(--gold)">${r.round_name || r.round_code}</div>
           <span class="cd ${cdClass}" id="cd-round-${r.id}">
             <span class="cd-dot" style="background:${dotColor}"></span>
             ปิดรับใน ${tl > 0 ? `${mins}:${String(secs).padStart(2,'0')}` : 'ปิดแล้ว'}
           </span>
         </div>
-        <div style="text-align:right">
-          <div style="font-size:13px;font-weight:900;color:var(--gold)">฿${parseFloat(r.total_bet_amount||0).toLocaleString()}</div>
-          <div style="font-size:10px;color:#555">ยอดรวม</div>
-        </div>
       </div>
-      <button onclick="event.stopPropagation();openBuySlip('${r.id}','${r.name||r.round_code}')"
+      <button onclick="event.stopPropagation();openBuySlip('${r.id}','${r.round_name||r.round_code}')"
         style="width:100%;height:38px;margin-top:10px;border-radius:9px;background:linear-gradient(135deg,var(--gold),var(--gold2));border:none;color:var(--dark);font-size:13px;font-weight:900;cursor:pointer;font-family:inherit">
         🎟 ซื้อหวยงวดนี้
       </button>
     </div>`;
   }).join('');
+
+  // ── หวยหุ้น (compact card แถว 5) ────────────────────────────
+  const stockHtml = stockRounds.length ? `
+    <div style="margin-top:18px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+        <span style="font-size:18px">📈</span>
+        <span style="font-size:14px;font-weight:900;color:var(--gold)">หวยหุ้น</span>
+        <span style="font-size:11px;color:#555;background:#1a1a1a;padding:2px 8px;border-radius:20px">${stockRounds.length} งวด</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">
+        ${stockRounds.map(r => {
+          const { tl, cdClass, dotColor, mins, secs } = cdBadge(r);
+          const shortName = (r.lottery_name || r.round_name || '').replace('หุ้น','').replace('หวย','').trim();
+          return `
+          <div onclick="openBuySlip('${r.id}','${r.round_name||r.round_code}')"
+            style="background:#0d0d0d;border:1px solid #222;border-radius:12px;padding:10px 6px;text-align:center;cursor:pointer;transition:border-color .2s"
+            onmouseenter="this.style.borderColor='#B8860B66'" onmouseleave="this.style.borderColor='#222'">
+            <div style="font-size:20px;margin-bottom:4px">${r.flag || '📈'}</div>
+            <div style="font-size:10px;font-weight:800;color:#ddd;line-height:1.3;min-height:28px">${shortName}</div>
+            <span class="cd ${cdClass}" id="cd-round-${r.id}" style="font-size:9px;margin-top:5px;display:block">
+              <span class="cd-dot" style="background:${dotColor}"></span>
+              ${tl > 0 ? `${mins}:${String(secs).padStart(2,'0')}` : 'ปิดแล้ว'}
+            </span>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : '';
+
+  el.innerHTML = normalHtml + stockHtml;
 
   // Start countdown
   startCountdowns();
@@ -323,14 +365,6 @@ function startCountdowns() {
         el.className = 'cd cd-hot';
         el.innerHTML = '⏰ ปิดรับแล้ว';
         clearInterval(interval);
-        // Auto-reload buy tab 3.5s after close so server cron has time to process
-        if (STATE.tab === 1 && !STATE.pendingReload) {
-          STATE.pendingReload = true;
-          setTimeout(() => {
-            STATE.pendingReload = false;
-            if (STATE.tab === 1) renderBuy();
-          }, 3500);
-        }
         return;
       }
       const m = Math.floor(tl/60000), s = Math.floor((tl%60000)/1000);
@@ -341,18 +375,11 @@ function startCountdowns() {
     }, 1000);
     STATE.cdIntervals[r.id] = interval;
   });
-
-  // Poll every 60 seconds while on the buy tab (picks up newly opened rounds)
-  if (STATE.pollInterval) clearInterval(STATE.pollInterval);
-  STATE.pollInterval = setInterval(() => {
-    if (STATE.tab === 1) renderBuy();
-  }, 60 * 1000);
 }
 
 function clearAllCountdowns() {
   Object.values(STATE.cdIntervals).forEach(clearInterval);
   STATE.cdIntervals = {};
-  if (STATE.pollInterval) { clearInterval(STATE.pollInterval); STATE.pollInterval = null; }
 }
 
 async function openBuySlip(roundId, roundName) {
@@ -799,59 +826,4 @@ function openCancelModal(slipId) {
   const m = Math.floor(tl/60000), s = Math.floor((tl%60000)/1000);
   document.getElementById('cancelModalSub').textContent =
     `โพย ${slip.slip_no} — เหลือเวลา ${m}:${String(s).padStart(2,'0')} นาที · คืนเงิน ฿${parseFloat(slip.total_amount).toLocaleString()}`;
-  document.getElementById('cancelModalBody').innerHTML = `
-    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-      <span style="font-size:13px;font-weight:900;color:var(--gold)">${slip.lottery_name||''}</span>
-      <span style="font-size:13px;font-weight:900;color:var(--gold)">฿${parseFloat(slip.total_amount).toLocaleString()}</span>
-    </div>
-    ${(slip.items||[]).map(it => `
-      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #1a1a1a;font-size:11px">
-        <span style="font-family:'JetBrains Mono',monospace;font-weight:900;color:#fff;letter-spacing:2px">${it.number}</span>
-        <span style="color:#888">${it.bet_type_name||''}</span>
-        <span style="color:var(--gold);font-weight:700">฿${it.amount}</span>
-      </div>`).join('')}
-    <div style="text-align:right;margin-top:8px;font-size:12px;color:var(--green);font-weight:700">
-      💰 คืนเงิน ฿${parseFloat(slip.total_amount).toLocaleString()} เข้ากระเป๋าทันที
-    </div>`;
-
-  document.getElementById('cancelConfirmBtn').onclick = doCancel;
-  document.getElementById('cancelModal').classList.add('open');
-}
-
-async function doCancel() {
-  if (!STATE.cancelTarget) return;
-  try {
-    await Slips.cancel(STATE.cancelTarget);
-    closeModal('cancelModal');
-    await loadWallet(); updateNavUser();
-    await loadMySlips();
-    toast(`✅ ยกเลิกโพยแล้ว เงินคืนเข้ากระเป๋าแล้ว`);
-  } catch (e) {
-    toast(e.message, 'err');
-  }
-  STATE.cancelTarget = null;
-}
-
-// ── UTILS ─────────────────────────────────────────────────────
-function selectLotteryType(ltId, ltCode) {
-  setTab(1); // ไปหน้าซื้อหวย
-}
-
-function closeModal(id) {
-  document.getElementById(id)?.classList.remove('open');
-}
-
-let _toastTimer;
-function toast(msg, type = '') {
-  const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'toast on' + (type ? ' ' + type : '');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.classList.remove('on'), 2800);
-}
-
-// ── setTab by key ─────────────────────────────────────────────
-function setTabByKey(key) {
-  const idx = TABS.findIndex(t => t.key === key);
-  if (idx >= 0) setTab(idx);
-}
+  
