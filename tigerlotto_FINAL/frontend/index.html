@@ -2050,6 +2050,7 @@ function _renderLotGroups(filterCode){
   let rounds;
   if(filterCode === 'ALL')          rounds = _allRounds;
   else if(filterCode === 'VN_HANOI') rounds = _allRounds.filter(r => VN_CODES.has(r.code));
+  else if(filterCode === 'STK_ALL')  rounds = _allRounds.filter(r => STK_CODES.has(r.code));
   else                               rounds = _allRounds.filter(r => r.code === filterCode);
   if(rounds.length === 0){
     container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ไม่มีหวยในประเภทนี้</div>';
@@ -2246,14 +2247,26 @@ async function loadLotteryCards(){
       const _TAB_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','TH_STK'];
       // รวม VN_HAN* เป็น VN_HANOI เดียวใน filter tab
       const rawCodes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))];
-      const mergedCodes = [...new Set(rawCodes.map(c => VN_CODES.has(c) ? 'VN_HANOI' : c))]
-        .sort((a,b)=>{ const ia=_TAB_ORDER.indexOf(a),ib=_TAB_ORDER.indexOf(b); return (ia===-1?999:ia)-(ib===-1?999:ib); });
+      // รวม VN_HAN* → VN_HANOI และ STK_CODES → STK_ALL
+      const mergedCodes = [...new Set(rawCodes.map(c =>
+        VN_CODES.has(c) ? 'VN_HANOI' : STK_CODES.has(c) ? 'STK_ALL' : c
+      ))].sort((a,b)=>{ const ia=_TAB_ORDER.indexOf(a),ib=_TAB_ORDER.indexOf(b); return (ia===-1?999:ia)-(ib===-1?999:ib); });
       const extraTabs = mergedCodes.map(code => {
-        const meta = LOT_TYPE_META[code] || { label: code, flag: '🎰' };
-        // tab ฮานอยใช้ openHanoiSelector แทน filter ปกติ
+        // ใช้ LOT_TYPE_META ถ้ามี, ไม่งั้นหา lottery_name จาก _allRounds
+        let flag, label;
+        if(code === 'STK_ALL'){
+          flag = '<span style="font-size:13px">📈</span>'; label = 'หวยหุ้น';
+        } else if(LOT_TYPE_META[code]){
+          flag = LOT_TYPE_META[code].flag; label = LOT_TYPE_META[code].label;
+        } else {
+          // fallback: หา round ที่ตรงกับ code นี้แล้วใช้ชื่อ + STK_FLAG_MAP
+          const r0 = _allRounds.find(r => r.code === code);
+          flag = STK_FLAG_MAP[code] || r0?.flag || '🎰';
+          label = r0?.lottery_name || code;
+        }
         if(code === 'VN_HANOI')
-          return `<button class="lot-ftab" data-code="VN_HANOI" onclick="filterLotCards(this,'VN_HANOI')">${meta.flag} ${meta.label}</button>`;
-        return `<button class="lot-ftab" data-code="${code}" onclick="filterLotCards(this,'${code}')">${meta.flag} ${meta.label}</button>`;
+          return `<button class="lot-ftab" data-code="VN_HANOI" onclick="filterLotCards(this,'VN_HANOI')">${flag} ${label}</button>`;
+        return `<button class="lot-ftab" data-code="${code}" onclick="filterLotCards(this,'${code}')">${flag} ${label}</button>`;
       }).join('');
       filterEl.innerHTML = `<button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
     }
