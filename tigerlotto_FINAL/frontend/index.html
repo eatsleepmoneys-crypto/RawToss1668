@@ -1984,6 +1984,15 @@ const LOT_TYPE_META = {
 };
 // codes ที่จัดกลุ่มเป็น "ฮานอย" เดียว
 const VN_CODES = new Set(['VN_HAN','VN_HAN_SP','VN_HAN_VIP']);
+// codes หวยหุ้น (HD) — จัดกลุ่มเป็น STK_ALL เดียว แสดงแถว 5
+const STK_CODES = new Set([
+  'thai_am','thai_noon','thai_pm','thai_eve',
+  'bank_stock','gsb',
+  'stock_nk_am','stock_nk_pm','stock_hk_am','stock_hk_pm',
+  'stock_cn_am','stock_cn_pm','stock_tw','stock_kr','stock_sg',
+  'stock_eg','stock_de','stock_ru','stock_in','stock_dj','stock_my','stock_uk',
+  'lao_set','hanoi_set','malay_set',
+]);
 function _tagFor(code){
   const m = LOT_TYPE_META[code];
   return m ? `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>` : '<span class="lot-tag">หวย</span>';
@@ -2034,12 +2043,12 @@ function _renderLotGroups(filterCode){
   // Group by code — รวม VN_HAN* เป็น VN_HANOI เดียว
   const groups = {};
   rounds.forEach(r => {
-    const key = VN_CODES.has(r.code) ? 'VN_HANOI' : (r.code || 'OTHER');
+    const key = VN_CODES.has(r.code) ? 'VN_HANOI' : STK_CODES.has(r.code) ? 'STK_ALL' : (r.code || 'OTHER');
     if(!groups[key]) groups[key] = [];
     groups[key].push(r);
   });
   // ลำดับการแสดงกลุ่มหวย: รัฐบาล → ลาว → ฮานอย → หุ้นไทย → อื่นๆ
-  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','TH_STK'];
+  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','STK_ALL','TH_STK'];
   const sortedEntries = Object.entries(groups).sort(([a],[b]) => {
     const ia = GROUP_ORDER.indexOf(a); const ib = GROUP_ORDER.indexOf(b);
     return (ia===-1?999:ia) - (ib===-1?999:ib);
@@ -2116,6 +2125,44 @@ function _renderLotGroups(filterCode){
 
   // ── Other groups (แต่ละกลุ่มแยก) ──
   html += otherEntries.map(([code, list]) => {
+    if(code === 'STK_ALL'){
+      const safeEsc2 = s => String(s||'').replace(/'/g,'&apos;');
+      const stkCards = list.map(r => {
+        const isUpcoming = r.status === 'upcoming';
+        const closeMs = new Date(r.close_at).getTime() - Date.now();
+        const openMs  = r.open_at ? new Date(r.open_at).getTime() - Date.now() : 0;
+        let cdText;
+        if(isUpcoming && openMs > 0){
+          const hh = Math.floor(openMs/3600000), mm = Math.floor((openMs%3600000)/60000);
+          cdText = `🕐 เปิดใน ${hh>0?hh+'ชม.':''}${mm}น.`;
+        } else if(closeMs > 0){
+          const mm2 = Math.floor(closeMs/60000), ss2 = Math.floor((closeMs%60000)/1000);
+          cdText = `${String(mm2).padStart(2,'0')}:${String(ss2).padStart(2,'0')}`;
+        } else {
+          cdText = 'ปิดแล้ว';
+        }
+        const shortName = (r.lottery_name||'').replace(/หุ้น|หวย/g,'').trim() || r.round_name;
+        const cardClick = isUpcoming ? '' : `onclick="openBuy('${safeEsc2(r.lottery_name)}',${r.rate_3top||750},${r.id},${r.lottery_id})"`;
+        const dotCol = closeMs < 5*60*1000 ? '#FF8A5A' : closeMs < 15*60*1000 ? '#FFD700' : '#3BD441';
+        return `<div class="stk-mini-card${isUpcoming?' upcoming':''}" ${cardClick}
+          style="background:#0d0d0d;border:1px solid #1e1e1e;border-radius:12px;padding:10px 6px;text-align:center;cursor:${isUpcoming?'not-allowed':'pointer'};transition:border-color .2s;opacity:${isUpcoming?.7:1}"
+          onmouseenter="if(!this.classList.contains('upcoming'))this.style.borderColor='rgba(184,134,11,.5)'" onmouseleave="this.style.borderColor='#1e1e1e'">
+          <div style="font-size:18px;margin-bottom:4px">${r.flag||'📈'}</div>
+          <div style="font-size:10px;font-weight:800;color:#ddd;line-height:1.3;min-height:26px">${shortName}</div>
+          <div style="font-size:9px;color:${dotCol};font-weight:700;margin-top:4px">
+            <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dotCol};margin-right:2px;vertical-align:middle"></span>${cdText}
+          </div>
+        </div>`;
+      }).join('');
+      return `<div class="lot-group">
+        <div class="lot-group-hdr">
+          <span style="font-size:18px">📈</span>
+          <h3>หวยหุ้น</h3>
+          <span class="cnt-badge">${list.length} งวด</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">${stkCards}</div>
+      </div>`;
+    }
     const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
     const cards = list.map(r => _makeCard(code, r)).join('');
     return `<div class="lot-group">
