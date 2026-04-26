@@ -170,7 +170,7 @@ async function enterHdResult(code, resultObj, dateStr) {
     // 2. Find round for this date
     let round = await queryOne(
       `SELECT r.* FROM lottery_rounds r
-       WHERE r.lottery_type_id = ? AND DATE(r.close_at) = ?
+       WHERE r.lottery_id = ? AND DATE(r.close_at) = ?
          AND r.status IN ('closed','resulted','open')
        ORDER BY r.close_at DESC LIMIT 1`,
       [lt.id, dateStr]
@@ -183,7 +183,7 @@ async function enterHdResult(code, resultObj, dateStr) {
       if (created) {
         round = await queryOne(
           `SELECT r.* FROM lottery_rounds r
-           WHERE r.lottery_type_id = ? AND DATE(r.close_at) = ?
+           WHERE r.lottery_id = ? AND DATE(r.close_at) = ?
              AND r.status IN ('closed','resulted','open')
            ORDER BY r.close_at DESC LIMIT 1`,
           [lt.id, dateStr]

@@ -1,4 +1,5 @@
 const { query, queryOne } = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
 
 // HD Schedule: ICT times (UTC+7) mapped by lottery code
 const HD_SCHEDULE = {
@@ -128,9 +129,9 @@ async function autoCreateHdRound(lotteryType, dateStr) {
   try {
     const result = await query(
       `INSERT INTO lottery_rounds
-        (lottery_type_id, round_code, round_name, open_at, close_at, status, created_by)
-       VALUES (?, ?, ?, ?, ?, 'open', NULL)`,
-      [lotteryType.id, round_code, round_name, openAt, closeAt]
+        (uuid, lottery_id, round_code, round_name, draw_date, open_at, close_at, status)
+       VALUES (UUID(), ?, ?, ?, ?, ?, ?, 'open')`,
+      [lotteryType.id, round_code, round_name, dateStr, openAt, closeAt]
     );
 
     const insertId = result.insertId;
