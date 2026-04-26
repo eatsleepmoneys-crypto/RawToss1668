@@ -2008,10 +2008,9 @@ const STK_FLAG_MAP = {
 function _tagFor(code, r){
   const m = LOT_TYPE_META[code];
   if(m) return `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>`;
-  // หวยหุ้น — แสดงธงชาติจาก DB หรือ STK_FLAG_MAP
-  const fl = (r && r.flag) || STK_FLAG_MAP[code] || '📈';
-  const flImg = typeof fl === 'string' && fl.startsWith('<img') ? fl : fl;
-  return `<span class="lot-tag">${flImg} หุ้น</span>`;
+  // หวยหุ้น — ใช้ flagcdn img จาก STK_FLAG_MAP ก่อน (emoji ไม่ render บน Windows)
+  const fl = STK_FLAG_MAP[code] || '📈';
+  return `<span class="lot-tag">${fl} หุ้น</span>`;
 }
 function _statusFor(r){
   // Use DB status first for accuracy
@@ -2077,7 +2076,7 @@ function _renderLotGroups(filterCode){
     const isUpcoming = r.status === 'upcoming';
     const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id},${r.lottery_id})"`;
     const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
-    const rFlag = r.flag || STK_FLAG_MAP[code] || meta.flag;
+    const rFlag = STK_FLAG_MAP[code] || r.flag || meta.flag;
     return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
       <div class="lot-card-top">${_tagFor(code, r)}${_statusFor(r)}</div>
       <div class="lot-name">${_dbFlag(rFlag)||rFlag} ${r.lottery_name}</div>
