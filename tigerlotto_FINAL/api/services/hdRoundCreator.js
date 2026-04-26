@@ -208,4 +208,5 @@ async function autoCreateAllHdRoundsForDate(dateStr) {
 module.exports = {
   autoCreateHdRound,
   autoCreateAllHdRoundsForDate,
-  HD_SCH
+  HD_SCHEDULE,
+};

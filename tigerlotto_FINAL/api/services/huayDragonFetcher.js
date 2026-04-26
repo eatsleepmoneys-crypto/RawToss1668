@@ -345,4 +345,8 @@ function startHdScheduler() {
 
   console.log('[HD FETCHER] Scheduler started (Asia/Bangkok):');
   slots.forEach(s =>
-    console.log(`  ${String(s.hr).padStart(2,'0')}:${String(s.min).padStart(2,'0')} — 
+    console.log(`  ${String(s.hr).padStart(2,'0')}:${String(s.min).padStart(2,'0')} — ${s.desc}`)
+  );
+}
+
+module.exports = { startHdScheduler, runHdFetch, getHdStatus };
