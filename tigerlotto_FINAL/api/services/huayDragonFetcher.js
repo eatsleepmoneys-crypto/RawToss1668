@@ -171,7 +171,7 @@ async function enterHdResult(code, resultObj, dateStr) {
     let round = await queryOne(
       `SELECT r.* FROM lottery_rounds r
        WHERE r.lottery_id = ? AND DATE(r.close_at) = ?
-         AND r.status IN ('closed','announced','open')
+         AND r.status IN ('closed','announced','announcing','open')
        ORDER BY r.close_at DESC LIMIT 1`,
       [lt.id, dateStr]
     );
@@ -184,7 +184,7 @@ async function enterHdResult(code, resultObj, dateStr) {
         round = await queryOne(
           `SELECT r.* FROM lottery_rounds r
            WHERE r.lottery_id = ? AND DATE(r.close_at) = ?
-             AND r.status IN ('closed','announced','open')
+             AND r.status IN ('closed','announced','announcing','open')
            ORDER BY r.close_at DESC LIMIT 1`,
           [lt.id, dateStr]
         );
@@ -226,7 +226,7 @@ async function enterHdResult(code, resultObj, dateStr) {
         [round.id, rd.result_first, rd.result_2_back, rd.result_2_back]
       );
       await conn.execute(
-        "UPDATE lottery_rounds SET status='announced', announced_at=NOW() WHERE id=?",
+        "UPDATE lottery_rounds SET status='announced' WHERE id=?",
         [round.id]
       );
     });
