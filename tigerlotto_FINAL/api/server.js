@@ -131,6 +131,37 @@ app.post('/api/debug/migrate', async (req, res) => {
   }
 });
 
+// ─── Lottery Fetcher Status ───────────────────────
+app.get('/api/fetcher/status', async (req, res) => {
+  try {
+    const { fetcherStatus } = require('./services/lotteryFetcher');
+    const out = {};
+    for (const [code, s] of Object.entries(fetcherStatus)) {
+      out[code] = {
+        lastRun:     s.lastRun     || null,
+        lastSuccess: s.lastSuccess || null,
+        lastError:   s.lastError   || null,
+        retries:     s.retries     || 0,
+        simulated:   s.simulated   || false,
+      };
+    }
+    res.json({ success: true, fetchers: out, count: Object.keys(out).length });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/fetcher/trigger/:code', async (req, res) => {
+  try {
+    const { triggerFetch } = require('./services/lotteryFetcher');
+    const code = req.params.code.toUpperCase();
+    const result = await triggerFetch(code);
+    res.json({ success: true, code, result });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ─── HuayDragon Admin Routes ──────────────────────
 app.get('/api/admin/hd-status', async (req, res) => {
   try {
@@ -320,7 +351,21 @@ async function startServer() {
     console.warn('⚠️  HuayDragon Fetcher start failed:', e.message);
   }
 
-  app.listen(PORT, () => {
+  // ─── Auto-run pending DB migrations on startup ────
+(async () => {
+  try {
+    const { query } = require('./config/db');
+    // Add prize_2bot column if missing
+    await query("ALTER TABLE lottery_results ADD COLUMN IF NOT EXISTS prize_2bot VARCHAR(2) DEFAULT NULL AFTER prize_last_2").catch(() => {});
+    // Add VN_HAN_SP and VN_HAN_VIP lottery types if missing
+    await query("INSERT IGNORE INTO lottery_types (code, name, flag, sort_order, rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot, max_bet) VALUES ('VN_HAN_SP','ฮานอยพิเศษ','🇻🇳',31,720,115,90,85,3.0,4.0,3000),('VN_HAN_VIP','ฮานอย VIP','🇻🇳',32,720,115,90,85,3.0,4.0,3000)").catch(() => {});
+    console.log('[STARTUP] DB migration check complete');
+  } catch(e) {
+    console.warn('[STARTUP] DB migration warning:', e.message);
+  }
+})();
+
+app.listen(PORT, () => {
     console.log(`\n🐯 TigerLotto API started`);
     console.log(`   Port    : ${PORT}`);
     console.log(`   Env     : ${process.env.NODE_ENV || 'development'}`);
