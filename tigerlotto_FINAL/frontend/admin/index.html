@@ -882,6 +882,16 @@ function renderDepositsRows(rows) {
 function clearDepDates(){ const f=document.getElementById('dep-date-from'),t=document.getElementById('dep-date-to'); if(f)f.value=''; if(t)t.value=''; loadDeposits(); }
 
 async function loadDeposits(){
+  // Default วันนี้ถ้ายังไม่ได้กรอก
+  const _ddf = document.getElementById('dep-date-from');
+  const _ddt = document.getElementById('dep-date-to');
+  if(_ddf && !_ddf.value && _ddt && !_ddt.value){
+    const _tnow = new Date();
+    const _tpad = n => String(n).padStart(2,'0');
+    const _tfmt = d => `${d.getFullYear()}-${_tpad(d.getMonth()+1)}-${_tpad(d.getDate())}`;
+    _ddf.value = _tfmt(_tnow);
+    _ddt.value = _tfmt(_tnow);
+  }
   const status    = document.getElementById('dep-status-sel')?.value ?? 'pending';
   const search    = document.getElementById('dep-search')?.value?.trim() || '';
   const dateFrom  = document.getElementById('dep-date-from')?.value || '';
@@ -945,6 +955,16 @@ function renderWithdrawalsRows(rows) {
 function clearWdDates(){ const f=document.getElementById('wd-date-from'),t=document.getElementById('wd-date-to'); if(f)f.value=''; if(t)t.value=''; loadWithdrawals(); }
 
 async function loadWithdrawals(){
+  // Default วันนี้ถ้ายังไม่ได้กรอก
+  const _wdf = document.getElementById('wd-date-from');
+  const _wdt = document.getElementById('wd-date-to');
+  if(_wdf && !_wdf.value && _wdt && !_wdt.value){
+    const _tnow = new Date();
+    const _tpad = n => String(n).padStart(2,'0');
+    const _tfmt = d => `${d.getFullYear()}-${_tpad(d.getMonth()+1)}-${_tpad(d.getDate())}`;
+    _wdf.value = _tfmt(_tnow);
+    _wdt.value = _tfmt(_tnow);
+  }
   const status   = document.getElementById('wd-status-sel')?.value ?? 'pending';
   const search   = document.getElementById('wd-search')?.value?.trim() || '';
   const dateFrom = document.getElementById('wd-date-from')?.value || '';
@@ -1254,6 +1274,16 @@ function betStatusLabel(s){
 }
 
 async function loadBets(page){
+  // Default วันนี้ถ้ายังไม่ได้กรอก
+  const _bdf = document.getElementById('bets-date-from');
+  const _bdt = document.getElementById('bets-date-to');
+  if(_bdf && !_bdf.value && _bdt && !_bdt.value){
+    const _tnow = new Date();
+    const _tpad = n => String(n).padStart(2,'0');
+    const _tfmt = d => `${d.getFullYear()}-${_tpad(d.getMonth()+1)}-${_tpad(d.getDate())}`;
+    _bdf.value = _tfmt(_tnow);
+    _bdt.value = _tfmt(_tnow);
+  }
   if(page !== undefined) _betsPage = page;
   const tbody  = document.getElementById('bets-tbody');
   const sumEl  = document.getElementById('bets-summary');
@@ -2065,10 +2095,8 @@ async function loadHotNumbers(silent = false){
     const now = new Date();
     const pad = n=>String(n).padStart(2,'0');
     const fmt = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    const past = new Date(now); past.setDate(past.getDate()-30);
-    const future = new Date(now); future.setDate(future.getDate()+90);
-    dfEl.value = fmt(past);
-    dtEl.value = fmt(future);
+    dfEl.value = fmt(now);
+    dtEl.value = fmt(now);
   }
   const round_id  = roundSel?.value || '';
   const limit     = document.getElementById('hn-limit')?.value || 50;
@@ -7065,139 +7093,4 @@ function editLotteryType(id){
       <div class="fg"><label>3 โต๊ด</label><input id="elt-r3tod" class="fi-full" type="number" step="0.5" value="${l.rate_3tod||0}"></div>
       <div class="fg"><label>2 บน</label><input id="elt-r2top" class="fi-full" type="number" step="0.5" value="${l.rate_2top||0}"></div>
       <div class="fg"><label>2 ล่าง</label><input id="elt-r2bot" class="fi-full" type="number" step="0.5" value="${l.rate_2bot||0}"></div>
-      <div class="fg"><label>วิ่งบน</label><input id="elt-rrtop" class="fi-full" type="number" step="0.1" value="${l.rate_run_top||0}"></div>
-      <div class="fg"><label>วิ่งล่าง</label><input id="elt-rrbot" class="fi-full" type="number" step="0.1" value="${l.rate_run_bot||0}"></div>
-      <div class="fg"><label>แทงต่ำสุด (฿)</label><input id="elt-minbet" class="fi-full" type="number" value="${l.min_bet||1}"></div>
-      <div class="fg"><label>แทงสูงสุด (฿)</label><input id="elt-maxbet" class="fi-full" type="number" value="${l.max_bet||5000}"></div>
-    </div>
-    <div class="fg" style="display:flex;align-items:center;gap:10px">
-      <label>สถานะ</label>
-      <select id="elt-status" class="fi" style="width:auto">
-        <option value="open" ${l.status==='open'?'selected':''}>เปิด</option>
-        <option value="closed" ${l.status==='closed'?'selected':''}>ปิด</option>
-      </select>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-gold" onclick="submitEditLotteryType(${id})">💾 บันทึก</button>
-    </div>`);
-}
-async function submitEditLotteryType(id){
-  const payload = {
-    name       : document.getElementById('elt-name')?.value?.trim(),
-    status     : document.getElementById('elt-status')?.value,
-    rate_3top  : parseFloat(document.getElementById('elt-r3top')?.value)||0,
-    rate_3tod  : parseFloat(document.getElementById('elt-r3tod')?.value)||0,
-    rate_2top  : parseFloat(document.getElementById('elt-r2top')?.value)||0,
-    rate_2bot  : parseFloat(document.getElementById('elt-r2bot')?.value)||0,
-    rate_run_top: parseFloat(document.getElementById('elt-rrtop')?.value)||0,
-    rate_run_bot: parseFloat(document.getElementById('elt-rrbot')?.value)||0,
-    min_bet    : parseFloat(document.getElementById('elt-minbet')?.value)||1,
-    max_bet    : parseFloat(document.getElementById('elt-maxbet')?.value)||5000,
-  };
-  if(!payload.name){ toast('ผิดพลาด','กรุณากรอกชื่อหวย','error'); return; }
-  try{
-    await API.AdminAPI.updateLotteryType(id, payload);
-    // update local cache
-    const idx = _allLotteryTypes.findIndex(l=>l.id===id);
-    if(idx>-1) Object.assign(_allLotteryTypes[idx], payload);
-    closeModal();
-    renderLotteryTypes(_allLotteryTypes);
-    toast('สำเร็จ',`บันทึกอัตราจ่าย ${payload.name} แล้ว`);
-  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
-}
-
-/* ── Seed Historical Rounds ── */
-async function seedHistoryRounds(btn) {
-  if (!confirm('เพิ่มงวดย้อนหลัง 1 งวดต่อประเภทหวย (TH_GOV, LA_GOV, VN_HAN, TH_STK, CN_STK, MY_STK, SG_STK)\nรันซ้ำได้ไม่มีผลข้างเคียง (ข้ามงวดที่มีอยู่แล้ว)\n\nดำเนินการต่อ?')) return;
-  UI.loading(btn, true);
-  try {
-    const d = await API.AdminAPI.seedHistory();
-    const lines = (d.results || []).map(r => {
-      const icon = r.status === 'ok' ? '✅' : r.status === 'skip' ? '⏩' : '❌';
-      return `${icon} ${codeFlag(r.code)} ${r.status === 'ok' ? r.round_name + ' ('+r.prize_1st+')' : (r.reason||r.status)}`;
-    }).join('\n');
-    toast(d.success ? 'สำเร็จ' : 'มีข้อผิดพลาด', d.message, d.success ? 'success' : 'warning', 6000);
-    alert('ผลลัพธ์:\n\n' + lines);
-    loadRounds();
-  } catch(e) {
-    toast('ผิดพลาด', e.message, 'error');
-  } finally {
-    UI.loading(btn, false);
-  }
-}
-
-/* ── Open Add Round Modal ── */
-async function openAddRound(){
-  // Load latest types for dropdown
-  let types = _allLotteryTypes;
-  if(!types.length){
-    try{ const d = await API.AdminAPI.getLotteryTypes(); types = d.data||[]; }
-    catch(e){ toast('ผิดพลาด','โหลดประเภทหวยไม่ได้: '+e.message,'error'); return; }
-  }
-  const opts = types.map(l=>`<option value="${l.id}">${l.flag||''} ${l.name}</option>`).join('');
-  // Default date = tomorrow
-  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
-  const defDate = tomorrow.toISOString().slice(0,10);
-  openModal(`
-    <h3>📅 เปิดงวดใหม่</h3>
-    <div class="fg"><label>ประเภทหวย</label>
-      <select id="ar-lottery" class="fi-full">${opts}</select>
-    </div>
-    <div class="fg"><label>วันที่งวด (วันออกผล)</label>
-      <input id="ar-draw-date" class="fi-full" type="date" value="${defDate}">
-    </div>
-    <div class="fg"><label>วันที่ปิดรับ</label>
-      <input id="ar-close-date" class="fi-full" type="date" value="${defDate}">
-    </div>
-    <div class="fg"><label>เวลาปิดรับ</label>
-      <input id="ar-close-time" class="fi-full" type="time" value="13:00">
-    </div>
-    <div class="fg"><label>ชื่องวด (ไม่บังคับ)</label>
-      <input id="ar-name" class="fi-full" placeholder="เช่น งวด 16/04/68">
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
-      <button class="btn btn-gold" onclick="submitAddRound()">📅 เปิดงวด</button>
-    </div>`);
-}
-async function submitAddRound(){
-  const lottery_id  = document.getElementById('ar-lottery')?.value;
-  const draw_date   = document.getElementById('ar-draw-date')?.value;
-  const close_date  = document.getElementById('ar-close-date')?.value;
-  const close_time  = document.getElementById('ar-close-time')?.value || '13:00';
-  const round_name  = document.getElementById('ar-name')?.value?.trim();
-  if(!lottery_id||!draw_date||!close_date){
-    toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบ','error'); return;
-  }
-  const close_at = `${close_date} ${close_time}:00`;
-  try{
-    await API.AdminAPI.createRound({ lottery_id:parseInt(lottery_id), draw_date, close_at, round_name:round_name||draw_date });
-    closeModal();
-    toast('สำเร็จ','เปิดงวดใหม่สำเร็จ');
-    loadRounds();
-  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
-}
-
-function setTab(el,id){
-  // Find the tab-bar containing the clicked button
-  const bar=el.closest('.tab-bar');
-  if(!bar){return;}
-  // Collect all tab IDs referenced by this tab-bar's buttons
-  const tabIds=[];
-  bar.querySelectorAll('.tab-btn').forEach(btn=>{
-    const m=(btn.getAttribute('onclick')||'').match(/setTab\(this,'([^']+)'\)/);
-    if(m)tabIds.push(m[1]);
-  });
-  // Update active state on buttons in this bar only
-  bar.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
-  el.classList.add('on');
-  // Show/hide only the tabs belonging to this bar
-  tabIds.forEach(tid=>{
-    const t=document.getElementById(tid);
-    if(t)t.style.display=tid===id?'block':'none';
-  });
-}
-</script>
-</body>
-</html>
+      <div class="fg"><label>วิ่งบน</label><input id="elt-rrtop" class="fi-full" type="number" step="0.1" value
