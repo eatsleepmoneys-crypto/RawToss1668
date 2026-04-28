@@ -5790,6 +5790,68 @@ credits:()=>`
     </table>
   </div>
 </div>`
+,
+articles: () => `
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div>
+    <input type="text" id="art-search" placeholder="🔍 ค้นหาบทความ..." style="padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);width:250px" oninput="filterArticles()">
+  </div>
+  <button class="btn btn-primary" onclick="openArticleModal()">✏️ เขียนบทความใหม่</button>
+</div>
+<div class="card">
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead><tr><th>ชื่อบทความ</th><th>หมวด</th><th>สถานะ</th><th>วันที่</th><th>การจัดการ</th></tr></thead>
+      <tbody id="art-tbody"><tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">⏳ กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<!-- Modal บทความ -->
+<div id="art-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;overflow:auto">
+  <div style="background:var(--card);border-radius:12px;max-width:800px;width:95%;margin:40px auto;padding:28px">
+    <h3 id="art-modal-title" style="margin:0 0 20px">✏️ เขียนบทความ</h3>
+    <input type="hidden" id="art-id">
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">ชื่อบทความ *</label>
+      <input type="text" id="art-title" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);box-sizing:border-box" placeholder="หัวข้อบทความ">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">หมวดหมู่</label>
+        <select id="art-category" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+          <option value="lottery">หวย</option>
+          <option value="tips">เคล็ดลับ</option>
+          <option value="news">ข่าวสาร</option>
+          <option value="guide">คู่มือ</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">สถานะ</label>
+        <select id="art-status" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text)">
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Slug (URL)</label>
+        <input type="text" id="art-slug" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);box-sizing:border-box" placeholder="article-url-slug">
+      </div>
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">เนื้อหา *</label>
+      <textarea id="art-content" rows="12" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);box-sizing:border-box;resize:vertical;font-family:inherit" placeholder="เนื้อหาบทความ (รองรับ HTML)"></textarea>
+    </div>
+    <div style="margin-bottom:20px">
+      <label style="font-size:12px;color:var(--muted);margin-bottom:4px;display:block">Meta Description (SEO)</label>
+      <input type="text" id="art-meta" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);box-sizing:border-box" placeholder="คำอธิบายสั้น สำหรับ SEO">
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn btn-outline" onclick="closeArticleModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveArticle()">💾 บันทึกบทความ</button>
+    </div>
+  </div>
+</div>`
+
 };
 
 // ═══ อั้นหวย PAGE ═══
@@ -7260,6 +7322,88 @@ async function saveFetchGroupId() {
   }
 }
 
+
+/* ── Articles ── */
+let _allArticles = [];
+async function loadArticles() {
+  try {
+    const res = await apiFetch('/articles?limit=100', {}, 'admin');
+    _allArticles = res.data || res.articles || res || [];
+    renderArticleTable(_allArticles);
+  } catch(e) {
+    const tb = document.getElementById('art-tbody');
+    if(tb) tb.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:20px">❌ ${e.message}</td></tr>`;
+  }
+}
+function filterArticles() {
+  const q = (document.getElementById('art-search')?.value || '').toLowerCase();
+  renderArticleTable(q ? _allArticles.filter(a => (a.title||'').toLowerCase().includes(q)) : _allArticles);
+}
+function renderArticleTable(list) {
+  const tb = document.getElementById('art-tbody');
+  if (!tb) return;
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีบทความ</td></tr>'; return; }
+  tb.innerHTML = list.map(a => `
+    <tr>
+      <td><strong>${a.title||'-'}</strong><br><small style="color:var(--muted)">${a.slug||''}</small></td>
+      <td><span class="badge">${a.category||'-'}</span></td>
+      <td><span style="color:${a.status==='published'?'var(--green)':'var(--muted)'}">${a.status==='published'?'✅ เผยแพร่':'📝 Draft'}</span></td>
+      <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('th-TH') : '-'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="editArticle(${a.id})">✏️ แก้ไข</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteArticle(${a.id},'${(a.title||'').replace(/'/g,'')}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+function openArticleModal(data) {
+  document.getElementById('art-id').value = data?.id || '';
+  document.getElementById('art-title').value = data?.title || '';
+  document.getElementById('art-slug').value = data?.slug || '';
+  document.getElementById('art-category').value = data?.category || 'lottery';
+  document.getElementById('art-status').value = data?.status || 'draft';
+  document.getElementById('art-content').value = data?.content || '';
+  document.getElementById('art-meta').value = data?.meta_description || '';
+  document.getElementById('art-modal-title').textContent = data?.id ? '✏️ แก้ไขบทความ' : '✏️ เขียนบทความใหม่';
+  document.getElementById('art-modal').style.display = 'block';
+}
+function closeArticleModal() { document.getElementById('art-modal').style.display = 'none'; }
+async function editArticle(id) {
+  const res = await apiFetch(`/articles/${id}`, {}, 'admin');
+  openArticleModal(res.data || res);
+}
+async function saveArticle() {
+  const id = document.getElementById('art-id').value;
+  const title = document.getElementById('art-title').value.trim();
+  const content = document.getElementById('art-content').value.trim();
+  if (!title || !content) { toast('แจ้งเตือน','กรุณากรอกชื่อและเนื้อหา'); return; }
+  let slug = document.getElementById('art-slug').value.trim();
+  if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9ก-๙\s]/g,'').replace(/\s+/g,'-').substring(0,80);
+  const body = {
+    title, slug, content,
+    category: document.getElementById('art-category').value,
+    status: document.getElementById('art-status').value,
+    meta_description: document.getElementById('art-meta').value.trim()
+  };
+  try {
+    if (id) {
+      await apiFetch(`/articles/${id}`, { method:'PATCH', body: JSON.stringify(body) }, 'admin');
+      toast('สำเร็จ','อัพเดทบทความแล้ว ✅');
+    } else {
+      await apiFetch('/articles', { method:'POST', body: JSON.stringify(body) }, 'admin');
+      toast('สำเร็จ','สร้างบทความใหม่แล้ว ✅');
+    }
+    closeArticleModal();
+    await loadArticles();
+  } catch(e) { toast('ผิดพลาด', e.message); }
+}
+async function deleteArticle(id, title) {
+  if (!confirm(`ลบบทความ "${title}" ?`)) return;
+  try {
+    await apiFetch(`/articles/${id}`, { method:'DELETE' }, 'admin');
+    toast('ลบแล้ว','ลบบทความสำเร็จ');
+    await loadArticles();
+  } catch(e) { toast('ผิดพลาด', e.message); }
+}
 </script>
 </body>
 </html>
