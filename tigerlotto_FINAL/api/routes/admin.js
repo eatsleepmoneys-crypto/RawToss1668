@@ -1164,3 +1164,98 @@ router.delete('/bank-accounts/:id', authAdmin, rbac.requirePerm('settings.manage
 });
 
 module.exports = router;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ARTICLES — Blog CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/admin/articles?page=1&limit=20&status=published
+router.get('/articles', authAdmin, async (req, res) => {
+  try {
+    const page   = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit  = Math.min(100, parseInt(req.query.limit) || 20);
+    const offset = (page - 1) * limit;
+    const status = req.query.status || null;
+    const where  = status ? 'WHERE status=?' : '';
+    const params = status ? [status] : [];
+    const [{ total }] = await query(`SELECT COUNT(*) AS total FROM articles ${where}`, params);
+    const rows = await query(
+      `SELECT id, slug, title, excerpt, status, author, tags, views, created_at, updated_at
+       FROM articles ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+    res.json({ success: true, data: rows, total, page, limit });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET /api/admin/articles/:id
+router.get('/articles/:id', authAdmin, async (req, res) => {
+  try {
+    const [row] = await query('SELECT * FROM articles WHERE id=? LIMIT 1', [req.params.id]);
+    if (!row) return res.status(404).json({ success: false, message: 'ไม่พบบทความ' });
+    res.json({ success: true, data: row });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// POST /api/admin/articles
+router.post('/articles', authAdmin, async (req, res) => {
+  try {
+    const { title, slug, excerpt = '', content = '', cover_image = null, og_image = null,
+            status = 'draft', author = '', tags = '' } = req.body;
+    if (!title || !slug) return res.status(422).json({ success: false, message: 'title และ slug ต้องไม่ว่าง' });
+    const result = await query(
+      `INSERT INTO articles (title, slug, excerpt, content, cover_image, og_image, status, author, tags)
+       VALUES (?,?,?,?,?,?,?,?,?)`,
+      [title, slug, excerpt, content, cover_image, og_image, status, author, tags]
+    );
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'slug ซ้ำ' });
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// PATCH /api/admin/articles/:id
+router.patch('/articles/:id', authAdmin, async (req, res) => {
+  try {
+    const allowed = ['title','slug','excerpt','content','cover_image','og_image','status','author','tags'];
+    const updates = {};
+    for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
+    if (!Object.keys(updates).length) return res.status(422).json({ success: false, message: 'ไม่มีข้อมูลที่จะแก้ไข' });
+    const setStr = Object.keys(updates).map(k => `\`${k}\`=?`).join(',');
+    await query(`UPDATE articles SET ${setStr} WHERE id=?`, [...Object.values(updates), req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    if (e.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'slug ซ้ำ' });
+    res.status(500).json({ success: false, message: e.message });
+  }
+});
+
+// DELETE /api/admin/articles/:id
+router.delete('/articles/:id', authAdmin, async (req, res) => {
+  try {
+    await query('DELETE FROM articles WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LINE MESSAGES — ดู messages ที่ดึงมาจากกลุ่ม LINE
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /api/admin/line-messages?page=1&limit=50&parsed=0
+router.get('/line-messages', authAdmin, async (req, res) => {
+  try {
+    const page    = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit   = Math.min(200, parseInt(req.query.limit) || 50);
+    const offset  = (page - 1) * limit;
+    const parsed  = req.query.parsed !== undefined ? parseInt(req.query.parsed) : null;
+    const where   = parsed !== null ? 'WHERE parsed=?' : '';
+    const params  = parsed !== null ? [parsed] : [];
+    const [{ total }] = await query(`SELECT COUNT(*) AS total FROM line_messages ${where}`, params);
+    const rows = await query(
+      `SELECT id, msg_id, source_id, sender_id, LEFT(message_text,500) AS message_text, parsed, received_at
+       FROM line_messages ${where} ORDER BY received_at DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset]
+    );
+    res.json({ succe

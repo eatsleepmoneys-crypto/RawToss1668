@@ -282,6 +282,9 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('branding')"><span class="ic">🎨</span>ตั้งค่าหน้าเว็บ</div>
     <div class="sb-item" onclick="nav('settings')"><span class="ic">⚙️</span>ตั้งค่าระบบ</div>
     <div class="sb-item" onclick="nav('logs')"><span class="ic">📝</span>Activity Logs</div>
+
+    <div class="sb-sec">LINE</div>
+    <div class="sb-item" onclick="nav('line-fetch')"><span class="ic">🤖</span>LINE Auto-Fetch</div>
   </nav>
   <div class="sb-bottom">
     <div class="sb-user">
@@ -491,7 +494,7 @@ const PAGE_TITLES={
   hotnumbers:'🔥 ตัวเลขฮอต',
   kyc:'🪪 ยืนยันตัวตน KYC',
   referral:'🔗 ระบบแนะนำ',
-  api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs',branding:'🎨 ตั้งค่าหน้าเว็บ'
+  api:'🔌 API Settings',reports:'📈 รายงาน',settings:'⚙️ ตั้งค่าระบบ',logs:'📝 Activity Logs',branding:'🎨 ตั้งค่าหน้าเว็บ','line-fetch':'🤖 LINE Auto-Fetch'
 };
 // ═══ AUTO-REFRESH POLLING ═══
 let _autoRefreshInterval  = null;
@@ -668,6 +671,7 @@ async function afterNav(page){
     else if(page==='payoutrates')  await loadPayoutRates();
     else if(page==='memberlevels') await loadMemberLevels();
     else if(page==='bankaccounts') await loadBankAccounts();
+    else if(page==='line-fetch') await loadLineFetch();
   }catch(e){ console.warn('afterNav error:', page, e.message); }
 }
 
@@ -6536,6 +6540,135 @@ async function deleteMemberLevel(id, name){
     toast('ลบแล้ว', `ลบระดับ ${name} เรียบร้อย`);
     loadMemberLevels();
   } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
+}
+
+// ═══ LINE AUTO-FETCH ═══
+PAGES['line-fetch'] = () => `
+<div style="max-width:860px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <div>
+      <h3 style="margin:0;font-size:16px">🤖 LINE Auto-Fetch — ดึงผลหวยจากกลุ่ม LINE</h3>
+      <p style="margin:4px 0 0;font-size:12px;color:#888">Bot จะบันทึกและ parse ข้อความจากกลุ่มที่ตั้งไว้โดยอัตโนมัติ</p>
+    </div>
+    <button class="btn-g" onclick="loadLineFetch()">🔄 รีเฟรช</button>
+  </div>
+
+  <!-- Settings card -->
+  <div class="card card-gold" style="margin-bottom:18px;padding:18px">
+    <h4 style="margin:0 0 14px;font-size:14px">⚙️ ตั้งค่ากลุ่ม LINE</h4>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+      <div class="fg">
+        <label style="font-size:12px;color:var(--muted)">กลุ่มแจ้งเตือน ฝาก/ถอน (line_group_id)</label>
+        <input id="lf-notif-gid" class="fi-full" readonly style="background:var(--card3);font-size:11px;font-family:monospace" placeholder="ยังไม่มีกลุ่มเชื่อมต่อ">
+      </div>
+      <div class="fg">
+        <label style="font-size:12px;color:var(--muted)">กลุ่ม Fetch ผลหวย (line_fetch_group_id) <span style="color:var(--red)">*แยกกัน</span></label>
+        <div style="display:flex;gap:8px">
+          <input id="lf-fetch-gid" class="fi-full" style="font-size:11px;font-family:monospace" placeholder="C... หรือ R...">
+          <button class="btn-g" style="white-space:nowrap" onclick="saveFetchGroupId()">บันทึก</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="fg">
+        <label style="font-size:12px;color:var(--muted)">Webhook URL (copy ไปใส่ LINE Console)</label>
+        <div style="display:flex;gap:8px">
+          <input id="lf-webhook-url" class="fi-full" readonly style="font-size:11px;font-family:monospace" value="${location.origin}/api/webhooks/line">
+          <button class="btn-g" onclick="navigator.clipboard.writeText(document.getElementById('lf-webhook-url').value).then(()=>toast('คัดลอกแล้ว',''))">Copy</button>
+        </div>
+      </div>
+      <div class="fg">
+        <label style="font-size:12px;color:var(--muted)">สถานะ Webhook</label>
+        <div id="lf-status" style="padding:9px 12px;border-radius:8px;background:var(--card3);font-size:12px;color:var(--muted)">⏳ กำลังตรวจสอบ...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Message log -->
+  <div class="card" style="padding:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h4 style="margin:0;font-size:14px">📨 ข้อความล่าสุดจากกลุ่ม Fetch</h4>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="lf-filter" class="fi" style="font-size:12px;padding:6px 10px" onchange="loadLineFetch()">
+          <option value="">ทั้งหมด</option>
+          <option value="0">ยังไม่ parse</option>
+          <option value="1">parse แล้ว</option>
+        </select>
+      </div>
+    </div>
+    <div id="lf-msg-table">⏳ กำลังโหลด...</div>
+  </div>
+</div>`;
+
+async function loadLineFetch() {
+  // Load settings
+  try {
+    const r = await fetch('/api/admin/line-fetch-settings', {
+      headers: { 'Authorization': 'Bearer ' + Token.getAdmin() }
+    });
+    const d = await r.json();
+    if (d.success) {
+      const el = id => document.getElementById(id);
+      if (el('lf-notif-gid')) el('lf-notif-gid').value = d.data.line_group_id || '';
+      if (el('lf-fetch-gid')) el('lf-fetch-gid').value = d.data.line_fetch_group_id || '';
+      // status from webhook log
+      const log = (() => { try { return JSON.parse(d.data.line_webhook_log || '{}'); } catch { return {}; } })();
+      const statusEl = el('lf-status');
+      if (statusEl) {
+        if (log.at) {
+          const dt = new Date(log.at);
+          statusEl.style.color = 'var(--green)';
+          statusEl.textContent = '✅ ออนไลน์ — รับล่าสุด ' + dt.toLocaleString('th-TH');
+        } else {
+          statusEl.style.color = 'var(--muted)';
+          statusEl.textContent = '⚠️ ยังไม่มี event เข้ามา';
+        }
+      }
+    }
+  } catch(e) { console.warn('loadLineFetch settings error', e); }
+
+  // Load messages
+  const filter = document.getElementById('lf-filter')?.value ?? '';
+  const url = '/api/admin/line-messages?limit=50' + (filter !== '' ? '&parsed=' + filter : '');
+  try {
+    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + Token.getAdmin() } });
+    const d = await r.json();
+    const el = document.getElementById('lf-msg-table');
+    if (!el) return;
+    if (!d.success || !d.data.length) {
+      el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">ยังไม่มีข้อความ — เพิ่ม Bot ลงกลุ่มแล้วรอรับข้อความ</div>';
+      return;
+    }
+    el.innerHTML = \`<table class="tbl"><thead><tr>
+      <th style="width:140px">เวลา</th>
+      <th style="width:90px">สถานะ</th>
+      <th style="width:120px">GroupID</th>
+      <th>ข้อความ</th>
+    </tr></thead><tbody>\${d.data.map(m => \`<tr>
+      <td style="font-size:11px;color:var(--muted)">\${new Date(m.received_at).toLocaleString('th-TH')}</td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:\${m.parsed?'rgba(46,213,115,.15)':'rgba(255,71,87,.1)'};color:\${m.parsed?'var(--green)':'var(--red)'}">\${m.parsed?'✅ parse แล้ว':'⏳ รอ parse'}</span></td>
+      <td style="font-size:10px;color:var(--muted);word-break:break-all">\${m.source_id||'-'}</td>
+      <td style="font-size:12px;white-space:pre-wrap;max-width:400px;overflow:hidden">\${(m.message_text||'').replace(/</g,'&lt;').slice(0,300)}</td>
+    </tr>\`).join('')}</tbody></table>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)">แสดง \${d.data.length} จาก \${d.total} รายการ</div>\`;
+  } catch(e) {
+    const el = document.getElementById('lf-msg-table');
+    if (el) el.innerHTML = '<div style="color:var(--red);padding:12px">โหลดไม่สำเร็จ: ' + e.message + '</div>';
+  }
+}
+
+async function saveFetchGroupId() {
+  const val = document.getElementById('lf-fetch-gid')?.value?.trim() || '';
+  try {
+    const r = await fetch('/api/admin/line-fetch-settings', {
+      method: 'PATCH',
+      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + Token.getAdmin() },
+      body: JSON.stringify({ line_fetch_group_id: val })
+    });
+    const d = await r.json();
+    if (d.success) toast('บันทึกแล้ว', 'ตั้งค่ากลุ่ม Fetch เรียบร้อย');
+    else toast('ผิดพลาด', d.message, 'error');
+  } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
 }
 
 // ═══ BANK ACCOUNTS ═══

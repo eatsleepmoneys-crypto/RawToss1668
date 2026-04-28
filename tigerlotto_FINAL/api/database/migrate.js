@@ -497,6 +497,39 @@ const CREATES = [
     \`bet_key\`        VARCHAR(20)  DEFAULT NULL COMMENT 'ถ้า map กับ BET_CFG key เช่น 3top, run_bot',
     \`updated_at\`     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='ตารางอัตราการจ่ายรางวัลที่แสดงบนหน้าเว็บ'`,
+
+  // ─── บทความ (Blog Articles) ────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS \`articles\` (
+    \`id\`           INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`slug\`         VARCHAR(200)  NOT NULL UNIQUE,
+    \`title\`        VARCHAR(300)  NOT NULL,
+    \`excerpt\`      TEXT          DEFAULT NULL,
+    \`content\`      LONGTEXT      NOT NULL,
+    \`cover_image\`  MEDIUMTEXT    DEFAULT NULL,
+    \`og_image\`     MEDIUMTEXT    DEFAULT NULL,
+    \`status\`       ENUM('draft','published') NOT NULL DEFAULT 'draft',
+    \`author\`       VARCHAR(100)  DEFAULT NULL,
+    \`tags\`         VARCHAR(500)  DEFAULT NULL,
+    \`views\`        INT UNSIGNED  NOT NULL DEFAULT 0,
+    \`created_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    \`updated_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX \`idx_articles_status\` (\`status\`),
+    INDEX \`idx_articles_created\` (\`created_at\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+  // ─── LINE raw messages (lottery fetch) ─────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS \`line_messages\` (
+    \`id\`           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`msg_id\`       VARCHAR(50)   NOT NULL,
+    \`source_id\`    VARCHAR(100)  NOT NULL DEFAULT '',
+    \`sender_id\`    VARCHAR(50)   NOT NULL DEFAULT '',
+    \`message_text\` TEXT          NOT NULL,
+    \`parsed\`       TINYINT(1)    NOT NULL DEFAULT 0,
+    \`received_at\`  DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY \`uq_msg_id\` (\`msg_id\`),
+    INDEX \`idx_lm_received\` (\`received_at\`),
+    INDEX \`idx_lm_source\`   (\`source_id\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
 // ─── Seed data ───────────────────────────────────────────────────────────────
@@ -981,6 +1014,10 @@ async function migrate() {
     // bets: bill_no สำหรับจัดกลุ่มบิล + ค้นหา
     `ALTER TABLE \`bets\` ADD COLUMN \`bill_no\` VARCHAR(20) DEFAULT NULL COMMENT 'เลขบิล เช่น BL-20260425-A3B2' AFTER \`uuid\``,
     `ALTER TABLE \`bets\` ADD INDEX \`idx_bets_bill_no\` (\`bill_no\`)`,
+    // articles: slug index (already in CREATE TABLE, keep for safety)
+    `ALTER TABLE \`articles\` ADD INDEX \`idx_articles_slug_status\` (\`slug\`, \`status\`)`,
+    // settings: line_fetch_group_id — กลุ่ม LINE สำหรับ fetch ผลหวย (แยกจากกลุ่มแจ้งเตือน)
+    `INSERT INTO \`settings\` (\`key\`,\`value\`,\`type\`,\`group\`) VALUES ('line_fetch_group_id','','string','line') ON DUPLICATE KEY UPDATE id=id`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
@@ -1013,34 +1050,4 @@ async function migrate() {
     const safeKey = process.env.SCRAPERAPI_KEY.replace(/'/g, "\\'");
     await run(
       'SEED settings[scraperapi_key from env]',
-      `INSERT INTO \`settings\` (\`key\`, value, type, \`group\`)
-       VALUES ('scraperapi_key', '${safeKey}', 'string', 'api')
-       ON DUPLICATE KEY UPDATE
-         value = IF(value IS NULL OR value = '' OR value = 'your_scraperapi_key_here',
-                    VALUES(value), value)`
-    );
-    console.log('   🔑 ScraperAPI key seeded from SCRAPERAPI_KEY env var');
-  }
-
-  // 4. List tables for verification
-  try {
-    const [rows] = await conn.query(
-      `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME`
-    );
-    console.log(`\n📋 Tables in DB: ${rows.map(r => r.TABLE_NAME).join(', ')}`);
-  } catch (e) { /* non-fatal */ }
-
-  console.log(`\n✅ Migration complete! ok=${ok} fail=${fail}`);
-  await conn.end();
-}
-
-// Export
-module.exports = { runMigration: migrate };
-
-// รัน standalone: node database/migrate.js
-if (require.main === module) {
-  migrate().catch(err => {
-    console.error('❌ Migration failed:', err.message);
-    process.exit(1);
-  });
-}
+      `INSERT INTO \

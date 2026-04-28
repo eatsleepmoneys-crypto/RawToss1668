@@ -183,8 +183,13 @@ router.post('/', async (req, res) => {
     if (!events.length) return;
 
     const creds = await getLineCredentials();
-    const secret   = creds.botEnabled ? (await query("SELECT value FROM settings WHERE `key`='line_bot_secret' LIMIT 1"))[0]?.value || '' : '';
-    const botToken = creds.botToken || '';
+    const secret   = process.env.LINE_CHANNEL_SECRET ||
+                     (creds.botEnabled ? (await query("SELECT value FROM settings WHERE `key`='line_bot_secret' LIMIT 1").catch(()=>[])).at(0)?.value || '' : '');
+    const botToken = process.env.LINE_CHANNEL_ACCESS_TOKEN || creds.botToken || '';
+
+    // กลุ่ม fetch ผลหวย (แยกจากกลุ่มแจ้งเตือน)
+    const fetchGroupRow = await query("SELECT value FROM settings WHERE `key`='line_fetch_group_id' LIMIT 1").catch(()=>[]);
+    const fetchGroupId  = fetchGroupRow.at(0)?.value || '';
 
     // Verify signature
     const sig = req.headers['x-line-signature'];
@@ -205,11 +210,14 @@ router.post('/', async (req, res) => {
 
       // ── เก็บ Group ID อัตโนมัติ ─────────────────────────────────────
       if (groupId) {
-        await query(
-          `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES ('line_group_id',?,?,?)
-           ON DUPLICATE KEY UPDATE value=?`,
-          [groupId, 'string', 'line', groupId]
-        ).catch(() => {});
+        // บันทึก line_group_id (กลุ่มแจ้งเตือน) เฉพาะถ้า NOT fetch group
+        if (groupId !== fetchGroupId) {
+          await query(
+            `INSERT INTO settings (\`key\`,value,type,\`group\`) VALUES ('line_group_id',?,?,?)
+             ON DUPLICATE KEY UPDATE value=?`,
+            [groupId, 'string', 'line', groupId]
+          ).catch(() => {});
+        }
 
         // เก็บ webhook log ล่าสุด
         const logVal = JSON.stringify({
@@ -224,6 +232,12 @@ router.post('/', async (req, res) => {
         ).catch(() => {});
 
         console.log(`[LINE Webhook] event:${type} groupId:${groupId} userId:${userId || '-'}`);
+      }
+
+      // ── Lottery auto-fetch (กลุ่มแยก) ─────────────────────────────
+      if (groupId) {
+        await handleLotteryMessage(event, groupId, fetchGroupId).catch(e =>
+          console.warn('[LINE Fetch] handleLotteryMessage error:', e.message));
       }
 
       // ── Handle text message (bot commands) ───────────────────────────
@@ -272,3 +286,194 @@ router.get('/', (req, res) => {
 });
 
 module.exports = router;
+s verification (LINE ping test)
+router.get('/', (req, res) => res.json({ ok: true, service: 'LINE Webhook', ts: new Date().toISOString() }));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOTTERY AUTO-FETCH — บันทึกข้อความดิบ + parse ผลหวยจากกลุ่ม LINE แยก
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * บันทึกข้อความดิบลง line_messages
+ */
+async function saveRawMessage(event, groupId) {
+  try {
+    const msgId   = event.message?.id || '';
+    const text    = (event.message?.text || '').trim();
+    const senderId = event.source?.userId || '';
+    if (!msgId || !text) return;
+    await query(
+      `INSERT IGNORE INTO \`line_messages\` (msg_id, source_id, sender_id, message_text, received_at)
+       VALUES (?, ?, ?, ?, NOW())`,
+      [msgId, groupId, senderId, text]
+    );
+  } catch (e) {
+    console.warn('[LINE Fetch] saveRawMessage error:', e.message);
+  }
+}
+
+/**
+ * แปลง วันเดือนปี ภาษาไทย/พุทธศักราช → YYYY-MM-DD
+ */
+function extractThaiDate(text) {
+  const MONTHS = {
+    'มกราคม':1,'กุมภาพันธ์':2,'มีนาคม':3,'เมษายน':4,
+    'พฤษภาคม':5,'มิถุนายน':6,'กรกฎาคม':7,'สิงหาคม':8,
+    'กันยายน':9,'ตุลาคม':10,'พฤศจิกายน':11,'ธันวาคม':12,
+    'ม.ค.':1,'ก.พ.':2,'มี.ค.':3,'เม.ย.':4,'พ.ค.':5,'มิ.ย.':6,
+    'ก.ค.':7,'ส.ค.':8,'ก.ย.':9,'ต.ค.':10,'พ.ย.':11,'ธ.ค.':12,
+  };
+  // รูปแบบ: วันที่ DD/MM/YYYY หรือ DD เดือน YYYY(พ.ศ.)
+  const ddmmyyyy = text.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (ddmmyyyy) {
+    let [,d,m,y] = ddmmyyyy.map(Number);
+    if (y > 2400) y -= 543;
+    return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  }
+  for (const [mName, mNum] of Object.entries(MONTHS)) {
+    const re = new RegExp(`(\\d{1,2})\\s*${mName}\\s*(\\d{4})`);
+    const m = text.match(re);
+    if (m) {
+      let [,d,,y] = m; d = Number(d); y = Number(y);
+      if (y > 2400) y -= 543;
+      return `${y}-${String(mNum).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    }
+  }
+  // fallback → วันนี้
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * แปลงข้อความ LINE → { lotteryCode, drawDate, prizes }
+ * prizes = [ { prize_type, prize_value }, ... ]
+ *
+ * รองรับ: หวยรัฐบาล, หวยลาว, ฮานอย, ยี่กี
+ */
+function parseLotteryMessage(text) {
+  if (!text) return null;
+  const t = text.replace(/\r/g, '\n');
+
+  // ─── หวยรัฐบาลไทย ─────────────────────────────────────────────────────
+  if (/หวยรัฐบาล|ผลสลากกินแบ่ง|สลากออมสิน/i.test(t)) {
+    const p1st    = t.match(/รางวัลที่\s*1[:\s]+(\d{6})/);
+    const last3   = t.match(/เลขท้าย\s*3\s*ตัว[:\s]+([\d,\s]+)/);
+    const front3  = t.match(/เลขหน้า\s*3\s*ตัว[:\s]+([\d,\s]+)/);
+    const last2   = t.match(/เลขท้าย\s*2\s*ตัว[:\s]+(\d{2})/);
+    if (!p1st) return null;
+    const prizes = [{ prize_type:'1st', prize_value: p1st[1] }];
+    if (last2)  prizes.push({ prize_type:'last2',  prize_value: last2[1] });
+    if (last3)  prizes.push({ prize_type:'last3',  prize_value: last3[1].replace(/\s+/g,'') });
+    if (front3) prizes.push({ prize_type:'front3', prize_value: front3[1].replace(/\s+/g,'') });
+    return { lotteryCode:'TH_GOV', drawDate: extractThaiDate(t), prizes };
+  }
+
+  // ─── หวยลาวพัฒนา ──────────────────────────────────────────────────────
+  if (/หวยลาว|ลาวพัฒนา|ผลหวยลาว/i.test(t)) {
+    const m4 = t.match(/(\d{4})\s*\(4\s*ตัว\)/);
+    const m3 = t.match(/(\d{3})\s*\(3\s*ตัว\)/);
+    const m2 = t.match(/(\d{2})\s*\(2\s*ตัว\)/);
+    // หรือ format อื่น
+    const simple4 = t.match(/4\s*ตัว[:\s]+(\d{4})/);
+    const simple3 = t.match(/3\s*ตัว[:\s]+(\d{3})/);
+    const simple2 = t.match(/2\s*ตัว[:\s]+(\d{2})/);
+    const prize4 = (m4||simple4)?.[1];
+    const prize3 = (m3||simple3)?.[1];
+    const prize2 = (m2||simple2)?.[1];
+    if (!prize4 && !prize3) return null;
+    const prizes = [];
+    if (prize4) prizes.push({ prize_type:'1st', prize_value: prize4 });
+    if (prize3) prizes.push({ prize_type:'last3', prize_value: prize3 });
+    if (prize2) prizes.push({ prize_type:'last2', prize_value: prize2 });
+    return { lotteryCode:'LA_GOV', drawDate: extractThaiDate(t), prizes };
+  }
+
+  // ─── ฮานอย ────────────────────────────────────────────────────────────
+  if (/ฮานอย|hanoi|ผลหวยเวียดนาม/i.test(t)) {
+    const p1st = t.match(/(?:รางวัลที่\s*1|ตัวเต็ม|1st)[:\s]+(\d{4,5})/i);
+    const last3 = t.match(/3\s*ตัว[:\s]+(\d{3})/);
+    const last2 = t.match(/2\s*ตัว[:\s]+(\d{2})/);
+    if (!p1st) return null;
+    const prizes = [{ prize_type:'1st', prize_value: p1st[1] }];
+    if (last3) prizes.push({ prize_type:'last3', prize_value: last3[1] });
+    if (last2) prizes.push({ prize_type:'last2', prize_value: last2[1] });
+    return { lotteryCode:'VN_HAN', drawDate: extractThaiDate(t), prizes };
+  }
+
+  // ─── ยี่กี ────────────────────────────────────────────────────────────
+  if (/ยี่กี|ยี่กี้|yiki/i.test(t)) {
+    const p3 = t.match(/3\s*ตัวบน[:\s]+(\d{3})/);
+    const p2 = t.match(/2\s*ตัวบน[:\s]+(\d{2})/);
+    const p2b = t.match(/2\s*ตัวล่าง[:\s]+(\d{2})/);
+    if (!p3 && !p2) return null;
+    const prizes = [];
+    if (p3) prizes.push({ prize_type:'3top', prize_value: p3[1] });
+    if (p2) prizes.push({ prize_type:'2top', prize_value: p2[1] });
+    if (p2b) prizes.push({ prize_type:'2bot', prize_value: p2b[1] });
+    return { lotteryCode:'YK', drawDate: extractThaiDate(t), prizes };
+  }
+
+  return null;
+}
+
+/**
+ * บันทึกผลหวยที่ parse ได้ลง lottery_rounds + lottery_results
+ */
+async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
+  try {
+    // หา lottery_id
+    const [lt] = await query('SELECT id FROM `lottery_types` WHERE code=? LIMIT 1', [lotteryCode]);
+    if (!lt) return console.warn(`[LINE Fetch] lottery_type not found: ${lotteryCode}`);
+
+    const roundCode = `${lotteryCode}-${drawDate.replace(/-/g,'')}`;
+    const roundName = `งวด ${drawDate}`;
+
+    // upsert round
+    await query(`
+      INSERT INTO \`lottery_rounds\` (lottery_id, round_code, round_name, draw_date, status)
+      VALUES (?,?,?,?,'announced')
+      ON DUPLICATE KEY UPDATE status='announced', updated_at=NOW()
+    `, [lt.id, roundCode, roundName, drawDate]);
+
+    const [round] = await query('SELECT id FROM `lottery_rounds` WHERE round_code=? LIMIT 1', [roundCode]);
+    if (!round) return;
+
+    // map prize_type → column
+    const colMap = { '1st':'prize_1st', 'last2':'prize_last_2', 'last3':'prize_last_3', 'front3':'prize_front_3', '2top':'prize_1st', '3top':'prize_1st', '2bot':'prize_last_2' };
+    const updates = {};
+    for (const p of prizes) {
+      const col = colMap[p.prize_type];
+      if (col) updates[col] = p.prize_value;
+    }
+
+    if (Object.keys(updates).length) {
+      const setStr = Object.keys(updates).map(c => `\`${c}\`=?`).join(', ');
+      await query(
+        `INSERT INTO \`lottery_results\` (round_id, lottery_id, ${Object.keys(updates).map(c=>`\`${c}\``).join(',')})
+         VALUES (?,?,${Object.keys(updates).map(()=>'?').join(',')})
+         ON DUPLICATE KEY UPDATE ${setStr}, updated_at=NOW()`,
+        [round.id, lt.id, ...Object.values(updates), ...Object.values(updates)]
+      ).catch(() =>
+        query(`UPDATE \`lottery_rounds\` SET ${setStr}, status='announced' WHERE id=?`,
+          [...Object.values(updates), round.id])
+      );
+      console.log(`[LINE Fetch] ✅ saved ${lotteryCode} ${drawDate} prizes:`, updates);
+    }
+  } catch (e) {
+    console.warn('[LINE Fetch] saveLotteryResult error:', e.message);
+  }
+}
+
+/**
+ * ประมวลผลข้อความจากกลุ่ม fetch — บันทึกดิบ + parse ผล
+ * เรียกจาก event loop สำหรับทุก message event
+ */
+async function handleLotteryMessage(event, groupId, fetchGroupId) {
+  if (!fetchGroupId || groupId !== fetchGroupId) return; // ไม่ใช่กลุ่ม fetch → ข้าม
+  if (event.type !== 'message' || event.message?.type !== 'text') return;
+
+  await saveRawMessage(event, groupId);
+
+  const text = (event.message.text || '').trim();
+  const result = parseLotteryMessage(text);
+  if (result) {
+    console.log(`[LINE Fetch] detected ${result.lotteryC
