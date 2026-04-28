@@ -1163,27 +1163,6 @@ router.delete('/bank-accounts/:id', authAdmin, rbac.requirePerm('settings.manage
   res.json({ success: true, message: 'ลบบัญชีธนาคารแล้ว' });
 });
 
-// POST /api/admin/line-repair-table — สร้าง line_messages ถ้ายังไม่มี
-router.post('/line-repair-table', authAdmin, async (req, res) => {
-  try {
-    await query(`CREATE TABLE IF NOT EXISTS \`line_messages\` (
-      \`id\`           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-      \`msg_id\`       VARCHAR(50) NOT NULL,
-      \`source_id\`    VARCHAR(100) NOT NULL DEFAULT '',
-      \`sender_id\`    VARCHAR(50) NOT NULL DEFAULT '',
-      \`message_text\` TEXT NOT NULL,
-      \`parsed\`       TINYINT(1) NOT NULL DEFAULT 0,
-      \`received_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY \`uq_msg_id\` (\`msg_id\`),
-      INDEX \`idx_lm_received\` (\`received_at\`),
-      INDEX \`idx_lm_source\` (\`source_id\`)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
-    res.json({ success: true, message: 'line_messages table ready' });
-  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-module.exports = router;
-
 // ─────────────────────────────────────────────────────────────────────────────
 // ARTICLES — Blog CRUD
 // ─────────────────────────────────────────────────────────────────────────────
