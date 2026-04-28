@@ -347,16 +347,27 @@ function extractThaiDate(text) {
  * รองรับ: หวยรัฐบาล, หวยลาว, ฮานอย, ยี่กี
  */
 // แผนที่ code จากบอท → lottery_type.code ในระบบ
+// รองรับทุก code ที่บอทส่ง (2-3 ตัวอักษร)
 const BOT_CODE_MAP = {
-  'LA': 'LA_GOV',   // ลาวพัฒนา
-  'TH': 'TH_GOV',   // หวยรัฐบาลไทย
-  'HN': 'VN_HAN',   // ฮานอยปกติ
-  'VN': 'VN_HAN',   // เวียดนาม (alias)
-  'HS': 'VN_HAN_SP',// ฮานอยพิเศษ
+  // ไทย
+  'TH': 'TH_GOV',    // หวยรัฐบาลไทย
+  'THS': 'TH_STK',   // หวยหุ้นไทย
+  // จีน
+  'CN': 'CN_STK',    // หวยหุ้นจีน
+  // เวียดนาม / ฮานอย
+  'HN': 'VN_HAN',    // ฮานอยปกติ
+  'VN': 'VN_HAN',    // เวียดนาม (alias)
+  'HS': 'VN_HAN_SP', // ฮานอยพิเศษ
   'HV': 'VN_HAN_VIP',// ฮานอย VIP
-  'KR': 'KR_STK',   // เกาหลี (ถ้ามี type นี้)
-  'YK': 'YK',       // ยี่กี
-  'HD': 'HD',       // หวยดี
+  // ลาว
+  'LA': 'LA_GOV',    // หวยลาว
+  // มาเลย์
+  'MY': 'MY_STK',    // หวยมาเลย์
+  // สิงคโปร์
+  'SG': 'SG_STK',    // หวยสิงคโปร์
+  // ยี่กี
+  'YK': 'YEEKEE',    // หวยยี่กี
+  'YG': 'YEEKEE',    // alias
 };
 
 /**
@@ -375,9 +386,9 @@ function parseLotteryMessage(text) {
   const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const results = [];
 
-  // แยกข้อความเป็น block ด้วย header pattern:  ^XX ... XX$
-  // header: บรรทัดที่ขึ้นต้นด้วย code 2 ตัวอักษร + ชื่อ + code เดิมซ้ำท้ายบรรทัด (hd optional)
-  const headerRe = /^([A-Z]{2})\s+\S[^\n]*\1\s*$/gim;
+  // header: บรรทัดที่ขึ้นต้นด้วย code 2-3 ตัวอักษร + ชื่อ + code เดิมซ้ำท้ายบรรทัด
+  // รองรับ: "SG สิงคโปร์พิเศษ SG" / "LA หวยลาว LA" / "TH รัฐบาลไทย TH"
+  const headerRe = /^([A-Z]{2,3})\s+\S[^\n]*\1\s*$/gim;
   const headerMatches = [];
   let hm;
   while ((hm = headerRe.exec(t)) !== null) {
@@ -394,29 +405,41 @@ function parseLotteryMessage(text) {
 
     // หา drawDate จาก block
     const drawDate = extractThaiDate(block);
+    if (!drawDate) continue; // ไม่มีวันที่ → ข้าม
 
-    // หา ↑ (บน) และ ↓ (ล่าง)
+    // หาตัวเลข บน/ล่าง
+    // รองรับทั้ง: ↑ 451 | ⬆ 451 | ⬆️ 451 | บน 451
+    //            ↓ 24  | ⬇ 24  | ⬇️ 24  | ล่าง 24
     let top = null;
     let bot = null;
     for (const line of lines) {
+      // บน: ลูกศรขึ้น (unicode arrow / emoji) หรือคำว่า "บน"
       if (!top) {
-        const mTop = line.match(/↑\s*(\d+)/);
-        if (mTop) top = mTop[1];
+        const mTop = line.match(/(?:[↑⬆]\uFE0F?|บน)[\s:]*([\d]+)/u);
+        if (mTop) { top = mTop[1]; continue; }
       }
+      // ล่าง: ลูกศรลง (unicode arrow / emoji) หรือคำว่า "ล่าง"
       if (!bot) {
-        const mBot = line.match(/↓\s*(\d+)/);
-        if (mBot) bot = mBot[1];
+        const mBot = line.match(/(?:[↓⬇]\uFE0F?|ล่าง)[\s:]*([\d]+)/u);
+        if (mBot) { bot = mBot[1]; continue; }
       }
     }
 
     if (!top && !bot) continue; // ไม่มีผล → ข้าม
 
-    const lotteryCode = BOT_CODE_MAP[code] || code;
+    // map code → lottery_type.code
+    const lotteryCode = BOT_CODE_MAP[code] || null;
+    if (!lotteryCode) {
+      console.warn(\`[LINE Parser] unknown bot code: \${code} — ข้ามไป\`);
+      continue;
+    }
+
     const prizes = [];
     if (top) prizes.push({ prize_type: top.length >= 3 ? '3top' : '2top', prize_value: top });
     if (bot) prizes.push({ prize_type: '2bot', prize_value: bot });
 
     results.push({ lotteryCode, drawDate, prizes });
+    console.log(\`[LINE Parser] ✅ \${lotteryCode} \${drawDate} top=\${top||'-'} bot=\${bot||'-'}\`);
   }
 
   return results;
