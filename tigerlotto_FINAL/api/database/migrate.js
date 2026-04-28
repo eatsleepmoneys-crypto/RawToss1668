@@ -746,6 +746,10 @@ const SEEDS = [
    WHERE s1.lottery_code = s2.lottery_code
      AND s1.name = s2.name
      AND s1.id > s2.id`,
+
+  // ─── Superadmin seed (demo credentials: superadmin@tigerlotto.com / Admin@1234) ───
+  `INSERT IGNORE INTO \`admins\` (uuid, name, email, password, role, is_active) 
+   VALUES ('00000000-0000-0000-0000-000000000001', 'Super Admin', 'superadmin@tigerlotto.com', '$2a$12$ATXuQ0jInT10X/8zK8H6IeXp3J4U8yjEIRfkgRmFecLMAMa8ehp0C', 'superadmin', 1)`,
 ];
 
 // ─── Main migration function ─────────────────────────────────────────────────

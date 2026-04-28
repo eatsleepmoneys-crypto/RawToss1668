@@ -554,6 +554,21 @@ v1.get('/admin/reports/monthly', auth, adminOnly, async (req,res) => {
   res.json({ year,month, revenue:revenue.t||0, payout:payout.t||0, profit:(revenue.t||0)-(payout.t||0), new_members:members.c, total_bets:bets.t||0 });
 });
 
+// ─── New API Routes (routes/ directory) ─────────────────────────────────────
+app.use('/api/auth',          require('./routes/auth'));
+app.use('/api/lottery',       require('./routes/lottery'));
+app.use('/api/admin',         require('./routes/admin'));
+app.use('/api/agents',        require('./routes/agent'));
+app.use('/api/bets',          require('./routes/bets'));
+app.use('/api/transactions',  require('./routes/transactions'));
+app.use('/api/members',       require('./routes/members'));
+app.use('/api/settings',      require('./routes/settings'));
+app.use('/api/promotions',    require('./routes/promotions'));
+app.use('/api/articles',      require('./routes/articles'));
+app.use('/api/number-limits', require('./routes/numberLimits'));
+app.use('/api/webhooks/line', require('./routes/lineWebhook'));
+// ─────────────────────────────────────────────────────────────────────────────
+
 app.use('/api/v1', v1);
 
 /* HEALTH */
