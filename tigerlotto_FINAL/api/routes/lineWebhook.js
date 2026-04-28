@@ -430,7 +430,7 @@ function parseLotteryMessage(text) {
     // map code → lottery_type.code
     const lotteryCode = BOT_CODE_MAP[code] || null;
     if (!lotteryCode) {
-      console.warn(\`[LINE Parser] unknown bot code: \${code} — ข้ามไป\`);
+      console.warn('[LINE Parser] unknown bot code: ' + code + ' — ข้ามไป');
       continue;
     }
 
@@ -439,7 +439,7 @@ function parseLotteryMessage(text) {
     if (bot) prizes.push({ prize_type: '2bot', prize_value: bot });
 
     results.push({ lotteryCode, drawDate, prizes });
-    console.log(\`[LINE Parser] ✅ \${lotteryCode} \${drawDate} top=\${top||'-'} bot=\${bot||'-'}\`);
+    console.log('[LINE Parser] ✅', lotteryCode, drawDate, 'top=' + (top||'-'), 'bot=' + (bot||'-'));
   }
 
   return results;
