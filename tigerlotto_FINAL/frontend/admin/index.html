@@ -276,15 +276,14 @@ select.fi option{background:var(--card2)}
     <div class="sb-item" onclick="nav('hotnumbers')"><span class="ic">🔥</span>ตัวเลขฮอต</div>
     <div class="sb-item" onclick="nav('referral')"><span class="ic">🔗</span>ระบบแนะนำ</div>
 
+    <div class="sb-sec">LINE</div>
+    <div class="sb-item" onclick="nav('line-fetch')"><span class="ic">🤖</span>LINE Auto-Fetch</div>
     <div class="sb-sec">ระบบ</div>
     <div class="sb-item" onclick="nav('api')"><span class="ic">🔌</span>API Settings</div>
     <div class="sb-item" onclick="nav('reports')"><span class="ic">📈</span>รายงาน</div>
     <div class="sb-item" onclick="nav('branding')"><span class="ic">🎨</span>ตั้งค่าหน้าเว็บ</div>
     <div class="sb-item" onclick="nav('settings')"><span class="ic">⚙️</span>ตั้งค่าระบบ</div>
     <div class="sb-item" onclick="nav('logs')"><span class="ic">📝</span>Activity Logs</div>
-
-    <div class="sb-sec">LINE</div>
-    <div class="sb-item" onclick="nav('line-fetch')"><span class="ic">🤖</span>LINE Auto-Fetch</div>
   </nav>
   <div class="sb-bottom">
     <div class="sb-user">
@@ -886,16 +885,6 @@ function renderDepositsRows(rows) {
 function clearDepDates(){ const f=document.getElementById('dep-date-from'),t=document.getElementById('dep-date-to'); if(f)f.value=''; if(t)t.value=''; loadDeposits(); }
 
 async function loadDeposits(){
-  // Default วันนี้ถ้ายังไม่ได้กรอก
-  const _ddf = document.getElementById('dep-date-from');
-  const _ddt = document.getElementById('dep-date-to');
-  if(_ddf && !_ddf.value && _ddt && !_ddt.value){
-    const _tnow = new Date();
-    const _tpad = n => String(n).padStart(2,'0');
-    const _tfmt = d => `${d.getFullYear()}-${_tpad(d.getMonth()+1)}-${_tpad(d.getDate())}`;
-    _ddf.value = _tfmt(_tnow);
-    _ddt.value = _tfmt(_tnow);
-  }
   const status    = document.getElementById('dep-status-sel')?.value ?? 'pending';
   const search    = document.getElementById('dep-search')?.value?.trim() || '';
   const dateFrom  = document.getElementById('dep-date-from')?.value || '';
@@ -959,16 +948,6 @@ function renderWithdrawalsRows(rows) {
 function clearWdDates(){ const f=document.getElementById('wd-date-from'),t=document.getElementById('wd-date-to'); if(f)f.value=''; if(t)t.value=''; loadWithdrawals(); }
 
 async function loadWithdrawals(){
-  // Default วันนี้ถ้ายังไม่ได้กรอก
-  const _wdf = document.getElementById('wd-date-from');
-  const _wdt = document.getElementById('wd-date-to');
-  if(_wdf && !_wdf.value && _wdt && !_wdt.value){
-    const _tnow = new Date();
-    const _tpad = n => String(n).padStart(2,'0');
-    const _tfmt = d => `${d.getFullYear()}-${_tpad(d.getMonth()+1)}-${_tpad(d.getDate())}`;
-    _wdf.value = _tfmt(_tnow);
-    _wdt.value = _tfmt(_tnow);
-  }
   const status   = document.getElementById('wd-status-sel')?.value ?? 'pending';
   const search   = document.getElementById('wd-search')?.value?.trim() || '';
   const dateFrom = document.getElementById('wd-date-from')?.value || '';
@@ -1140,7 +1119,7 @@ function rejectAgentWithdrawal(id){
 let _betsPage = 1;
 let _betsTimer = null;
 
-let _betsViewMode = 'bill'; // 'list' | 'bill'
+let _betsViewMode = 'list'; // 'list' | 'bill'
 
 function setBetsView(mode){
   _betsViewMode = mode;
@@ -1190,8 +1169,8 @@ function renderBillView(rows){
   // Group by member_id + round_id
   const groups = {};
   rows.forEach(b => {
-    const key = `${b.bill_no||b.member_name||'-'}__${b.round_name||'-'}__${b.lottery_name||'-'}`;
-    if(!groups[key]) groups[key] = { bill_no:b.bill_no, member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, created_at:b.created_at, bets:[], total:0 };
+    const key = `${b.member_name||'-'}__${b.round_name||'-'}__${b.lottery_name||'-'}`;
+    if(!groups[key]) groups[key] = { member_name:b.member_name, phone:b.phone, round_name:b.round_name, lottery_name:b.lottery_name, lottery_flag:b.lottery_flag, bets:[], total:0 };
     groups[key].bets.push(b);
     groups[key].total += parseFloat(b.amount||0);
   });
@@ -1235,10 +1214,6 @@ function renderBillView(rows){
           <div style="font-size:12px">${g.round_name||'-'}</div>
         </div>
         <div style="text-align:right;margin-right:8px">
-          <div style="font-size:11px;font-weight:700;color:var(--gold2)">${g.bill_no||'-'}</div>
-          <div style="font-size:10px;color:var(--muted)">${g.created_at?UI.formatDate(g.created_at):'-'}</div>
-        </div>
-        <div style="text-align:right;margin-right:8px">
           <div style="font-size:11px;color:var(--muted)">${g.bets.length} รายการ</div>
           <div style="font-weight:700;color:var(--gold2)">฿${g.total.toLocaleString('th-TH',{minimumFractionDigits:2})}</div>
         </div>
@@ -1278,16 +1253,6 @@ function betStatusLabel(s){
 }
 
 async function loadBets(page){
-  // Default วันนี้ถ้ายังไม่ได้กรอก
-  const _bdf = document.getElementById('bets-date-from');
-  const _bdt = document.getElementById('bets-date-to');
-  if(_bdf && !_bdf.value && _bdt && !_bdt.value){
-    const _tnow = new Date();
-    const _tpad = n => String(n).padStart(2,'0');
-    const _tfmt = d => `${d.getFullYear()}-${_tpad(d.getMonth()+1)}-${_tpad(d.getDate())}`;
-    _bdf.value = _tfmt(_tnow);
-    _bdt.value = _tfmt(_tnow);
-  }
   if(page !== undefined) _betsPage = page;
   const tbody  = document.getElementById('bets-tbody');
   const sumEl  = document.getElementById('bets-summary');
@@ -1343,10 +1308,7 @@ async function loadBets(page){
       } else {
         tbody.innerHTML = rows.map(b => `
           <tr>
-            <td>
-              <div style="font-size:11px;font-weight:700;color:var(--gold2);letter-spacing:.5px">${b.bill_no||'-'}</div>
-              <div style="font-size:10px;color:var(--muted)">#${b.id}</div>
-            </td>
+            <td style="font-size:11px;color:var(--muted)">${b.id}</td>
             <td>
               <div style="font-weight:600">${b.member_name||'-'}</div>
               <div style="font-size:11px;color:var(--muted)">${b.phone||''}</div>
@@ -2099,8 +2061,10 @@ async function loadHotNumbers(silent = false){
     const now = new Date();
     const pad = n=>String(n).padStart(2,'0');
     const fmt = d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-    dfEl.value = fmt(now);
-    dtEl.value = fmt(now);
+    const past = new Date(now); past.setDate(past.getDate()-30);
+    const future = new Date(now); future.setDate(future.getDate()+90);
+    dfEl.value = fmt(past);
+    dtEl.value = fmt(future);
   }
   const round_id  = roundSel?.value || '';
   const limit     = document.getElementById('hn-limit')?.value || 50;
@@ -4840,7 +4804,7 @@ agentwithdrawals:()=>`
 bets:()=>`
 <div class="filter-bar" style="flex-wrap:wrap;gap:8px">
   <input class="fi" id="bets-search" placeholder="🔍 ค้นหาชื่อสมาชิก เบอร์โทร เลขที่แทง..." style="flex:1;min-width:180px"
-    oninput="debounceBetsSearch()" onkeydown="if(event.key==='Enter')loadBets(1)" placeholder="🔍 ชื่อ / เบอร์ / เลขที่แทง / เลขบิล BL-...">
+    oninput="debounceBetsSearch()" onkeydown="if(event.key==='Enter')loadBets(1)">
   <select class="fi fi-sm" id="bets-lottery-sel" onchange="loadBets(1)">
     <option value="">🎰 ทุกประเภทหวย</option>
   </select>
@@ -4864,8 +4828,8 @@ bets:()=>`
   <input type="date" class="fi fi-sm" id="bets-date-to"   onchange="loadBets(1)" title="วันที่สิ้นสุด">
   <button class="btn btn-outline btn-xs" onclick="clearBetsDates()" title="ล้างวันที่">✕ ล้างวัน</button>
   <div style="display:flex;gap:4px;background:var(--card2);border-radius:8px;padding:2px">
-    <button id="bets-view-list" class="btn btn-xs"    onclick="setBetsView('list')" style="padding:4px 10px;font-size:12px">📋 รายการ</button>
-    <button id="bets-view-bill" class="btn btn-xs on" onclick="setBetsView('bill')" style="padding:4px 10px;font-size:12px">🧾 บิล</button>
+    <button id="bets-view-list" class="btn btn-xs on" onclick="setBetsView('list')" style="padding:4px 10px;font-size:12px">📋 รายการ</button>
+    <button id="bets-view-bill" class="btn btn-xs"    onclick="setBetsView('bill')" style="padding:4px 10px;font-size:12px">🧾 บิล</button>
   </div>
   <button class="btn btn-outline" onclick="loadBets(1)">🔄 รีเฟรช</button>
 </div>
@@ -4874,12 +4838,12 @@ bets:()=>`
     <div id="bets-summary" style="font-size:13px;color:var(--muted)">⏳ กำลังโหลด...</div>
     <div id="bets-pager" style="display:flex;gap:6px"></div>
   </div>
-  <div id="bets-list-view" style="display:none">
+  <div id="bets-list-view">
     <div class="tbl-wrap">
       <table class="tbl">
         <thead>
           <tr>
-            <th>เลขบิล</th>
+            <th>#</th>
             <th>สมาชิก</th>
             <th>หวย</th>
             <th>งวด</th>
@@ -4898,7 +4862,7 @@ bets:()=>`
       </table>
     </div>
   </div>
-  <div id="bets-bill-view" style="display:block">
+  <div id="bets-bill-view" style="display:none">
     <div id="bets-bills-container">
       <div style="text-align:center;color:var(--muted);padding:30px">⏳ กำลังโหลด...</div>
     </div>
@@ -6542,135 +6506,6 @@ async function deleteMemberLevel(id, name){
   } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
 
-// ═══ LINE AUTO-FETCH ═══
-PAGES['line-fetch'] = () => `
-<div style="max-width:860px">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-    <div>
-      <h3 style="margin:0;font-size:16px">🤖 LINE Auto-Fetch — ดึงผลหวยจากกลุ่ม LINE</h3>
-      <p style="margin:4px 0 0;font-size:12px;color:#888">Bot จะบันทึกและ parse ข้อความจากกลุ่มที่ตั้งไว้โดยอัตโนมัติ</p>
-    </div>
-    <button class="btn-g" onclick="loadLineFetch()">🔄 รีเฟรช</button>
-  </div>
-
-  <!-- Settings card -->
-  <div class="card card-gold" style="margin-bottom:18px;padding:18px">
-    <h4 style="margin:0 0 14px;font-size:14px">⚙️ ตั้งค่ากลุ่ม LINE</h4>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-      <div class="fg">
-        <label style="font-size:12px;color:var(--muted)">กลุ่มแจ้งเตือน ฝาก/ถอน (line_group_id)</label>
-        <input id="lf-notif-gid" class="fi-full" readonly style="background:var(--card3);font-size:11px;font-family:monospace" placeholder="ยังไม่มีกลุ่มเชื่อมต่อ">
-      </div>
-      <div class="fg">
-        <label style="font-size:12px;color:var(--muted)">กลุ่ม Fetch ผลหวย (line_fetch_group_id) <span style="color:var(--red)">*แยกกัน</span></label>
-        <div style="display:flex;gap:8px">
-          <input id="lf-fetch-gid" class="fi-full" style="font-size:11px;font-family:monospace" placeholder="C... หรือ R...">
-          <button class="btn-g" style="white-space:nowrap" onclick="saveFetchGroupId()">บันทึก</button>
-        </div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div class="fg">
-        <label style="font-size:12px;color:var(--muted)">Webhook URL (copy ไปใส่ LINE Console)</label>
-        <div style="display:flex;gap:8px">
-          <input id="lf-webhook-url" class="fi-full" readonly style="font-size:11px;font-family:monospace" value="${location.origin}/api/webhooks/line">
-          <button class="btn-g" onclick="navigator.clipboard.writeText(document.getElementById('lf-webhook-url').value).then(()=>toast('คัดลอกแล้ว',''))">Copy</button>
-        </div>
-      </div>
-      <div class="fg">
-        <label style="font-size:12px;color:var(--muted)">สถานะ Webhook</label>
-        <div id="lf-status" style="padding:9px 12px;border-radius:8px;background:var(--card3);font-size:12px;color:var(--muted)">⏳ กำลังตรวจสอบ...</div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Message log -->
-  <div class="card" style="padding:18px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-      <h4 style="margin:0;font-size:14px">📨 ข้อความล่าสุดจากกลุ่ม Fetch</h4>
-      <div style="display:flex;gap:8px;align-items:center">
-        <select id="lf-filter" class="fi" style="font-size:12px;padding:6px 10px" onchange="loadLineFetch()">
-          <option value="">ทั้งหมด</option>
-          <option value="0">ยังไม่ parse</option>
-          <option value="1">parse แล้ว</option>
-        </select>
-      </div>
-    </div>
-    <div id="lf-msg-table">⏳ กำลังโหลด...</div>
-  </div>
-</div>`;
-
-async function loadLineFetch() {
-  // Load settings
-  try {
-    const r = await fetch('/api/admin/line-fetch-settings', {
-      headers: { 'Authorization': 'Bearer ' + Token.getAdmin() }
-    });
-    const d = await r.json();
-    if (d.success) {
-      const el = id => document.getElementById(id);
-      if (el('lf-notif-gid')) el('lf-notif-gid').value = d.data.line_group_id || '';
-      if (el('lf-fetch-gid')) el('lf-fetch-gid').value = d.data.line_fetch_group_id || '';
-      // status from webhook log
-      const log = (() => { try { return JSON.parse(d.data.line_webhook_log || '{}'); } catch { return {}; } })();
-      const statusEl = el('lf-status');
-      if (statusEl) {
-        if (log.at) {
-          const dt = new Date(log.at);
-          statusEl.style.color = 'var(--green)';
-          statusEl.textContent = '✅ ออนไลน์ — รับล่าสุด ' + dt.toLocaleString('th-TH');
-        } else {
-          statusEl.style.color = 'var(--muted)';
-          statusEl.textContent = '⚠️ ยังไม่มี event เข้ามา';
-        }
-      }
-    }
-  } catch(e) { console.warn('loadLineFetch settings error', e); }
-
-  // Load messages
-  const filter = document.getElementById('lf-filter')?.value ?? '';
-  const url = '/api/admin/line-messages?limit=50' + (filter !== '' ? '&parsed=' + filter : '');
-  try {
-    const r = await fetch(url, { headers: { 'Authorization': 'Bearer ' + Token.getAdmin() } });
-    const d = await r.json();
-    const el = document.getElementById('lf-msg-table');
-    if (!el) return;
-    if (!d.success || !d.data.length) {
-      el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">ยังไม่มีข้อความ — เพิ่ม Bot ลงกลุ่มแล้วรอรับข้อความ</div>';
-      return;
-    }
-    el.innerHTML = `<table class="tbl"><thead><tr>
-      <th style="width:140px">เวลา</th>
-      <th style="width:90px">สถานะ</th>
-      <th style="width:120px">GroupID</th>
-      <th>ข้อความ</th>
-    </tr></thead><tbody>${d.data.map(m => `<tr>
-      <td style="font-size:11px;color:var(--muted)">${new Date(m.received_at).toLocaleString('th-TH')}</td>
-      <td><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${m.parsed?'rgba(46,213,115,.15)':'rgba(255,71,87,.1)'};color:${m.parsed?'var(--green)':'var(--red)'}">${m.parsed?'✅ parse แล้ว':'⏳ รอ parse'}</span></td>
-      <td style="font-size:10px;color:var(--muted);word-break:break-all">${m.source_id||'-'}</td>
-      <td style="font-size:12px;white-space:pre-wrap;max-width:400px;overflow:hidden">${(m.message_text||'').replace(/</g,'&lt;').slice(0,300)}</td>
-    </tr>`).join('')}</tbody></table>
-    <div style="margin-top:8px;font-size:11px;color:var(--muted)">แสดง ${d.data.length} จาก ${d.total} รายการ</div>`;
-  } catch(e) {
-    const el = document.getElementById('lf-msg-table');
-    if (el) el.innerHTML = '<div style="color:var(--red);padding:12px">โหลดไม่สำเร็จ: ' + e.message + '</div>';
-  }
-}
-
-async function saveFetchGroupId() {
-  const val = document.getElementById('lf-fetch-gid')?.value?.trim() || '';
-  try {
-    const r = await fetch('/api/admin/line-fetch-settings', {
-      method: 'PATCH',
-      headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + Token.getAdmin() },
-      body: JSON.stringify({ line_fetch_group_id: val })
-    });
-    const d = await r.json();
-    if (d.success) toast('บันทึกแล้ว', 'ตั้งค่ากลุ่ม Fetch เรียบร้อย');
-    else toast('ผิดพลาด', d.message, 'error');
-  } catch(e) { toast('ผิดพลาด', e.message, 'error'); }
-}
-
 // ═══ BANK ACCOUNTS ═══
 const BANK_NAMES = {
   'SCB':'ไทยพาณิชย์','KBANK':'กสิกรไทย','BBL':'กรุงเทพ','KTB':'กรุงไทย',
@@ -7226,4 +7061,206 @@ function editLotteryType(id){
       <div class="fg"><label>3 โต๊ด</label><input id="elt-r3tod" class="fi-full" type="number" step="0.5" value="${l.rate_3tod||0}"></div>
       <div class="fg"><label>2 บน</label><input id="elt-r2top" class="fi-full" type="number" step="0.5" value="${l.rate_2top||0}"></div>
       <div class="fg"><label>2 ล่าง</label><input id="elt-r2bot" class="fi-full" type="number" step="0.5" value="${l.rate_2bot||0}"></div>
-      <div class="fg"><label>วิ่งบน</label><input id="elt-rrtop" class="fi-full" type="number" step="0.1" value
+      <div class="fg"><label>วิ่งบน</label><input id="elt-rrtop" class="fi-full" type="number" step="0.1" value="${l.rate_run_top||0}"></div>
+      <div class="fg"><label>วิ่งล่าง</label><input id="elt-rrbot" class="fi-full" type="number" step="0.1" value="${l.rate_run_bot||0}"></div>
+      <div class="fg"><label>แทงต่ำสุด (฿)</label><input id="elt-minbet" class="fi-full" type="number" value="${l.min_bet||1}"></div>
+      <div class="fg"><label>แทงสูงสุด (฿)</label><input id="elt-maxbet" class="fi-full" type="number" value="${l.max_bet||5000}"></div>
+    </div>
+    <div class="fg" style="display:flex;align-items:center;gap:10px">
+      <label>สถานะ</label>
+      <select id="elt-status" class="fi" style="width:auto">
+        <option value="open" ${l.status==='open'?'selected':''}>เปิด</option>
+        <option value="closed" ${l.status==='closed'?'selected':''}>ปิด</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitEditLotteryType(${id})">💾 บันทึก</button>
+    </div>`);
+}
+async function submitEditLotteryType(id){
+  const payload = {
+    name       : document.getElementById('elt-name')?.value?.trim(),
+    status     : document.getElementById('elt-status')?.value,
+    rate_3top  : parseFloat(document.getElementById('elt-r3top')?.value)||0,
+    rate_3tod  : parseFloat(document.getElementById('elt-r3tod')?.value)||0,
+    rate_2top  : parseFloat(document.getElementById('elt-r2top')?.value)||0,
+    rate_2bot  : parseFloat(document.getElementById('elt-r2bot')?.value)||0,
+    rate_run_top: parseFloat(document.getElementById('elt-rrtop')?.value)||0,
+    rate_run_bot: parseFloat(document.getElementById('elt-rrbot')?.value)||0,
+    min_bet    : parseFloat(document.getElementById('elt-minbet')?.value)||1,
+    max_bet    : parseFloat(document.getElementById('elt-maxbet')?.value)||5000,
+  };
+  if(!payload.name){ toast('ผิดพลาด','กรุณากรอกชื่อหวย','error'); return; }
+  try{
+    await API.AdminAPI.updateLotteryType(id, payload);
+    // update local cache
+    const idx = _allLotteryTypes.findIndex(l=>l.id===id);
+    if(idx>-1) Object.assign(_allLotteryTypes[idx], payload);
+    closeModal();
+    renderLotteryTypes(_allLotteryTypes);
+    toast('สำเร็จ',`บันทึกอัตราจ่าย ${payload.name} แล้ว`);
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+
+/* ── Seed Historical Rounds ── */
+async function seedHistoryRounds(btn) {
+  if (!confirm('เพิ่มงวดย้อนหลัง 1 งวดต่อประเภทหวย (TH_GOV, LA_GOV, VN_HAN, TH_STK, CN_STK, MY_STK, SG_STK)\nรันซ้ำได้ไม่มีผลข้างเคียง (ข้ามงวดที่มีอยู่แล้ว)\n\nดำเนินการต่อ?')) return;
+  UI.loading(btn, true);
+  try {
+    const d = await API.AdminAPI.seedHistory();
+    const lines = (d.results || []).map(r => {
+      const icon = r.status === 'ok' ? '✅' : r.status === 'skip' ? '⏩' : '❌';
+      return `${icon} ${codeFlag(r.code)} ${r.status === 'ok' ? r.round_name + ' ('+r.prize_1st+')' : (r.reason||r.status)}`;
+    }).join('\n');
+    toast(d.success ? 'สำเร็จ' : 'มีข้อผิดพลาด', d.message, d.success ? 'success' : 'warning', 6000);
+    alert('ผลลัพธ์:\n\n' + lines);
+    loadRounds();
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+  } finally {
+    UI.loading(btn, false);
+  }
+}
+
+/* ── Open Add Round Modal ── */
+async function openAddRound(){
+  // Load latest types for dropdown
+  let types = _allLotteryTypes;
+  if(!types.length){
+    try{ const d = await API.AdminAPI.getLotteryTypes(); types = d.data||[]; }
+    catch(e){ toast('ผิดพลาด','โหลดประเภทหวยไม่ได้: '+e.message,'error'); return; }
+  }
+  const opts = types.map(l=>`<option value="${l.id}">${l.flag||''} ${l.name}</option>`).join('');
+  // Default date = tomorrow
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
+  const defDate = tomorrow.toISOString().slice(0,10);
+  openModal(`
+    <h3>📅 เปิดงวดใหม่</h3>
+    <div class="fg"><label>ประเภทหวย</label>
+      <select id="ar-lottery" class="fi-full">${opts}</select>
+    </div>
+    <div class="fg"><label>วันที่งวด (วันออกผล)</label>
+      <input id="ar-draw-date" class="fi-full" type="date" value="${defDate}">
+    </div>
+    <div class="fg"><label>วันที่ปิดรับ</label>
+      <input id="ar-close-date" class="fi-full" type="date" value="${defDate}">
+    </div>
+    <div class="fg"><label>เวลาปิดรับ</label>
+      <input id="ar-close-time" class="fi-full" type="time" value="13:00">
+    </div>
+    <div class="fg"><label>ชื่องวด (ไม่บังคับ)</label>
+      <input id="ar-name" class="fi-full" placeholder="เช่น งวด 16/04/68">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-gold" onclick="submitAddRound()">📅 เปิดงวด</button>
+    </div>`);
+}
+async function submitAddRound(){
+  const lottery_id  = document.getElementById('ar-lottery')?.value;
+  const draw_date   = document.getElementById('ar-draw-date')?.value;
+  const close_date  = document.getElementById('ar-close-date')?.value;
+  const close_time  = document.getElementById('ar-close-time')?.value || '13:00';
+  const round_name  = document.getElementById('ar-name')?.value?.trim();
+  if(!lottery_id||!draw_date||!close_date){
+    toast('ผิดพลาด','กรุณากรอกข้อมูลให้ครบ','error'); return;
+  }
+  const close_at = `${close_date} ${close_time}:00`;
+  try{
+    await API.AdminAPI.createRound({ lottery_id:parseInt(lottery_id), draw_date, close_at, round_name:round_name||draw_date });
+    closeModal();
+    toast('สำเร็จ','เปิดงวดใหม่สำเร็จ');
+    loadRounds();
+  }catch(e){ toast('ผิดพลาด', e.message,'error'); }
+}
+
+function setTab(el,id){
+  // Find the tab-bar containing the clicked button
+  const bar=el.closest('.tab-bar');
+  if(!bar){return;}
+  // Collect all tab IDs referenced by this tab-bar's buttons
+  const tabIds=[];
+  bar.querySelectorAll('.tab-btn').forEach(btn=>{
+    const m=(btn.getAttribute('onclick')||'').match(/setTab\(this,'([^']+)'\)/);
+    if(m)tabIds.push(m[1]);
+  });
+  // Update active state on buttons in this bar only
+  bar.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('on'));
+  el.classList.add('on');
+  // Show/hide only the tabs belonging to this bar
+  tabIds.forEach(tid=>{
+    const t=document.getElementById(tid);
+    if(t)t.style.display=tid===id?'block':'none';
+  });
+}
+// ── LINE Auto-Fetch ────────────────────────────────────────────────────────
+const PAGES = PAGES || {};
+PAGES['line-fetch'] = `
+<div class="page-card">
+  <div class="card-header"><span>🤖 LINE Auto-Fetch — ตั้งค่ากลุ่มดึงผลหวย</span></div>
+  <div class="card-body">
+    <div class="alert alert-gold">กำหนดกลุ่ม LINE ที่บอทประกาศผลหวย — ระบบจะบันทึกและ parse ผลอัตโนมัติ</div>
+    <div class="fg">
+      <label>Line Fetch Group ID <span style="color:var(--muted);font-size:12px">(Group ID ของกลุ่มที่บอทส่งผล)</span></label>
+      <div style="display:flex;gap:8px">
+        <input id="lf-group-id" class="fi-full" placeholder="C1234567890abcdef...">
+        <button class="btn btn-primary" onclick="saveFetchGroupId()">บันทึก</button>
+      </div>
+    </div>
+    <div class="fg" style="margin-top:16px">
+      <label>Webhook URL (สำหรับ LINE Developers Console)</label>
+      <input class="fi-full" readonly value="${window.location.origin}/api/webhooks/line" onclick="this.select()">
+    </div>
+  </div>
+</div>
+<div class="page-card" style="margin-top:16px">
+  <div class="card-header"><span>📨 ข้อความที่รับล่าสุด</span></div>
+  <div class="card-body">
+    <table class="tbl" id="lf-msg-table">
+      <thead><tr><th>เวลา</th><th>Group</th><th>ข้อความ</th><th>parsed</th></tr></thead>
+      <tbody id="lf-msg-body"><tr><td colspan="4" style="text-align:center">กำลังโหลด...</td></tr></tbody>
+    </table>
+  </div>
+</div>`;
+
+async function loadLineFetch() {
+  try {
+    // Load current fetch group setting
+    const s = await api('/admin/line-fetch-settings');
+    if (s && s.fetchGroupId !== undefined) {
+      document.getElementById('lf-group-id').value = s.fetchGroupId || '';
+    }
+    // Load recent messages
+    const m = await api('/admin/line-messages?limit=30');
+    const msgs = m?.messages || m?.data || [];
+    const tbody = document.getElementById('lf-msg-body');
+    if (!msgs.length) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">ยังไม่มีข้อความ</td></tr>';
+      return;
+    }
+    tbody.innerHTML = msgs.map(r => `
+      <tr>
+        <td style="white-space:nowrap;font-size:12px">${r.received_at ? new Date(r.received_at).toLocaleString('th-TH') : '-'}</td>
+        <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.source_id || '-'}</td>
+        <td style="font-size:12px;max-width:300px;white-space:pre-wrap">${(r.message_text||'').substring(0,200)}</td>
+        <td>${r.parsed ? '<span class="badge badge-green">✅</span>' : '<span class="badge badge-gray">-</span>'}</td>
+      </tr>`).join('');
+  } catch(e) {
+    console.warn('loadLineFetch error:', e.message);
+  }
+}
+
+async function saveFetchGroupId() {
+  const groupId = (document.getElementById('lf-group-id')?.value || '').trim();
+  try {
+    await api('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ fetchGroupId: groupId }) });
+    toast('สำเร็จ', 'บันทึก Line Fetch Group ID แล้ว');
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+  }
+}
+
+</script>
+</body>
+</html>
