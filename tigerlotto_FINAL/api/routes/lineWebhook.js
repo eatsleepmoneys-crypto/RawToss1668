@@ -285,9 +285,6 @@ router.get('/', (req, res) => {
   res.json({ ok: true, service: 'TigerLotto LINE Webhook', ts: new Date().toISOString() });
 });
 
-module.exports = router;
-s verification (LINE ping test)
-router.get('/', (req, res) => res.json({ ok: true, service: 'LINE Webhook', ts: new Date().toISOString() }));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LOTTERY AUTO-FETCH — บันทึกข้อความดิบ + parse ผลหวยจากกลุ่ม LINE แยก
@@ -476,4 +473,14 @@ async function handleLotteryMessage(event, groupId, fetchGroupId) {
   const text = (event.message.text || '').trim();
   const result = parseLotteryMessage(text);
   if (result) {
-    console.log(`[LINE Fetch] detected ${result.lotteryC
+    console.log(`[LINE Fetch] detected ${result.lotteryCode} ${result.drawDate}`);
+    await saveLotteryResult(result);
+    // mark as parsed
+    const msgId = event.message?.id;
+    if (msgId) {
+      await query('UPDATE `line_messages` SET parsed=1 WHERE msg_id=?', [msgId]).catch(()=>{});
+    }
+  }
+}
+
+module.exports = router;

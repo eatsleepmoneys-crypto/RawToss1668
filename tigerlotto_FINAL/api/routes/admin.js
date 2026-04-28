@@ -1258,4 +1258,32 @@ router.get('/line-messages', authAdmin, async (req, res) => {
        FROM line_messages ${where} ORDER BY received_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
-    res.json({ succe
+    res.json({ success: true, data: rows, total, page, limit });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// GET /api/admin/line-fetch-settings
+router.get('/line-fetch-settings', authAdmin, async (req, res) => {
+  try {
+    const rows = await query("SELECT `key`, value FROM settings WHERE `group`='line' ORDER BY `key`");
+    const settings = {};
+    for (const r of rows) settings[r.key] = r.value;
+    res.json({ success: true, data: settings });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// PATCH /api/admin/line-fetch-settings
+router.patch('/line-fetch-settings', authAdmin, async (req, res) => {
+  try {
+    const { line_fetch_group_id } = req.body;
+    if (line_fetch_group_id !== undefined) {
+      await query(
+        "INSERT INTO settings (`key`,value,type,`group`) VALUES ('line_fetch_group_id',?,'string','line') ON DUPLICATE KEY UPDATE value=?",
+        [line_fetch_group_id, line_fetch_group_id]
+      );
+    }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+module.exports = router;
