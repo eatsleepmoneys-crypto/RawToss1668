@@ -85,7 +85,10 @@ const ALLOWED_ORIGINS = [
   'https://courageous-fairy-114078.netlify.app',
   'https://rawtoss1668-production.up.railway.app',
   'https://rawtoss1668.pages.dev',
+  'https://rawtoss1668.com',
+  'https://www.rawtoss1668.com',
   'http://localhost:3000',
+  'http://localhost:5173',
 ];
 const corsOriginFn = (origin, callback) => {
   if (!origin) return callback(null, true);
