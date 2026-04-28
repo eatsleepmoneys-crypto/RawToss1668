@@ -7262,6 +7262,13 @@ PAGES['line-fetch'] = () => `
   <div class="card-header"><span>🤖 LINE Auto-Fetch — ตั้งค่ากลุ่มดึงผลหวย</span></div>
   <div class="card-body">
     <div class="alert alert-gold">กำหนดกลุ่ม LINE ที่บอทประกาศผลหวย — ระบบจะบันทึกและ parse ผลอัตโนมัติ</div>
+    <div class="fg" id="lf-detected-wrap" style="display:none;margin-bottom:12px">
+      <label>🔍 Group ID ที่ตรวจพบล่าสุด (จาก webhook)</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="lf-detected-id" class="fi-full" readonly style="font-family:monospace;color:var(--gold2)">
+        <button class="btn btn-secondary" onclick="copyDetectedGroupId()" style="white-space:nowrap">📋 ใช้ค่านี้</button>
+      </div>
+    </div>
     <div class="fg">
       <label>Line Fetch Group ID <span style="color:var(--muted);font-size:12px">(Group ID ของกลุ่มที่บอทส่งผล)</span></label>
       <div style="display:flex;gap:8px">
@@ -7289,8 +7296,16 @@ async function loadLineFetch() {
   try {
     // Load current fetch group setting
     const s = await apiFetch('/admin/line-fetch-settings', {}, 'admin');
-    if (s && s.fetchGroupId !== undefined) {
-      document.getElementById('lf-group-id').value = s.fetchGroupId || '';
+    const settings = s?.data || s || {};
+    const fetchGroupId = settings.line_fetch_group_id || '';
+    const detectedGroupId = settings.line_group_id || '';
+    if (fetchGroupId) document.getElementById('lf-group-id').value = fetchGroupId;
+    // Show detected group ID if available
+    if (detectedGroupId) {
+      const wrap = document.getElementById('lf-detected-wrap');
+      const inp  = document.getElementById('lf-detected-id');
+      if (wrap) wrap.style.display = '';
+      if (inp)  inp.value = detectedGroupId;
     }
     // Load recent messages
     const m = await apiFetch('/admin/line-messages?limit=30', {}, 'admin');
@@ -7309,6 +7324,14 @@ async function loadLineFetch() {
       </tr>`).join('');
   } catch(e) {
     console.warn('loadLineFetch error:', e.message);
+  }
+}
+
+function copyDetectedGroupId() {
+  const detected = document.getElementById('lf-detected-id')?.value || '';
+  if (detected) {
+    document.getElementById('lf-group-id').value = detected;
+    saveFetchGroupId();
   }
 }
 
