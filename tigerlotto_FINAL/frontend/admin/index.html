@@ -636,6 +636,8 @@ function nav(page){
   if(['deposits','withdrawals','agentdeposits','agentwithdrawals'].includes(page)) startAutoRefresh(page);
   if(page === 'numlimits') startNlAutoRefresh();
   if(page === 'hotnumbers') startHotRefresh();
+  if(page === 'line-fetch') startLineFetchAutoRefresh();
+  else stopLineFetchAutoRefresh();
 }
 
 // ═══ REAL API LOADER per page ═══
@@ -7283,8 +7285,20 @@ PAGES['line-fetch'] = () => `
   </div>
 </div>
 <div class="page-card" style="margin-top:16px">
-  <div class="card-header"><span>📨 ข้อความที่รับล่าสุด</span></div>
+  <div class="card-header"><span>📨 ข้อความที่รับล่าสุด</span>
+    <button class="btn btn-secondary" onclick="loadLineFetch()" style="margin-left:auto;font-size:12px;padding:4px 10px">🔄 Refresh</button>
+  </div>
   <div class="card-body">
+    <div id="lf-debug-wrap" style="display:none;margin-bottom:12px;padding:10px;background:rgba(255,255,255,0.05);border-radius:6px;font-size:12px">
+      <div style="color:var(--muted);margin-bottom:4px">🔍 Last Webhook Event (debug):</div>
+      <pre id="lf-debug-log" style="color:var(--gold2);white-space:pre-wrap;word-break:break-all;margin:0"></pre>
+    </div>
+    <div id="lf-table-error" style="display:none;margin-bottom:12px">
+      <div class="alert" style="background:rgba(220,53,69,0.15);border-color:var(--danger);color:var(--danger);display:flex;align-items:center;gap:12px">
+        <span>⚠️ ตาราง line_messages ไม่มีในฐานข้อมูล</span>
+        <button class="btn btn-primary" onclick="repairLineTable()" style="font-size:12px">🔧 สร้างตาราง</button>
+      </div>
+    </div>
     <table class="tbl" id="lf-msg-table">
       <thead><tr><th>เวลา</th><th>Group</th><th>ข้อความ</th><th>parsed</th></tr></thead>
       <tbody id="lf-msg-body"><tr><td colspan="4" style="text-align:center">กำลังโหลด...</td></tr></tbody>
@@ -7294,23 +7308,40 @@ PAGES['line-fetch'] = () => `
 
 async function loadLineFetch() {
   try {
-    // Load current fetch group setting
+    // Load settings
     const s = await apiFetch('/admin/line-fetch-settings', {}, 'admin');
     const settings = s?.data || s || {};
-    const fetchGroupId = settings.line_fetch_group_id || '';
+    const fetchGroupId   = settings.line_fetch_group_id || '';
     const detectedGroupId = settings.line_group_id || '';
+    const webhookLog     = settings.line_webhook_log || '';
+
     if (fetchGroupId) document.getElementById('lf-group-id').value = fetchGroupId;
-    // Show detected group ID if available
+
+    // Show detected group ID
     if (detectedGroupId) {
       const wrap = document.getElementById('lf-detected-wrap');
       const inp  = document.getElementById('lf-detected-id');
       if (wrap) wrap.style.display = '';
       if (inp)  inp.value = detectedGroupId;
     }
+
+    // Show last webhook event (debug)
+    if (webhookLog) {
+      const wrap = document.getElementById('lf-debug-wrap');
+      const pre  = document.getElementById('lf-debug-log');
+      if (wrap) wrap.style.display = '';
+      if (pre) {
+        try { pre.textContent = JSON.stringify(JSON.parse(webhookLog), null, 2); }
+        catch { pre.textContent = webhookLog; }
+      }
+    }
+
     // Load recent messages
     const m = await apiFetch('/admin/line-messages?limit=30', {}, 'admin');
-    const msgs = m?.messages || m?.data || [];
+    const msgs = m?.data || m?.messages || [];
     const tbody = document.getElementById('lf-msg-body');
+    const errDiv = document.getElementById('lf-table-error');
+    if (errDiv) errDiv.style.display = 'none';
     if (!msgs.length) {
       tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">ยังไม่มีข้อความ</td></tr>';
       return;
@@ -7324,8 +7355,45 @@ async function loadLineFetch() {
       </tr>`).join('');
   } catch(e) {
     console.warn('loadLineFetch error:', e.message);
+    // Show table-error if it's a table-missing error
+    if (e.message && e.message.includes('line_messages')) {
+      const errDiv = document.getElementById('lf-table-error');
+      if (errDiv) errDiv.style.display = '';
+    }
   }
 }
+
+// Auto-refresh: start when page shown, stop when navigating away
+let _lfRefreshTimer = null;
+function startLineFetchAutoRefresh() {
+  stopLineFetchAutoRefresh();
+  _lfRefreshTimer = setInterval(async () => {
+    if (document.getElementById('lf-msg-body')) {
+      await loadLineFetch();
+    } else {
+      stopLineFetchAutoRefresh();
+    }
+  }, 10000); // refresh ทุก 10 วินาที
+}
+function stopLineFetchAutoRefresh() {
+  if (_lfRefreshTimer) { clearInterval(_lfRefreshTimer); _lfRefreshTimer = null; }
+}
+
+async function repairLineTable() {
+  try {
+    const r = await apiFetch('/admin/line-repair-table', { method: 'POST' }, 'admin');
+    if (r?.success) {
+      toast('สำเร็จ', 'สร้างตาราง line_messages แล้ว');
+      document.getElementById('lf-table-error').style.display = 'none';
+      await loadLineFetch();
+    } else {
+      toast('ผิดพลาด', r?.message || 'ไม่สามารถสร้างตารางได้', 'error');
+    }
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+  }
+}
+
 
 function copyDetectedGroupId() {
   const detected = document.getElementById('lf-detected-id')?.value || '';
