@@ -7288,12 +7288,12 @@ PAGES['line-fetch'] = () => `
 async function loadLineFetch() {
   try {
     // Load current fetch group setting
-    const s = await api('/admin/line-fetch-settings');
+    const s = await apiFetch('/admin/line-fetch-settings', {}, 'admin');
     if (s && s.fetchGroupId !== undefined) {
       document.getElementById('lf-group-id').value = s.fetchGroupId || '';
     }
     // Load recent messages
-    const m = await api('/admin/line-messages?limit=30');
+    const m = await apiFetch('/admin/line-messages?limit=30', {}, 'admin');
     const msgs = m?.messages || m?.data || [];
     const tbody = document.getElementById('lf-msg-body');
     if (!msgs.length) {
@@ -7315,7 +7315,7 @@ async function loadLineFetch() {
 async function saveFetchGroupId() {
   const groupId = (document.getElementById('lf-group-id')?.value || '').trim();
   try {
-    await api('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ fetchGroupId: groupId }) });
+    await apiFetch('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ fetchGroupId: groupId }) }, 'admin');
     toast('สำเร็จ', 'บันทึก Line Fetch Group ID แล้ว');
   } catch(e) {
     toast('ผิดพลาด', e.message, 'error');
