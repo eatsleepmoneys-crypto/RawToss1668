@@ -386,64 +386,89 @@ function parseLotteryMessage(text) {
   const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   const results = [];
 
-  // header: บรรทัดที่ขึ้นต้นด้วย code 2-3 ตัวอักษร + ชื่อ + code เดิมซ้ำท้ายบรรทัด
-  // รองรับ: "SG สิงคโปร์พิเศษ SG" / "LA หวยลาว LA" / "TH รัฐบาลไทย TH"
-  const headerRe = /^([A-Z]{2,3})\s+\S[^\n]*\1\s*$/gim;
-  const headerMatches = [];
+  // ── หา header blocks ทั้ง 2 รูปแบบ ──────────────────────────────────────
+  // Format A (ASCII code):  "SG สิงคโปร์พิเศษ SG"  /  "TH ไทยเย็น TH"
+  // Format B (flag emoji):  "🇹🇭 ไทยเย็น 🇹🇭"    /  "🇸🇬 สิงคโปร์ 🇸🇬"
+  const FLAG_RE  = '[\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF]';
+  const headerA  = new RegExp('^([A-Z]{2,3})\\s+\\S[^\\n]*\\1\\s*$', 'gim');
+  const headerB  = new RegExp('^(' + FLAG_RE + ')\\s+[^\\n]+\\1\\s*$', 'gm');
+
+  const blocks = [];
   let hm;
-  while ((hm = headerRe.exec(t)) !== null) {
-    headerMatches.push({ code: hm[1], index: hm.index });
-  }
+  while ((hm = headerA.exec(t)) !== null)
+    blocks.push({ type: 'ascii', code: hm[1], index: hm.index, header: hm[0] });
+  while ((hm = headerB.exec(t)) !== null)
+    blocks.push({ type: 'flag',  flag: hm[1], index: hm.index, header: hm[0] });
 
-  if (headerMatches.length === 0) return [];
+  blocks.sort((a, b) => a.index - b.index);
+  if (!blocks.length) return [];
 
-  for (let i = 0; i < headerMatches.length; i++) {
-    const { code, index } = headerMatches[i];
-    const nextIndex = headerMatches[i + 1]?.index ?? t.length;
-    const block = t.slice(index, nextIndex).trim();
-    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+  for (let i = 0; i < blocks.length; i++) {
+    const blk       = blocks[i];
+    const nextIndex = blocks[i + 1]?.index ?? t.length;
+    const blockText = t.slice(blk.index, nextIndex).trim();
+    const lines     = blockText.split('\n').map(l => l.trim()).filter(Boolean);
 
-    // หา drawDate จาก block
-    const drawDate = extractThaiDate(block);
-    if (!drawDate) continue; // ไม่มีวันที่ → ข้าม
+    const drawDate = extractThaiDate(blockText);
+    if (!drawDate) continue;
 
-    // หาตัวเลข บน/ล่าง
-    // รองรับทั้ง: ↑ 451 | ⬆ 451 | ⬆️ 451 | บน 451
-    //            ↓ 24  | ⬇ 24  | ⬇️ 24  | ล่าง 24
-    let top = null;
-    let bot = null;
+    // หาเลข บน (↑/⬆️) และ ล่าง (↓/⬇️)
+    let top = null, bot = null;
     for (const line of lines) {
-      // บน: ลูกศรขึ้น (unicode arrow / emoji) หรือคำว่า "บน"
-      if (!top) {
-        const mTop = line.match(/(?:[↑⬆]\uFE0F?|บน)[\s:]*([\d]+)/u);
-        if (mTop) { top = mTop[1]; continue; }
-      }
-      // ล่าง: ลูกศรลง (unicode arrow / emoji) หรือคำว่า "ล่าง"
-      if (!bot) {
-        const mBot = line.match(/(?:[↓⬇]\uFE0F?|ล่าง)[\s:]*([\d]+)/u);
-        if (mBot) { bot = mBot[1]; continue; }
-      }
+      if (!top) { const m = line.match(/(?:[↑⬆]️?|บน)[\s:]*(\d+)/u); if (m) { top = m[1]; continue; } }
+      if (!bot) { const m = line.match(/(?:[↓⬇]️?|ล่าง)[\s:]*(\d+)/u); if (m) { bot = m[1]; continue; } }
     }
+    if (!top && !bot) continue;
 
-    if (!top && !bot) continue; // ไม่มีผล → ข้าม
-
-    // map code → lottery_type.code
-    const lotteryCode = BOT_CODE_MAP[code] || null;
+    // map → lottery_type.code
+    let lotteryCode = null;
+    if (blk.type === 'ascii') {
+      lotteryCode = BOT_CODE_MAP[blk.code] || null;
+    } else {
+      lotteryCode = flagHeaderToCode(blk.flag, blk.header);
+    }
     if (!lotteryCode) {
-      console.warn('[LINE Parser] unknown bot code: ' + code + ' — ข้ามไป');
+      console.warn('[LINE Parser] unknown header: ' + blk.header.slice(0, 40));
       continue;
     }
 
     const prizes = [];
     if (top) prizes.push({ prize_type: top.length >= 3 ? '3top' : '2top', prize_value: top });
     if (bot) prizes.push({ prize_type: '2bot', prize_value: bot });
-
     results.push({ lotteryCode, drawDate, prizes });
     console.log('[LINE Parser] ✅', lotteryCode, drawDate, 'top=' + (top||'-'), 'bot=' + (bot||'-'));
   }
-
   return results;
 }
+
+/** แปลง flag emoji + ชื่อ → lottery_type.code */
+function flagHeaderToCode(flagEmoji, headerLine) {
+  // แปลง flag emoji → 2-letter country code (TH, SG, VN, ...)
+  const cp1 = flagEmoji.codePointAt(0);
+  const cp2 = flagEmoji.codePointAt(2);
+  if (!cp1 || !cp2) return null;
+  const cc = String.fromCharCode(cp1 - 0x1F1E6 + 65) +
+             String.fromCharCode(cp2 - 0x1F1E6 + 65);
+
+  const n = headerLine.toLowerCase();
+  switch (cc) {
+    case 'TH':
+      if (n.includes('หุ้น') || n.includes('เย็น') || n.includes('บ่าย') || n.includes('เช้า') || n.includes('stk'))
+        return 'TH_STK';
+      return 'TH_GOV';
+    case 'VN':
+      if (n.includes('vip') || n.includes('วีไอพี')) return 'VN_HAN_VIP';
+      if (n.includes('พิเศษ'))                        return 'VN_HAN_SP';
+      return 'VN_HAN';
+    case 'LA': return 'LA_GOV';
+    case 'SG': return 'SG_STK';
+    case 'MY': return 'MY_STK';
+    case 'CN': return 'CN_STK';
+    case 'KR': return 'KR_STK';
+    default:   return null;
+  }
+}
+
 
 /**
  * บันทึกผลหวยที่ parse ได้ลง lottery_rounds + lottery_results
