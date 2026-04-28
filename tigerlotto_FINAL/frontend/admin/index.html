@@ -7338,7 +7338,7 @@ function copyDetectedGroupId() {
 async function saveFetchGroupId() {
   const groupId = (document.getElementById('lf-group-id')?.value || '').trim();
   try {
-    await apiFetch('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ fetchGroupId: groupId }) }, 'admin');
+    await apiFetch('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ line_fetch_group_id: groupId }) }, 'admin');
     toast('สำเร็จ', 'บันทึก Line Fetch Group ID แล้ว');
   } catch(e) {
     toast('ผิดพลาด', e.message, 'error');
