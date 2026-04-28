@@ -346,70 +346,80 @@ function extractThaiDate(text) {
  *
  * รองรับ: หวยรัฐบาล, หวยลาว, ฮานอย, ยี่กี
  */
+// แผนที่ code จากบอท → lottery_type.code ในระบบ
+const BOT_CODE_MAP = {
+  'LA': 'LA_GOV',   // ลาวพัฒนา
+  'TH': 'TH_GOV',   // หวยรัฐบาลไทย
+  'HN': 'VN_HAN',   // ฮานอยปกติ
+  'VN': 'VN_HAN',   // เวียดนาม (alias)
+  'HS': 'VN_HAN_SP',// ฮานอยพิเศษ
+  'HV': 'VN_HAN_VIP',// ฮานอย VIP
+  'KR': 'KR_STK',   // เกาหลี (ถ้ามี type นี้)
+  'YK': 'YK',       // ยี่กี
+  'HD': 'HD',       // หวยดี
+};
+
+/**
+ * parse ข้อความบอทแจ้งผลหวย — รองรับหลายหวยในข้อความเดียว
+ * format ที่รองรับ:
+ *   XX ชื่อ hd XX       ← header line (XX = 2-letter code, "hd" คั่น)
+ *   28 เมษายน 2569       ← วันที่ (พ.ศ.)
+ *   ↑ 048                ← บน/3 ตัว
+ *   ↓ 63                 ← ล่าง/2 ตัว
+ *   XXXXX 🔥🔥           ← decoration (ข้าม)
+ * @param {string} text
+ * @returns {Array<{lotteryCode,drawDate,prizes}>}
+ */
 function parseLotteryMessage(text) {
-  if (!text) return null;
-  const t = text.replace(/\r/g, '\n');
+  if (!text) return [];
+  const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const results = [];
 
-  // ─── หวยรัฐบาลไทย ─────────────────────────────────────────────────────
-  if (/หวยรัฐบาล|ผลสลากกินแบ่ง|สลากออมสิน/i.test(t)) {
-    const p1st    = t.match(/รางวัลที่\s*1[:\s]+(\d{6})/);
-    const last3   = t.match(/เลขท้าย\s*3\s*ตัว[:\s]+([\d,\s]+)/);
-    const front3  = t.match(/เลขหน้า\s*3\s*ตัว[:\s]+([\d,\s]+)/);
-    const last2   = t.match(/เลขท้าย\s*2\s*ตัว[:\s]+(\d{2})/);
-    if (!p1st) return null;
-    const prizes = [{ prize_type:'1st', prize_value: p1st[1] }];
-    if (last2)  prizes.push({ prize_type:'last2',  prize_value: last2[1] });
-    if (last3)  prizes.push({ prize_type:'last3',  prize_value: last3[1].replace(/\s+/g,'') });
-    if (front3) prizes.push({ prize_type:'front3', prize_value: front3[1].replace(/\s+/g,'') });
-    return { lotteryCode:'TH_GOV', drawDate: extractThaiDate(t), prizes };
+  // แยกข้อความเป็น block ด้วย header pattern:  ^XX ... XX$
+  // header: บรรทัดที่ขึ้นต้นด้วย code 2 ตัวอักษร + ชื่อ + code เดิมซ้ำท้ายบรรทัด (hd optional)
+  const headerRe = /^([A-Z]{2})\s+\S[^\n]*\1\s*$/gim;
+  const headerMatches = [];
+  let hm;
+  while ((hm = headerRe.exec(t)) !== null) {
+    headerMatches.push({ code: hm[1], index: hm.index });
   }
 
-  // ─── หวยลาวพัฒนา ──────────────────────────────────────────────────────
-  if (/หวยลาว|ลาวพัฒนา|ผลหวยลาว/i.test(t)) {
-    const m4 = t.match(/(\d{4})\s*\(4\s*ตัว\)/);
-    const m3 = t.match(/(\d{3})\s*\(3\s*ตัว\)/);
-    const m2 = t.match(/(\d{2})\s*\(2\s*ตัว\)/);
-    // หรือ format อื่น
-    const simple4 = t.match(/4\s*ตัว[:\s]+(\d{4})/);
-    const simple3 = t.match(/3\s*ตัว[:\s]+(\d{3})/);
-    const simple2 = t.match(/2\s*ตัว[:\s]+(\d{2})/);
-    const prize4 = (m4||simple4)?.[1];
-    const prize3 = (m3||simple3)?.[1];
-    const prize2 = (m2||simple2)?.[1];
-    if (!prize4 && !prize3) return null;
+  if (headerMatches.length === 0) return [];
+
+  for (let i = 0; i < headerMatches.length; i++) {
+    const { code, index } = headerMatches[i];
+    const nextIndex = headerMatches[i + 1]?.index ?? t.length;
+    const block = t.slice(index, nextIndex).trim();
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+
+    // หา drawDate จาก block
+    const drawDate = extractThaiDate(block);
+
+    // หา ↑ (บน) และ ↓ (ล่าง)
+    let top = null;
+    let bot = null;
+    for (const line of lines) {
+      if (!top) {
+        const mTop = line.match(/↑\s*(\d+)/);
+        if (mTop) top = mTop[1];
+      }
+      if (!bot) {
+        const mBot = line.match(/↓\s*(\d+)/);
+        if (mBot) bot = mBot[1];
+      }
+    }
+
+    if (!top && !bot) continue; // ไม่มีผล → ข้าม
+
+    const lotteryCode = BOT_CODE_MAP[code] || code;
     const prizes = [];
-    if (prize4) prizes.push({ prize_type:'1st', prize_value: prize4 });
-    if (prize3) prizes.push({ prize_type:'last3', prize_value: prize3 });
-    if (prize2) prizes.push({ prize_type:'last2', prize_value: prize2 });
-    return { lotteryCode:'LA_GOV', drawDate: extractThaiDate(t), prizes };
+    if (top) prizes.push({ prize_type: top.length >= 3 ? '3top' : '2top', prize_value: top });
+    if (bot) prizes.push({ prize_type: '2bot', prize_value: bot });
+
+    results.push({ lotteryCode, drawDate, prizes });
   }
 
-  // ─── ฮานอย ────────────────────────────────────────────────────────────
-  if (/ฮานอย|hanoi|ผลหวยเวียดนาม/i.test(t)) {
-    const p1st = t.match(/(?:รางวัลที่\s*1|ตัวเต็ม|1st)[:\s]+(\d{4,5})/i);
-    const last3 = t.match(/3\s*ตัว[:\s]+(\d{3})/);
-    const last2 = t.match(/2\s*ตัว[:\s]+(\d{2})/);
-    if (!p1st) return null;
-    const prizes = [{ prize_type:'1st', prize_value: p1st[1] }];
-    if (last3) prizes.push({ prize_type:'last3', prize_value: last3[1] });
-    if (last2) prizes.push({ prize_type:'last2', prize_value: last2[1] });
-    return { lotteryCode:'VN_HAN', drawDate: extractThaiDate(t), prizes };
-  }
-
-  // ─── ยี่กี ────────────────────────────────────────────────────────────
-  if (/ยี่กี|ยี่กี้|yiki/i.test(t)) {
-    const p3 = t.match(/3\s*ตัวบน[:\s]+(\d{3})/);
-    const p2 = t.match(/2\s*ตัวบน[:\s]+(\d{2})/);
-    const p2b = t.match(/2\s*ตัวล่าง[:\s]+(\d{2})/);
-    if (!p3 && !p2) return null;
-    const prizes = [];
-    if (p3) prizes.push({ prize_type:'3top', prize_value: p3[1] });
-    if (p2) prizes.push({ prize_type:'2top', prize_value: p2[1] });
-    if (p2b) prizes.push({ prize_type:'2bot', prize_value: p2b[1] });
-    return { lotteryCode:'YK', drawDate: extractThaiDate(t), prizes };
-  }
-
-  return null;
+  return results;
 }
 
 /**
@@ -471,10 +481,12 @@ async function handleLotteryMessage(event, groupId, fetchGroupId) {
   await saveRawMessage(event, groupId);
 
   const text = (event.message.text || '').trim();
-  const result = parseLotteryMessage(text);
-  if (result) {
-    console.log(`[LINE Fetch] detected ${result.lotteryCode} ${result.drawDate}`);
-    await saveLotteryResult(result);
+  const results = parseLotteryMessage(text);
+  if (results.length > 0) {
+    for (const result of results) {
+      console.log(`[LINE Fetch] detected ${result.lotteryCode} ${result.drawDate}`);
+      await saveLotteryResult(result);
+    }
     // mark as parsed
     const msgId = event.message?.id;
     if (msgId) {
