@@ -876,6 +876,19 @@ server.listen(PORT, '0.0.0.0', () => {
   // Migrate slip_image column to MEDIUMTEXT to support base64 image strings
   const { pool } = require('./config/db');
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
+  // ── Ensure new tables exist (safe: CREATE TABLE IF NOT EXISTS) ─────────────
+  pool.execute(`CREATE TABLE IF NOT EXISTS \`line_messages\` (
+    \`id\`           BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    \`msg_id\`       VARCHAR(50) NOT NULL,
+    \`source_id\`    VARCHAR(100) NOT NULL DEFAULT '',
+    \`sender_id\`    VARCHAR(50) NOT NULL DEFAULT '',
+    \`message_text\` TEXT NOT NULL,
+    \`parsed\`       TINYINT(1) NOT NULL DEFAULT 0,
+    \`received_at\`  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY \`uq_msg_id\` (\`msg_id\`),
+    INDEX \`idx_lm_received\` (\`received_at\`),
+    INDEX \`idx_lm_source\` (\`source_id\`)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(e => console.warn('[startup] line_messages table:', e.message));
   setTimeout(() => {
     autoCreateGovRound();
     autoCreateLaoRound();
