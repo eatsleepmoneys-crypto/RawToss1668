@@ -6639,18 +6639,18 @@ async function loadLineFetch() {
       el.innerHTML = '<div style="text-align:center;color:var(--muted);padding:24px;font-size:13px">ยังไม่มีข้อความ — เพิ่ม Bot ลงกลุ่มแล้วรอรับข้อความ</div>';
       return;
     }
-    el.innerHTML = \`<table class="tbl"><thead><tr>
+    el.innerHTML = `<table class="tbl"><thead><tr>
       <th style="width:140px">เวลา</th>
       <th style="width:90px">สถานะ</th>
       <th style="width:120px">GroupID</th>
       <th>ข้อความ</th>
-    </tr></thead><tbody>\${d.data.map(m => \`<tr>
-      <td style="font-size:11px;color:var(--muted)">\${new Date(m.received_at).toLocaleString('th-TH')}</td>
-      <td><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:\${m.parsed?'rgba(46,213,115,.15)':'rgba(255,71,87,.1)'};color:\${m.parsed?'var(--green)':'var(--red)'}">\${m.parsed?'✅ parse แล้ว':'⏳ รอ parse'}</span></td>
-      <td style="font-size:10px;color:var(--muted);word-break:break-all">\${m.source_id||'-'}</td>
-      <td style="font-size:12px;white-space:pre-wrap;max-width:400px;overflow:hidden">\${(m.message_text||'').replace(/</g,'&lt;').slice(0,300)}</td>
-    </tr>\`).join('')}</tbody></table>
-    <div style="margin-top:8px;font-size:11px;color:var(--muted)">แสดง \${d.data.length} จาก \${d.total} รายการ</div>\`;
+    </tr></thead><tbody>${d.data.map(m => `<tr>
+      <td style="font-size:11px;color:var(--muted)">${new Date(m.received_at).toLocaleString('th-TH')}</td>
+      <td><span style="font-size:11px;padding:2px 7px;border-radius:8px;background:${m.parsed?'rgba(46,213,115,.15)':'rgba(255,71,87,.1)'};color:${m.parsed?'var(--green)':'var(--red)'}">${m.parsed?'✅ parse แล้ว':'⏳ รอ parse'}</span></td>
+      <td style="font-size:10px;color:var(--muted);word-break:break-all">${m.source_id||'-'}</td>
+      <td style="font-size:12px;white-space:pre-wrap;max-width:400px;overflow:hidden">${(m.message_text||'').replace(/</g,'&lt;').slice(0,300)}</td>
+    </tr>`).join('')}</tbody></table>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)">แสดง ${d.data.length} จาก ${d.total} รายการ</div>`;
   } catch(e) {
     const el = document.getElementById('lf-msg-table');
     if (el) el.innerHTML = '<div style="color:var(--red);padding:12px">โหลดไม่สำเร็จ: ' + e.message + '</div>';
