@@ -101,3 +101,8 @@ const extractToken = (req) => {
 };
 
 module.exports = { authMember, authAdmin, authAgent, optionalAuth, signMemberToken, signAdminToken, signAgentToken };
+
+// aliases — backward compat with server.js which imports { auth, adminOnly, agentOnly }
+module.exports.auth       = module.exports.authMember;
+module.exports.adminOnly  = module.exports.authAdmin;
+module.exports.agentOnly  = module.exports.authAgent;
