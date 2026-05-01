@@ -126,9 +126,21 @@ nav a:hover{color:var(--text);background:var(--card2)}
 .lot-btn{width:100%;padding:11px;background:var(--grad);color:#000;border-radius:11px;font-size:14px;font-weight:700;transition:.25s;border:none;font-family:'Sarabun',sans-serif}
 .lot-btn:hover{opacity:.88;transform:translateY(-2px)}
 /* Results filter */
-.res-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;justify-content:center}
-.res-ftab{padding:7px 16px;border-radius:30px;font-size:13px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;user-select:none;font-family:'Sarabun',sans-serif}
-.res-ftab.on{background:var(--grad);color:#000;border-color:transparent}
+.res-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;justify-content:center;align-items:center}
+/* ── Category pill ── */
+.res-cat{position:relative;display:inline-block}
+.res-cat-btn{padding:8px 18px;border-radius:30px;font-size:13px;font-weight:700;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;user-select:none;font-family:'Sarabun',sans-serif;white-space:nowrap}
+.res-cat-btn.on,.res-cat-btn:hover{background:var(--grad);color:#000;border-color:transparent}
+.res-cat-btn .arr{font-size:10px;margin-left:4px;opacity:.7}
+/* ── Dropdown panel ── */
+.res-dd{display:none;position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:8px;z-index:200;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.res-dd.open{display:block}
+.res-dd-item{display:block;width:100%;text-align:left;padding:8px 14px;border-radius:10px;border:none;background:none;color:var(--text);font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;white-space:nowrap;transition:.15s}
+.res-dd-item:hover,.res-dd-item.on{background:rgba(212,160,23,.15);color:var(--gold)}
+/* ── Result row ── */
+.res-row{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:.2s}
+/* keep old names so other parts still work */
+.res-ftab{display:none} /* hidden — replaced by .res-cat-btn */
 
 /* ─── CHECKER ─── */
 .checker-wrap{max-width:680px;margin:0 auto}
@@ -271,7 +283,6 @@ select.fi option{background:var(--card2)}
 
 /* ─── RESULTS HISTORY ─── */
 .results-list{display:grid;gap:14px;max-width:800px;margin:0 auto}
-.res-row{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:.2s}
 .res-row:hover{border-color:rgba(212,160,23,.3)}
 .res-type{font-size:13px;font-weight:700;color:var(--gold)}
 .res-date-small{font-size:12px;color:var(--muted)}
@@ -280,6 +291,8 @@ select.fi option{background:var(--card2)}
 .res-n2{font-size:16px;font-weight:700;color:var(--text)}
 .res-n2bot{color:var(--muted);font-size:14px}
 .res-n3{font-size:13px;font-weight:600;color:var(--muted)}
+.res-lbl{font-size:10px;font-weight:600;color:var(--dim);display:block;text-align:center;margin-top:2px;letter-spacing:.5px}
+.res-num-box{display:flex;flex-direction:column;align-items:center}
 
 /* ─── MOBILE ─── */
 @media(max-width:768px){nav{display:none}.hdr-right .btn-ghost{display:none}.stat{padding:8px 16px}.how-grid{grid-template-columns:1fr 1fr}}
@@ -559,9 +572,12 @@ select.fi option{background:var(--card2)}
       <h2>ผล<span>รางวัล</span>ย้อนหลัง</h2>
       <p>เลือกดูผลแยกตามประเภทหวย อัพเดทอัตโนมัติ</p>
     </div>
-    <!-- Result type filter (populated by JS) -->
+    <!-- Result type filter — dropdown groups (populated by JS) -->
     <div class="res-filter" id="res-filter">
-      <button class="res-ftab on" data-code="ALL" onclick="filterResults(this,'ALL')">🎰 ทั้งหมด</button>
+      <!-- populated by buildResultFilter() -->
+      <div class="res-cat">
+        <button class="res-cat-btn on" id="res-all-btn" onclick="filterGroup(null)">🎰 ทั้งหมด</button>
+      </div>
     </div>
     <div class="results-list" id="results-list">
       <div style="text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
@@ -2344,17 +2360,74 @@ async function loadHeroResult(){
 
 /* ─── Results History ─── */
 let _allResults = [];
+let _resActiveGroup = null; // null = ALL, string = group key, or 'code:XYZ'
 
-function filterResults(el, code){
-  document.querySelectorAll('.res-ftab').forEach(b => b.classList.remove('on'));
-  el.classList.add('on');
-  _renderResultsList(code);
+// กลุ่มประเภทหวย — เรียงตามที่ user ต้องการ
+const RESULT_GROUPS = [
+  { key:'thai',    label:'🇹🇭 หวยไทย',    codes:['TH_GOV'] },
+  { key:'thstk',  label:'📈 หุ้นไทย',    codes:['TH_STK'] },
+  { key:'hanoi',  label:'🇻🇳 ฮานอย',     codes:['VN_HAN','VN_HAN_SP','VN_HAN_VIP'] },
+  { key:'lao',    label:'🇱🇦 ลาว',        codes:['LA_GOV'] },
+  { key:'foreign',label:'🌏 ต่างประเทศ', codes:['SG_STK','CN_STK','MY_STK','JP_STK','KR_STK','TW_STK'] },
+  { key:'yeekee', label:'⚡ ยี่กี่',      codes:['YEEKEE'] },
+];
+
+// ปิด dropdown ทั้งหมด
+function _closeAllDD(){ document.querySelectorAll('.res-dd').forEach(d => d.classList.remove('open')); }
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.res-cat')) _closeAllDD();
+});
+
+// กด "ทั้งหมด"
+function filterGroup(groupKey){
+  _closeAllDD();
+  _resActiveGroup = groupKey;
+  // highlight
+  document.querySelectorAll('.res-cat-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.res-dd-item').forEach(b => b.classList.remove('on'));
+  if(!groupKey){ document.getElementById('res-all-btn').classList.add('on'); }
+  else{
+    const catBtn = document.querySelector(`.res-cat-btn[data-group="${groupKey}"]`);
+    if(catBtn) catBtn.classList.add('on');
+  }
+  _renderResultsList();
 }
 
-function _renderResultsList(filterCode){
+// กด item ใน dropdown
+function filterCode(code, groupKey){
+  _closeAllDD();
+  _resActiveGroup = 'code:' + code;
+  document.querySelectorAll('.res-cat-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.res-dd-item').forEach(b => b.classList.remove('on'));
+  const catBtn = document.querySelector(`.res-cat-btn[data-group="${groupKey}"]`);
+  if(catBtn) catBtn.classList.add('on');
+  document.querySelectorAll(`.res-dd-item[data-code="${code}"]`).forEach(b => b.classList.add('on'));
+  _renderResultsList();
+}
+
+// toggle dropdown
+function toggleDD(groupKey, e){
+  e.stopPropagation();
+  const dd = document.getElementById('res-dd-' + groupKey);
+  if(!dd) return filterGroup(groupKey); // ไม่มี dropdown → filter ทันที
+  const isOpen = dd.classList.contains('open');
+  _closeAllDD();
+  if(!isOpen) dd.classList.add('open');
+}
+
+function _renderResultsList(){
   const list = document.getElementById('results-list');
   if(!list) return;
-  const results = filterCode === 'ALL' ? _allResults : _allResults.filter(r => r.code === filterCode);
+  let results;
+  if(!_resActiveGroup){
+    results = _allResults;
+  } else if(_resActiveGroup.startsWith('code:')){
+    const code = _resActiveGroup.slice(5);
+    results = _allResults.filter(r => r.code === code);
+  } else {
+    const grp = RESULT_GROUPS.find(g => g.key === _resActiveGroup);
+    results = grp ? _allResults.filter(r => grp.codes.includes(r.code)) : _allResults;
+  }
   if(results.length === 0){
     list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีผลรางวัลในประเภทนี้</div>';
     return;
@@ -2362,31 +2435,62 @@ function _renderResultsList(filterCode){
   list.innerHTML = results.map(r => {
     const last3  = _parseJsonArr(r.prize_last_3);
     const front3 = _parseJsonArr(r.prize_front_3);
-    // LA_GOV และ VN_HAN* มี 2ตัวล่าง (prize_2bot) แยกจาก 2ตัวบน
-    // LA_GOV + VN_* ทุกประเภทมี 2ตัวล่าง (prize_2bot)
     const has2bot = r.prize_2bot && (r.code === 'LA_GOV' || (r.code && r.code.startsWith('VN_')));
+    // กำหนด label บน/ล่าง ตามประเภทหวย
+    const isStock = r.code && r.code.endsWith('_STK');
+    const lbl1st = isStock ? '3 ตัวบน' : 'รางวัลที่ 1';
+    const lbl2top = '2 บน';
+    const lbl2bot = '2 ล่าง';
     return `<div class="res-row">
       <div>
         <div class="res-type">${_dbFlag(r.flag)||'🎰'} ${r.lottery_name}</div>
         <div class="res-date-small">งวด ${r.round_name} · ${UI.formatDateOnly(r.draw_date)}</div>
       </div>
       <div class="res-nums">
-        <span class="res-n1">${r.prize_1st||'-'}</span>
-        ${[...front3,...last3].map(n=>`<span class="res-n3">${n}</span>`).join('')}
-        <span class="res-n2">${r.prize_last_2||'-'}</span>
-        ${has2bot ? `<span class="res-n2 res-n2bot">${r.prize_2bot}</span>` : ''}
+        <div class="res-num-box">
+          <span class="res-n1">${r.prize_1st||'-'}</span>
+          <span class="res-lbl">${lbl1st}</span>
+        </div>
+        ${front3.length ? `<div class="res-num-box">${front3.map(n=>`<span class="res-n3">${n}</span>`).join('')}<span class="res-lbl">หน้า 3</span></div>` : ''}
+        ${last3.length  ? `<div class="res-num-box">${last3.map(n=>`<span class="res-n3">${n}</span>`).join('')}<span class="res-lbl">หลัง 3</span></div>` : ''}
+        <div class="res-num-box">
+          <span class="res-n2">${r.prize_last_2||'-'}</span>
+          <span class="res-lbl">${lbl2top}</span>
+        </div>
+        ${has2bot ? `<div class="res-num-box"><span class="res-n2 res-n2bot">${r.prize_2bot}</span><span class="res-lbl">${lbl2bot}</span></div>` : ''}
       </div>
     </div>`;
   }).join('');
+}
+
+function buildResultFilter(availableCodes){
+  const filterEl = document.getElementById('res-filter');
+  if(!filterEl) return;
+  const cats = RESULT_GROUPS.filter(g => g.codes.some(c => availableCodes.has(c)));
+  const html = cats.map(g => {
+    const items = g.codes.filter(c => availableCodes.has(c));
+    const hasDD = items.length > 1;
+    const codeMap = window._resCodeMeta || {};
+    const ddItems = hasDD ? items.map(c => {
+      const meta = LOT_TYPE_META[c] || {};
+      const label = meta.label || codeMap[c] || c;
+      const flag  = meta.flag  || STK_FLAG_MAP[c] || '🎰';
+      return `<button class="res-dd-item" data-code="${c}" onclick="filterCode('${c}','${g.key}')">${flag} ${label}</button>`;
+    }).join('') : '';
+    return `<div class="res-cat">
+      <button class="res-cat-btn" data-group="${g.key}" onclick="${hasDD ? `toggleDD('${g.key}',event)` : `filterGroup('${g.key}')`}">${g.label}${hasDD?'<span class="arr">▾</span>':''}</button>
+      ${hasDD ? `<div class="res-dd" id="res-dd-${g.key}">${ddItems}</div>` : ''}
+    </div>`;
+  }).join('');
+  // inject after "ทั้งหมด"
+  const allBtn = filterEl.querySelector('#res-all-btn');
+  if(allBtn) allBtn.closest('.res-cat').insertAdjacentHTML('afterend', html);
 }
 
 async function loadResultsHistory(){
   const list = document.getElementById('results-list');
   if(!list) return;
   try{
-    // ดึง 2 ชุดพร้อมกัน:
-    //  1) recent 30 สำหรับแสดงในรายการ (มี yeekee ล่าสุด)
-    //  2) latest_per_type สำหรับสร้าง filter tabs (ครอบทุก lottery type)
     const [dList, dTypes] = await Promise.all([
       API.LotteryAPI.getResults({ limit: 30 }),
       API.LotteryAPI.getResults({ latest_per_type: 1 }),
@@ -2399,28 +2503,18 @@ async function loadResultsHistory(){
       return;
     }
 
-    // Build filter tabs จาก typeResults (ครบทุก type เสมอ)
-    const filterEl = document.getElementById('res-filter');
-    if(filterEl){
-      const codeToRes = {};
-      typeResults.forEach(r => { if(r.code && !codeToRes[r.code]) codeToRes[r.code] = r; });
-      const codes = Object.keys(codeToRes);
-      const extraTabs = codes.map(code => {
-        const r0 = codeToRes[code];
-        const meta = LOT_TYPE_META[code];
-        const flag = meta ? meta.flag : (STK_FLAG_MAP[code] || r0?.flag || '🎰');
-        const label = meta ? meta.label : (r0?.lottery_name || code);
-        return `<button class="res-ftab" data-code="${code}" onclick="filterResults(this,'${code}')">${flag} ${label}</button>`;
-      }).join('');
-      filterEl.innerHTML = `<button class="res-ftab on" data-code="ALL" onclick="filterResults(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
-    }
-
-    // เมื่อกด filter แต่ละ type → ดึงผลเพิ่มเติมจาก _allResults + typeResults รวมกัน
-    // รวม typeResults เข้าใน _allResults (dedup โดย round id)
+    // รวม typeResults เข้าใน _allResults (dedup)
     const ids = new Set(_allResults.map(r => r.id));
     typeResults.forEach(r => { if(!ids.has(r.id)){ _allResults.push(r); ids.add(r.id); } });
 
-    _renderResultsList('ALL');
+    // สร้าง set of available codes + code→name map
+    const availCodes = new Set();
+    const codeMeta = {};
+    typeResults.forEach(r => { if(r.code){ availCodes.add(r.code); codeMeta[r.code] = r.lottery_name; } });
+    window._resCodeMeta = codeMeta;
+
+    buildResultFilter(availCodes);
+    _renderResultsList();
   }catch(e){
     if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ โหลดข้อมูลไม่ได้ในขณะนี้</div>';
   }
