@@ -526,8 +526,8 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
         [...uvals, existRound.id]
       );
       await query(
-        'INSERT INTO lottery_results (round_id, lottery_id, ' + colList(ukeys) + ', announced_at) VALUES (?,?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
-        [existRound.id, lt.id, ...uvals, ...uvals]
+        'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
+        [existRound.id, ...uvals, ...uvals]
       ).catch(function(){});
       console.log('[LINE Fetch] updated round #' + existRound.id + ' ' + lotteryCode + ' ' + drawDate, updates);
     } else {
@@ -541,8 +541,8 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
       if (!newRows.length) return;
       const nid = newRows[0].id;
       await query(
-        'INSERT INTO lottery_results (round_id, lottery_id, ' + colList(ukeys) + ', announced_at) VALUES (?,?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
-        [nid, lt.id, ...uvals, ...uvals]
+        'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
+        [nid, ...uvals, ...uvals]
       ).catch(function(){});
       console.log('[LINE Fetch] new round ' + lotteryCode + ' ' + drawDate, updates);
     }
