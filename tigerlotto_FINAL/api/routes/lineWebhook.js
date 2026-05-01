@@ -506,6 +506,10 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
     };
     const updates = {};
     for (const p of prizes) { const col = colMap[p.prize_type]; if (col) updates[col] = p.prize_value; }
+    // auto-derive: 2 ตัวบน = 2 หลักท้ายของ 3 ตัวบน (ถ้ายังไม่มี prize_last_2)
+    if (updates.prize_1st && updates.prize_1st.length >= 3 && !updates.prize_last_2) {
+      updates.prize_last_2 = updates.prize_1st.slice(-2);
+    }
     if (!Object.keys(updates).length) return;
 
     // 1) หางวดที่มีอยู่แล้ว (open/closed) ตรง lottery + วันที่
