@@ -476,43 +476,59 @@ function flagHeaderToCode(flagEmoji, headerLine) {
  */
 async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
   try {
-    // หา lottery_id
     const [lt] = await query('SELECT id FROM `lottery_types` WHERE code=? LIMIT 1', [lotteryCode]);
-    if (!lt) return console.warn(`[LINE Fetch] lottery_type not found: ${lotteryCode}`);
+    if (!lt) return console.warn('[LINE Fetch] lottery_type not found: ' + lotteryCode);
 
-    const roundCode = `${lotteryCode}-${drawDate.replace(/-/g,'')}`;
-    const roundName = `งวด ${drawDate}`;
-
-    // upsert round
-    await query(`
-      INSERT INTO \`lottery_rounds\` (lottery_id, round_code, round_name, draw_date, status)
-      VALUES (?,?,?,?,'announced')
-      ON DUPLICATE KEY UPDATE status='announced', updated_at=NOW()
-    `, [lt.id, roundCode, roundName, drawDate]);
-
-    const [round] = await query('SELECT id FROM `lottery_rounds` WHERE round_code=? LIMIT 1', [roundCode]);
-    if (!round) return;
-
-    // map prize_type → column
-    const colMap = { '1st':'prize_1st', 'last2':'prize_last_2', 'last3':'prize_last_3', 'front3':'prize_front_3', '2top':'prize_1st', '3top':'prize_1st', '2bot':'prize_last_2' };
+    // map prize_type → DB column
+    const isVN  = lotteryCode.startsWith('VN_');
+    const colMap = {
+      '1st':'prize_1st', 'last2':'prize_last_2', 'last3':'prize_last_3', 'front3':'prize_front_3',
+      '3top':'prize_1st',
+      '2top': 'prize_1st',
+      '2bot': isVN ? 'prize_2bot' : 'prize_last_2',
+    };
     const updates = {};
-    for (const p of prizes) {
-      const col = colMap[p.prize_type];
-      if (col) updates[col] = p.prize_value;
-    }
+    for (const p of prizes) { const col = colMap[p.prize_type]; if (col) updates[col] = p.prize_value; }
+    if (!Object.keys(updates).length) return;
 
-    if (Object.keys(updates).length) {
-      const setStr = Object.keys(updates).map(c => `\`${c}\`=?`).join(', ');
+    // 1) หางวดที่มีอยู่แล้ว (open/closed) ตรง lottery + วันที่
+    const existRows = await query(
+      'SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN (\'open\',\'closed\') ORDER BY id DESC LIMIT 1',
+      [lt.id, drawDate]
+    );
+    const existRound = existRows.length ? existRows[0] : null;
+
+    const setClause = function(keys) { return keys.map(function(c){ return '`' + c + '`=?'; }).join(', '); };
+    const colList   = function(keys) { return keys.map(function(c){ return '`' + c + '`'; }).join(','); };
+    const ukeys = Object.keys(updates);
+    const uvals = Object.values(updates);
+
+    if (existRound) {
+      // 2a) งวดมีอยู่ → update prizes + announced
       await query(
-        `INSERT INTO \`lottery_results\` (round_id, lottery_id, ${Object.keys(updates).map(c=>`\`${c}\``).join(',')})
-         VALUES (?,?,${Object.keys(updates).map(()=>'?').join(',')})
-         ON DUPLICATE KEY UPDATE ${setStr}, updated_at=NOW()`,
-        [round.id, lt.id, ...Object.values(updates), ...Object.values(updates)]
-      ).catch(() =>
-        query(`UPDATE \`lottery_rounds\` SET ${setStr}, status='announced' WHERE id=?`,
-          [...Object.values(updates), round.id])
+        'UPDATE lottery_rounds SET ' + setClause(ukeys) + ', status=\'announced\', updated_at=NOW() WHERE id=?',
+        [...uvals, existRound.id]
       );
-      console.log(`[LINE Fetch] ✅ saved ${lotteryCode} ${drawDate} prizes:`, updates);
+      await query(
+        'INSERT INTO lottery_results (round_id, lottery_id, ' + colList(ukeys) + ', announced_at) VALUES (?,?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
+        [existRound.id, lt.id, ...uvals, ...uvals]
+      ).catch(function(){});
+      console.log('[LINE Fetch] updated round #' + existRound.id + ' ' + lotteryCode + ' ' + drawDate, updates);
+    } else {
+      // 2b) ไม่มีงวดที่รับแทงอยู่ → สร้างงวดใหม่ announced ทันที
+      const roundCode = lotteryCode + '-' + drawDate.replace(/-/g,'');
+      await query(
+        'INSERT INTO lottery_rounds (lottery_id, round_code, round_name, draw_date, status) VALUES (?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
+        [lt.id, roundCode, 'งวด ' + drawDate, drawDate]
+      );
+      const newRows = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
+      if (!newRows.length) return;
+      const nid = newRows[0].id;
+      await query(
+        'INSERT INTO lottery_results (round_id, lottery_id, ' + colList(ukeys) + ', announced_at) VALUES (?,?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
+        [nid, lt.id, ...uvals, ...uvals]
+      ).catch(function(){});
+      console.log('[LINE Fetch] new round ' + lotteryCode + ' ' + drawDate, updates);
     }
   } catch (e) {
     console.warn('[LINE Fetch] saveLotteryResult error:', e.message);
