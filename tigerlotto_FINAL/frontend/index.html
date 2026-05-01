@@ -2435,10 +2435,10 @@ function _renderResultsList(){
   list.innerHTML = results.map(r => {
     const last3  = _parseJsonArr(r.prize_last_3);
     const front3 = _parseJsonArr(r.prize_front_3);
-    const has2bot = r.prize_2bot && (r.code === 'LA_GOV' || (r.code && r.code.startsWith('VN_')));
+    const has2bot = !!r.prize_2bot; // แสดง 2 ตัวล่าง สำหรับทุกหวยที่มีข้อมูล
     // กำหนด label บน/ล่าง ตามประเภทหวย
     const isStock = r.code && r.code.endsWith('_STK');
-    const lbl1st = isStock ? '3 ตัวบน' : 'รางวัลที่ 1';
+    const lbl1st  = '3 ตัวบน';
     const lbl2top = '2 บน';
     const lbl2bot = '2 ล่าง';
     return `<div class="res-row">

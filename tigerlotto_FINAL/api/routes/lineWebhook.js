@@ -496,12 +496,13 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
     if (!lt) return console.warn('[LINE Fetch] lottery_type not found: ' + lotteryCode);
 
     // map prize_type → DB column
-    const isVN  = lotteryCode.startsWith('VN_');
+    // ↑ (บน) 3 หลัก → prize_1st | 2 หลัก → prize_last_2
+    // ↓ (ล่าง) → prize_2bot เสมอ (ทุกประเภทหวย)
     const colMap = {
       '1st':'prize_1st', 'last2':'prize_last_2', 'last3':'prize_last_3', 'front3':'prize_front_3',
-      '3top':'prize_1st',
-      '2top': 'prize_1st',
-      '2bot': isVN ? 'prize_2bot' : 'prize_last_2',
+      '3top': 'prize_1st',
+      '2top': 'prize_last_2',
+      '2bot': 'prize_2bot',
     };
     const updates = {};
     for (const p of prizes) { const col = colMap[p.prize_type]; if (col) updates[col] = p.prize_value; }
