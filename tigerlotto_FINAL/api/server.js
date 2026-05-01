@@ -999,6 +999,11 @@ server.listen(PORT, '0.0.0.0', () => {
     }, 60_000);
     console.log('[GOV SCRAPER] Scheduler started — วันที่ 1 และ 16 เวลา 16:30 ICT');
     // ─────────────────────────────────────────────────────────────
-    // ─────────────────────────────────────────────────────────
+
+    // ── Round Manager (auto-create/open/close/announce) ──────────
+    const { startRoundManager } = require('./services/roundManager');
+    startRoundManager();
+    console.log('[ROUND_MGR] Started — auto-create/open/close/announce rounds');
+    // ─────────────────────────────────────────────────────────────
   }, 5_000);
 });

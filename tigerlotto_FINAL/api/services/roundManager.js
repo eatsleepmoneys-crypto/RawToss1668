@@ -212,6 +212,56 @@ function buildRoundsForToday() {
     });
   }
 
+  // ── หวยหุ้นญี่ปุ่น JPX (วันจันทร์–ศุกร์) ────────────────────────
+  // JPX: เปิด 09:30 Tokyo (08:30 TH), ปิด 15:30 Tokyo (14:30 TH)
+  // รอบเช้า: ปิดรับ 11:30 TH, รอบบ่าย: ปิดรับ 14:00 TH
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'JP_STK',
+      round_code: `JPSTK-${compact}-1`,
+      round_name: `หวยหุ้นญี่ปุ่น ${dateThai} (รอบเช้า)`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 09:00:00`,
+      close_at:   `${dateStr} 11:30:00`,
+    });
+    rounds.push({
+      code:       'JP_STK',
+      round_code: `JPSTK-${compact}-2`,
+      round_name: `หวยหุ้นญี่ปุ่น ${dateThai} (รอบบ่าย)`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 12:00:00`,
+      close_at:   `${dateStr} 14:00:00`,
+    });
+  }
+
+  // ── หวยหุ้นเกาหลี KRX (วันจันทร์–ศุกร์) ─────────────────────────
+  // KRX: เปิด 09:00 Seoul (07:00 TH), ปิด 15:30 Seoul (13:30 TH)
+  // รอบเดียว: ปิดรับ 13:00 TH, ดึงผล 13:30 TH
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'KR_STK',
+      round_code: `KRSTK-${compact}-1`,
+      round_name: `หวยหุ้นเกาหลี ${dateThai}`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 09:00:00`,
+      close_at:   `${dateStr} 13:00:00`,
+    });
+  }
+
+  // ── หวยหุ้นไต้หวัน TAIEX (วันจันทร์–ศุกร์) ──────────────────────
+  // TAIEX: เปิด 09:00 Taipei (08:00 TH), ปิด 13:30 Taipei (12:30 TH)
+  // รอบเดียว: ปิดรับ 12:00 TH, ดึงผล 12:30 TH
+  if (dow >= 1 && dow <= 5) {
+    rounds.push({
+      code:       'TW_STK',
+      round_code: `TWSTK-${compact}-1`,
+      round_name: `หวยหุ้นไต้หวัน ${dateThai}`,
+      draw_date:  dateStr,
+      open_at:    `${dateStr} 09:00:00`,
+      close_at:   `${dateStr} 12:00:00`,
+    });
+  }
+
   // ── หวยยี่กี 90 งวด (ทุก 16 นาที ตลอด 24 ชม.) ────────────────
   // งวด n: open_at = (n-1)×16 นาที, close_at = n×16−5 นาที จากเที่ยงคืน
   for (let n = 1; n <= 90; n++) {
