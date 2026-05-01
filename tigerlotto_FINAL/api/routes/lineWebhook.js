@@ -369,6 +369,10 @@ const BOT_CODE_MAP = {
   // ยี่กี
   'YK': 'YEEKEE',    // หวยยี่กี
   'YG': 'YEEKEE',    // alias
+  // ญี่ปุ่น / เกาหลี / ไต้หวัน
+  'JP': 'JP_STK',    // หวยหุ้นญี่ปุ่น
+  'KR': 'KR_STK',    // หวยหุ้นเกาหลี
+  'TW': 'TW_STK',    // หวยหุ้นไต้หวัน
 };
 
 /**
@@ -418,6 +422,18 @@ function parseLotteryMessage(text) {
     for (const line of lines) {
       if (!top) { const m = line.match(/(?:[↑⬆]️?|บน)[\s:]*(\d+)/u); if (m) { top = m[1]; continue; } }
       if (!bot) { const m = line.match(/(?:[↓⬇]️?|ล่าง)[\s:]*(\d+)/u); if (m) { bot = m[1]; continue; } }
+    }
+    // Fallback: ถ้าไม่มี ↑↓ บน/ล่าง → หาตัวเลขจากบรรทัดที่ไม่มีตัวอักษรไทย/อังกฤษ
+    // รองรับ format: "🟦 604" / "🟦 12" / " 604" / "  12"
+    if (!top && !bot) {
+      const numOnly = lines.filter(function(l) {
+        if (/[฀-๿]/.test(l)) return false; // มีไทย (วันที่) → skip
+        if (/[A-Za-z]/.test(l)) return false;         // มีอังกฤษ (header/footer) → skip
+        const d = l.replace(/\D/g, '');
+        return d.length >= 2 && d.length <= 6;
+      });
+      if (numOnly[0]) top = numOnly[0].replace(/\D/g, '');
+      if (numOnly[1]) bot = numOnly[1].replace(/\D/g, '').slice(-2); // เอาแค่ 2 หลักท้าย
     }
     if (!top && !bot) continue;
 
