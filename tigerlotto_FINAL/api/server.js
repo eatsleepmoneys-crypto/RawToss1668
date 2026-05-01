@@ -905,99 +905,15 @@ server.listen(PORT, '0.0.0.0', () => {
     }, 60_000);
     scheduleDailyYeekeeCreate();
 
-    // ── หวยฮานอย: ดึงผลอัตโนมัติ 3 ประเภท ──────────────────
-    const { runHanoiType } = require('./services/hanoiScraper');
-    let _lastHanoiSpecial = '', _lastHanoiNormal = '', _lastHanoiVip = '';
-    setInterval(async () => {
-      const now = new Date();
-      const ict = new Date(now.getTime() + 7 * 3600 * 1000);
-      const h = ict.getUTCHours();
-      const m = ict.getUTCMinutes();
-      const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
-
-      // ฮานอยพิเศษ: 17:35, 17:40
-      if (h === 17 && (m === 35 || m === 40) && dateKey !== _lastHanoiSpecial) {
-        console.log('[HANOI] Trigger พิเศษ');
-        try {
-          await runHanoiType('special');
-          _lastHanoiSpecial = dateKey; // set only on success so :40 can retry if :35 fails
-        } catch (err) {
-          console.error('[HANOI] พิเศษ scraper failed:', err.message);
-        }
-      }
-      // ฮานอยปกติ: 18:35, 18:40
-      if (h === 18 && (m === 35 || m === 40) && dateKey !== _lastHanoiNormal) {
-        console.log('[HANOI] Trigger ปกติ');
-        try {
-          await runHanoiType('normal');
-          _lastHanoiNormal = dateKey;
-        } catch (err) {
-          console.error('[HANOI] ปกติ scraper failed:', err.message);
-        }
-      }
-      // ฮานอย VIP: 19:35, 19:40
-      if (h === 19 && (m === 35 || m === 40) && dateKey !== _lastHanoiVip) {
-        console.log('[HANOI] Trigger VIP');
-        try {
-          await runHanoiType('vip');
-          _lastHanoiVip = dateKey;
-        } catch (err) {
-          console.error('[HANOI] VIP scraper failed:', err.message);
-        }
-      }
-    }, 60_000);
-    console.log('[HANOI] Scheduler started — พิเศษ 17:35 / ปกติ 18:35 / VIP 19:35 ICT');
+    // ── หวยฮานอย: DISABLED — ใช้ LINE Webhook แทน ────────────
+    // (บอทในกลุ่ม LINE แจ้งผลครบทุกหวย จึงไม่จำเป็นต้องใช้ scraper)
     // ─────────────────────────────────────────────────────────
 
-    // ── หวยลาว: ดึงผลอัตโนมัติ ──────────────────────────────
-    // ออกผลทุกวัน ~19:55 ICT (UTC+7 = 12:55 UTC)
-    // รัน 20:00, 20:05, 20:10 เพื่อ retry ถ้าเว็บช้า
-    const { runLaoScraper } = require('./services/laoLotteryScraper');
-    let _lastLaoDate = '';
-    setInterval(async () => {
-      const now = new Date();
-      // UTC+7: offset 7 ชั่วโมง
-      const ict = new Date(now.getTime() + 7 * 3600 * 1000);
-      const h = ict.getUTCHours();
-      const m = ict.getUTCMinutes();
-      const dateKey = `${ict.getUTCFullYear()}-${ict.getUTCMonth()}-${ict.getUTCDate()}`;
-      // รันที่ 20:00, 20:05, 20:10 ICT
-      const isRunTime = h === 20 && (m === 0 || m === 5 || m === 10);
-      if (isRunTime && dateKey !== _lastLaoDate) {
-        console.log(`[LAO SCRAPER] Scheduled trigger at ICT ${h}:${String(m).padStart(2,'0')}`);
-        try {
-          await runLaoScraper();
-          _lastLaoDate = dateKey; // set only on success so next slot can retry
-        } catch (err) {
-          console.error('[LAO SCRAPER] scraper failed:', err.message);
-        }
-      }
-    }, 60_000);
-    console.log('[LAO SCRAPER] Scheduler started — will run daily at 20:00 ICT');
+    // ── หวยลาว: DISABLED — ใช้ LINE Webhook แทน ───────────────
+    // (บอทในกลุ่ม LINE แจ้งผลครบทุกหวย จึงไม่จำเป็นต้องใช้ scraper)
 
-    // ── หวยรัฐบาล: ดึงผลอัตโนมัติ (วันที่ 1 และ 16) ────────────
-    const { runGovScraper, isGovLotteryDay } = require('./services/govLotteryScraper');
-    let _lastGovDate = '';
-    setInterval(async () => {
-      if (!isGovLotteryDay()) return;
-      const now2 = new Date();
-      const ict2 = new Date(now2.getTime() + 7 * 3600 * 1000);
-      const h2 = ict2.getUTCHours();
-      const m2 = ict2.getUTCMinutes();
-      const dateKey2 = `${ict2.getUTCFullYear()}-${ict2.getUTCMonth()}-${ict2.getUTCDate()}`;
-      // รันที่ 16:30, 17:00, 17:30 ICT
-      const isRunTime2 = (h2 === 16 && m2 === 30) || (h2 === 17 && m2 === 0) || (h2 === 17 && m2 === 30);
-      if (isRunTime2 && dateKey2 !== _lastGovDate) {
-        console.log(`[GOV SCRAPER] Trigger at ICT ${h2}:${String(m2).padStart(2,'0')}`);
-        try {
-          await runGovScraper();
-          _lastGovDate = dateKey2; // set only on success so next slot can retry
-        } catch (err) {
-          console.error('[GOV SCRAPER] scraper failed:', err.message);
-        }
-      }
-    }, 60_000);
-    console.log('[GOV SCRAPER] Scheduler started — วันที่ 1 และ 16 เวลา 16:30 ICT');
+    // ── หวยรัฐบาล: DISABLED — ใช้ LINE Webhook แทน ────────────
+    // (บอทในกลุ่ม LINE แจ้งผลครบทุกหวย จึงไม่จำเป็นต้องใช้ scraper)
     // ─────────────────────────────────────────────────────────────
 
     // ── Round Manager (auto-create/open/close/announce) ──────────
