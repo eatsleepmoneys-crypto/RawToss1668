@@ -331,7 +331,7 @@ function extractThaiDate(text) {
     const re = new RegExp(`(\\d{1,2})\\s*${mName}\\s*(\\d{4})`);
     const m = text.match(re);
     if (m) {
-      let [,d,,y] = m; d = Number(d); y = Number(y);
+      let [,d,y] = m; d = Number(d); y = Number(y);
       if (y > 2400) y -= 543;
       return `${y}-${String(mNum).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     }
