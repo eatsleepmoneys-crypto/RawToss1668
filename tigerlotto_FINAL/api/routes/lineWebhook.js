@@ -191,10 +191,11 @@ router.post('/', async (req, res) => {
     const fetchGroupRow = await query("SELECT value FROM settings WHERE `key`='line_fetch_group_id' LIMIT 1").catch(()=>[]);
     const fetchGroupId  = fetchGroupRow.at(0)?.value || '';
 
-    // Verify signature
+    // Verify signature (ใช้ raw body เพื่อความถูกต้อง)
     const sig = req.headers['x-line-signature'];
     if (secret && sig) {
-      if (!verifySignature(JSON.stringify(req.body), sig, secret)) {
+      const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
+      if (!verifySignature(rawBody, sig, secret)) {
         console.warn('[LINE Webhook] Signature mismatch — ignored');
         return;
       }
