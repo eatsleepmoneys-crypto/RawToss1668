@@ -3817,6 +3817,7 @@ async function loadLineSettings(){
     // Show masked hint for tokens
     if(s.has_notify_token){ const el=document.getElementById('line-notify-token'); if(el) el.placeholder=s.notify_token+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
     if(s.has_bot_token)   { const el=document.getElementById('line-bot-token');    if(el) el.placeholder=s.bot_token+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
+    if(s.has_bot_secret)  { const el=document.getElementById('line-bot-secret');   if(el) el.placeholder=s.bot_secret+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
   } catch(e) { console.warn('loadLineSettings', e.message); }
 }
 
@@ -3826,6 +3827,7 @@ async function saveLineSettings(){
     notify_token    : document.getElementById('line-notify-token')?.value?.trim()  || '',
     bot_enabled     : document.getElementById('line-bot-enabled')?.checked     ?? false,
     bot_token       : document.getElementById('line-bot-token')?.value?.trim()    || '',
+      bot_secret      : document.getElementById('line-bot-secret')?.value?.trim()   || '',
     group_id        : document.getElementById('line-group-id')?.value?.trim()     || '',
     fetch_group_id  : document.getElementById('line-fetch-group-id')?.value?.trim() ?? undefined,
     notify_deposit  : document.getElementById('line-notify-deposit')?.checked  ?? true,
@@ -3836,6 +3838,7 @@ async function saveLineSettings(){
     toast('สำเร็จ', 'บันทึกการตั้งค่า LINE แล้ว');
     document.getElementById('line-notify-token').value = '';
     document.getElementById('line-bot-token').value    = '';
+    const secEl = document.getElementById('line-bot-secret'); if(secEl) secEl.value = '';
     await loadLineSettings();
   } catch(e){ toast('ผิดพลาด', e.message, 'error'); }
 }
@@ -5358,6 +5361,12 @@ api:()=>`
         <label style="font-size:12px">Channel Access Token (Long-lived)</label>
         <input id="line-bot-token" class="fi-full" type="password" placeholder="ใส่ Channel Access Token (ว่าง = คงเดิม)">
       </div>
+      <div class="fg">
+        <label style="font-size:12px">Channel Secret <span style="color:#e74c3c;font-size:10px">⚠️ ต้องกรอกให้ถูกต้องเพื่อรับ webhook</span></label>
+        <input id="line-bot-secret" class="fi-full" type="password" placeholder="ใส่ Channel Secret จาก LINE Developers (ว่าง = คงเดิม)">
+      </div>
+    </div>
+    <div class="fi-row">
       <div class="fg">
         <label style="font-size:12px">Group ID แจ้งเตือน (C... หรือ R...)</label>
         <input id="line-group-id" class="fi-full" placeholder="เช่น C1234567890abcdef...">

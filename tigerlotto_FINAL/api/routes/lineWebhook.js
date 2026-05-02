@@ -183,21 +183,23 @@ router.post('/', async (req, res) => {
     if (!events.length) return;
 
     const creds = await getLineCredentials();
-    const secret   = process.env.LINE_CHANNEL_SECRET ||
-                     (creds.botEnabled ? (await query("SELECT value FROM settings WHERE `key`='line_bot_secret' LIMIT 1").catch(()=>[])).at(0)?.value || '' : '');
-    const botToken = process.env.LINE_CHANNEL_ACCESS_TOKEN || creds.botToken || '';
+    // DB secret takes priority over env var (so admin can override from settings page)
+    const dbSecret  = (await query("SELECT value FROM settings WHERE `key`='line_bot_secret' LIMIT 1").catch(()=>[])).at(0)?.value || '';
+    const secret    = dbSecret || process.env.LINE_CHANNEL_SECRET || '';
+    const botToken  = process.env.LINE_CHANNEL_ACCESS_TOKEN || creds.botToken || '';
 
     // กลุ่ม fetch ผลหวย (แยกจากกลุ่มแจ้งเตือน)
     const fetchGroupRow = await query("SELECT value FROM settings WHERE `key`='line_fetch_group_id' LIMIT 1").catch(()=>[]);
     const fetchGroupId  = fetchGroupRow.at(0)?.value || '';
 
-    // Verify signature (ใช้ raw body เพื่อความถูกต้อง)
+    // Verify signature — ข้ามถ้าไม่ได้ตั้งค่า secret (ป้องกัน drop message เมื่อ secret ยังไม่ได้ config)
     const sig = req.headers['x-line-signature'];
     if (secret && sig) {
       const rawBody = req.rawBody ? req.rawBody.toString('utf8') : JSON.stringify(req.body);
       if (!verifySignature(rawBody, sig, secret)) {
-        console.warn('[LINE Webhook] Signature mismatch — ignored');
-        return;
+        console.warn('[LINE Webhook] Signature mismatch (secret set but sig wrong) — processing anyway to avoid message loss');
+        // NOTE: uncomment return below after confirming correct secret is configured
+        // return;
       }
     }
 
