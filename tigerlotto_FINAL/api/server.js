@@ -895,6 +895,74 @@ server.listen(PORT, '0.0.0.0', () => {
     INDEX \`idx_lm_received\` (\`received_at\`),
     INDEX \`idx_lm_source\` (\`source_id\`)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`).catch(e => console.warn('[startup] line_messages table:', e.message));
+  // ── Seed 109 new lottery sub-types (INSERT IGNORE via pool — idempotent) ──
+  (async () => {
+    try {
+      // Add category + fix sort_order column
+      await pool.execute("ALTER TABLE `lottery_types` ADD COLUMN `category` VARCHAR(50) NOT NULL DEFAULT 'other' AFTER `flag`").catch(()=>{});
+      await pool.execute("ALTER TABLE `lottery_types` MODIFY COLUMN `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0").catch(()=>{});
+      const newTypes = [
+        ['JP_STK_AM','นิคเคอิเช้า','🇯🇵',211],['JP_STK_PM','นิคเคอิบ่าย','🇯🇵',212],
+        ['CN_STK_AM','จีนเช้า','🇨🇳',221],['CN_STK_PM','จีนบ่าย','🇨🇳',222],
+        ['HK_STK','ฮั่งเส็ง','🇭🇰',230],['HK_STK_AM','ฮั่งเส็งเช้า','🇭🇰',231],['HK_STK_PM','ฮั่งเส็งบ่าย','🇭🇰',232],
+        ['IN_STK','อินเดีย','🇮🇳',270],['DE_STK','เยอรมัน','🇩🇪',280],['RU_STK','รัสเซีย','🇷🇺',290],['UK_STK','อังกฤษ','🇬🇧',300],
+        ['JP_VIP_AM','นิคเคอิ VIP เช้า','🇯🇵',311],['JP_VIP_PM','นิคเคอิ VIP บ่าย','🇯🇵',312],
+        ['CN_VIP_AM','จีน VIP เช้า','🇨🇳',321],['CN_VIP_PM','จีน VIP บ่าย','🇨🇳',322],
+        ['HK_VIP_AM','ฮั่งเส็ง VIP เช้า','🇭🇰',331],['HK_VIP_PM','ฮั่งเส็ง VIP บ่าย','🇭🇰',332],
+        ['TW_VIP','ไต้หวัน VIP','🇹🇼',340],['KR_VIP','เกาหลี VIP','🇰🇷',350],['SG_VIP','สิงคโปร์ VIP','🇸🇬',360],
+        ['UK_VIP','อังกฤษ VIP','🇬🇧',370],['DE_VIP','เยอรมัน VIP','🇩🇪',380],['RU_VIP','รัสเซีย VIP','🇷🇺',390],
+        ['JP_SP_AM','นิคเคอิพิเศษเช้า','🇯🇵',411],['JP_SP_PM','นิคเคอิพิเศษบ่าย','🇯🇵',412],
+        ['CN_SP_AM','จีนพิเศษเช้า','🇨🇳',421],['CN_SP_PM','จีนพิเศษบ่าย','🇨🇳',422],
+        ['HK_SP_AM','ฮั่งเส็งพิเศษเช้า','🇭🇰',431],['HK_SP_PM','ฮั่งเส็งพิเศษบ่าย','🇭🇰',432],
+        ['VN_SP_AM','เวียดนามพิเศษเช้า','🇻🇳',441],['VN_SP_PM','เวียดนามพิเศษบ่าย','🇻🇳',442],
+        ['TW_SP','ไต้หวันพิเศษ','🇹🇼',450],['KR_SP','เกาหลีพิเศษ','🇰🇷',460],['SG_SP','สิงคโปร์พิเศษ','🇸🇬',470],
+        ['RU_SP','รัสเซียพิเศษ','🇷🇺',480],['DE_SP','เยอรมันพิเศษ','🇩🇪',481],['DJ_SP','ดาวโจนส์พิเศษ','🇺🇸',490],['EU_SP','ยูโร','🇪🇺',495],
+        ['JP_VISA_AM','นิคเคอิวีซ่าเช้า','🇯🇵',511],['JP_VISA_PM','นิคเคอิวีซ่าบ่าย','🇯🇵',512],
+        ['CN_VISA_AM','จีนวีซ่าเช้า','🇨🇳',521],['CN_VISA_PM','จีนวีซ่าบ่าย','🇨🇳',522],
+        ['HK_VISA_AM','ฮั่งเส็งวีซ่าเช้า','🇭🇰',531],['HK_VISA_PM','ฮั่งเส็งวีซ่าบ่าย','🇭🇰',532],
+        ['HK_VISA','ฮ่องกงวีซ่า','🇭🇰',533],['VN_VISA','ฮานอยวีซ่า','🇻🇳',540],
+        ['LA_VISA_SAL','ลาววีซ่าสาละวัน','🇱🇦',551],['LA_VISA_LPB','ลาววีซ่าหลวงพระบาง','🇱🇦',552],
+        ['LA_VISA_VTE','ลาววีซ่าเวียงจันทน์','🇱🇦',553],['LA_VISA','ลาววีซ่า','🇱🇦',554],
+        ['UK_VISA','อังกฤษวีซ่า','🇬🇧',560],['DE_VISA','เยอรมันวีซ่า','🇩🇪',561],['RU_VISA','รัสเซียวีซ่า','🇷🇺',562],
+        ['VN_HAN_AM','ฮานอยเช้า','🇻🇳',601],['VN_HAN_ASEAN','ฮานอยอาเซียน','🇻🇳',602],
+        ['VN_HAN_HD','ฮานอย HD','🇻🇳',603],['VN_HAN_STAR','ฮานอยสตาร์','🇻🇳',604],
+        ['VN_HAN_TV','ฮานอยทีวี','🇻🇳',605],['VN_HAN_RC','ฮานอยกาชาด','🇻🇳',606],
+        ['VN_HAN_SPEC','ฮานอยเฉพาะกิจ','🇻🇳',607],['VN_HAN_SAM','ฮานอยสามัคคี','🇻🇳',608],
+        ['VN_HAN_ONLINE','เวียดนามปกติออนไลน์','🇻🇳',609],['VN_VIP_ONLINE','เวียดนาม VIP ออนไลน์','🇻🇳',610],
+        ['VN_HAN_DEV','ฮานอยพัฒนา','🇻🇳',611],['VN_HAN_4D','ฮานอย 4D','🇻🇳',612],
+        ['VN_HAN_EXTRA','ฮานอย Extra','🇻🇳',613],['VN_HAN_NIGHT','ฮานอยดึก','🇻🇳',614],
+        ['LA_GATE','ลาวประตูชัย','🇱🇦',702],['LA_PEACE','ลาวสันติภาพ','🇱🇦',703],
+        ['LA_PEOPLE','ประชาชนลาว','🇱🇦',704],['LA_AM','ลาวเช้า','🇱🇦',705],
+        ['LA_EXTRA','ลาว Extra','🇱🇦',706],['LA_TV','ลาวทีวี','🇱🇦',707],
+        ['LA_RICH','ลาวมั่งคั่ง','🇱🇦',708],['LA_SP_NOON','ลาวพิเศษเที่ยง','🇱🇦',709],
+        ['LA_SP','ลาวพิเศษ','🇱🇦',710],['LA_PLUS','ลาวพลัส','🇱🇦',711],
+        ['LA_SABAI','ลาวสบายดี','🇱🇦',712],['LA_GOV_NOON','ลาวพัฒนาเที่ยง','🇱🇦',713],
+        ['LA_PROGRESS','ลาวก้าวหน้า','🇱🇦',714],['LA_HD','ลาว HD','🇱🇦',715],
+        ['LA_CHERN','ลาวเจริญ','🇱🇦',716],['LA_NKL','ลาวนครหลวง','🇱🇦',717],
+        ['LA_STABLE','ลาวมั่นคง','🇱🇦',718],['LA_STAR','ลาวสตาร์','🇱🇦',719],
+        ['LA_NIYOM','ลาวนิยม','🇱🇦',720],['LA_RICH2','ลาวร่ำรวย','🇱🇦',721],
+        ['LA_MONGKOL','ลาวมงคล','🇱🇦',722],['LA_SUPER','ลาวซูเปอร์','🇱🇦',723],
+        ['LA_UNITY','ลาวสามัคคี','🇱🇦',724],['LA_ASEAN','ลาวอาเซียน','🇱🇦',725],
+        ['LA_UNITY_VIP','ลาวสามัคคี VIP','🇱🇦',726],['LA_PROSPER','ลาวรุ่งเรือง','🇱🇦',727],
+        ['LA_VIP','ลาว VIP','🇱🇦',728],['LA_STAR_VIP','ลาวสตาร์ VIP','🇱🇦',729],
+        ['LA_AIYARA','ลาวไอยรา','🇱🇦',730],['LA_RC','ลาวกาชาด','🇱🇦',731],['LA_GOV_VIP','ลาวพัฒนา VIP','🇱🇦',732],
+        ['MK_TODAY','แม่โขงทูเดย์','🇱🇦',801],['MK_HD','แม่โขง HD','🇱🇦',802],
+        ['MK_MEGA','แม่โขงเมก้า','🇱🇦',803],['MK_STAR','แม่โขงสตาร์','🇱🇦',804],
+        ['MK_PLUS','แม่โขงพลัส','🇱🇦',805],['MK_SP','แม่โขงพิเศษ','🇱🇦',806],
+        ['MK_NORMAL','แม่โขงปกติ','🇱🇦',807],['MK_VIP','แม่โขง VIP','🇱🇦',808],
+        ['MK_DEV','แม่โขงพัฒนา','🇱🇦',809],['MK_GOLD','แม่โขงโกลด์','🇱🇦',810],['MK_NIGHT','แม่โขงไนท์','🇱🇦',811],
+      ];
+      let seeded = 0;
+      for (const [code, name, flag, sort_order] of newTypes) {
+        const [r] = await pool.execute(
+          'INSERT IGNORE INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,720,115,90,85,3.0,4.0,5000)',
+          [code, name, flag, sort_order]
+        );
+        if (r.affectedRows > 0) seeded++;
+      }
+      if (seeded > 0) console.log(`[startup] Seeded ${seeded} new lottery types`);
+    } catch (e) { console.warn('[startup] Lottery seed error:', e.message); }
+  })();
   setTimeout(() => {
     autoCreateGovRound();
     autoCreateLaoRound();
