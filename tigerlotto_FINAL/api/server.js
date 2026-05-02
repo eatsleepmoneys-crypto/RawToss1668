@@ -582,7 +582,7 @@ app.get('/health', async (req,res) => {
   try {
     const { pool } = require('./config/db');
     await pool.execute('SELECT 1');
-    res.json({ status:'ok', db:'connected', uptime:process.uptime(), ts:new Date(), v:'auto-migrate' });
+    res.json({ status:'ok', db:'connected', uptime:process.uptime(), ts:new Date(), v:'seed-109-types' });
   } catch { res.status(503).json({ status:'error', db:'disconnected' }); }
 });
 
