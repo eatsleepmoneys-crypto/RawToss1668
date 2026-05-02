@@ -1385,7 +1385,7 @@ router.post('/line-reprocess', authAdmin, rbac.requirePerm('results.announce'), 
 
     const conds = ['parsed=0'], params = [];
     if (date) {
-      conds.push("DATE(CONVERT_TZ(received_at,'+00:00','+07:00'))=?");
+      conds.push('DATE(received_at)=?');
       params.push(date);
     }
     const rows = await query(

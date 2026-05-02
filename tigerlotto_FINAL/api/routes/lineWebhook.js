@@ -757,6 +757,12 @@ async function handleLotteryMessage(event, groupId, fetchGroupId) {
 
   console.log('[LINE Fetch] parsed result:', lotteryCode, drawDate, prizes);
   await saveLotteryResult({ lotteryCode, drawDate, prizes });
+
+  // mark parsed=1 หลัง save สำเร็จ
+  const msgId = event.message?.id || '';
+  if (msgId) {
+    await query('UPDATE line_messages SET parsed=1 WHERE msg_id=?', [msgId]).catch(() => {});
+  }
 }
 
-module.exports = router;
+module.exports = Object.assign(router, { parseLotteryMessage, saveLotteryResult });
