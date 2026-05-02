@@ -1253,7 +1253,7 @@ router.get('/line-messages', authAdmin, async (req, res) => {
 
     const conds = [], params = [];
     if (parsed !== null)  { conds.push('parsed=?');                                   params.push(parsed); }
-    if (date)             { conds.push("DATE(CONVERT_TZ(received_at,'+00:00','+07:00'))=?"); params.push(date); }
+    if (date)             { conds.push('DATE(received_at)=?');                                  params.push(date); }
     if (source_id)        { conds.push('source_id=?');                                params.push(source_id); }
 
     const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
@@ -1262,7 +1262,7 @@ router.get('/line-messages', authAdmin, async (req, res) => {
 
     // ดึงวันที่ที่มีข้อมูล (distinct dates) สำหรับ date picker
     const dates = await query(
-      `SELECT DISTINCT DATE(CONVERT_TZ(received_at,'+00:00','+07:00')) AS d
+      `SELECT DISTINCT DATE(received_at) AS d
        FROM line_messages ORDER BY d DESC LIMIT 60`
     );
 
