@@ -952,16 +952,21 @@ server.listen(PORT, '0.0.0.0', () => {
         ['MK_NORMAL','แม่โขงปกติ','🇱🇦',807],['MK_VIP','แม่โขง VIP','🇱🇦',808],
         ['MK_DEV','แม่โขงพัฒนา','🇱🇦',809],['MK_GOLD','แม่โขงโกลด์','🇱🇦',810],['MK_NIGHT','แม่โขงไนท์','🇱🇦',811],
       ];
-      let seeded = 0;
+      let seeded = 0, skipped = 0, failed = 0;
       for (const [code, name, flag, sort_order] of newTypes) {
-        const [r] = await pool.execute(
-          'INSERT IGNORE INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,720,115,90,85,3.0,4.0,5000)',
-          [code, name, flag, sort_order]
-        );
-        if (r.affectedRows > 0) seeded++;
+        try {
+          const [r] = await pool.execute(
+            'INSERT IGNORE INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,720,115,90,85,3.0,4.0,5000)',
+            [code, name, flag, sort_order]
+          );
+          if (r.affectedRows > 0) seeded++; else skipped++;
+        } catch(rowErr) {
+          failed++;
+          console.warn(`[startup] Seed failed for ${code} (sort_order=${sort_order}):`, rowErr.message);
+        }
       }
-      if (seeded > 0) console.log(`[startup] Seeded ${seeded} new lottery types`);
-    } catch (e) { console.warn('[startup] Lottery seed error:', e.message); }
+      console.log(`[startup] Lottery seed done: ${seeded} inserted, ${skipped} already existed, ${failed} failed`);
+    } catch (e) { console.warn('[startup] Lottery seed critical error:', e.message); }
   })();
   setTimeout(() => {
     autoCreateGovRound();
