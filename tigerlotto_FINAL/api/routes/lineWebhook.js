@@ -582,3 +582,5 @@ async function handleLotteryMessage(event, groupId, fetchGroupId) {
 }
 
 module.exports = router;
+module.exports.parseLotteryMessage = parseLotteryMessage;
+module.exports.saveLotteryResult   = saveLotteryResult;

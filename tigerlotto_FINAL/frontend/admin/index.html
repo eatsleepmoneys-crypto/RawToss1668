@@ -7306,7 +7306,10 @@ PAGES['line-fetch'] = () => `
 <div class="page-card" style="margin-top:16px">
   <div class="card-header">
     <span>📨 ประวัติข้อความ LINE Webhook</span>
-    <button class="btn btn-secondary" onclick="lfReload()" style="margin-left:auto;font-size:12px;padding:4px 10px">🔄 Refresh</button>
+    <div style="margin-left:auto;display:flex;gap:6px">
+      <button id="lf-autosave-btn" class="btn btn-primary" onclick="lfReprocess()" style="font-size:12px;padding:4px 12px">⚡ บันทึกอัตโนมัติ</button>
+      <button class="btn btn-secondary" onclick="lfReload()" style="font-size:12px;padding:4px 10px">🔄 Refresh</button>
+    </div>
   </div>
   <div class="card-body">
 
@@ -7494,7 +7497,272 @@ async function lfLoadMsgs() {
         const saved = r.parsed;
         const rowBg = saved ? 'background:rgba(6,199,85,0.06)' : '';
         return `<tr id="${rowId}" style="${rowBg}">
-          <td style="font-size:10px;color:var(--muted);white-space:nowrap">${recAt}</td>
+          <td style="font-size:10px;color:var(--muted);white-          <td style="font-size:10px;color:var(--muted);white-space:nowrap">${recAt}</td>
           <td style="font-size:12px;color:var(--gold2);font-weight:500">${lotteryName}</td>
           <td style="text-align:center;font-size:12px;color:var(--muted)">${drawDate}</td>
-          <td style="te
+          <td style="text-align:center;padding:4px">
+            <input id="${rowId}-t3" type="text" maxlength="6" placeholder="---"
+              value="${top3}"
+              style="width:60px;text-align:center;font-size:15px;font-weight:700;color:#f5c542;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 4px"
+              oninput="lfAutoFill2Top('${rowId}')">
+          </td>
+          <td style="text-align:center;padding:4px">
+            <input id="${rowId}-t2" type="text" maxlength="2" placeholder="--"
+              value="${top2}"
+              style="width:46px;text-align:center;font-size:15px;font-weight:700;color:#f5c542;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 4px">
+          </td>
+          <td style="text-align:center;padding:4px">
+            <input id="${rowId}-b2" type="text" maxlength="2" placeholder="--"
+              value="${bot2}"
+              style="width:46px;text-align:center;font-size:15px;font-weight:700;color:#4fc3f7;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;padding:3px 4px">
+          </td>
+          <td style="text-align:center;padding:4px">
+            ${saved
+              ? `<span style="color:#06c755;font-size:11px">✅ บันทึกแล้ว</span>`
+              : `<button class="btn btn-primary" style="font-size:11px;padding:3px 10px"
+                   onclick="lfSaveRow('${rowId}','${lotteryCode}','${drawDateISO}')">บันทึก</button>`
+            }
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    // ── Pagination ──
+    const totalPages = Math.ceil(total / limit);
+    const pgEl = document.getElementById('lf-pagination');
+    if (pgEl && totalPages > 1) {
+      let html = '';
+      const p = page;
+      if (p > 1) html += `<button class="btn btn-secondary" style="font-size:12px;padding:3px 10px" onclick="lfGoPage(${p-1})">◀ ก่อน</button>`;
+      const from = Math.max(1, p-2), to = Math.min(totalPages, p+2);
+      if (from > 1) html += `<button class="btn btn-secondary" style="font-size:12px;padding:3px 8px" onclick="lfGoPage(1)">1</button><span style="color:var(--muted)">…</span>`;
+      for (let i = from; i <= to; i++)
+        html += `<button class="btn ${i===p?'btn-primary':'btn-secondary'}" style="font-size:12px;padding:3px 10px" onclick="lfGoPage(${i})">${i}</button>`;
+      if (to < totalPages) html += `<span style="color:var(--muted)">…</span><button class="btn btn-secondary" style="font-size:12px;padding:3px 8px" onclick="lfGoPage(${totalPages})">${totalPages}</button>`;
+      if (p < totalPages) html += `<button class="btn btn-secondary" style="font-size:12px;padding:3px 10px" onclick="lfGoPage(${p+1})">ถัดไป ▶</button>`;
+      html += `<span style="font-size:11px;color:var(--muted)">หน้า ${p}/${totalPages} (${total} รายการ)</span>`;
+      pgEl.innerHTML = html;
+    } else if (pgEl) {
+      pgEl.innerHTML = total ? `<span style="font-size:11px;color:var(--muted)">${total} รายการ</span>` : '';
+    }
+
+  } catch(e) {
+    console.warn('lfLoadMsgs error:', e.message);
+    if (e.message && e.message.includes('line_messages')) {
+      const errDiv = document.getElementById('lf-table-error');
+      if (errDiv) errDiv.style.display = '';
+    }
+    const tb = document.getElementById('lf-msg-body');
+    if (tb) tb.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--danger)">❌ ${e.message}</td></tr>`;
+  }
+}
+
+/** Auto-reprocess: re-parse ข้อความ parsed=0 แล้ว save อัตโนมัติ */
+async function lfReprocess(silent = false) {
+  const btn = document.getElementById('lf-autosave-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...'; }
+  try {
+    const body = { limit: 200 };
+    if (_lfState.date) body.date = _lfState.date;
+    const r = await apiFetch('/admin/line-reprocess', {
+      method: 'POST', body: JSON.stringify(body)
+    }, 'admin');
+    if (r?.success) {
+      const { saved, skipped, errors } = r;
+      if (saved > 0) {
+        toast('สำเร็จ', `บันทึกอัตโนมัติ: ${saved} รายการ (ข้าม ${skipped}, error ${errors})`);
+        await lfLoadMsgs();
+      } else if (!silent) {
+        toast('ข้อมูล', `ไม่มีรายการใหม่ที่ต้องบันทึก (ข้าม ${skipped} รายการ)`);
+      }
+    } else { if (!silent) toast('ผิดพลาด', r?.message || 'reprocess ไม่สำเร็จ', 'error'); }
+  } catch(e) {
+    if (!silent) toast('ผิดพลาด', e.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⚡ บันทึกอัตโนมัติ'; }
+  }
+}
+
+/** เมื่อพิมพ์ 3ตัวบน → auto-fill 2ตัวบน */
+function lfAutoFill2Top(rowId) {
+  const t3El = document.getElementById(rowId + '-t3');
+  const t2El = document.getElementById(rowId + '-t2');
+  if (!t3El || !t2El) return;
+  const v = t3El.value.replace(/\D/g, '');
+  if (v.length >= 2) t2El.value = v.slice(-2);
+}
+
+/** บันทึกผลหวยจาก input fields → เรียก API */
+async function lfSaveRow(rowId, lotteryCode, drawDateISO) {
+  const t3 = (document.getElementById(rowId + '-t3')?.value || '').replace(/\D/g,'');
+  const t2 = (document.getElementById(rowId + '-t2')?.value || '').replace(/\D/g,'');
+  const b2 = (document.getElementById(rowId + '-b2')?.value || '').replace(/\D/g,'');
+  if (!lotteryCode || lotteryCode === 'undefined') { toast('ผิดพลาด','ไม่พบประเภทหวย','error'); return; }
+  if (!t3 && !t2) { toast('ผิดพลาด','กรุณากรอกเลขบนอย่างน้อย 2 หลัก','error'); return; }
+  const prizes = [];
+  if (t3.length >= 3) prizes.push({ prize_type:'3top', prize_value:t3 });
+  if (t2.length === 2) prizes.push({ prize_type:'2top', prize_value:t2 });
+  if (b2.length === 2) prizes.push({ prize_type:'2bot', prize_value:b2 });
+  const btn = document.querySelector(`#${rowId} button`);
+  if (btn) { btn.disabled = true; btn.textContent = '⏳...'; }
+  try {
+    const r = await apiFetch('/admin/line-save-result', {
+      method:'POST', body: JSON.stringify({ lottery_code:lotteryCode, draw_date:drawDateISO, prizes })
+    }, 'admin');
+    if (r?.success) {
+      toast('สำเร็จ', `บันทึกผล ${lotteryCode} ${drawDateISO}`);
+      const row = document.getElementById(rowId);
+      if (row) {
+        row.style.background = 'rgba(6,199,85,0.06)';
+        const lastTd = row.querySelector('td:last-child');
+        if (lastTd) lastTd.innerHTML = '<span style="color:#06c755;font-size:11px">✅ บันทึกแล้ว</span>';
+      }
+    } else { throw new Error(r?.message || 'บันทึกไม่สำเร็จ'); }
+  } catch(e) {
+    toast('ผิดพลาด', e.message, 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'บันทึก'; }
+  }
+}
+
+async function loadLineFetch() {
+  try {
+    const s = await apiFetch('/admin/line-fetch-settings', {}, 'admin');
+    const settings = s?.data || s || {};
+    const fetchGroupId    = settings.line_fetch_group_id || '';
+    const detectedGroupId = settings.line_group_id || '';
+    if (fetchGroupId) { const el = document.getElementById('lf-group-id'); if(el) el.value = fetchGroupId; }
+    if (detectedGroupId) {
+      const wrap = document.getElementById('lf-detected-wrap');
+      const inp  = document.getElementById('lf-detected-id');
+      if (wrap) wrap.style.display = '';
+      if (inp)  inp.value = detectedGroupId;
+    }
+  } catch(e) { console.warn('loadLineFetch settings error:', e.message); }
+  if (!_lfState.date) {
+    _lfState.date = new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Bangkok'});
+  }
+  await lfLoadMsgs();
+  lfReprocess(true); // auto-save ข้อความที่ยังไม่ได้บันทึก (silent)
+}
+
+let _lfRefreshTimer = null;
+function startLineFetchAutoRefresh() {
+  stopLineFetchAutoRefresh();
+  _lfRefreshTimer = setInterval(() => {
+    if (document.getElementById('lf-msg-body')) lfReprocess(true);
+    else stopLineFetchAutoRefresh();
+  }, 30000);
+}
+function stopLineFetchAutoRefresh() {
+  if (_lfRefreshTimer) { clearInterval(_lfRefreshTimer); _lfRefreshTimer = null; }
+}
+
+async function repairLineTable() {
+  try {
+    const r = await apiFetch('/admin/line-repair-table', { method:'POST' }, 'admin');
+    if (r?.success) {
+      toast('สำเร็จ','สร้างตาราง line_messages แล้ว');
+      const errDiv = document.getElementById('lf-table-error');
+      if (errDiv) errDiv.style.display = 'none';
+      await lfLoadMsgs();
+    } else { toast('ผิดพลาด', r?.message || 'ไม่สามารถสร้างตารางได้','error'); }
+  } catch(e) { toast('ผิดพลาด', e.message,'error'); }
+}
+
+function copyDetectedGroupId() {
+  const detected = document.getElementById('lf-detected-id')?.value || '';
+  if (detected) { document.getElementById('lf-group-id').value = detected; saveFetchGroupId(); }
+}
+
+async function saveFetchGroupId() {
+  const groupId = (document.getElementById('lf-group-id')?.value || '').trim();
+  try {
+    await apiFetch('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ line_fetch_group_id: groupId }) }, 'admin');
+    toast('สำเร็จ','บันทึก Line Fetch Group ID แล้ว');
+  } catch(e) { toast('ผิดพลาด', e.message,'error'); }
+}
+
+/* ── Articles ── */
+let _allArticles = [];
+async function loadArticles() {
+  try {
+    const res = await apiFetch('/articles?limit=100', {}, 'admin');
+    _allArticles = res.data || res.articles || res || [];
+    renderArticleTable(_allArticles);
+  } catch(e) {
+    const tb = document.getElementById('art-tbody');
+    if(tb) tb.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:20px">❌ ${e.message}</td></tr>`;
+  }
+}
+function filterArticles() {
+  const q = (document.getElementById('art-search')?.value || '').toLowerCase();
+  renderArticleTable(q ? _allArticles.filter(a => (a.title||'').toLowerCase().includes(q)) : _allArticles);
+}
+function renderArticleTable(list) {
+  const tb = document.getElementById('art-tbody');
+  if (!tb) return;
+  if (!list.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีบทความ</td></tr>'; return; }
+  tb.innerHTML = list.map(a => `
+    <tr>
+      <td><strong>${a.title||'-'}</strong><br><small style="color:var(--muted)">${a.slug||''}</small></td>
+      <td><span class="badge">${a.category||'-'}</span></td>
+      <td><span style="color:${a.status==='published'?'var(--green)':'var(--muted)'}">${a.status==='published'?'✅ เผยแพร่':'📝 Draft'}</span></td>
+      <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('th-TH') : '-'}</td>
+      <td>
+        <button class="btn btn-sm btn-outline" onclick="editArticle(${a.id})">✏️ แก้ไข</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteArticle(${a.id},'${(a.title||'').replace(/'/g,'')}')">🗑️</button>
+      </td>
+    </tr>`).join('');
+}
+function openArticleModal(data) {
+  document.getElementById('art-id').value = data?.id || '';
+  document.getElementById('art-title').value = data?.title || '';
+  document.getElementById('art-slug').value = data?.slug || '';
+  document.getElementById('art-category').value = data?.category || 'lottery';
+  document.getElementById('art-status').value = data?.status || 'draft';
+  document.getElementById('art-content').value = data?.content || '';
+  document.getElementById('art-meta').value = data?.meta_description || '';
+  document.getElementById('art-modal-title').textContent = data?.id ? '✏️ แก้ไขบทความ' : '✏️ เขียนบทความใหม่';
+  document.getElementById('art-modal').style.display = 'block';
+}
+function closeArticleModal() { document.getElementById('art-modal').style.display = 'none'; }
+async function editArticle(id) {
+  const res = await apiFetch(`/articles/${id}`, {}, 'admin');
+  openArticleModal(res.data || res);
+}
+async function saveArticle() {
+  const id = document.getElementById('art-id').value;
+  const title = document.getElementById('art-title').value.trim();
+  const content = document.getElementById('art-content').value.trim();
+  if (!title || !content) { toast('แจ้งเตือน','กรุณากรอกชื่อและเนื้อหา'); return; }
+  let slug = document.getElementById('art-slug').value.trim();
+  if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9ก-๙\s]/g,'').replace(/\s+/g,'-').substring(0,80);
+  const body = {
+    title, slug, content,
+    category: document.getElementById('art-category').value,
+    status: document.getElementById('art-status').value,
+    meta_description: document.getElementById('art-meta').value.trim()
+  };
+  try {
+    if (id) {
+      await apiFetch(`/articles/${id}`, { method:'PATCH', body: JSON.stringify(body) }, 'admin');
+      toast('สำเร็จ','อัพเดทบทความแล้ว ✅');
+    } else {
+      await apiFetch('/articles', { method:'POST', body: JSON.stringify(body) }, 'admin');
+      toast('สำเร็จ','สร้างบทความใหม่แล้ว ✅');
+    }
+    closeArticleModal();
+    await loadArticles();
+  } catch(e) { toast('ผิดพลาด', e.message); }
+}
+async function deleteArticle(id, title) {
+  if (!confirm(`ลบบทความ "${title}" ?`)) return;
+  try {
+    await apiFetch(`/articles/${id}`, { method:'DELETE' }, 'admin');
+    toast('ลบแล้ว','ลบบทความสำเร็จ');
+    await loadArticles();
+  } catch(e) { toast('ผิดพลาด', e.message); }
+}
+</script>
+</body>
+</html>
