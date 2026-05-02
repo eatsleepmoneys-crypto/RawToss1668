@@ -7413,10 +7413,13 @@ const LF_CODE_NAME = {
 
 /**
  * ดึงข้อมูลสำคัญจาก message_text แบบสะอาด
- * คืน { lotteryName, drawDate, top, bot }
+ * คืน { lotteryName, lotteryCode, drawDate, drawDateISO, top3, top2, bot2 }
+ *   top3 = 3ตัวบน (↑ value, 3 หลัก)
+ *   top2 = 2ตัวบน (2 หลักท้ายของ top3, auto-derived)
+ *   bot2 = 2ตัวล่าง (↓ value, 2 หลัก)
  */
 function lfParseMsg(text) {
-  if (!text) return { lotteryName: '-', drawDate: '-', top: '-', bot: '-', lotteryCode: '', drawDateISO: '' };
+  if (!text) return { lotteryName: '-', drawDate: '-', top3: '', top2: '', bot2: '', lotteryCode: '', drawDateISO: '' };
 
   // 1. หา short code จาก ASCII header: "LA ลาวพัฒนา LA" / "HN ฮานอย HN"
   let shortCode = null;
@@ -7458,22 +7461,27 @@ function lfParseMsg(text) {
     }
   }
 
-  // 4. หาเลขบน (↑/⬆) และล่าง (↓/⬇)
+  // 4. หาเลขบน (↑/⬆) = 3ตัวบน, หาเลขล่าง (↓/⬇) = 2ตัวล่าง
   const topM = text.match(/[↑⬆]\s*(\d+)/u);
   const botM = text.match(/[↓⬇]\s*(\d+)/u);
-  let top = topM ? topM[1] : '-';
-  let bot = botM ? botM[1].slice(-2) : '-';
+  let rawTop = topM ? topM[1] : '';  // เลขดิบจาก ↑ (อาจ 2-6 หลัก)
+  let rawBot = botM ? botM[1] : '';  // เลขดิบจาก ↓
 
   // fallback: ถ้าไม่มีลูกศร หาตัวเลขบรรทัดบริสุทธิ์
-  if (top === '-' && bot === '-') {
+  if (!rawTop && !rawBot) {
     const numLines = text.split('\n')
       .map(l => l.replace(/[^0-9]/g, '').trim())
       .filter(l => l.length >= 2 && l.length <= 6);
-    if (numLines[0]) top = numLines[0];
-    if (numLines[1]) bot = numLines[1].slice(-2);
+    if (numLines[0]) rawTop = numLines[0];
+    if (numLines[1]) rawBot = numLines[1];
   }
 
-  return { lotteryName, lotteryCode: fullCode, drawDate, drawDateISO: drawDateISO || '', top, bot };
+  // แปลงเป็น 3ตัวบน / 2ตัวบน / 2ตัวล่าง
+  const top3 = (rawTop.length >= 3) ? rawTop.slice(0, 3) : '';   // 3ตัวบน
+  const top2 = (rawTop.length >= 2) ? rawTop.slice(-2)  : '';   // 2ตัวบน (2 หลักท้ายของ top)
+  const bot2 = (rawBot.length >= 2) ? rawBot.slice(-2)  : '';   // 2ตัวล่าง
+
+  return { lotteryName, lotteryCode: fullCode, drawDate, drawDateISO: drawDateISO || '', top3, top2, bot2 };
 }
 
 function lfSetDate(d) {
@@ -7536,15 +7544,11 @@ async function lfLoadMsgs() {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">ไม่มีข้อมูล</td></tr>';
     } else {
       tbody.innerHTML = msgs.map((r, idx) => {
-        const { lotteryName, drawDate, top, bot, lotteryCode, drawDateISO } = lfParseMsg(r.message_text || '');
+        const { lotteryName, drawDate, top3, top2, bot2, lotteryCode, drawDateISO } = lfParseMsg(r.message_text || '');
         const recAt = r.received_at
           ? new Date(r.received_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour12:false,
               day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
           : '-';
-        // 3ตัวบน, 2ตัวบน (2 หลักท้ายของ 3ตัวบน), 2ตัวล่าง
-        const top3 = (top !== '-' && top.length >= 3) ? top : (top !== '-' && top.length === 3 ? top : (top !== '-' ? '' : ''));
-        const top2 = top !== '-' ? top.slice(-2) : '';
-        const bot2 = bot !== '-' ? bot : '';
         const rowId = `lf-row-${r.id || idx}`;
         const saved = r.parsed;
         const rowBg = saved ? 'background:rgba(6,199,85,0.06)' : '';
