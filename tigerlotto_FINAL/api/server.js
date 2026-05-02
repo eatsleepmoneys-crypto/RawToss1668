@@ -878,7 +878,10 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
   // ── Run full DB migration on every startup (idempotent) ───────────────────
   const { runMigration } = require('./database/migrate');
-  runMigration().catch(e => console.error('[startup] Migration error:', e.message));
+  // Run migration first, then seed new lottery types — sequential to avoid DDL races
+  runMigration()
+    .catch(e => console.error('[startup] Migration error:', e.message))
+    .finally(() => {
   // Migrate slip_image column to MEDIUMTEXT to support base64 image strings
   const { pool } = require('./config/db');
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
@@ -981,6 +984,7 @@ server.listen(PORT, '0.0.0.0', () => {
       console.log(`[startup] Lottery seed done: ${seeded} inserted, ${skipped} already existed, ${failed} failed`);
     } catch (e) { console.warn('[startup] Lottery seed critical error:', e.message); }
   })();
+  }); // end .finally() — seed runs after migration
   setTimeout(() => {
     autoCreateGovRound();
     autoCreateLaoRound();
