@@ -7484,6 +7484,14 @@ async function lfLoadMsgs() {
     if (sumEl) sumEl.innerHTML =
       `<span style="color:var(--muted)">รวม ${total} รายการ</span>` +
       `<span style="color:#06c755">✅ parse แล้ว ${parsedCount}</span>` +
+      `<span style="color:var(--danger)">❌ ยังไม่ parse ${unparsedCount}</span>`;
+
+    // ── Table rows (input fields) ──
+    if (!msgs.length) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">ไม่มีข้อมูล</td></tr>';
+    } else {
+      tbody.innerHTML = msgs.map((r, idx) => {
+        const { lotteryName, drawDate, top, bot, lotteryCode, drawDateISO } = lfParseMsg(r.message_text || '');
         const recAt = r.received_at
           ? new Date(r.received_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour12:false,
               day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
@@ -7745,8 +7753,7 @@ async function saveArticle() {
   if (!title)   { toast('แจ้งเตือน', 'กรุณากรอกชื่อบทความ'); return; }
   if (!content) { toast('แจ้งเตือน', 'กรุณากรอกเนื้อหาบทความ'); return; }
   const body = {
-    title,
-    content,
+    title, content,
     slug:    document.getElementById('art-slug').value.trim() || undefined,
     author:  document.getElementById('art-author').value.trim() || 'Admin',
     tags:    document.getElementById('art-tags').value.trim(),
