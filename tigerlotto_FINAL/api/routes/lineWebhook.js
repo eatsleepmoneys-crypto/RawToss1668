@@ -557,4 +557,204 @@ function nameToLotteryCode(cc, name) {
       if (n.includes('ทีวี') || n.includes('tv')) return 'LA_TV';
       if (n.includes('พิเศษเที่ยง')) return 'LA_SP_NOON';
       if (n.includes('พัฒนาเที่ยง')) return 'LA_GOV_NOON';
-      if (n.includes('พัฒนา') && n.includes('vip')) return 'LA_GO
+      if (n.includes('พัฒนา') && n.includes('vip')) return 'LA_GOV_VIP';
+      if (n.includes('พิเศษ')) return 'LA_SP';
+      if (n.includes('พัฒนา')) return 'LA_GOV';
+      if (n.includes('พลัส') || n.includes('plus')) return 'LA_PLUS';
+      if (n.includes('สบายดี') || n.includes('sabai')) return 'LA_SABAI';
+      if (n.includes('ก้าวหน้า') || n.includes('progress')) return 'LA_PROGRESS';
+      if (n.includes('hd')) return 'LA_HD';
+      if (n.includes('เจริญ')) return 'LA_CHERN';
+      if (n.includes('นครหลวง') || n.includes('nkl')) return 'LA_NKL';
+      if (n.includes('สตาร์') && n.includes('vip')) return 'LA_STAR_VIP';
+      if (n.includes('สตาร์') || n.includes('star')) return 'LA_STAR';
+      if (n.includes('มั่นคง') || n.includes('stable')) return 'LA_STABLE';
+      if (n.includes('นิยม') || n.includes('niyom')) return 'LA_NIYOM';
+      if (n.includes('ร่ำรวย')) return 'LA_RICH2';
+      if (n.includes('มั่งคั่ง')) return 'LA_RICH';
+      if (n.includes('มงคล') || n.includes('mongkol')) return 'LA_MONGKOL';
+      if (n.includes('ซูเปอร์') || n.includes('super')) return 'LA_SUPER';
+      if (n.includes('สามัคคี') && n.includes('vip')) return 'LA_UNITY_VIP';
+      if (n.includes('สามัคคี') || n.includes('unity')) return 'LA_UNITY';
+      if (n.includes('อาเซียน') || n.includes('asean')) return 'LA_ASEAN';
+      if (n.includes('รุ่งเรือง') || n.includes('prosper')) return 'LA_PROSPER';
+      if (n.includes('ไอยรา') || n.includes('aiyara')) return 'LA_AIYARA';
+      if (n.includes('กาชาด') || n.includes('rc')) return 'LA_RC';
+      if (n.includes('vip')) return 'LA_VIP';
+      return 'LA_GOV';
+    case 'SG':
+      if (n.includes('vip')) return 'SG_VIP';
+      if (n.includes('พิเศษ') || n.includes('sp')) return 'SG_SP';
+      return 'SG_STK';
+    case 'MY': return 'MY_STK';
+    case 'KR':
+      if (n.includes('vip')) return 'KR_VIP';
+      if (n.includes('พิเศษ') || n.includes('sp')) return 'KR_SP';
+      return 'KR_STK';
+    case 'TW':
+      if (n.includes('vip')) return 'TW_VIP';
+      if (n.includes('พิเศษ') || n.includes('sp')) return 'TW_SP';
+      return 'TW_STK';
+    case 'IN': return 'IN_STK';
+    case 'DE':
+      if (n.includes('vip')) return 'DE_VIP';
+      if (n.includes('พิเศษ') || n.includes('sp')) return 'DE_SP';
+      if (n.includes('วีซ่า') || n.includes('visa')) return 'DE_VISA';
+      return 'DE_STK';
+    case 'RU':
+      if (n.includes('vip')) return 'RU_VIP';
+      if (n.includes('พิเศษ') || n.includes('sp')) return 'RU_SP';
+      if (n.includes('วีซ่า') || n.includes('visa')) return 'RU_VISA';
+      return 'RU_STK';
+    case 'GB':
+      if (n.includes('vip')) return 'UK_VIP';
+      if (n.includes('วีซ่า') || n.includes('visa')) return 'UK_VISA';
+      return 'UK_STK';
+    case 'US': return 'DJ_SP';
+    case 'EU': return 'EU_SP';
+    default:   return null;
+  }
+}
+
+/**
+ * parse รูปแบบสรุปผล (Summary format)
+ * แต่ละบรรทัด: "NNN-NN   🏳️ ชื่อหวย"
+ * NNN = top3, NN = bot2 (top2 auto-derived จาก top3[-2:])
+ */
+function parseSummaryMessage(text) {
+  if (!text) return [];
+  const results = [];
+  const drawDate = extractThaiDate(text) || new Date().toISOString().slice(0, 10);
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const FLAG_RE = /^(\d{2,3})-(\d{2})\s+([\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF])\s*(.+)$/u;
+
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.includes('งดออกผล') || line.includes('ปิด')) continue;
+    const m = line.match(FLAG_RE);
+    if (!m) continue;
+
+    const rawTop  = m[1];   // NNN (3-digit top)
+    const rawBot  = m[2];   // NN  (2-digit bot)
+    const flag    = m[3];   // 🏳️ flag emoji
+    const lotName = m[4].trim();
+
+    // decode flag → country code
+    const cp1 = flag.codePointAt(0), cp2 = flag.codePointAt(2);
+    if (!cp1 || !cp2) continue;
+    const cc = String.fromCharCode(cp1 - 0x1F1E6 + 65) + String.fromCharCode(cp2 - 0x1F1E6 + 65);
+
+    const lotteryCode = nameToLotteryCode(cc, lotName);
+    if (!lotteryCode) {
+      console.warn('[LINE Summary] unknown:', cc, lotName);
+      continue;
+    }
+
+    const prizes = [];
+    if (rawTop.length >= 3) prizes.push({ prize_type: '3top', prize_value: rawTop.slice(0, 3) });
+    if (rawBot.length >= 2) prizes.push({ prize_type: '2bot', prize_value: rawBot.slice(-2) });
+
+    results.push({ lotteryCode, drawDate, prizes });
+    console.log('[LINE Summary] ✅', lotteryCode, drawDate, 'top=' + rawTop, 'bot=' + rawBot);
+  }
+  return results;
+}
+
+/**
+ * บันทึกผลหวยที่ parse ได้ลง lottery_rounds + lottery_results
+ */
+async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
+  try {
+    const [lt] = await query('SELECT id FROM `lottery_types` WHERE code=? LIMIT 1', [lotteryCode]);
+    if (!lt) return console.warn('[LINE Fetch] lottery_type not found: ' + lotteryCode);
+
+    // map prize_type → DB column
+    // ↑ (บน) 3 หลัก → prize_1st | 2 หลัก → prize_last_2
+    // ↓ (ล่าง) → prize_2bot เสมอ (ทุกประเภทหวย)
+    const colMap = {
+      '1st':'prize_1st', 'last2':'prize_last_2', 'last3':'prize_last_3', 'front3':'prize_front_3',
+      '3top': 'prize_1st',
+      '2top': 'prize_last_2',
+      '2bot': 'prize_2bot',
+    };
+    const updates = {};
+    for (const p of prizes) { const col = colMap[p.prize_type]; if (col) updates[col] = p.prize_value; }
+    // auto-derive: 2 ตัวบน = 2 หลักท้ายของ 3 ตัวบน (ถ้ายังไม่มี prize_last_2)
+    if (updates.prize_1st && updates.prize_1st.length >= 3 && !updates.prize_last_2) {
+      updates.prize_last_2 = updates.prize_1st.slice(-2);
+    }
+    if (!Object.keys(updates).length) return;
+
+    // 1) หางวดที่มีอยู่แล้ว (open/closed) ตรง lottery + วันที่
+    const existRows = await query(
+      'SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN (\'open\',\'closed\') ORDER BY id DESC LIMIT 1',
+      [lt.id, drawDate]
+    );
+    const existRound = existRows.length ? existRows[0] : null;
+
+    const setClause = function(keys) { return keys.map(function(c){ return '`' + c + '`=?'; }).join(', '); };
+    const colList   = function(keys) { return keys.map(function(c){ return '`' + c + '`'; }).join(','); };
+    const ukeys = Object.keys(updates);
+    const uvals = Object.values(updates);
+
+    if (existRound) {
+      // 2a) งวดมีอยู่ → update status ใน lottery_rounds (prizes อยู่ใน lottery_results เท่านั้น)
+      await query(
+        'UPDATE lottery_rounds SET status=\'announced\', updated_at=NOW() WHERE id=?',
+        [existRound.id]
+      );
+      await query(
+        'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
+        [existRound.id, ...uvals, ...uvals]
+      );
+      console.log('[LINE Fetch] updated round #' + existRound.id + ' ' + lotteryCode + ' ' + drawDate, updates);
+    } else {
+      // 2b) ไม่มีงวดที่รับแทงอยู่ → สร้างงวดใหม่ announced ทันที
+      const roundCode = lotteryCode + '-' + drawDate.replace(/-/g,'');
+      await query(
+        'INSERT INTO lottery_rounds (lottery_id, round_code, round_name, draw_date, status) VALUES (?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
+        [lt.id, roundCode, 'งวด ' + drawDate, drawDate]
+      );
+      const newRows = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
+      if (!newRows.length) return;
+      const nid = newRows[0].id;
+      await query(
+        'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
+        [nid, ...uvals, ...uvals]
+      ).catch(function(){});
+      console.log('[LINE Fetch] new round ' + lotteryCode + ' ' + drawDate, updates);
+    }
+  } catch (e) {
+    console.warn('[LINE Fetch] saveLotteryResult error:', e.message);
+  }
+}
+
+
+/**
+ * ประมวลผลข้อความจากกลุ่ม fetch — บันทึกดิบ + parse ผล
+ * เรียกจาก event loop ใน router.post('/')
+ */
+async function handleLotteryMessage(event, groupId, fetchGroupId) {
+  if (!fetchGroupId || groupId !== fetchGroupId) return;
+  if (event.type !== 'message' || event.message?.type !== 'text') return;
+
+  const text = (event.message.text || '').trim();
+  if (!text) return;
+
+  // บันทึก raw message ก่อนเสมอ
+  await saveRawMessage(event, groupId);
+
+  // ลอง parse format ต่างๆ
+  let parsed = parseSummaryMessage(text);
+  if (!parsed) parsed = parseLotteryMessage(text);
+
+  if (!parsed) return;
+
+  const { lotteryCode, drawDate, prizes } = parsed;
+  if (!lotteryCode || !drawDate || !prizes?.length) return;
+
+  console.log('[LINE Fetch] parsed result:', lotteryCode, drawDate, prizes);
+  await saveLotteryResult({ lotteryCode, drawDate, prizes });
+}
+
+module.exports = router;
