@@ -1,0 +1,12 @@
+{
+  "name": "rawtoss1668",
+  "version": "1.0.0",
+  "description": "TigerLotto / RawToss1668 backend",
+  "scripts": {
+    "build": "cd api && npm ci --production",
+    "start": "node api/server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

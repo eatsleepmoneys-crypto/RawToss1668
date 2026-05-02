@@ -1,0 +1,648 @@
+
+<script>if(window!==window.top)document.documentElement.classList.add('embedded')</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+.a{font-family:'Noto Sans Thai',sans-serif;background:#0A0A0A;color:#fff;display:flex;height:720px;overflow:hidden}
+html.embedded .a{height:100vh}
+html.embedded .sb{display:none}
+html.embedded .topbar{display:none}
+
+/* SIDEBAR */
+.sb{width:200px;background:#0D0D0D;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;flex-shrink:0}
+.sb-brand{padding:13px 14px;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;gap:8px}
+.sb-logo{width:30px;height:30px;background:linear-gradient(135deg,#FFD700,#B8860B);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#0A0A0A;flex-shrink:0}
+.sb-name{font-size:13px;font-weight:900;color:#FFD700}
+.sb-sub{font-size:9px;color:#555}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0}
+.sb-nav::-webkit-scrollbar{width:0}
+.sb-sec{font-size:9px;color:#333;padding:10px 14px 4px;text-transform:uppercase;letter-spacing:1px;font-weight:700}
+.sb-item{display:flex;align-items:center;gap:8px;padding:8px 14px;color:#666;cursor:pointer;transition:all .15s;border-left:2px solid transparent;font-size:12px;font-weight:600}
+.sb-item:hover{color:#ccc;background:#141414}
+.sb-item.on{color:#FFD700;background:#1A1200;border-left-color:#FFD700}
+.sb-icon{font-size:13px;width:16px;text-align:center;flex-shrink:0}
+.sb-badge{margin-left:auto;font-size:8px;padding:1px 5px;border-radius:6px;font-weight:700}
+.badge-ok{background:#0a1a0a;color:#3BD441;border:1px solid #3BD44133}
+.badge-err{background:#1a0a0a;color:#D85A30;border:1px solid #D85A3033}
+.badge-warn{background:#1A1200;color:#FFD700;border:1px solid #FFD70033}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:44px;background:#0D0D0D;border-bottom:1px solid #1a1a1a;display:flex;align-items:center;justify-content:space-between;padding:0 16px;flex-shrink:0}
+.tb-bread{font-size:11px;color:#555}
+.tb-bread span{color:#FFD700;font-weight:700}
+.tb-right{display:flex;align-items:center;gap:10px}
+.tb-env{padding:3px 10px;border-radius:10px;font-size:9px;font-weight:700}
+.env-prod{background:#0a1a0a;color:#3BD441;border:1px solid #3BD44133}
+.content{flex:1;overflow-y:auto;padding:14px 16px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+
+/* PAGES */
+.page{display:none}
+.page.on{display:block}
+.pg-title{font-size:15px;font-weight:900;color:#FFD700;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+
+/* STATUS GRID */
+.status-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+.st-card{background:#111;border:1px solid #1e1e1e;border-radius:10px;padding:12px;position:relative;overflow:hidden}
+.st-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.st-label{font-size:10px;color:#555;font-weight:600}
+.st-status{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.st-ok{background:#3BD441;box-shadow:0 0 6px #3BD44188}
+.st-err{background:#D85A30;box-shadow:0 0 6px #D85A3088}
+.st-warn{background:#FFD700;box-shadow:0 0 6px #FFD70088}
+.st-val{font-size:13px;font-weight:900;color:#FFD700;margin-bottom:2px}
+.st-sub{font-size:9px;color:#444}
+.st-bar{position:absolute;bottom:0;left:0;right:0;height:2px}
+
+/* API KEY CARD */
+.api-card{background:#111;border:1.5px solid #1e1e1e;border-radius:12px;padding:0;margin-bottom:10px;overflow:hidden;transition:border-color .2s}
+.api-card:hover{border-color:#B8860B44}
+.api-card.active-card{border-color:#B8860B}
+.api-header{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;transition:background .15s}
+.api-header:hover{background:#141414}
+.api-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1px solid}
+.api-info{flex:1;min-width:0}
+.api-name{font-size:13px;font-weight:900;color:#fff;margin-bottom:2px;display:flex;align-items:center;gap:7px}
+.api-desc{font-size:10px;color:#555}
+.api-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.api-ping{font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px}
+.ping-ok{background:#0a1a0a;color:#3BD441;border:1px solid #3BD44133}
+.ping-err{background:#1a0a0a;color:#D85A30;border:1px solid #D85A3033}
+.ping-unk{background:#111;color:#555;border:1px solid #2a2a2a}
+.api-toggle{width:32px;height:18px;border-radius:9px;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0}
+.api-toggle.on{background:#3BD441}
+.api-toggle.off{background:#333}
+.at-k{position:absolute;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .2s}
+.api-toggle.on .at-k{left:16px}
+.api-toggle.off .at-k{left:2px}
+.api-body{display:none;padding:0 16px 16px;border-top:1px solid #1a1a1a;background:#0D0D0D}
+.api-body.open{display:block}
+
+/* KEY INPUT ROW */
+.key-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;margin-top:12px}
+.key-label{font-size:11px;color:#FFD700;font-weight:700;min-width:90px;flex-shrink:0}
+.key-inp{flex:1;height:36px;background:#0A0A0A;border:1.5px solid #FFD70033;border-radius:8px;color:#3BD441;font-size:12px;font-weight:700;padding:0 10px;font-family:'JetBrains Mono',monospace;outline:none;letter-spacing:.5px}
+.key-inp:focus{border-color:#FFD700}
+.key-inp.secret{color:#B8860B;-webkit-text-security:disc;text-security:disc}
+.key-inp.secret.show{-webkit-text-security:none;text-security:none;color:#3BD441}
+.key-btns{display:flex;gap:5px;flex-shrink:0}
+
+/* WEBHOOK ROW */
+.webhook-row{margin-bottom:8px}
+.webhook-inp{width:100%;height:36px;background:#0A0A0A;border:1.5px solid #1e1e1e;border-radius:8px;color:#aaa;font-size:11px;padding:0 10px;font-family:'JetBrains Mono',monospace;outline:none}
+.webhook-inp:focus{border-color:#FFD70044}
+
+/* SCOPE BADGES */
+.scope-wrap{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px}
+.scope-tag{padding:3px 8px;border-radius:6px;font-size:9px;font-weight:700;cursor:pointer;transition:all .15s}
+.scope-on{background:#1A1200;color:#FFD700;border:1.5px solid #FFD700}
+.scope-off{background:#111;color:#444;border:1.5px solid #2a2a2a}
+
+/* LOG TABLE */
+.log-table{width:100%;border-collapse:collapse}
+.log-table th{font-size:9px;color:#444;text-align:left;padding:5px 7px;border-bottom:1px solid #1a1a1a;text-transform:uppercase}
+.log-table td{font-size:10px;color:#aaa;padding:6px 7px;border-bottom:1px solid #0f0f0f;font-family:'JetBrains Mono',monospace}
+.log-table tr:last-child td{border-bottom:none}
+.log-ok{color:#3BD441}.log-err{color:#D85A30}.log-warn{color:#FFD700}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-panel{background:#0D0D0D;border-radius:16px 16px 0 0;border-top:2px solid #B8860B;width:100%;max-width:540px;padding:18px 18px 28px;max-height:80vh;overflow-y:auto}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.modal-title{font-size:15px;font-weight:900;color:#FFD700}
+.modal-close{width:30px;height:30px;border-radius:8px;background:#1a1a1a;border:1px solid #2a2a2a;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#888}
+.flabel{font-size:11px;color:#FFD700;font-weight:700;margin-bottom:5px;display:block}
+.finput{width:100%;height:40px;background:#0A0A0A;border:1.5px solid #FFD70033;border-radius:8px;color:#fff;font-size:13px;padding:0 12px;font-family:inherit;outline:none;margin-bottom:10px}
+.finput:focus{border-color:#FFD700}
+.fselect{width:100%;height:40px;background:#0A0A0A;border:1.5px solid #FFD70033;border-radius:8px;color:#FFD700;font-size:12px;font-weight:700;padding:0 12px;font-family:inherit;outline:none;margin-bottom:10px;cursor:pointer}
+
+.section-divider{height:1px;background:#1a1a1a;margin:10px 0}
+.section-label{font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-10px);background:#1A3A1A;border:2px solid #3BD441;color:#3BD441;padding:7px 18px;border-radius:9px;font-size:11px;font-weight:700;z-index:999;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.w{background:#3A1A00;border-color:#FFD700;color:#FFD700}
+.toast.err{background:#3A0000;border-color:#D85A30;color:#D85A30}
+</style>
+
+<div class="a">
+<!-- SIDEBAR -->
+<div class="sb">
+  <div class="sb-brand">
+    <div class="sb-logo">🐯</div>
+    <div><div class="sb-name">TigerLotto</div><div class="sb-sub">API Manager</div></div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">ภาพรวม</div>
+    <div class="sb-item on" onclick="nav(this,'overview')"><span class="sb-icon">📊</span>Overview<span class="sb-badge badge-ok">OK</span></div>
+    <div class="sb-item" onclick="nav(this,'logs')"><span class="sb-icon">📋</span>API Logs</div>
+
+    <div class="sb-sec">การชำระเงิน</div>
+    <div class="sb-item" onclick="nav(this,'payment')"><span class="sb-icon">💳</span>Payment Gateway<span class="sb-badge badge-ok">●</span></div>
+    <div class="sb-item" onclick="nav(this,'promptpay')"><span class="sb-icon">📱</span>PromptPay QR<span class="sb-badge badge-ok">●</span></div>
+    <div class="sb-item" onclick="nav(this,'truemoney')"><span class="sb-icon">💚</span>TrueMoney<span class="sb-badge badge-warn">!</span></div>
+
+    <div class="sb-sec">SMS / OTP</div>
+    <div class="sb-item" onclick="nav(this,'sms')"><span class="sb-icon">📩</span>SMS Gateway<span class="sb-badge badge-ok">●</span></div>
+    <div class="sb-item" onclick="nav(this,'otp')"><span class="sb-icon">🔐</span>OTP Provider<span class="sb-badge badge-ok">●</span></div>
+
+    <div class="sb-sec">ข้อมูลหวย</div>
+    <div class="sb-item" onclick="nav(this,'lottery_api')"><span class="sb-icon">🎯</span>Lottery Data API<span class="sb-badge badge-ok">●</span></div>
+    <div class="sb-item" onclick="nav(this,'stock_api')"><span class="sb-icon">📈</span>Stock Data API<span class="sb-badge badge-err">✕</span></div>
+
+    <div class="sb-sec">การแจ้งเตือน</div>
+    <div class="sb-item" onclick="nav(this,'line')"><span class="sb-icon">💬</span>LINE Notify<span class="sb-badge badge-ok">●</span></div>
+    <div class="sb-item" onclick="nav(this,'firebase')"><span class="sb-icon">🔔</span>Firebase FCM<span class="sb-badge badge-ok">●</span></div>
+
+    <div class="sb-sec">อื่นๆ</div>
+    <div class="sb-item" onclick="nav(this,'webhook')"><span class="sb-icon">🔗</span>Webhooks</div>
+    <div class="sb-item" onclick="nav(this,'ipwhite')"><span class="sb-icon">🛡</span>IP Whitelist</div>
+  </nav>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <div class="tb-bread">Admin / API / <span id="tbCrumb">Overview</span></div>
+    <div class="tb-right">
+      <span class="tb-env env-prod">PRODUCTION</span>
+      <button onclick="switchEnv()" style="padding:3px 10px;border-radius:8px;background:#1A1200;border:1.5px solid #B8860B55;color:#FFD700;font-size:9px;font-weight:700;cursor:pointer;font-family:inherit">สลับ ENV</button>
+      <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#FFD700,#B8860B);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:900;color:#0A0A0A">SA</div>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- ═══ OVERVIEW ═══ -->
+    <div class="page on" id="p-overview">
+      <div class="pg-title">📊 API Overview
+        <button onclick="runHealthCheck()" style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">⚡ Health Check ทั้งหมด</button>
+      </div>
+
+      <div class="status-grid">
+        <div class="st-card">
+          <div class="st-top"><span class="st-label">API Connected</span><span class="st-status st-ok"></span></div>
+          <div class="st-val" id="ov-connected">8</div>
+          <div class="st-sub">จาก 10 ระบบ</div>
+          <div class="st-bar" style="background:#3BD441"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-top"><span class="st-label">มีปัญหา</span><span class="st-status st-err"></span></div>
+          <div class="st-val" id="ov-error" style="color:#D85A30">1</div>
+          <div class="st-sub">ต้องตรวจสอบ</div>
+          <div class="st-bar" style="background:#D85A30"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-top"><span class="st-label">คำขอ/ชม.</span><span class="st-status st-ok"></span></div>
+          <div class="st-val">4,280</div>
+          <div class="st-sub">avg latency 142ms</div>
+          <div class="st-bar" style="background:#78BAFF"></div>
+        </div>
+        <div class="st-card">
+          <div class="st-top"><span class="st-label">Error Rate</span><span class="st-status st-warn"></span></div>
+          <div class="st-val" style="color:#FFD700">0.8%</div>
+          <div class="st-sub">ปกติ &lt; 1%</div>
+          <div class="st-bar" style="background:#FFD700"></div>
+        </div>
+      </div>
+
+      <!-- ALL APIs quick view -->
+      <div id="allApiCards"></div>
+    </div>
+
+    <!-- ═══ PAYMENT ═══ -->
+    <div class="page" id="p-payment"><div id="payment-content"></div></div>
+    <div class="page" id="p-promptpay"><div id="promptpay-content"></div></div>
+    <div class="page" id="p-truemoney"><div id="truemoney-content"></div></div>
+    <div class="page" id="p-sms"><div id="sms-content"></div></div>
+    <div class="page" id="p-otp"><div id="otp-content"></div></div>
+    <div class="page" id="p-lottery_api"><div id="lottery_api-content"></div></div>
+    <div class="page" id="p-stock_api"><div id="stock_api-content"></div></div>
+    <div class="page" id="p-line"><div id="line-content"></div></div>
+    <div class="page" id="p-firebase"><div id="firebase-content"></div></div>
+
+    <!-- ═══ WEBHOOK ═══ -->
+    <div class="page" id="p-webhook">
+      <div class="pg-title">🔗 Webhook Endpoints
+        <button onclick="openAddWebhook()" style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">+ เพิ่ม Webhook</button>
+      </div>
+      <div style="background:#111;border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden;margin-bottom:12px">
+        <div style="padding:10px 14px;background:#0D0D0D;border-bottom:1px solid #1a1a1a;font-size:10px;font-weight:700;color:#FFD700">Webhook URLs ที่ตั้งค่าแล้ว</div>
+        <div id="webhookList" style="padding:0 14px"></div>
+      </div>
+    </div>
+
+    <!-- ═══ IP WHITELIST ═══ -->
+    <div class="page" id="p-ipwhite">
+      <div class="pg-title">🛡 IP Whitelist
+        <button onclick="addIP()" style="padding:6px 14px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">+ เพิ่ม IP</button>
+      </div>
+      <div style="background:#111;border:1.5px solid #B8860B44;border-radius:10px;padding:12px;margin-bottom:12px">
+        <div style="font-size:10px;font-weight:700;color:#FFD700;margin-bottom:8px">⚠️ เฉพาะ IP ในรายการนี้เท่านั้นที่สามารถเรียกใช้ API ได้</div>
+        <div id="ipList" style="display:flex;flex-direction:column;gap:6px"></div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <input id="newIPInput" style="flex:1;height:36px;background:#0A0A0A;border:1.5px solid #FFD70033;border-radius:8px;color:#fff;font-size:12px;padding:0 12px;font-family:'JetBrains Mono',monospace;outline:none" placeholder="เช่น 203.xxx.xxx.xxx">
+          <button onclick="addIP()" style="height:36px;padding:0 16px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:12px;font-weight:900;cursor:pointer;font-family:inherit">เพิ่ม</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ LOGS ═══ -->
+    <div class="page" id="p-logs">
+      <div class="pg-title">📋 API Request Logs
+        <button onclick="clearLogs()" style="padding:6px 14px;border-radius:8px;background:#1a0a0a;border:1.5px solid #D85A3033;color:#D85A30;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit">🗑 ล้าง Logs</button>
+      </div>
+      <div style="background:#111;border:1.5px solid #1e1e1e;border-radius:10px;overflow:hidden">
+        <table class="log-table">
+          <thead><tr><th>เวลา</th><th>Service</th><th>Method</th><th>Endpoint</th><th>Status</th><th>Latency</th></tr></thead>
+          <tbody id="logTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div><!-- app -->
+
+<!-- MODAL -->
+<div class="modal-bg" id="modal" onclick="closeModalOut(event)">
+  <div class="modal-panel">
+    <div class="modal-header">
+      <div class="modal-title" id="modalTitle">ตั้งค่า API</div>
+      <div class="modal-close" onclick="closeModal()">✕</div>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── API DEFINITIONS ──
+const APIS = [
+  {
+    id:'payment', name:'Payment Gateway (2C2P)', icon:'💳', iconBg:'#0a0a1a', iconBorder:'#378ADD33',
+    status:'ok', latency:'142ms', desc:'ประมวลผลบัตรเครดิต/เดบิต',
+    env:'production',
+    fields:[
+      {label:'Merchant ID', key:'merchant_id', val:'TGL_MERCHANT_001', secret:false},
+      {label:'API Key', key:'api_key', val:'2c2p_live_sk_••••••••••••4521', secret:true},
+      {label:'Secret Key', key:'secret_key', val:'sk_live_••••••••••••••••••••ab12', secret:true},
+      {label:'Webhook URL', key:'webhook', val:'https://api.tigerlotto.com/webhook/payment', secret:false},
+    ],
+    scopes:['charge','refund','subscription','webhook'],
+    baseUrl:'https://pgw.2c2p.com/payment/4.1/'
+  },
+  {
+    id:'promptpay', name:'PromptPay QR (KBank)', icon:'📱', iconBg:'#1A4099', iconBorder:'#378ADD55',
+    status:'ok', latency:'88ms', desc:'สร้าง QR พร้อมเพย์อัตโนมัติ',
+    fields:[
+      {label:'App ID', key:'app_id', val:'kbank_app_TGL001', secret:false},
+      {label:'App Secret', key:'app_secret', val:'kbs_••••••••••••c842', secret:true},
+      {label:'Proxy ID', key:'proxy_id', val:'0987654321', secret:false},
+      {label:'Callback URL', key:'callback', val:'https://api.tigerlotto.com/callback/qr', secret:false},
+    ],
+    scopes:['qr_generate','payment_notify','inquiry'],
+    baseUrl:'https://openapi.kasikornbank.com/v2/'
+  },
+  {
+    id:'truemoney', name:'TrueMoney Wallet', icon:'💚', iconBg:'#0a1a0a', iconBorder:'#3BD44133',
+    status:'warn', latency:'320ms', desc:'ชำระผ่าน TrueMoney Wallet — Key ใกล้หมดอายุ',
+    fields:[
+      {label:'App Key', key:'app_key', val:'tmn_app_••••••••••ff01', secret:true},
+      {label:'Partner Code', key:'partner', val:'TIGERLOTTO', secret:false},
+      {label:'Secret', key:'secret', val:'tmn_sk_••••••••••••••••••••ee44', secret:true},
+    ],
+    scopes:['payment','inquiry','refund'],
+    baseUrl:'https://api.truemoney.com/wallet/v1/'
+  },
+  {
+    id:'sms', name:'SMS Gateway (Infobip)', icon:'📩', iconBg:'#1A1200', iconBorder:'#B8860B33',
+    status:'ok', latency:'95ms', desc:'ส่ง SMS แจ้งเตือน OTP ไปยังผู้ใช้',
+    fields:[
+      {label:'API Key', key:'api_key', val:'••••••••••••••••••••••••4f2a', secret:true},
+      {label:'Base URL', key:'base_url', val:'https://xxxx.api.infobip.com', secret:false},
+      {label:'Sender', key:'sender', val:'TigerLotto', secret:false},
+    ],
+    scopes:['send_sms','send_otp','verify'],
+    baseUrl:'https://api.infobip.com/'
+  },
+  {
+    id:'otp', name:'OTP Provider (Telnyx)', icon:'🔐', iconBg:'#1A1200', iconBorder:'#B8860B44',
+    status:'ok', latency:'110ms', desc:'ส่ง OTP ยืนยันตัวตน 6 หลัก',
+    fields:[
+      {label:'API Key', key:'api_key', val:'KEY••••••••••••••••••••••••0192', secret:true},
+      {label:'Phone Number', key:'phone', val:'+66xxxxxxxxxx', secret:false},
+      {label:'App ID', key:'app_id', val:'telnyx_app_tgl_001', secret:false},
+    ],
+    scopes:['send_otp','verify_otp'],
+    baseUrl:'https://api.telnyx.com/v2/'
+  },
+  {
+    id:'lottery_api', name:'Lottery Data API', icon:'🎯', iconBg:'#1A1200', iconBorder:'#B8860B44',
+    status:'ok', latency:'58ms', desc:'ดึงผลหวยรัฐบาล ยี่กี ฮานอย',
+    fields:[
+      {label:'API Key', key:'api_key', val:'lotto_api_••••••••••••••••••••1234', secret:true},
+      {label:'Base URL', key:'base_url', val:'https://lotteryapi.th/v3/', secret:false},
+    ],
+    scopes:['get_results','live_draw','history'],
+    baseUrl:'https://lotteryapi.th/v3/'
+  },
+  {
+    id:'stock_api', name:'Stock Market API (SET)', icon:'📈', iconBg:'#1a0a0a', iconBorder:'#D85A3033',
+    status:'err', latency:'—', desc:'ข้อมูลตลาดหุ้น SET — KEY หมดอายุ ต้องต่ออายุ',
+    fields:[
+      {label:'API Key', key:'api_key', val:'set_api_••••••••••••••••••••EXPIRED', secret:true},
+      {label:'Base URL', key:'base_url', val:'https://api.set.or.th/api/set/', secret:false},
+    ],
+    scopes:['quotes','indices','tickers'],
+    baseUrl:'https://api.set.or.th/api/set/'
+  },
+  {
+    id:'line', name:'LINE Notify / Messaging', icon:'💬', iconBg:'#0a1a0a', iconBorder:'#3BD44133',
+    status:'ok', latency:'178ms', desc:'ส่งแจ้งเตือนผ่าน LINE',
+    fields:[
+      {label:'Channel Access Token', key:'token', val:'••••••••••••••••••••••••••••••••••••••••••••••••ab12', secret:true},
+      {label:'Channel Secret', key:'secret', val:'line_ch_secret_••••••••••4321', secret:true},
+      {label:'Notify Token', key:'notify', val:'line_notify_••••••••••••••••••••9900', secret:true},
+    ],
+    scopes:['send_message','push','notify'],
+    baseUrl:'https://api.line.me/v2/bot/'
+  },
+  {
+    id:'firebase', name:'Firebase FCM (Push)', icon:'🔔', iconBg:'#0a1a0a', iconBorder:'#3BD44133',
+    status:'ok', latency:'92ms', desc:'Push Notification ไปยัง App',
+    fields:[
+      {label:'Project ID', key:'project_id', val:'tigerlotto-prod', secret:false},
+      {label:'Server Key (Legacy)', key:'server_key', val:'AAAA••••••••••••••••••••••••••••••••••••••••••••', secret:true},
+      {label:'Service Account JSON', key:'sa_json', val:'tigerlotto-prod-firebase-adminsdk-••••.json', secret:false},
+    ],
+    scopes:['send_notification','topic','device_group'],
+    baseUrl:'https://fcm.googleapis.com/fcm/send'
+  },
+];
+
+// ── STATE ──
+let openCards = {};
+let ipList = ['203.146.xxx.xxx','171.7.xxx.xxx','10.0.0.1 (Internal)'];
+let webhooks = [
+  {url:'https://api.tigerlotto.com/webhook/payment', events:['payment.success','payment.failed'], active:true},
+  {url:'https://api.tigerlotto.com/webhook/lottery', events:['result.published'], active:true},
+  {url:'https://n8n.tigerlotto.com/webhook/trigger', events:['user.register','withdrawal.approve'], active:false},
+];
+let logs = [
+  {time:'14:22:08',svc:'Payment',method:'POST',ep:'/charge',status:200,lat:'142ms'},
+  {time:'14:22:05',svc:'SMS',method:'POST',ep:'/send_otp',status:200,lat:'95ms'},
+  {time:'14:21:50',svc:'StockAPI',method:'GET',ep:'/quotes/SET50',status:401,lat:'—'},
+  {time:'14:21:44',svc:'LotteryAPI',method:'GET',ep:'/results/latest',status:200,lat:'58ms'},
+  {time:'14:21:30',svc:'LINE',method:'POST',ep:'/bot/message/push',status:200,lat:'178ms'},
+  {time:'14:21:10',svc:'PromptPay',method:'POST',ep:'/qr/generate',status:200,lat:'88ms'},
+  {time:'14:20:55',svc:'Firebase',method:'POST',ep:'/fcm/send',status:200,lat:'92ms'},
+  {time:'14:20:40',svc:'TrueMoney',method:'POST',ep:'/payment',status:200,lat:'320ms'},
+];
+
+// ── BUILD OVERVIEW CARDS ──
+function buildOverview(){
+  const c=document.getElementById('allApiCards');
+  c.innerHTML=APIS.map(api=>`
+    <div class="api-card ${api.status==='err'?'active-card':''}" id="card-${api.id}">
+      <div class="api-header" onclick="toggleCard('${api.id}')">
+        <div class="api-icon" style="background:${api.iconBg};border-color:${api.iconBorder}">${api.icon}</div>
+        <div class="api-info">
+          <div class="api-name">
+            ${api.name}
+            ${api.status==='err'?'<span style="font-size:9px;background:#1a0a0a;color:#D85A30;border:1px solid #D85A3033;padding:1px 6px;border-radius:5px;font-weight:700">⚠️ ต้องแก้ไข</span>':''}
+            ${api.status==='warn'?'<span style="font-size:9px;background:#1A1200;color:#FFD700;border:1px solid #FFD70033;padding:1px 6px;border-radius:5px;font-weight:700">! คำเตือน</span>':''}
+          </div>
+          <div class="api-desc">${api.desc}</div>
+        </div>
+        <div class="api-right">
+          <span class="api-ping ${api.status==='ok'?'ping-ok':api.status==='err'?'ping-err':'ping-unk'}">${api.status==='ok'?'● '+api.latency:api.status==='err'?'✕ ERROR':'⚠ '+api.latency}</span>
+          <div class="api-toggle ${api.status!=='err'?'on':'off'}" onclick="event.stopPropagation();toggleApiSwitch(this,'${api.id}')"><div class="at-k"></div></div>
+          <span style="color:#444;font-size:12px;transition:transform .2s" id="arr-${api.id}">›</span>
+        </div>
+      </div>
+      <div class="api-body" id="body-${api.id}">
+        ${buildApiBody(api)}
+      </div>
+    </div>
+  `).join('');
+}
+
+function buildApiBody(api){
+  const fieldsHtml=api.fields.map(f=>`
+    <div class="key-row">
+      <span class="key-label">${f.label}</span>
+      <input class="key-inp ${f.secret?'secret':''}" id="inp-${api.id}-${f.key}" value="${f.val}" ${f.secret?'readonly':''}>
+      <div class="key-btns">
+        ${f.secret?`<button onclick="toggleSecret('inp-${api.id}-${f.key}',this)" style="padding:0 8px;height:30px;border-radius:6px;background:#1A1200;border:1.5px solid #B8860B44;color:#FFD700;font-size:10px;cursor:pointer;font-family:inherit">👁</button>`:''}
+        <button onclick="copyVal('inp-${api.id}-${f.key}')" style="padding:0 8px;height:30px;border-radius:6px;background:#111;border:1.5px solid #2a2a2a;color:#888;font-size:10px;cursor:pointer;font-family:inherit">📋</button>
+      </div>
+    </div>
+  `).join('');
+
+  const scopesHtml=`
+    <div style="margin-top:4px">
+      <div class="section-label">Scopes / Permissions</div>
+      <div class="scope-wrap">
+        ${api.scopes.map(s=>`<span class="scope-tag scope-on" onclick="toggleScope(this)">${s}</span>`).join('')}
+        <span class="scope-tag scope-off" onclick="toggleScope(this)">+ เพิ่ม scope</span>
+      </div>
+    </div>`;
+
+  return `
+    <div style="margin-bottom:6px">
+      <div class="section-label" style="margin-top:10px">Base URL</div>
+      <input style="width:100%;height:32px;background:#0A0A0A;border:1.5px solid #B8860B33;border-radius:7px;color:#3BD441;font-size:11px;padding:0 10px;font-family:'JetBrains Mono',monospace;outline:none;margin-bottom:10px" value="${api.baseUrl}">
+    </div>
+    <div class="section-divider"></div>
+    <div class="section-label" style="margin-top:8px">API Keys & Credentials</div>
+    ${fieldsHtml}
+    <div class="section-divider"></div>
+    ${scopesHtml}
+    <div class="section-divider"></div>
+    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+      <button onclick="saveApi('${api.id}')" style="flex:1;height:36px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:12px;font-weight:900;cursor:pointer;font-family:inherit;min-width:100px">💾 บันทึก</button>
+      <button onclick="testApi('${api.id}')" style="height:36px;padding:0 14px;border-radius:8px;background:#1A1200;border:1.5px solid #FFD700;color:#FFD700;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">⚡ ทดสอบ</button>
+      <button onclick="regenKey('${api.id}')" style="height:36px;padding:0 14px;border-radius:8px;background:#1a0a0a;border:1.5px solid #D85A3033;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Regenerate</button>
+    </div>`;
+}
+
+function toggleCard(id){
+  const body=document.getElementById('body-'+id);
+  const arr=document.getElementById('arr-'+id);
+  const isOpen=body.classList.contains('open');
+  body.classList.toggle('open',!isOpen);
+  if(arr)arr.style.transform=isOpen?'rotate(0deg)':'rotate(90deg)';
+}
+
+function toggleApiSwitch(el,id){
+  const isOn=el.classList.contains('on');
+  el.classList.toggle('on',!isOn);el.classList.toggle('off',isOn);
+  toast((isOn?'ปิด':'เปิด')+' '+APIS.find(a=>a.id===id)?.name);
+}
+
+function toggleSecret(inputId,btn){
+  const inp=document.getElementById(inputId);
+  inp.classList.toggle('show');
+  btn.textContent=inp.classList.contains('show')?'🙈':'👁';
+}
+
+function copyVal(inputId){
+  const inp=document.getElementById(inputId);
+  toast('📋 คัดลอกแล้ว!');
+}
+
+function toggleScope(el){
+  el.classList.toggle('scope-on');el.classList.toggle('scope-off');
+}
+
+function saveApi(id){toast('💾 บันทึก '+APIS.find(a=>a.id===id)?.name+' สำเร็จ');}
+function testApi(id){
+  const api=APIS.find(a=>a.id===id);
+  if(api?.status==='err'){toast('✕ '+api.name+' — ไม่สามารถเชื่อมต่อได้','err');return;}
+  toast('✅ '+api?.name+' — เชื่อมต่อสำเร็จ ('+api?.latency+')');
+  addLog(api?.name,'GET','/health',200,api?.latency||'—');
+}
+function regenKey(id){toast('🔄 Regenerate Key ของ '+APIS.find(a=>a.id===id)?.name+' — ต้องยืนยันอีกครั้ง','w');}
+
+// ── INDIVIDUAL PAGES ──
+function buildApiPage(id){
+  const api=APIS.find(a=>a.id===id);if(!api)return;
+  const cont=document.getElementById(id+'-content');if(!cont)return;
+  const statusColor=api.status==='ok'?'#3BD441':api.status==='err'?'#D85A30':'#FFD700';
+  cont.innerHTML=`
+    <div class="pg-title">
+      ${api.icon} ${api.name}
+      <div style="display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:8px;background:${api.status==='ok'?'#0a1a0a':api.status==='err'?'#1a0a0a':'#1A1200'};color:${statusColor};border:1px solid ${statusColor}44">${api.status==='ok'?'● เชื่อมต่อแล้ว':api.status==='err'?'✕ มีปัญหา':'⚠ คำเตือน'}</span>
+        <button onclick="testApi('${api.id}')" style="padding:5px 12px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:11px;font-weight:900;cursor:pointer;font-family:inherit">⚡ Test</button>
+      </div>
+    </div>
+    ${api.status!=='ok'?`<div style="background:#1a0a0a;border:1.5px solid #D85A3033;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:11px;color:#D85A30">⚠️ ${api.desc}</div>`:''}
+    <div style="background:#111;border:1.5px solid #B8860B44;border-radius:12px;padding:14px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:#FFD700;margin-bottom:10px">🔑 API Keys & Credentials</div>
+      <div style="margin-bottom:8px"><span style="font-size:10px;color:#555">Base URL:</span><br><input style="width:100%;height:34px;background:#0A0A0A;border:1.5px solid #B8860B33;border-radius:7px;color:#3BD441;font-size:11px;padding:0 10px;font-family:'JetBrains Mono',monospace;outline:none;margin-top:4px" value="${api.baseUrl}"></div>
+      ${api.fields.map(f=>`
+        <div class="key-row">
+          <span class="key-label">${f.label}</span>
+          <input class="key-inp ${f.secret?'secret':''}" id="pg-inp-${api.id}-${f.key}" value="${f.val}" ${f.secret?'readonly':''}>
+          <div class="key-btns">
+            ${f.secret?`<button onclick="toggleSecret('pg-inp-${api.id}-${f.key}',this)" style="padding:0 8px;height:30px;border-radius:6px;background:#1A1200;border:1.5px solid #B8860B44;color:#FFD700;font-size:10px;cursor:pointer;font-family:inherit">👁</button>`:''}
+            <button onclick="copyVal('pg-inp-${api.id}-${f.key}')" style="padding:0 8px;height:30px;border-radius:6px;background:#111;border:1.5px solid #2a2a2a;color:#888;font-size:10px;cursor:pointer;font-family:inherit">📋</button>
+          </div>
+        </div>`).join('')}
+      <div class="scope-wrap" style="margin-top:12px">
+        ${api.scopes.map(s=>`<span class="scope-tag scope-on" onclick="toggleScope(this)">${s}</span>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button onclick="saveApi('${api.id}')" style="flex:1;height:38px;border-radius:8px;background:linear-gradient(135deg,#FFD700,#B8860B);border:none;color:#0A0A0A;font-size:13px;font-weight:900;cursor:pointer;font-family:inherit">💾 บันทึก</button>
+        <button onclick="regenKey('${api.id}')" style="height:38px;padding:0 14px;border-radius:8px;background:#1a0a0a;border:1.5px solid #D85A3033;color:#D85A30;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Regenerate</button>
+      </div>
+    </div>`;
+}
+
+// ── WEBHOOK ──
+function renderWebhooks(){
+  const c=document.getElementById('webhookList');
+  c.innerHTML=webhooks.map((w,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #111">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:11px;font-weight:700;color:#3BD441;font-family:'JetBrains Mono',monospace;margin-bottom:4px;word-break:break-all">${w.url}</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">${w.events.map(e=>`<span style="font-size:9px;background:#1A1200;color:#FFD700;border:1px solid #B8860B44;padding:1px 6px;border-radius:5px;font-weight:700">${e}</span>`).join('')}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+        <div class="api-toggle ${w.active?'on':'off'}" onclick="toggleWebhook(${i})"><div class="at-k"></div></div>
+        <button onclick="delWebhook(${i})" style="padding:0 7px;height:26px;border-radius:6px;background:#1a0a0a;border:1px solid #D85A3033;color:#D85A30;font-size:10px;cursor:pointer;font-family:inherit">✕</button>
+      </div>
+    </div>`).join('');
+}
+function toggleWebhook(i){webhooks[i].active=!webhooks[i].active;renderWebhooks();toast((webhooks[i].active?'เปิด':'ปิด')+' Webhook');}
+function delWebhook(i){webhooks.splice(i,1);renderWebhooks();toast('ลบ Webhook แล้ว');}
+function openAddWebhook(){
+  const url=prompt('กรอก Webhook URL:');
+  if(url){webhooks.push({url,events:['payment.success'],active:true});renderWebhooks();toast('เพิ่ม Webhook แล้ว');}
+}
+
+// ── IP WHITELIST ──
+function renderIPs(){
+  const c=document.getElementById('ipList');
+  c.innerHTML=ipList.map((ip,i)=>`
+    <div style="display:flex;align-items:center;gap:8px;background:#0A0A0A;border:1px solid #1e1e1e;border-radius:7px;padding:7px 10px">
+      <div style="font-size:12px;font-weight:700;color:#3BD441;font-family:'JetBrains Mono',monospace;flex:1">${ip}</div>
+      <button onclick="delIP(${i})" style="padding:0 8px;height:26px;border-radius:6px;background:#1a0a0a;border:1px solid #D85A3033;color:#D85A30;font-size:10px;cursor:pointer;font-family:inherit">✕ ลบ</button>
+    </div>`).join('');
+}
+function addIP(){
+  const inp=document.getElementById('newIPInput');
+  const ip=inp?.value.trim();
+  if(ip){ipList.push(ip);if(inp)inp.value='';renderIPs();toast('เพิ่ม IP: '+ip);}
+  else toast('กรอก IP address','w');
+}
+function delIP(i){const ip=ipList[i];ipList.splice(i,1);renderIPs();toast('ลบ IP: '+ip);}
+
+// ── LOGS ──
+function addLog(svc,method,ep,status,lat){
+  const now=new Date();const t=now.toTimeString().substr(0,8);
+  logs.unshift({time:t,svc,method,ep,status,lat});
+  if(logs.length>20)logs.pop();
+  renderLogs();
+}
+function renderLogs(){
+  const tb=document.getElementById('logTable');
+  if(!tb)return;
+  tb.innerHTML=logs.map(l=>`
+    <tr>
+      <td style="color:#444">${l.time}</td>
+      <td style="color:#aaa">${l.svc}</td>
+      <td><span style="font-size:9px;background:#0a0a1a;color:#78BAFF;border:1px solid #378ADD33;padding:1px 5px;border-radius:4px;font-weight:700">${l.method}</span></td>
+      <td style="font-family:'JetBrains Mono',monospace;color:#666">${l.ep}</td>
+      <td class="${l.status===200?'log-ok':l.status>=400?'log-err':'log-warn'}" style="font-weight:700">${l.status}</td>
+      <td style="color:#555">${l.lat}</td>
+    </tr>`).join('');
+}
+function clearLogs(){logs=[];renderLogs();toast('ล้าง Logs แล้ว');}
+
+// ── HEALTH CHECK ──
+function runHealthCheck(){
+  toast('⚡ กำลังตรวจสอบทุก API...');
+  let i=0;
+  const interval=setInterval(()=>{
+    if(i>=APIS.length){clearInterval(interval);toast('✅ Health Check เสร็จสิ้น — ปกติ 8/9, มีปัญหา 1/9');return;}
+    const api=APIS[i];addLog(api.name,'GET','/health',api.status==='err'?401:200,api.latency);i++;
+  },200);
+}
+
+// ── NAV ──
+const PAGE_LABELS={'overview':'Overview','payment':'Payment Gateway','promptpay':'PromptPay QR','truemoney':'TrueMoney','sms':'SMS Gateway','otp':'OTP Provider','lottery_api':'Lottery Data API','stock_api':'Stock Market API','line':'LINE Notify','firebase':'Firebase FCM','webhook':'Webhooks','ipwhite':'IP Whitelist','logs':'API Logs'};
+function nav(el,key){
+  document.querySelectorAll('.sb-item').forEach(i=>i.classList.remove('on'));
+  el.classList.add('on');
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  const pg=document.getElementById('p-'+key);if(pg)pg.classList.add('on');
+  document.getElementById('tbCrumb').textContent=PAGE_LABELS[key]||key;
+  if(key==='logs')renderLogs();
+  if(key==='webhook')renderWebhooks();
+  if(key==='ipwhite')renderIPs();
+  const api=APIS.find(a=>a.id===key);
+  if(api)buildApiPage(key);
+}
+
+function switchEnv(){toast('⚠️ สลับ Environment — ต้องยืนยันก่อน','w');}
+function closeModal(){document.getElementById('modal').classList.remove('open');}
+function closeModalOut(e){if(e.target===document.getElementById('modal'))closeModal();}
+
+function toast(msg,type){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast on'+(type?` ${type}`:'');
+  clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2600);
+}
+
+// INIT
+buildOverview();
+renderLogs();
+renderWebhooks();
+renderIPs();
+</script>

@@ -1,5 +1,0 @@
-[phases.install]
-cmds = ["cd api && npm ci --production"]
-
-[start]
-cmd = "node api/server.js"

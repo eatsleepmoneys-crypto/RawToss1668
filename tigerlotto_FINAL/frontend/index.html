@@ -1,0 +1,3699 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TigerLotto — หวยออนไลน์อันดับ 1 ซื้อง่าย จ่ายจริง</title>
+<link rel="icon" id="favicon-link" type="image/svg+xml" href="/api/favicon">
+<link rel="shortcut icon" href="/api/favicon">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#050505;--dark:#0e0e0e;--card:#161616;--card2:#1e1e1e;--card3:#262626;--gold:#d4a017;--gold2:#ffd700;--gold3:#b8860b;--grad:linear-gradient(135deg,#d4a017,#ffd700,#b8860b);--grad2:linear-gradient(135deg,#b8860b,#d4a017,#ffd700);--text:#f0f0f0;--muted:#888;--dim:#555;--border:#222;--bgold:rgba(212,160,23,.2);--bgold2:rgba(212,160,23,.08);--red:#ff4757;--green:#2ed573;--blue:#3d8bcd}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;line-height:1.6}
+a{text-decoration:none;color:inherit}
+button{font-family:'Sarabun',sans-serif;cursor:pointer;border:none}
+input,select{font-family:'Sarabun',sans-serif}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:var(--bg)}::-webkit-scrollbar-thumb{background:var(--gold3);border-radius:3px}
+
+/* ─── HEADER ─── */
+header{position:sticky;top:0;z-index:900;background:rgba(5,5,5,.97);border-bottom:1px solid rgba(212,160,23,.25);backdrop-filter:blur(12px)}
+.hdr{max-width:1440px;margin:0 auto;padding:0 24px;height:68px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-svg{width:44px;height:44px;flex-shrink:0}
+.logo-name{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:1px}
+.logo-tag{font-size:9px;color:var(--gold);background:rgba(212,160,23,.12);border:1px solid var(--bgold);padding:2px 7px;border-radius:20px;font-weight:600;letter-spacing:1px}
+nav{display:flex;gap:4px;align-items:center}
+nav a{padding:8px 14px;border-radius:8px;font-size:14px;font-weight:500;color:var(--muted);transition:.2s}
+nav a:hover{color:var(--text);background:var(--card2)}
+.hdr-right{display:flex;gap:10px;align-items:center}
+.btn{padding:9px 20px;border-radius:9px;font-size:14px;font-weight:600;transition:.25s;cursor:pointer}
+.btn-ghost{background:transparent;border:1px solid rgba(212,160,23,.4);color:var(--gold)}
+.btn-ghost:hover{background:rgba(212,160,23,.1)}
+.btn-gold{background:var(--grad);color:#000;font-weight:700}
+.btn-gold:hover{opacity:.88;transform:translateY(-1px);box-shadow:0 6px 24px rgba(212,160,23,.35)}
+.btn-lg{padding:14px 32px;font-size:16px;border-radius:12px}
+
+/* ─── TICKER ─── */
+.ticker{background:var(--grad);padding:9px 0;overflow:hidden}
+.tick-inner{display:flex;gap:80px;animation:tick 28s linear infinite;white-space:nowrap}
+@keyframes tick{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.tick-item{font-size:13px;font-weight:700;color:#000}
+
+/* ─── HERO ─── */
+.hero{padding:70px 24px 50px;text-align:center;position:relative;overflow:hidden;background:radial-gradient(ellipse 90% 60% at 50% 0%,rgba(212,160,23,.06) 0%,transparent 70%)}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 16px;border-radius:30px;border:1px solid var(--bgold);background:var(--bgold2);font-size:12px;font-weight:600;color:var(--gold);letter-spacing:2px;margin-bottom:20px}
+.hero h1{font-size:clamp(32px,5vw,58px);font-weight:900;line-height:1.15;margin-bottom:12px}
+.hero h1 span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:17px;color:var(--muted);margin-bottom:44px}
+.hero-cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:56px}
+
+/* ─── RESULT CARD ─── */
+.result-card{max-width:960px;margin:0 auto 36px;background:var(--card);border:1px solid rgba(212,160,23,.3);border-radius:20px;padding:32px;position:relative;overflow:hidden}
+.result-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad)}
+.result-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.result-label{font-size:12px;color:var(--gold);font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.result-date{font-size:18px;font-weight:700;color:var(--text)}
+.result-date span{color:var(--muted);font-size:13px;font-weight:400}
+.result-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+@media(max-width:700px){.result-grid{grid-template-columns:1fr;text-align:center}}
+.ritem{text-align:center}
+.ritem-name{font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px}
+.ritem-prize{font-size:12px;color:var(--gold);margin-bottom:8px}
+.ritem-num{font-size:40px;font-weight:900;color:var(--gold2);letter-spacing:6px;text-shadow:0 0 30px rgba(255,215,0,.4)}
+.ritem-small{font-size:22px;font-weight:800;color:var(--text);letter-spacing:3px}
+.rnum-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+.rnum-badge{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:16px;font-weight:700;color:var(--text)}
+.result-more-link{text-align:center;margin-top:24px;padding-top:20px;border-top:1px solid var(--border)}
+.result-more-link a{color:var(--gold);font-size:14px;font-weight:600}
+.result-more-link a:hover{color:var(--gold2)}
+
+/* ─── COUNTDOWN ─── */
+.countdown-wrap{max-width:560px;margin:0 auto 20px;text-align:center}
+.cd-title{font-size:14px;color:var(--muted);margin-bottom:16px}
+.countdown{display:flex;align-items:center;justify-content:center;gap:12px}
+.cd-box{text-align:center}
+.cd-num{background:var(--card);border:1px solid var(--bgold);border-radius:14px;padding:14px 22px;font-size:34px;font-weight:900;color:var(--gold2);min-width:78px;display:block}
+.cd-unit{font-size:11px;color:var(--muted);margin-top:6px}
+.cd-sep{font-size:34px;color:var(--gold);margin-bottom:22px;font-weight:900}
+
+/* ─── STATS BAR ─── */
+.stats-bar{background:var(--card);border-top:1px solid var(--bgold);border-bottom:1px solid var(--bgold);padding:18px 24px}
+.stats-inner{max-width:1200px;margin:0 auto;display:flex;gap:0;justify-content:center;align-items:center;flex-wrap:wrap}
+.stat{text-align:center;padding:8px 32px;border-right:1px solid var(--border)}
+.stat:last-child{border-right:none}
+.stat-val{font-size:22px;font-weight:800;color:var(--gold2)}
+.stat-lbl{font-size:11px;color:var(--muted);margin-top:3px}
+
+/* ─── SECTION ─── */
+.section{padding:70px 24px}
+.container{max-width:1440px;margin:0 auto}
+.sec-hdr{text-align:center;margin-bottom:48px}
+.sec-hdr h2{font-size:clamp(26px,3.5vw,38px);font-weight:800;margin-bottom:10px}
+.sec-hdr h2 span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.sec-hdr p{color:var(--muted);font-size:15px}
+.divider{height:1px;background:var(--border);border:none;margin:0}
+
+/* ─── LOTTERY CARDS ─── */
+.lot-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px;justify-content:center}
+.lot-ftab{padding:8px 18px;border-radius:30px;font-size:13px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;user-select:none;font-family:'Sarabun',sans-serif}
+.lot-ftab.on{background:var(--grad);color:#000;border-color:transparent}
+.lot-group{margin-bottom:36px}
+.lot-group-hdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.lot-group-hdr h3{font-size:15px;font-weight:700}
+.lot-group-hdr .cnt-badge{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:2px 8px;font-size:11px;color:var(--muted)}
+.lot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px}
+@media(max-width:768px){.lot-main-3{grid-template-columns:1fr!important}}
+.lot-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:22px;position:relative;overflow:hidden;transition:.3s;cursor:pointer}
+.lot-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 10px 36px rgba(212,160,23,.2)}
+.lot-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad)}
+.lot-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px}
+.lot-tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:1px;background:rgba(212,160,23,.1);color:var(--gold2);border:1px solid var(--bgold)}
+.lot-tag.hot{background:rgba(255,71,87,.1);color:#ff8a92;border-color:rgba(255,71,87,.3)}
+.lot-tag.vip{background:rgba(61,139,205,.1);color:#7ec8e3;border-color:rgba(61,139,205,.3)}
+.lot-tag.lao{background:rgba(46,213,115,.1);color:#7dffb3;border-color:rgba(46,213,115,.3)}
+.lot-status{display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.lot-status.open{background:rgba(46,213,115,.12);color:#2ed573;border:1px solid rgba(46,213,115,.3)}
+.lot-status.closed{background:rgba(255,71,87,.08);color:#ff6b81;border:1px solid rgba(255,71,87,.25)}
+.lot-status.soon{background:rgba(255,165,0,.1);color:#ffa500;border:1px solid rgba(255,165,0,.3)}
+.lot-name{font-size:17px;font-weight:700;margin-bottom:4px}
+.lot-prize{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+.lot-meta{font-size:12px;color:var(--muted);margin-bottom:3px}
+.lot-meta span{color:var(--red);font-weight:700}
+.lot-rate{font-size:11px;color:var(--muted);margin-bottom:14px;line-height:1.8}
+.lot-rate b{color:var(--gold)}
+.lot-btn{width:100%;padding:11px;background:var(--grad);color:#000;border-radius:11px;font-size:14px;font-weight:700;transition:.25s;border:none;font-family:'Sarabun',sans-serif}
+.lot-btn:hover{opacity:.88;transform:translateY(-2px)}
+/* Results filter */
+.res-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:24px;justify-content:center;align-items:center}
+/* ── Category pill ── */
+.res-cat{position:relative;display:inline-block}
+.res-cat-btn{padding:8px 18px;border-radius:30px;font-size:13px;font-weight:700;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;user-select:none;font-family:'Sarabun',sans-serif;white-space:nowrap}
+.res-cat-btn.on,.res-cat-btn:hover{background:var(--grad);color:#000;border-color:transparent}
+.res-cat-btn .arr{font-size:10px;margin-left:4px;opacity:.7}
+/* ── Dropdown panel ── */
+.res-dd{display:none;position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:8px;z-index:200;min-width:160px;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+.res-dd.open{display:block}
+.res-dd-item{display:block;width:100%;text-align:left;padding:8px 14px;border-radius:10px;border:none;background:none;color:var(--text);font-size:13px;font-weight:600;font-family:'Sarabun',sans-serif;cursor:pointer;white-space:nowrap;transition:.15s}
+.res-dd-item:hover,.res-dd-item.on{background:rgba(212,160,23,.15);color:var(--gold)}
+/* ── Result row ── */
+.res-row{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;transition:.2s}
+/* keep old names so other parts still work */
+.res-ftab{display:none} /* hidden — replaced by .res-cat-btn */
+
+/* ─── CHECKER ─── */
+.checker-wrap{max-width:680px;margin:0 auto}
+.checker-box{background:var(--card);border:1px solid rgba(212,160,23,.3);border-radius:20px;padding:38px}
+.tabs{display:flex;gap:6px;background:var(--card2);padding:5px;border-radius:12px;margin-bottom:28px}
+.tab{flex:1;padding:10px;text-align:center;border-radius:9px;cursor:pointer;font-size:13px;font-weight:600;color:var(--muted);transition:.2s;border:none;background:none;font-family:'Sarabun',sans-serif}
+.tab.on{background:var(--grad);color:#000}
+.chk-row{display:flex;gap:12px;margin-bottom:18px}
+.num-inp{flex:1;padding:16px 20px;background:var(--card2);border:1px solid var(--border);border-radius:13px;color:var(--text);font-size:26px;font-weight:800;text-align:center;letter-spacing:8px;transition:.2s}
+.num-inp:focus{outline:none;border-color:var(--gold)}
+.chk-btn{padding:16px 28px;background:var(--grad);color:#000;border-radius:13px;font-size:15px;font-weight:700;white-space:nowrap;font-family:'Sarabun',sans-serif}
+.chk-result{padding:20px;border-radius:14px;text-align:center;margin-top:16px}
+.chk-result.win{background:rgba(212,160,23,.08);border:1px solid var(--bgold)}
+.chk-result.lose{background:rgba(255,71,87,.05);border:1px solid rgba(255,71,87,.25)}
+
+/* ─── PRIZE TABLE ─── */
+.prize-wrap{max-width:860px;margin:0 auto;background:var(--card);border:1px solid rgba(212,160,23,.25);border-radius:18px;overflow:hidden}
+table.prize-tbl{width:100%;border-collapse:collapse}
+.prize-tbl th{background:rgba(212,160,23,.08);padding:14px 20px;text-align:left;font-size:13px;font-weight:700;color:var(--gold);border-bottom:1px solid rgba(212,160,23,.2)}
+.prize-tbl td{padding:13px 20px;border-bottom:1px solid var(--border);font-size:14px}
+.prize-tbl tr:last-child td{border-bottom:none}
+.prize-tbl tr:hover td{background:rgba(212,160,23,.03)}
+.p1{color:var(--gold2);font-weight:800;font-size:16px}
+
+/* ─── HOW TO PLAY ─── */
+.how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:22px}
+.how-card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:30px 24px;text-align:center;transition:.3s}
+.how-card:hover{border-color:rgba(212,160,23,.4);transform:translateY(-3px)}
+.how-num{width:50px;height:50px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#000;margin:0 auto 18px}
+.how-card h4{font-size:16px;font-weight:700;margin-bottom:9px}
+.how-card p{font-size:13px;color:var(--muted);line-height:1.75}
+
+/* ─── PROMO BANNER ─── */
+.promo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.promo-card{background:var(--card);border:1px solid rgba(212,160,23,.25);border-radius:16px;padding:28px;position:relative;overflow:hidden;display:flex;flex-direction:column;gap:6px}
+.promo-card::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(212,160,23,.06)}
+.promo-badge{font-size:28px;margin-bottom:4px}
+.promo-title{font-size:18px;font-weight:700;margin-bottom:4px}
+.promo-desc{font-size:13px;color:var(--muted);line-height:1.7;flex:1}
+.promo-tag{display:inline-block;padding:4px 12px;background:var(--bgold2);border:1px solid var(--bgold);border-radius:20px;font-size:12px;font-weight:700;color:var(--gold)}
+.promo-btn-claim{margin-top:10px;padding:9px 20px;background:var(--grad);border:none;border-radius:10px;color:#000;font-weight:700;font-size:13px;cursor:pointer;transition:.2s}
+.promo-btn-claim:hover{opacity:.85}
+.promo-btn-claim:disabled{opacity:.45;cursor:not-allowed}
+/* progress bar */
+.promo-progress-wrap{margin-top:8px}
+.promo-progress-label{font-size:12px;color:var(--muted);margin-bottom:5px;display:flex;justify-content:space-between}
+.promo-progress-bar{height:8px;background:rgba(255,255,255,.08);border-radius:20px;overflow:hidden}
+.promo-progress-fill{height:100%;background:var(--grad);border-radius:20px;transition:width .6s ease}
+.promo-status-badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.promo-status-badge.pending{background:rgba(212,160,23,.15);color:var(--gold)}
+.promo-status-badge.completed{background:rgba(100,200,100,.15);color:#7ddb7d}
+.promo-status-badge.cancelled{background:rgba(255,80,80,.1);color:#f97474}
+/* my-promos tab */
+.promo-tabs{display:flex;gap:8px;margin-bottom:20px}
+.promo-tab{padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:.2s}
+.promo-tab.active{background:var(--bgold2);border-color:var(--bgold);color:var(--gold)}
+
+/* ─── FOOTER ─── */
+footer{background:#020202;border-top:1px solid rgba(212,160,23,.2);padding:64px 24px 30px}
+.footer-grid{max-width:1200px;margin:0 auto;display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px;margin-bottom:48px}
+@media(max-width:900px){.footer-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.footer-grid{grid-template-columns:1fr}}
+.foot-brand .logo-name{font-size:26px;display:block;margin-bottom:14px}
+.foot-brand p{font-size:13px;color:var(--muted);line-height:1.85;margin-bottom:22px}
+.foot-social{display:flex;gap:10px}
+.foot-social a{width:38px;height:38px;border-radius:10px;background:var(--card);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;transition:.2s}
+.foot-social a:hover{border-color:var(--gold)}
+.foot-col h5{font-size:12px;font-weight:700;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px}
+.foot-col a{display:block;font-size:13px;color:var(--muted);margin-bottom:10px;transition:.2s}
+.foot-col a:hover{color:var(--gold2)}
+.foot-btm{max-width:1200px;margin:0 auto;padding-top:24px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px}
+.foot-btm p{font-size:12px;color:var(--dim)}
+.age-pill{background:var(--red);color:#fff;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:800}
+.pay-icons{display:flex;gap:8px;flex-wrap:wrap}
+.pay-icon{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-size:11px;color:var(--muted);font-weight:600}
+
+/* ─── MODALS ─── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;align-items:center;justify-content:center;padding:20px}
+.overlay.on{display:flex}
+.modal{background:var(--card);border:1px solid rgba(212,160,23,.3);border-radius:22px;padding:40px;width:100%;max-width:460px;position:relative;max-height:90vh;overflow-y:auto}
+.modal-lg{max-width:560px}
+.modal-close{position:absolute;top:18px;right:18px;background:var(--card2);border:none;color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.modal-close:hover{color:var(--text);background:var(--card3)}
+.modal-logo{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.modal h2{font-size:22px;font-weight:800;margin-bottom:6px}
+.modal h2 span{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.modal-sub{font-size:13px;color:var(--muted);margin-bottom:24px}
+.m-tabs{display:flex;gap:5px;background:var(--card2);padding:4px;border-radius:11px;margin-bottom:26px}
+.m-tab{flex:1;padding:9px;text-align:center;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);transition:.2s;border:none;background:none;font-family:'Sarabun',sans-serif}
+.m-tab.on{background:var(--grad);color:#000}
+.fg{margin-bottom:18px}
+.fg label{display:block;font-size:12px;color:var(--muted);margin-bottom:7px;font-weight:600}
+.fi{width:100%;padding:13px 16px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;font-family:'Sarabun',sans-serif;transition:.2s}
+.fi:focus{outline:none;border-color:var(--gold)}
+select.fi option{background:var(--card2)}
+.fi-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal .btn-gold{width:100%;padding:14px;font-size:16px;border-radius:12px;margin-top:4px}
+.payout-info{background:var(--card2);border-radius:12px;padding:16px;margin-bottom:18px}
+.payout-row{display:flex;justify-content:space-between;margin-bottom:8px;font-size:13px}
+.payout-row:last-child{margin-bottom:0;font-size:15px;font-weight:700}
+.payout-row .val{color:var(--gold2)}
+.bet-group-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin:10px 0 5px}
+.bet-types{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.bet-types-run{grid-template-columns:repeat(4,1fr)}
+.bet-type{padding:8px 4px;text-align:center;border-radius:9px;cursor:pointer;font-size:12px;font-weight:600;color:var(--muted);transition:.2s;border:1px solid var(--border);background:var(--card2);line-height:1.4;user-select:none}
+.bet-type small{font-size:10px;opacity:.8}
+.bet-type.on{background:var(--grad);color:#000;border-color:transparent}
+.buy-cart-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;border-radius:8px;margin-bottom:5px;background:var(--card2);font-size:12px}
+.buy-cart-item .rm-btn{background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;line-height:1}
+
+/* ─── WALLET BAR (logged in) ─── */
+.wallet-bar{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid rgba(212,160,23,.3);padding:12px 24px;z-index:800;align-items:center;justify-content:space-between}
+.wallet-bar.on{display:flex}
+/* ── LINE widget ── */
+.line-widget{position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:900;width:160px;background:rgba(14,14,14,.95);border:1px solid rgba(6,199,85,.35);border-left:none;border-radius:0 14px 14px 0;padding:10px 12px 10px 10px;box-shadow:3px 0 16px rgba(0,0,0,.5);backdrop-filter:blur(8px);transition:width .25s ease,padding .25s ease}
+.line-widget.collapsed{width:34px;padding:10px 6px 10px 6px;overflow:hidden}
+.line-widget.collapsed .line-widget-body{display:none}
+.line-widget-collapse-btn{position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;background:rgba(6,199,85,.18);border:1px solid rgba(6,199,85,.45);color:#06c755;font-size:11px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
+.line-widget-collapse-btn:hover{background:rgba(6,199,85,.35)}
+.line-widget-tab{display:none;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.line-widget.collapsed .line-widget-tab{display:flex}
+.line-widget.collapsed .line-widget-collapse-btn{display:none}
+.line-widget-hdr{display:flex;align-items:center;gap:7px;margin-bottom:7px;position:relative;padding-right:22px}
+.line-qr-wrap{display:none;margin:8px 0 6px;text-align:center}
+.line-qr-wrap img{width:116px;height:116px;border-radius:8px;border:2px solid rgba(6,199,85,.4);object-fit:cover;display:block;margin:0 auto}
+.line-qr-label{font-size:9px;color:var(--muted);margin-top:4px;text-align:center}
+.line-widget-dot{width:7px;height:7px;border-radius:50%;background:#06c755;flex-shrink:0;animation:linePulse 2s infinite}
+@keyframes linePulse{0%,100%{opacity:1}50%{opacity:.4}}
+.line-widget-title{font-size:11px;font-weight:700;color:#06c755;white-space:nowrap}
+.line-widget-sub{font-size:10px;color:var(--muted);margin-bottom:5px}
+.line-widget-id{font-size:13px;font-weight:800;color:#fff;margin-bottom:8px;letter-spacing:.3px}
+.line-add-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:7px 6px;background:#06c755;border:none;border-radius:8px;color:#fff;font-size:11px;font-weight:800;cursor:pointer;transition:.2s;font-family:'Sarabun',sans-serif;text-decoration:none;white-space:nowrap}
+.line-add-btn:hover{background:#05a847}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;top:20px;right:20px;background:var(--card);border:1px solid rgba(212,160,23,.4);border-radius:14px;padding:16px 20px;z-index:3000;min-width:260px;transform:translateX(120%);transition:.4s cubic-bezier(.175,.885,.32,1.275)}
+.toast.on{transform:translateX(0)}
+.toast-title{font-size:14px;font-weight:700;margin-bottom:3px;color:var(--gold2)}
+.toast-msg{font-size:13px;color:var(--muted)}
+
+/* ─── RESULTS HISTORY ─── */
+.results-list{display:grid;gap:14px;max-width:800px;margin:0 auto}
+.res-row:hover{border-color:rgba(212,160,23,.3)}
+.res-type{font-size:13px;font-weight:700;color:var(--gold)}
+.res-date-small{font-size:12px;color:var(--muted)}
+.res-nums{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.res-n1{font-size:24px;font-weight:900;color:var(--gold2)}
+.res-n2{font-size:16px;font-weight:700;color:var(--text)}
+.res-n2bot{color:var(--muted);font-size:14px}
+.res-n3{font-size:13px;font-weight:600;color:var(--muted)}
+.res-lbl{font-size:10px;font-weight:600;color:var(--dim);display:block;text-align:center;margin-top:2px;letter-spacing:.5px}
+.res-num-box{display:flex;flex-direction:column;align-items:center}
+
+/* ─── MOBILE ─── */
+@media(max-width:768px){nav{display:none}.hdr-right .btn-ghost{display:none}.stat{padding:8px 16px}.how-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.how-grid{grid-template-columns:1fr}.chk-row{flex-direction:column}}
+
+/* ─── MEMBER PANEL ─── */
+.mpanel-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:2000;display:none;backdrop-filter:blur(4px);justify-content:flex-end}
+.mpanel-ov.on{display:flex}
+.mpanel{width:100%;max-width:500px;height:100vh;background:var(--dark);border-left:1px solid rgba(212,160,23,.25);display:flex;flex-direction:column;animation:mpSlide .28s cubic-bezier(.25,.8,.25,1)}
+@keyframes mpSlide{from{transform:translateX(100%)}to{transform:translateX(0)}}
+.mpanel-hdr{padding:18px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:var(--card);flex-shrink:0}
+.mpanel-hdr-info{flex:1}
+.mpanel-hdr-name{font-size:16px;font-weight:800;color:var(--gold2)}
+.mpanel-hdr-bal{font-size:22px;font-weight:900;color:var(--text);margin-top:2px}
+.mpanel-hdr-bal span{color:var(--gold2)}
+.mpanel-close{background:var(--card2);border:none;color:var(--muted);font-size:18px;width:36px;height:36px;border-radius:9px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s;flex-shrink:0}
+.mpanel-close:hover{color:var(--text);background:var(--card3)}
+.mpanel-tabs{display:flex;gap:4px;padding:10px 12px;background:var(--card);border-bottom:1px solid var(--border);flex-shrink:0}
+.mpanel-tab{flex:1;padding:9px 4px;border-radius:9px;font-size:13px;font-weight:600;color:var(--muted);border:none;background:none;cursor:pointer;font-family:'Sarabun',sans-serif;transition:.2s;text-align:center;white-space:nowrap}
+.mpanel-tab.on{background:var(--grad);color:#000}
+.mpanel-body{flex:1;overflow-y:auto;padding:14px}
+.mpanel-sec{display:none}.mpanel-sec.on{display:block}
+/* bet rows */
+.bet-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;transition:.2s}
+.bet-row:hover{border-color:rgba(212,160,23,.3)}
+.bet-badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;margin-bottom:4px;letter-spacing:.4px}
+.bb-wait{background:rgba(255,215,0,.12);color:#ffd700;border:1px solid rgba(255,215,0,.3)}
+.bb-win{background:rgba(46,213,115,.12);color:#2ed573;border:1px solid rgba(46,213,115,.3)}
+.bb-lose{background:rgba(255,71,87,.12);color:#ff6b81;border:1px solid rgba(255,71,87,.3)}
+.bb-cancel{background:rgba(136,136,136,.12);color:#888;border:1px solid rgba(136,136,136,.3)}
+/* tx rows */
+.tx-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;display:flex;align-items:center;gap:12px;transition:.2s}
+.tx-row:hover{border-color:rgba(212,160,23,.2)}
+.tx-icon{font-size:22px;flex-shrink:0}
+.tx-pos{color:var(--green);font-size:17px;font-weight:800}
+.tx-neg{color:var(--red);font-size:17px;font-weight:800}
+/* notif rows */
+.notif-row{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px 15px;margin-bottom:9px;transition:.2s}
+.notif-row.unread{border-color:rgba(212,160,23,.45);background:rgba(212,160,23,.04)}
+/* empty */
+.mp-empty{text-align:center;padding:60px 20px;color:var(--muted)}
+.mp-empty-icon{font-size:46px;margin-bottom:10px}
+/* pager */
+.mp-load-more{width:100%;padding:10px;background:var(--card2);border:1px solid var(--border);border-radius:10px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:6px;transition:.2s}
+.mp-load-more:hover{color:var(--gold);border-color:var(--gold)}
+@media(max-width:520px){.mpanel{max-width:100%}}
+
+/* ─── อั้นหวย SLIDE PANEL ─── */
+#an-panel{
+  position:fixed;top:0;right:-400px;width:370px;height:100%;
+  background:#13131c;border-left:1px solid rgba(212,160,23,.25);
+  z-index:9500;transition:right .35s cubic-bezier(.4,0,.2,1);
+  display:flex;flex-direction:column;box-shadow:-6px 0 30px rgba(0,0,0,.6);
+}
+#an-panel.open{right:0}
+#an-panel-backdrop{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9400;
+}
+#an-panel-backdrop.on{display:block}
+#an-toggle-btn{
+  position:fixed;right:0;top:50%;transform:translateY(-50%);
+  background:linear-gradient(135deg,#d4a017,#f5c842);color:#000;
+  border:none;border-radius:10px 0 0 10px;padding:12px 7px;
+  font-size:12px;font-weight:800;cursor:pointer;z-index:9300;
+  writing-mode:vertical-rl;letter-spacing:1px;line-height:1.2;
+  box-shadow:-3px 0 12px rgba(0,0,0,.4);display:none;
+}
+#an-toggle-btn.visible{display:block}
+.an-tab-btn{
+  padding:5px 13px;font-size:12px;font-weight:700;border-radius:20px;
+  border:1px solid #444;background:var(--card2);color:#aaa;cursor:pointer;
+  transition:.15s;white-space:nowrap;font-family:'Sarabun',sans-serif;
+}
+.an-tab-btn.on{background:var(--grad);color:#000;border-color:transparent}
+.an-row{
+  display:grid;grid-template-columns:52px 64px 1fr 90px;gap:2px 8px;
+  align-items:center;padding:7px 12px;border-radius:6px;font-size:13px;
+}
+.an-row:nth-child(even){background:rgba(255,255,255,.03)}
+.an-row-hdr{
+  font-size:11px;color:#666;font-weight:700;padding:5px 12px;
+  border-bottom:1px solid #2a2a3a;margin-bottom:2px;
+  display:grid;grid-template-columns:52px 64px 1fr 90px;gap:2px 8px;
+}
+@media(max-width:600px){
+  #an-panel{width:310px;right:-320px}
+}
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"><div class="toast-title" id="t-title"></div><div class="toast-msg" id="t-msg"></div></div>
+
+<!-- ══════════ HEADER ══════════ -->
+<header>
+  <div class="hdr">
+    <a href="#" class="logo">
+      <img id="site-logo-img" src="" alt="" style="display:none;height:52px;width:auto;max-width:120px;border-radius:8px;object-fit:contain">
+      <svg id="site-logo-svg" class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#d4a017"/>
+            <stop offset="50%" stop-color="#ffd700"/>
+            <stop offset="100%" stop-color="#b8860b"/>
+          </linearGradient>
+          <radialGradient id="g2" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#2a1a00"/>
+            <stop offset="100%" stop-color="#0e0e0e"/>
+          </radialGradient>
+        </defs>
+        <circle cx="50" cy="50" r="47" fill="url(#g2)" stroke="url(#g1)" stroke-width="2"/>
+        <!-- Ears -->
+        <polygon points="18,18 28,44 8,44" fill="url(#g1)"/>
+        <polygon points="82,18 72,44 92,44" fill="url(#g1)"/>
+        <polygon points="18,20 26,41 12,41" fill="#cc6600" opacity=".5"/>
+        <polygon points="82,20 74,41 88,41" fill="#cc6600" opacity=".5"/>
+        <!-- Face circle -->
+        <circle cx="50" cy="56" r="34" fill="#1a1200"/>
+        <!-- Forehead stripes -->
+        <path d="M42 28 Q46 34 42 40" stroke="url(#g1)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M50 26 L50 36" stroke="url(#g1)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <path d="M58 28 Q54 34 58 40" stroke="url(#g1)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Side stripes -->
+        <path d="M16 50 Q24 54 18 60" stroke="url(#g1)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M84 50 Q76 54 82 60" stroke="url(#g1)" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- Eyes -->
+        <ellipse cx="37" cy="50" rx="8" ry="9" fill="#ffd700"/>
+        <ellipse cx="63" cy="50" rx="8" ry="9" fill="#ffd700"/>
+        <ellipse cx="37" cy="51" rx="3.5" ry="8" fill="#000"/>
+        <ellipse cx="63" cy="51" rx="3.5" ry="8" fill="#000"/>
+        <circle cx="35" cy="48" r="1.8" fill="white" opacity=".9"/>
+        <circle cx="61" cy="48" r="1.8" fill="white" opacity=".9"/>
+        <!-- Nose bridge -->
+        <path d="M46 60 L50 56 L54 60 Q50 65 46 60Z" fill="#ff7766"/>
+        <!-- Mouth -->
+        <path d="M43 63 Q50 69 57 63" stroke="#ddd" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+        <!-- Chin spot -->
+        <ellipse cx="50" cy="72" rx="8" ry="5" fill="#fff" opacity=".07"/>
+        <!-- Whiskers -->
+        <line x1="18" y1="62" x2="40" y2="63" stroke="url(#g1)" stroke-width="1" stroke-linecap="round"/>
+        <line x1="18" y1="67" x2="40" y2="67" stroke="url(#g1)" stroke-width="1" stroke-linecap="round"/>
+        <line x1="60" y1="63" x2="82" y2="62" stroke="url(#g1)" stroke-width="1" stroke-linecap="round"/>
+        <line x1="60" y1="67" x2="82" y2="67" stroke="url(#g1)" stroke-width="1" stroke-linecap="round"/>
+        <!-- Crown dots -->
+        <circle cx="50" cy="16" r="2.5" fill="url(#g1)" opacity=".8"/>
+        <circle cx="44" cy="18" r="1.8" fill="url(#g1)" opacity=".5"/>
+        <circle cx="56" cy="18" r="1.8" fill="url(#g1)" opacity=".5"/>
+      </svg>
+      <div>
+        <span class="logo-name" id="site-name-hdr">TigerLotto</span>
+        <div class="logo-tag" id="site-tagline-hdr">OFFICIAL</div>
+      </div>
+    </a>
+    <nav>
+      <a href="#">หน้าแรก</a>
+      <a href="#buy">ซื้อหวย</a>
+      <a href="#results">ผลรางวัล</a>
+      <a href="#check">ตรวจหวย</a>
+      <a href="#prizes">รายการรางวัล</a>
+      <a href="#how">วิธีเล่น</a>
+    </nav>
+    <div class="hdr-right" id="hdr-right">
+      <button class="btn btn-ghost" id="btn-login" onclick="openAuth('login')">เข้าสู่ระบบ</button>
+      <button class="btn btn-gold" id="btn-reg" onclick="openAuth('register')">สมัครสมาชิก</button>
+      <div id="user-menu" style="display:none;align-items:center;gap:8px">
+        <span style="color:var(--gold);font-weight:700;font-size:14px">💰 ฿<span id="nav-balance">0.00</span></span>
+        <button class="btn btn-ghost" style="padding:6px 13px;font-size:13px" onclick="openMemberPanel()">📋 บัญชีของฉัน</button>
+        <button class="btn btn-ghost" style="padding:6px 13px;font-size:13px" onclick="doLogout()">ออก</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ TICKER ══════════ -->
+<div class="ticker">
+  <div class="tick-inner" id="ticker">
+    <span class="tick-item">🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด</span>
+    <span class="tick-item">🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!</span>
+    <span class="tick-item">⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร</span>
+    <span class="tick-item">🎯 เล่นหวยออนไลน์ปลอดภัย 100% มีใบอนุญาต</span>
+    <span class="tick-item">💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน</span>
+    <span class="tick-item">🏆 TigerLotto — หวยออนไลน์จ่ายจริงทุกงวด</span>
+    <span class="tick-item">🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!</span>
+    <span class="tick-item">⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร</span>
+    <span class="tick-item">🎯 เล่นหวยออนไลน์ปลอดภัย 100% มีใบอนุญาต</span>
+    <span class="tick-item">💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน</span>
+  </div>
+</div>
+
+<!-- ══════════ HERO ══════════ -->
+<section class="hero">
+  <div class="hero-badge" id="hero-badge-el">🔥 TigerLotto — หวยออนไลน์อันดับ 1</div>
+  <h1><span id="hero-title1-el">ซื้อง่าย จ่ายจริง</span><br><span id="hero-title2-el">ปลอดภัย 100%</span></h1>
+  <p class="hero-sub" id="hero-sub">⏳ กำลังโหลดข้อมูลงวด...</p>
+  <div class="hero-cta">
+    <button class="btn btn-gold btn-lg" id="hero-cta1-btn" onclick="openAuth('register')">🎰 สมัครฟรี รับโบนัส 50 บาท</button>
+    <button class="btn btn-ghost btn-lg" onclick="document.getElementById('buy').scrollIntoView({behavior:'smooth'})">ดูหวยทั้งหมด →</button>
+  </div>
+
+  <!-- Latest Result -->
+  <div class="result-card" id="hero-result-card">
+    <div style="text-align:center;padding:30px;color:var(--muted)">⏳ กำลังโหลดผลรางวัล...</div>
+  </div>
+
+  <!-- Checker (inline in hero) -->
+  <div id="check" class="checker-wrap" style="margin:0 auto 28px">
+    <div class="checker-box" style="padding:24px 28px">
+      <div style="text-align:center;margin-bottom:16px">
+        <span style="font-size:17px;font-weight:800;color:var(--gold2)">🔍 ตรวจผลรางวัล</span>
+      </div>
+      <div class="tabs" style="margin-bottom:14px">
+        <button class="tab on" onclick="setChk(this,6)">6 ตัว (รัฐบาล)</button>
+        <button class="tab" onclick="setChk(this,3)">3 ตัว</button>
+        <button class="tab" onclick="setChk(this,2)">2 ตัว</button>
+      </div>
+      <div class="chk-row">
+        <input type="text" class="num-inp" id="chk-inp" placeholder="XXXXXX" maxlength="6" inputmode="numeric" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')doCheck()">
+        <button class="chk-btn" onclick="doCheck()">ตรวจสอบ</button>
+      </div>
+      <div id="chk-res" style="display:none" class="chk-result"></div>
+      <div style="text-align:center;margin-top:10px"><span id="chk-hint" style="font-size:12px;color:var(--muted)">กำลังโหลดข้อมูลงวดล่าสุด...</span></div>
+    </div>
+  </div>
+
+  <!-- Countdown -->
+  <div class="countdown-wrap">
+    <div class="cd-title">⏳ งวดถัดไป ปิดรับในอีก</div>
+    <div class="countdown">
+      <div class="cd-box"><span class="cd-num" id="cd-d">00</span><div class="cd-unit">วัน</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-box"><span class="cd-num" id="cd-h">00</span><div class="cd-unit">ชั่วโมง</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-box"><span class="cd-num" id="cd-m">00</span><div class="cd-unit">นาที</div></div>
+      <div class="cd-sep">:</div>
+      <div class="cd-box"><span class="cd-num" id="cd-s">00</span><div class="cd-unit">วินาที</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Stats -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat"><div class="stat-val" id="stat-members">—</div><div class="stat-lbl">สมาชิกทั้งหมด</div></div>
+    <div class="stat"><div class="stat-val" id="stat-payout">—</div><div class="stat-lbl">เงินรางวัลที่จ่ายแล้ว</div></div>
+    <div class="stat"><div class="stat-val" id="stat-rounds">—</div><div class="stat-lbl">งวดที่เปิดรับอยู่</div></div>
+    <div class="stat"><div class="stat-val">100%</div><div class="stat-lbl">จ่ายตรงเวลาทุกครั้ง</div></div>
+    <div class="stat"><div class="stat-val">&lt;3 นาที</div><div class="stat-lbl">ถอนเงินเฉลี่ย</div></div>
+  </div>
+</div>
+
+<!-- ══════════ BUY LOTTERY ══════════ -->
+<hr class="divider">
+<section class="section" id="buy">
+  <div class="container">
+    <div class="sec-hdr">
+      <h2>เลือก<span>ซื้อหวย</span>ได้เลย</h2>
+      <p>หวยหลากหลายประเภท จ่ายสูง คืนทุนเยอะ</p>
+    </div>
+    <!-- Filter tabs (populated by JS) -->
+    <div class="lot-filter" id="lot-filter">
+      <button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>
+    </div>
+    <!-- Groups container (populated by JS) -->
+    <div id="lot-groups">
+      <div style="text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════ RESULTS HISTORY ══════════ -->
+<section class="section" id="results" style="background:var(--dark)">
+  <div class="container">
+    <div class="sec-hdr">
+      <h2>ผล<span>รางวัล</span>ย้อนหลัง</h2>
+      <p>เลือกดูผลแยกตามประเภทหวย อัพเดทอัตโนมัติ</p>
+    </div>
+    <!-- Result type filter — dropdown groups (populated by JS) -->
+    <div class="res-filter" id="res-filter">
+      <!-- populated by buildResultFilter() -->
+      <div class="res-cat">
+        <button class="res-cat-btn on" id="res-all-btn" onclick="filterGroup(null)">🎰 ทั้งหมด</button>
+      </div>
+    </div>
+    <div class="results-list" id="results-list">
+      <div style="text-align:center;padding:40px;color:var(--muted)">⏳ กำลังโหลด...</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════ PRIZE TABLE ══════════ -->
+<section class="section" id="prizes" style="background:var(--dark)">
+  <div class="container">
+    <div class="sec-hdr">
+      <h2>อัตราการ<span>จ่ายรางวัล</span></h2>
+      <p>หวยรัฐบาลไทย</p>
+    </div>
+    <div class="prize-wrap">
+      <table class="prize-tbl">
+        <thead>
+          <tr>
+            <th>ประเภทรางวัล</th>
+            <th>จำนวนรางวัล</th>
+            <th>มูลค่า/ใบ</th>
+            <th>อัตราจ่าย (ต่อบาท)</th>
+          </tr>
+        </thead>
+        <tbody id="payout-rates-tbody">
+          <tr><td class="p1">🏆 รางวัลที่ 1</td><td>1</td><td class="p1">6,000,000 บาท</td><td class="p1">1:75</td></tr>
+          <tr><td>รางวัลที่ 2</td><td>5</td><td>200,000 บาท</td><td>1:2,500</td></tr>
+          <tr><td>รางวัลที่ 3</td><td>10</td><td>80,000 บาท</td><td>1:1,000</td></tr>
+          <tr><td>รางวัลที่ 4</td><td>50</td><td>40,000 บาท</td><td>1:500</td></tr>
+          <tr><td>รางวัลที่ 5</td><td>100</td><td>20,000 บาท</td><td>1:250</td></tr>
+          <tr><td>เลขหน้า 3 ตัว</td><td>2</td><td>4,000 บาท</td><td>1:500 (ตรง) / 1:160 (โต๊ด)</td></tr>
+          <tr><td>เลขท้าย 3 ตัว</td><td>2</td><td>4,000 บาท</td><td>1:500 (ตรง) / 1:160 (โต๊ด)</td></tr>
+          <tr><td>เลขท้าย 2 ตัว</td><td>1</td><td>2,000 บาท</td><td>1:95 (บน) / 1:90 (ล่าง)</td></tr>
+          <tr><td>วิ่งบน</td><td>-</td><td>ตัวเลขใดๆในรางวัลที่1</td><td>1:3.2</td></tr>
+          <tr><td>วิ่งล่าง</td><td>-</td><td>ตัวเลขใดๆในเลขท้าย2ตัว</td><td>1:4.2</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════ HOW TO PLAY ══════════ -->
+<section class="section" id="how">
+  <div class="container">
+    <div class="sec-hdr">
+      <h2>วิธี<span>เล่น</span>ง่ายๆ</h2>
+      <p>แค่ 4 ขั้นตอนก็เล่นได้ทันที</p>
+    </div>
+    <div class="how-grid">
+      <div class="how-card">
+        <div class="how-num">1</div>
+        <h4>สมัครสมาชิก</h4>
+        <p>สมัครฟรีด้วยเบอร์โทรศัพท์ ยืนยัน OTP ใช้เวลาเพียง 1 นาที</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">2</div>
+        <h4>เติมเงินเข้าระบบ</h4>
+        <p>โอนเงินผ่าน Internet Banking หรือ พร้อมเพย์ ระบบเติมอัตโนมัติ ไม่ต้องแจ้งสลิป</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">3</div>
+        <h4>เลือกซื้อหวย</h4>
+        <p>เลือกประเภทหวย กรอกเลขที่ต้องการ ระบุจำนวนเงิน กดยืนยัน</p>
+      </div>
+      <div class="how-card">
+        <div class="how-num">4</div>
+        <h4>รับเงินรางวัล</h4>
+        <p>ถูกรางวัลเงินเข้าอัตโนมัติ ถอนได้ตลอด 24 ชั่วโมง ทุกธนาคาร</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider">
+
+<!-- ══════════ PROMOTIONS ══════════ -->
+<section class="section" id="promotions" style="background:var(--dark)">
+  <div class="container">
+    <div class="sec-hdr">
+      <h2><span>โปรโมชั่น</span>พิเศษ</h2>
+      <p>สิทธิพิเศษสำหรับสมาชิก TigerLotto</p>
+    </div>
+
+    <!-- tabs: แสดงทั้งหมด / โปรฯ ของฉัน -->
+    <div class="promo-tabs" id="promo-tabs">
+      <button class="promo-tab active" onclick="switchPromoTab('all',this)">🎁 โปรโมชั่นทั้งหมด</button>
+      <button class="promo-tab" id="my-promo-tab-btn" onclick="switchPromoTab('my',this)" style="display:none">⭐ โปรฯ ของฉัน</button>
+    </div>
+
+    <!-- all promotions -->
+    <div id="promo-all-list">
+      <div class="promo-grid" id="promo-grid-all">
+        <div style="color:var(--muted);padding:20px 0">กำลังโหลดโปรโมชั่น…</div>
+      </div>
+    </div>
+
+    <!-- my promotions -->
+    <div id="promo-my-list" style="display:none">
+      <div id="promo-grid-my" style="display:flex;flex-direction:column;gap:14px">
+        <div style="color:var(--muted);padding:20px 0">กำลังโหลด…</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════ FOOTER ══════════ -->
+<footer>
+  <div class="footer-grid">
+    <div class="foot-brand">
+      <span class="logo-name" id="site-name-footer">TigerLotto</span>
+      <p>แพลตฟอร์มหวยออนไลน์ที่ดีที่สุดในประเทศไทย มั่นคง ปลอดภัย โปร่งใส จ่ายตรงเวลาทุกครั้ง เปิดให้บริการตลอด 24 ชั่วโมง</p>
+      <div class="foot-social">
+        <a href="#" title="LINE">💬</a>
+        <a href="#" title="Facebook">📘</a>
+        <a href="#" title="YouTube">📺</a>
+        <a href="#" title="Telegram">✈️</a>
+      </div>
+    </div>
+    <div class="foot-col">
+      <h5>เมนูหลัก</h5>
+      <a href="#">หน้าแรก</a><a href="#buy">ซื้อหวย</a><a href="#results">ผลรางวัล</a><a href="#check">ตรวจหวย</a><a href="#">โปรโมชั่น</a>
+    </div>
+    <div class="foot-col">
+      <h5>บัญชีสมาชิก</h5>
+      <a href="#" onclick="openAuth('register')">สมัครสมาชิก</a>
+      <a href="#" onclick="openAuth('login')">เข้าสู่ระบบ</a>
+      <a href="#" onclick="openDeposit();return false">เติมเงิน</a>
+      <a href="#" onclick="openWithdraw();return false">ถอนเงิน</a>
+      <a href="#" onclick="openMemberPanel();return false">แนะนำเพื่อน</a>
+    </div>
+    <div class="foot-col">
+      <h5>ช่วยเหลือ</h5>
+      <a href="#how">วิธีเล่น</a><a href="#">ติดต่อเรา</a><a href="#">ข้อกำหนด</a><a href="#">นโยบายความเป็นส่วนตัว</a><a href="#">FAQ</a>
+    </div>
+  </div>
+  <div class="foot-btm">
+    <p>© 2569 TigerLotto. สงวนลิขสิทธิ์ทุกประการ</p>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="pay-icons">
+        <span class="pay-icon">PromptPay</span>
+        <span class="pay-icon">KBANK</span>
+        <span class="pay-icon">SCB</span>
+        <span class="pay-icon">KTB</span>
+        <span class="pay-icon">TrueMoney</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="age-pill">18+</div>
+      <p>เล่นอย่างมีความรับผิดชอบ</p>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════ MODAL: AUTH ══════════ -->
+<div class="overlay" id="auth-ov">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('auth-ov')">✕</button>
+    <div class="modal-logo">
+      <span style="font-size:20px">🐯</span>
+      <span style="font-size:16px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">TigerLotto</span>
+    </div>
+    <h2>ยินดีต้อนรับ <span>กลับมา</span></h2>
+    <p class="modal-sub">เข้าสู่ระบบเพื่อซื้อหวยและตรวจผลรางวัล</p>
+    <div class="m-tabs">
+      <button class="m-tab on" id="mt-login" onclick="mTab('login')">เข้าสู่ระบบ</button>
+      <button class="m-tab" id="mt-reg" onclick="mTab('register')">สมัครสมาชิก</button>
+    </div>
+    <!-- Login -->
+    <div id="mf-login">
+      <div class="fg"><label>เบอร์โทรศัพท์</label><input type="tel" id="l-phone" class="fi" placeholder="08X-XXX-XXXX" inputmode="numeric"></div>
+      <div class="fg"><label>รหัสผ่าน</label><input type="password" id="l-pass" class="fi" placeholder="รหัสผ่าน"></div>
+      <button class="btn btn-gold" id="btn-do-login" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doLogin()">เข้าสู่ระบบ</button>
+      <p style="text-align:center;margin-top:14px;font-size:13px;color:var(--muted)"><a href="#" style="color:var(--gold)" onclick="openForgot();return false">ลืมรหัสผ่าน?</a></p>
+    </div>
+    <!-- Register: Step 1 - ข้อมูล -->
+    <div id="mf-reg" style="display:none">
+      <div id="reg-step1">
+        <div class="fg"><label>ชื่อ-นามสกุล</label><input type="text" id="r-name" class="fi" placeholder="ชื่อ นามสกุล"></div>
+        <div class="fg">
+          <label>เบอร์โทรศัพท์</label><input type="tel" id="r-phone" class="fi" placeholder="08X-XXX-XXXX" inputmode="numeric">
+        </div>
+        <div class="fi-row fg">
+          <div><label>ธนาคาร</label>
+            <select id="r-bank" class="fi">
+              <option value="">เลือกธนาคาร</option>
+              <option value="KBANK">กสิกรไทย (KBANK)</option>
+              <option value="SCB">ไทยพาณิชย์ (SCB)</option>
+              <option value="KTB">กรุงไทย (KTB)</option>
+              <option value="BBL">กรุงเทพ (BBL)</option>
+              <option value="TTB">ทหารไทย (TTB)</option>
+              <option value="GSB">ออมสิน</option>
+              <option value="TMW">TrueMoney Wallet</option>
+            </select>
+          </div>
+          <div><label>เลขบัญชี</label><input type="text" id="r-acct" class="fi" placeholder="XXX-X-XXXXX-X"></div>
+        </div>
+        <div class="fg"><label>ชื่อบัญชีธนาคาร</label><input type="text" id="r-bank-name" class="fi" placeholder="ชื่อ-นามสกุลในบัญชี"></div>
+        <div class="fg"><label>รหัสผ่าน (อย่างน้อย 8 ตัว)</label><input type="password" id="r-pass" class="fi" placeholder="••••••••"></div>
+        <!-- Affiliate banner (แสดงเมื่อมา via ?aff= link) -->
+        <div id="aff-banner" style="display:none;background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.3);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;color:#2ed573">
+          🤝 สมัครผ่านเอเยนต์: <b id="aff-agent-name"></b>
+        </div>
+        <input type="hidden" id="r-aff-code">
+        <div class="fg" id="r-ref-wrap"><label>รหัสผู้แนะนำ (ถ้ามี)</label><input type="text" id="r-ref" class="fi" placeholder="TIGER-XXXX"></div>
+        <button class="btn btn-gold" id="btn-do-reg" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doRegister()">สมัครสมาชิกฟรี</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: BUY ══════════ -->
+<div class="overlay" id="buy-ov">
+  <div class="modal modal-lg">
+    <button class="modal-close" onclick="closeM('buy-ov')">✕</button>
+    <h2>ซื้อ<span id="buy-name">หวย</span></h2>
+    <p class="modal-sub">เลือกประเภทได้หลายรายการ แล้วกด ➕ เพิ่ม</p>
+
+    <!-- 3-digit group -->
+    <div class="bet-group-label">🎯 3 ตัว</div>
+    <div class="bet-types">
+      <div class="bet-type" data-key="3top" onclick="togBet(this)">3 บนตรง<br><small>×750</small></div>
+      <div class="bet-type" data-key="3tod" onclick="togBet(this)">3 โต๊ด<br><small>×120</small></div>
+      <div class="bet-type" data-key="3rev" onclick="togBet(this)">3 ตรงกลับ<br><small>×750×2</small></div>
+    </div>
+
+    <!-- 2-digit group -->
+    <div class="bet-group-label">🎯 2 ตัว</div>
+    <div class="bet-types">
+      <div class="bet-type" data-key="2top" onclick="togBet(this)">2 บน<br><small>×95</small></div>
+      <div class="bet-type" data-key="2bot" onclick="togBet(this)">2 ล่าง<br><small>×90</small></div>
+      <div class="bet-type" data-key="2rev" onclick="togBet(this)">2 บนล่างกลับ<br><small>×95+×90</small></div>
+    </div>
+
+    <!-- Run/slide group -->
+    <div class="bet-group-label">🏃 รูด / วิ่ง</div>
+    <div class="bet-types bet-types-run">
+      <div class="bet-type" data-key="run_top" onclick="togBet(this)">วิ่งบน<br><small>×3.2</small></div>
+      <div class="bet-type" data-key="run_bot" onclick="togBet(this)">วิ่งล่าง<br><small>×4.2</small></div>
+      <div class="bet-type" data-key="slide_f_top" onclick="togBet(this)">รูดหน้าบน<br><small>10ใบ×95</small></div>
+      <div class="bet-type" data-key="slide_f_bot" onclick="togBet(this)">รูดหน้าล่าง<br><small>10ใบ×90</small></div>
+      <div class="bet-type" data-key="slide_b_top" onclick="togBet(this)">รูดหลังบน<br><small>10ใบ×95</small></div>
+      <div class="bet-type" data-key="slide_b_bot" onclick="togBet(this)">รูดหลังล่าง<br><small>10ใบ×90</small></div>
+      <div class="bet-type" data-key="double" onclick="togBet(this)">รูดเบิ้ล<br><small>20ใบ</small></div>
+    </div>
+
+    <!-- Number + amount input row -->
+    <div class="fi-row fg" style="margin-bottom:10px">
+      <div>
+        <label>กรอกเลข</label>
+        <input type="text" class="fi num-inp" id="buy-num" placeholder="—" style="font-size:22px;letter-spacing:4px;text-align:center" maxlength="3" oninput="this.value=this.value.replace(/\D/g,'')">
+        <small id="buy-num-hint" style="color:var(--muted);font-size:11px;display:block;margin-top:3px">เลือกประเภทก่อน</small>
+      </div>
+      <div>
+        <label>จำนวนเงิน/ใบ (บาท)</label>
+        <input type="number" class="fi" id="buy-amt" value="10" min="1" max="5000">
+      </div>
+    </div>
+
+    <button class="btn" id="btn-add-cart" style="width:100%;padding:10px;font-size:14px;border-radius:10px;background:var(--card2);border:1px solid var(--gold);color:var(--gold);margin-bottom:14px" onclick="addToBuyCart()">➕ เพิ่มรายการ</button>
+
+    <!-- Cart preview -->
+    <div id="buy-cart-wrap" style="display:none">
+      <div class="bet-group-label" style="margin-top:0">🛒 รายการที่เลือก</div>
+      <div id="buy-cart-list" style="max-height:160px;overflow-y:auto;margin-bottom:12px"></div>
+      <div class="payout-info">
+        <div class="payout-row"><span style="color:var(--gold)">ยอดแทงรวม</span><span class="val" id="pc-total">฿0</span></div>
+      </div>
+      <button class="btn btn-gold" id="btn-confirm-buy" style="width:100%;padding:14px;font-size:16px;border-radius:12px" onclick="doBuy()">✅ ยืนยันการแทง <span id="btn-buy-count">0</span> ใบ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ อั้นหวย SLIDE PANEL ══════════ -->
+<div id="an-panel-backdrop" onclick="closeAnPanel()"></div>
+
+<div id="an-panel">
+  <div style="padding:14px 14px 10px;border-bottom:1px solid #252535;flex-shrink:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:16px;font-weight:800;color:var(--gold)">🚦 อั้นหวย</div>
+      <button onclick="closeAnPanel()" style="background:none;border:none;color:#888;font-size:20px;cursor:pointer;padding:0 4px;line-height:1">✕</button>
+    </div>
+    <div id="an-panel-name" style="font-size:13px;color:#aaa;margin-top:2px"></div>
+    <div id="an-panel-tabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px"></div>
+  </div>
+  <div style="padding:8px 0;border-bottom:1px solid #252535;flex-shrink:0">
+    <div class="an-row-hdr">
+      <div>เลข</div><div>ประเภท</div><div style="text-align:center">สถานะ</div><div style="text-align:right">จ่าย</div>
+    </div>
+  </div>
+  <div id="an-panel-list" style="flex:1;overflow-y:auto;padding-bottom:20px">
+    <div style="text-align:center;color:#555;padding:30px;font-size:13px">⏳ กำลังโหลด...</div>
+  </div>
+</div>
+
+<!-- toggle tab (แสดงขณะ buy modal เปิด) -->
+<button id="an-toggle-btn" onclick="toggleAnPanel()">🚦<br>อั้น<br>หวย</button>
+
+<!-- ══════════ MODAL: DEPOSIT ══════════ -->
+<div class="overlay" id="dep-ov">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('dep-ov')">✕</button>
+    <div class="modal-logo"><span style="font-size:20px">💳</span>
+      <span style="font-size:16px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">เติมเงิน</span>
+    </div>
+    <h2>เติม<span>เงิน</span>เข้าระบบ</h2>
+    <p class="modal-sub">โอนเงินมายังบัญชีด้านล่าง แล้วแนบสลิปยืนยัน</p>
+    <!-- Bank info box -->
+    <div style="background:var(--card2);border:1px solid rgba(212,160,23,.3);border-radius:14px;padding:18px;margin-bottom:12px">
+      <div id="dep-bank-info" style="color:var(--muted);font-size:13px">⏳ กำลังโหลดบัญชี...</div>
+    </div>
+    <!-- Sender bank reminder: must send from registered account -->
+    <div id="dep-sender-card" style="display:none;background:#0d1f0d;border:1px solid rgba(92,219,92,.35);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;color:#5cdb5c;font-weight:700;margin-bottom:8px;letter-spacing:.5px">⚠️ กรุณาโอนจากบัญชีธนาคารที่ลงทะเบียนไว้เท่านั้น</div>
+      <div id="dep-sender-info" style="font-size:13px;color:var(--text)">—</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:8px">หากโอนจากบัญชีอื่น ระบบจะตรวจจับได้และรายการจะค้างรอ Admin ตรวจสอบ</div>
+    </div>
+    <!-- No-bank warning: show if member has no registered bank -->
+    <div id="dep-no-bank-warn" style="display:none;background:#1f0d0d;border:1px solid rgba(219,92,92,.4);border-radius:12px;padding:14px;margin-bottom:14px;text-align:center">
+      <div style="font-size:14px;color:#e74c3c;font-weight:700">⚠️ ยังไม่มีบัญชีธนาคารผูกไว้</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">กรุณาติดต่อ Admin เพื่อผูกบัญชีธนาคารก่อนฝากเงิน</div>
+    </div>
+    <div class="fg"><label>จำนวนเงิน (บาท)</label><input type="number" id="dep-amount" class="fi" placeholder="ขั้นต่ำ 100 บาท" min="100"></div>
+    <div class="fg">
+      <label>แนบสลิปโอนเงิน</label>
+      <input type="file" id="dep-slip" class="fi" accept="image/*" style="padding:10px">
+    </div>
+    <button class="btn btn-gold" id="btn-dep-submit" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doDeposit()">📤 ส่งสลิปเติมเงิน</button>
+  </div>
+</div>
+
+<!-- ══════════ MODAL: WITHDRAW ══════════ -->
+<div class="overlay" id="wd-ov">
+  <div class="modal">
+    <button class="modal-close" onclick="closeM('wd-ov')">✕</button>
+    <div class="modal-logo"><span style="font-size:20px">⬆️</span>
+      <span style="font-size:16px;font-weight:800;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ถอนเงิน</span>
+    </div>
+    <h2>ถอน<span>เงิน</span>ออก</h2>
+    <p class="modal-sub">เงินจะโอนเข้าบัญชีที่ผูกไว้ภายใน 3 นาที</p>
+    <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px;font-size:13px">
+      <div style="color:var(--muted);margin-bottom:4px">ยอดเงินคงเหลือ</div>
+      <div style="font-size:22px;font-weight:900;color:var(--gold2)">฿<span id="wd-balance">0.00</span></div>
+    </div>
+    <div class="fg"><label>จำนวนที่ต้องการถอน (บาท)</label><input type="number" id="wd-amount" class="fi" placeholder="ขั้นต่ำ 100 บาท" min="100" oninput="calcWd()"></div>
+    <div id="wd-bank-card" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:16px"></div>
+    <div id="wd-fee-row" style="display:flex;justify-content:space-between;margin-bottom:14px;font-size:13px;color:var(--muted)">
+      <span>ได้รับจริง</span><span id="wd-net" style="color:var(--gold2);font-weight:700">฿0</span>
+    </div>
+    <button class="btn btn-gold" id="btn-wd-submit" style="width:100%;padding:14px;font-size:15px;border-radius:12px;margin-top:4px" onclick="doWithdraw()">✅ ยืนยันถอนเงิน</button>
+  </div>
+</div>
+
+<!-- ══════════ MEMBER PANEL ══════════ -->
+<div class="mpanel-ov" id="mpanel-ov">
+  <div class="mpanel">
+    <!-- Header -->
+    <div class="mpanel-hdr">
+      <div class="mpanel-hdr-info">
+        <div class="mpanel-hdr-name" id="mpanel-name">สมาชิก</div>
+        <div class="mpanel-hdr-bal">฿<span id="mpanel-balance">0.00</span></div>
+      </div>
+      <button class="mpanel-close" onclick="closeMPanel()">✕</button>
+    </div>
+    <!-- Tabs -->
+    <div class="mpanel-tabs">
+      <button class="mpanel-tab"    id="mpt-profile" onclick="mpTab('profile')">👤 ข้อมูล</button>
+      <button class="mpanel-tab on" id="mpt-bets"    onclick="mpTab('bets')">🎫 ประวัติ</button>
+      <button class="mpanel-tab"    id="mpt-wallet"  onclick="mpTab('wallet')">💳 ฝาก-ถอน</button>
+      <button class="mpanel-tab"    id="mpt-tx"      onclick="mpTab('tx')">📋 ธุรกรรม</button>
+      <button class="mpanel-tab"    id="mpt-refer"   onclick="mpTab('refer')">🔗 แนะนำ</button>
+      <button class="mpanel-tab"    id="mpt-notif"   onclick="mpTab('notif')">🔔<span id="notif-dot" style="display:none;width:7px;height:7px;background:var(--red);border-radius:50%;margin-left:4px;vertical-align:middle;display:inline-block"></span></button>
+    </div>
+    <!-- Body -->
+    <div class="mpanel-body">
+      <div class="mpanel-sec" id="mps-profile">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec on" id="mps-bets">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-wallet">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-tx">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-refer">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+      <div class="mpanel-sec" id="mps-notif">
+        <div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ WALLET BAR (สมาชิก) ══════════ -->
+<div class="wallet-bar" id="wallet-bar">
+  <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+    <span style="font-size:13px;color:var(--muted)">กระเป๋าเงิน</span>
+    <span style="font-size:18px;font-weight:800;color:var(--gold2)">฿<span id="wb-balance">0.00</span></span>
+  </div>
+  <div style="display:flex;gap:8px;flex-shrink:0">
+    <button class="btn" style="padding:8px 14px;font-size:13px;background:rgba(212,160,23,.12);border:1px solid rgba(212,160,23,.4);color:var(--gold2);border-radius:9px;font-weight:700" onclick="openBetHistory()">🎫 โพยแทง</button>
+    <button class="btn btn-ghost" style="padding:8px 14px;font-size:13px" onclick="openDeposit()">⬇️ เติมเงิน</button>
+    <button class="btn btn-gold"  style="padding:8px 14px;font-size:13px" onclick="openWithdraw()">⬆️ ถอนเงิน</button>
+  </div>
+</div>
+
+<!-- ══════════ LINE WIDGET ══════════ -->
+<div class="line-widget" id="line-widget">
+  <!-- ปุ่มเก็บ (collapse) -->
+  <button class="line-widget-collapse-btn" onclick="toggleLineWidget()" title="เก็บ">‹</button>
+  <!-- สถานะเก็บ — แสดงแค่จุดสีเขียว + ไอคอน LINE -->
+  <div class="line-widget-tab" onclick="toggleLineWidget()" title="เปิด">
+    <span class="line-widget-dot" style="width:9px;height:9px"></span>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="#06c755"><path d="M12 2C6.48 2 2 6.21 2 11.39c0 3.17 1.58 5.98 4.05 7.79-.17.63-.64 2.29-.74 2.65-.12.44.16.43.34.31.14-.09 2.2-1.49 3.09-2.1.38.05.77.08 1.17.08 5.52 0 10-4.21 10-9.39C21.91 6.21 17.52 2 12 2z"/></svg>
+    <span style="font-size:8px;color:#06c755;font-weight:700;writing-mode:vertical-rl;text-orientation:mixed;letter-spacing:1px">LINE</span>
+  </div>
+  <!-- เนื้อหา widget -->
+  <div class="line-widget-body">
+    <div class="line-widget-hdr">
+      <span class="line-widget-dot"></span>
+      <span class="line-widget-title">ติดต่อ Admin</span>
+    </div>
+    <div class="line-widget-sub">LINE Official Account</div>
+    <div id="line-id-display" class="line-widget-id">@tigerlotto</div>
+    <!-- QR Code -->
+    <div class="line-qr-wrap" id="line-qr-wrap">
+      <img id="line-qr-img" src="" alt="QR LINE">
+      <div class="line-qr-label">สแกน QR เพิ่มเพื่อน</div>
+    </div>
+    <a id="line-link-btn" href="https://line.me/R/ti/p/@tigerlotto" target="_blank" rel="noopener" class="line-add-btn">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="#fff"><path d="M12 2C6.48 2 2 6.21 2 11.39c0 3.17 1.58 5.98 4.05 7.79-.17.63-.64 2.29-.74 2.65-.12.44.16.43.34.31.14-.09 2.2-1.49 3.09-2.1.38.05.77.08 1.17.08 5.52 0 10-4.21 10-9.39C21.91 6.21 17.52 2 12 2z"/></svg>
+      เพิ่มเพื่อน LINE @
+    </a>
+  </div>
+</div>
+
+<!-- ⚠️ ต้อง set API_BASE ก่อน load api.js เสมอ เพราะ api.js capture ค่าตอน load -->
+<script>
+window.API_BASE = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://localhost:3000/api'
+  : '/api';
+</script>
+<script src="assets/js/api.js"></script>
+<script>
+// ══════════════════════════════════════════
+//  TigerLotto — Frontend JS (Real API)
+// ══════════════════════════════════════════
+
+/* ─── State ─── */
+let curRate = 750, curBetType = '3top', curRoundId = null, curLotteryId = null, otpTimer = null;
+
+/* ─── Global state (ต้องประกาศก่อน countdown เพื่อหลีกเลี่ยง TDZ) ─── */
+let _allRounds    = [];
+let _activeFilter = 'ALL';
+
+/* ─── Countdown + Live card status ─── */
+let _cdTarget = new Date(Date.now() + 7*24*60*60*1000); // placeholder until API loads
+let _nextBoundaryMs = Infinity;   // เวลาถัดไปที่ต้อง reload API (open_at / close_at ที่ใกล้สุด)
+let _liveReloading  = false;       // ป้องกัน reload ซ้อนกัน
+
+function setCountdownTarget(t){ _cdTarget = t instanceof Date ? t : new Date(t); }
+
+// คำนวณ boundary ที่ใกล้ที่สุดจาก _allRounds (open_at หรือ close_at)
+function _calcNextBoundary(){
+  const now = Date.now();
+  let next = Infinity;
+  (_allRounds || []).forEach(r => {
+    if(r.open_at){  const ms = new Date(r.open_at).getTime();  if(ms > now && ms < next) next = ms; }
+    if(r.close_at){ const ms = new Date(r.close_at).getTime(); if(ms > now && ms < next) next = ms; }
+  });
+  _nextBoundaryMs = next;
+}
+
+async function _liveReload(){
+  if(_liveReloading) return;
+  _liveReloading = true;
+  try { await loadLotteryCards(); } catch(_){}
+  _liveReloading = false;
+}
+
+function countdown(){
+  const n=new Date(), now=n.getTime(), d=_cdTarget-n;
+  // ── อัพเดต countdown digits ──
+  if(d<=0){
+    ['cd-d','cd-h','cd-m','cd-s'].forEach(i=>{ const el=document.getElementById(i); if(el) el.textContent='00'; });
+    // countdown ถึง 0 → reload cards จาก API
+    if(!_liveReloading) _liveReload();
+  } else {
+    const s=Math.floor(d/1e3),m=Math.floor(s/60),h=Math.floor(m/60),dy=Math.floor(h/24);
+    const el_d=document.getElementById('cd-d'), el_h=document.getElementById('cd-h'),
+          el_m=document.getElementById('cd-m'), el_s=document.getElementById('cd-s');
+    if(el_d) el_d.textContent=String(dy).padStart(2,'0');
+    if(el_h) el_h.textContent=String(h%24).padStart(2,'0');
+    if(el_m) el_m.textContent=String(m%60).padStart(2,'0');
+    if(el_s) el_s.textContent=String(s%60).padStart(2,'0');
+  }
+  // ── re-render status badges ทุกวินาที (ใช้ _allRounds ใน memory ไม่ต้องยิง API) ──
+  if((_allRounds||[]).length) _renderLotGroups(_activeFilter);
+  // ── ตรวจ boundary: ถ้าเวลา open_at/close_at ของงวดไหนผ่านไปแล้ว → reload API ──
+  if(now >= _nextBoundaryMs && !_liveReloading){
+    _nextBoundaryMs = Infinity; // reset ก่อน เพื่อไม่ trigger ซ้ำ
+    _liveReload();
+  }
+}
+setInterval(countdown,1000);countdown();
+
+/* ─── Toast (ใช้ toast ที่มีใน HTML หรือ UI.toast จาก api.js) ─── */
+function toast(title,msg,dur=3000){
+  const el=document.getElementById('toast');
+  if(el){
+    document.getElementById('t-title').textContent=title;
+    document.getElementById('t-msg').textContent=msg;
+    el.classList.add('on');
+    setTimeout(()=>el.classList.remove('on'),dur);
+  } else { UI && UI.toast(title+': '+msg, 'info', dur); }
+}
+
+/* ─── Modal ─── */
+function openAuth(tab){
+  if(window.currentUser){ toast('แจ้งเตือน','คุณเข้าสู่ระบบแล้ว'); return; }
+  document.getElementById('auth-ov').classList.add('on');
+  mTab(tab);
+  if(tab === 'register'){
+    _showAffBanner();
+    // Pre-fill ref_code from URL or sessionStorage (member referral)
+    const savedRef = sessionStorage.getItem('ref_code');
+    if(savedRef){
+      const refInp = document.getElementById('r-ref');
+      if(refInp && !refInp.value) refInp.value = savedRef;
+    }
+  }
+}
+function closeM(id){document.getElementById(id).classList.remove('on');}
+function mTab(t){
+  document.getElementById('mt-login').classList.toggle('on',t==='login');
+  document.getElementById('mt-reg').classList.toggle('on',t==='register');
+  document.getElementById('mf-login').style.display=t==='login'?'block':'none';
+  document.getElementById('mf-reg').style.display=t==='register'?'block':'none';
+}
+
+/* ─── Update Navbar ─── */
+function updateNavbar(user){
+  const loggedIn = !!user;
+  document.getElementById('btn-login').style.display = loggedIn?'none':'';
+  document.getElementById('btn-reg').style.display   = loggedIn?'none':'';
+  document.getElementById('user-menu').style.display = loggedIn?'flex':'none';
+  // Wallet bar (bottom sticky)
+  const wb = document.getElementById('wallet-bar');
+  if(wb) wb.classList.toggle('on', loggedIn);
+  if(user){
+    const bal = UI.formatMoney(user.balance);
+    document.getElementById('nav-balance').textContent = bal;
+    // wallet bar balance
+    const wbBal = document.getElementById('wb-balance');
+    if(wbBal) wbBal.textContent = bal;
+    // sync panel balance if open
+    const panelBal = document.getElementById('mpanel-balance');
+    if(panelBal) panelBal.textContent = bal;
+    const panelName = document.getElementById('mpanel-name');
+    if(panelName) panelName.textContent = user.name || user.full_name || user.phone || 'สมาชิก';
+    // show notification dot if any unread
+    API.MemberAPI.getNotifications({limit:1}).then(d=>{
+      const dot = document.getElementById('notif-dot');
+      if(dot) dot.style.display = (d.data||[]).some(n=>!n.is_read) ? 'inline-block' : 'none';
+    }).catch(()=>{});
+  }
+}
+
+async function refreshBalance(){
+  if(!window.currentUser) return;
+  try{
+    const d   = await API.MemberAPI.getWallet();
+    const bal = (d.data?.balance ?? d.data?.wallet?.balance ?? d.wallet?.balance);
+    window.currentUser.balance = bal;
+    const fmt = UI.formatMoney(bal);
+    document.getElementById('nav-balance').textContent = fmt;
+    const wbBal = document.getElementById('wb-balance');
+    if(wbBal) wbBal.textContent = fmt;
+    // also update withdraw modal balance if open
+    const wdBal = document.getElementById('wd-balance');
+    if(wdBal) wdBal.textContent = fmt;
+  }catch(e){}
+}
+
+/* ─── OTP ─── */
+async function sendOtp(){
+  const phone = document.getElementById('r-phone').value.trim();
+  if(!phone || phone.length < 9){ toast('ข้อผิดพลาด','กรุณากรอกเบอร์โทรให้ถูกต้อง'); return; }
+  const btn = document.getElementById('btn-otp');
+  UI.loading(btn, true);
+  try{
+    await API.AuthAPI.sendOtp(phone, 'register');
+    document.getElementById('otp-row').style.display = 'block';
+    toast('ส่ง OTP แล้ว','กรุณาตรวจสอบ SMS ที่เบอร์ '+phone);
+    // countdown 60 วินาที
+    let sec = 60;
+    btn.disabled = true;
+    btn.textContent = `${sec}s`;
+    otpTimer = setInterval(()=>{
+      sec--;
+      btn.textContent = sec>0 ? `${sec}s` : 'ส่งอีกครั้ง';
+      if(sec<=0){ clearInterval(otpTimer); btn.disabled=false; }
+    }, 1000);
+  }catch(e){
+    toast('ข้อผิดพลาด', e.message);
+    UI.loading(btn, false);
+  }
+}
+
+/* ─── Login ─── */
+async function doLogin(){
+  const phone = document.getElementById('l-phone').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  if(!phone||!pass){ toast('ข้อผิดพลาด','กรุณากรอกข้อมูลให้ครบ'); return; }
+  const btn = document.getElementById('btn-do-login');
+  UI.loading(btn, true);
+  try{
+    const data = await API.AuthAPI.login(phone, pass);
+
+    // ── Admin login: อยู่หน้าหลัก → redirect ไป Admin Panel ──
+    if(data.role === 'admin'){
+      localStorage.setItem('tl_admin_token', data.token);
+      closeM('auth-ov');
+      toast('เข้าสู่ระบบสำเร็จ','กำลังพาไปยัง Admin Panel... 🛡️');
+      setTimeout(() => { window.location.href = '/admin/'; }, 800);
+      return;
+    }
+
+    // ── Agent login: อยู่หน้าหลัก → ไปพอร์ทัลผ่านปุ่มใน Profile ──
+    if(data.role === 'agent'){
+      localStorage.setItem('agent_token', data.token);
+      const agentUser = {
+        name    : data.agent.name,
+        phone   : data.agent.phone || '',
+        email   : data.agent.email || '',
+        is_admin: 0,
+        is_agent: 1,
+        balance : parseFloat(data.agent.balance || 0),
+      };
+      window.currentUser = agentUser;
+      closeM('auth-ov');
+      updateNavbar(agentUser);
+      toast('เข้าสู่ระบบสำเร็จ','ยินดีต้อนรับ '+data.agent.name+' 🎯');
+      return;
+    }
+
+    // ── Member login ──
+    window.currentUser = data.member;
+    closeM('auth-ov');
+    updateNavbar(data.member);
+    toast('เข้าสู่ระบบสำเร็จ','ยินดีต้อนรับ '+data.member.name+' 🐯');
+  }catch(e){
+    toast('เข้าสู่ระบบไม่สำเร็จ', e.message);
+  }finally{ UI.loading(btn, false); }
+}
+
+/* ─── Register ─── */
+async function doRegister(){
+  const phone    = document.getElementById('r-phone').value.trim();
+  const affCode  = document.getElementById('r-aff-code')?.value.trim()
+                || sessionStorage.getItem('aff_code') || undefined;
+  const payload = {
+    name        : document.getElementById('r-name').value.trim(),
+    phone,
+    bank_code   : document.getElementById('r-bank').value,
+    bank_account: document.getElementById('r-acct').value.trim(),
+    bank_name   : document.getElementById('r-bank-name').value.trim(),
+    password    : document.getElementById('r-pass').value,
+    ref_code    : document.getElementById('r-ref').value.trim() || undefined,
+    aff_code    : affCode,
+  };
+  if(!payload.name||!payload.bank_code||!payload.bank_account||!payload.bank_name||!payload.password){
+    toast('ข้อผิดพลาด','กรุณากรอกข้อมูลให้ครบ'); return;
+  }
+  const btn = document.getElementById('btn-do-reg');
+  UI.loading(btn, true);
+  try{
+    const data = await API.AuthAPI.register(payload);
+    window.currentUser = data.member;
+    // ล้าง affiliate session หลังสมัครสำเร็จ
+    sessionStorage.removeItem('aff_code');
+    sessionStorage.removeItem('aff_agent_name');
+    closeM('auth-ov');
+    updateNavbar(data.member);
+    toast('สมัครสมาชิกสำเร็จ','ยินดีต้อนรับสู่ TigerLotto! โบนัส 50 บาท เข้ากระเป๋าแล้ว 🎉');
+  }catch(e){
+    toast('สมัครไม่สำเร็จ', e.message);
+  }finally{ UI.loading(btn, false); }
+}
+
+/* ─── Logout ─── */
+function doLogout(){
+  API.AuthAPI.logout();           // clears member token
+  Token.clearAdmin();             // also clear admin token if logged in as admin
+  Token.clearAgent();             // also clear agent token if logged in as agent
+  window.currentUser = null;
+  updateNavbar(null);
+  toast('ออกจากระบบแล้ว','แล้วพบกันใหม่ 👋');
+}
+
+function openForgot(){ toast('แจ้งเตือน','กรุณาติดต่อ admin เพื่อรีเซ็ตรหัสผ่าน'); }
+
+/* ─── Deposit Modal ─── */
+// Load promptpay/bank account info from settings
+async function loadDepBankInfo(){
+  const el = document.getElementById('dep-bank-info');
+  if(!el) return;
+  const BANK_MAP = {
+    'SCB':'ธ.ไทยพาณิชย์','KBANK':'ธ.กสิกรไทย','BBL':'ธ.กรุงเทพ','KTB':'ธ.กรุงไทย',
+    'BAY':'ธ.กรุงศรี','TMB':'ธ.ทีเอ็มบีธนชาต','GSB':'ธ.ออมสิน','BAAC':'ธ.ธกส',
+    'CIMB':'ธ.ซีไอเอ็มบี','TBANK':'ธ.ธนชาต','UOB':'ธ.ยูโอบี','LH':'ธ.แลนด์แอนด์เฮ้าส์','TISCO':'ธ.ทิสโก้'
+  };
+  try{
+    const r = await fetch(`${window.API_BASE||'/api'}/admin/bank-accounts/public`);
+    const d = await r.json();
+    if(d.success && d.data && d.data.length){
+      const cardsHtml = d.data.map((b,i) => `
+        <div style="${i>0?'border-top:1px solid var(--border);padding-top:12px;margin-top:12px':''}">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+            <span style="font-size:20px">🏦</span>
+            <span style="font-weight:800;color:var(--gold2);font-size:14px">${BANK_MAP[b.bank_code]||b.bank_code}</span>
+          </div>
+          <div style="font-size:13px;color:var(--muted);margin-bottom:2px">ชื่อบัญชี: <span style="color:var(--text);font-weight:700">${b.account_name}</span></div>
+          <div style="font-size:16px;font-weight:900;color:var(--text);letter-spacing:2px;margin-bottom:2px">${b.bank_account}</div>
+          ${b.promptpay ? `<div style="font-size:13px;color:var(--muted)">PromptPay: <span style="color:var(--text);font-weight:700">${b.promptpay}</span></div>` : ''}
+          ${b.note ? `<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">${b.note}</div>` : ''}
+        </div>
+      `).join('');
+      el.innerHTML = `
+        <div style="font-weight:800;color:var(--gold2);font-size:14px;margin-bottom:12px">📌 บัญชีรับโอนเงิน</div>
+        ${cardsHtml}
+        <div style="color:var(--muted);font-size:11px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">* กรุณาโอนมาพร้อมแนบสลิป ระบบจะเติมเงินอัตโนมัติภายใน 5 นาที</div>`;
+    } else {
+      el.innerHTML = `
+        <div style="font-weight:700;color:var(--gold2);font-size:14px;margin-bottom:8px">📌 บัญชีรับโอนเงิน</div>
+        <div style="color:var(--muted);font-size:13px">กรุณาติดต่อ Admin เพื่อรับข้อมูลบัญชี</div>`;
+    }
+  }catch(e){
+    el.innerHTML = `
+      <div style="font-weight:700;color:var(--gold2);font-size:14px;margin-bottom:8px">📌 บัญชีรับโอนเงิน</div>
+      <div style="color:var(--muted);font-size:13px">กรุณาติดต่อ Admin เพื่อรับข้อมูลบัญชี</div>`;
+  }
+}
+
+function openDeposit(){
+  if(!window.currentUser){ openAuth('login'); return; }
+  document.getElementById('dep-amount').value='';
+  document.getElementById('dep-slip').value='';
+  loadDepBankInfo();
+  // Show sender bank reminder card
+  const u = window.currentUser;
+  const senderCard   = document.getElementById('dep-sender-card');
+  const senderInfo   = document.getElementById('dep-sender-info');
+  const noBankWarn   = document.getElementById('dep-no-bank-warn');
+  const submitBtn    = document.getElementById('btn-dep-submit');
+  const BANK_MAP_DEP = {
+    'SCB':'ธ.ไทยพาณิชย์','KBANK':'ธ.กสิกรไทย','BBL':'ธ.กรุงเทพ','KTB':'ธ.กรุงไทย',
+    'BAY':'ธ.กรุงศรี','TMB':'ธ.ทีเอ็มบีธนชาต','GSB':'ธ.ออมสิน','BAAC':'ธ.ธกส',
+    'CIMB':'ธ.ซีไอเอ็มบี','TBANK':'ธ.ธนชาต','UOB':'ธ.ยูโอบี','LH':'ธ.แลนด์แอนด์เฮ้าส์','TISCO':'ธ.ทิสโก้'
+  };
+  if(u && u.bank_account){
+    const bankLabel = BANK_MAP_DEP[u.bank_code] || u.bank_code || '';
+    if(senderInfo) senderInfo.innerHTML =
+      `<b style="color:#5cdb5c">${bankLabel}${u.bank_name ? ' · '+u.bank_name : ''}</b>` +
+      `<span style="font-size:16px;font-weight:800;color:var(--gold2);letter-spacing:2px;display:block;margin-top:4px">${u.bank_account}</span>`;
+    if(senderCard) senderCard.style.display = 'block';
+    if(noBankWarn) noBankWarn.style.display = 'none';
+    if(submitBtn)  submitBtn.disabled = false;
+  } else {
+    if(senderCard) senderCard.style.display = 'none';
+    if(noBankWarn) noBankWarn.style.display = 'block';
+    // Disable submit if no bank account registered
+    if(submitBtn){ submitBtn.disabled = true; submitBtn.title = 'กรุณาผูกบัญชีธนาคารก่อน'; }
+  }
+  document.getElementById('dep-ov').classList.add('on');
+}
+
+async function doDeposit(){
+  const amount = parseFloat(document.getElementById('dep-amount').value);
+  const slip   = document.getElementById('dep-slip').files[0];
+  if(!amount||amount<100){ toast('ข้อผิดพลาด','จำนวนเงินขั้นต่ำ 100 บาท'); return; }
+  if(!slip){ toast('ข้อผิดพลาด','กรุณาแนบสลิปการโอนเงิน'); return; }
+  const u = window.currentUser;
+  if(u && !u.bank_account){ toast('ไม่สามารถฝากได้','กรุณาติดต่อ Admin เพื่อผูกบัญชีธนาคารก่อนฝากเงิน'); return; }
+  const btn = document.getElementById('btn-dep-submit');
+  UI.loading(btn, true);
+  try{
+    const fd = new FormData();
+    fd.append('amount', amount);
+    fd.append('slip', slip);
+    const res = await API.TransactionsAPI.deposit(fd);
+    closeM('dep-ov');
+    if(res?.verified){
+      toast('เติมเงินสำเร็จ! ✅','ระบบตรวจสลิปผ่านแล้ว เงินเข้าทันที 🎉');
+    } else {
+      toast('ส่งสลิปสำเร็จ','ระบบกำลังตรวจสอบ จะเติมเงินให้เร็วๆ นี้ 🎉');
+    }
+    refreshBalance();
+  }catch(e){
+    const msg = e.message || 'เกิดข้อผิดพลาด';
+    toast('เติมเงินไม่สำเร็จ', msg);
+  }finally{ UI.loading(btn, false); }
+}
+
+/* ─── Withdraw Modal ─── */
+function calcWd(){
+  const amt = parseFloat(document.getElementById('wd-amount').value)||0;
+  document.getElementById('wd-net').textContent = '฿'+UI.formatMoney(amt);
+}
+
+function openWithdraw(){
+  if(!window.currentUser){ openAuth('login'); return; }
+  const u = window.currentUser;
+  document.getElementById('wd-balance').textContent = UI.formatMoney(u.balance||0);
+  document.getElementById('wd-amount').value = '';
+  document.getElementById('wd-net').textContent = '฿0';
+  // Show member's registered bank as info card (read-only)
+  const bankCard = document.getElementById('wd-bank-card');
+  if(bankCard){
+    const BANK_MAP = {
+      'SCB':'ไทยพาณิชย์','KBANK':'กสิกรไทย','BBL':'กรุงเทพ','KTB':'กรุงไทย',
+      'BAY':'กรุงศรี','TMB':'ทีเอ็มบีธนชาต','GSB':'ออมสิน','BAAC':'ธกส',
+      'CIMB':'ซีไอเอ็มบี','TBANK':'ธนชาต','UOB':'ยูโอบี','LH':'แลนด์แอนด์เฮ้าส์','TISCO':'ทิสโก้'
+    };
+    if(u.bank_account && u.bank_name){
+      const bankLabel = BANK_MAP[u.bank_code] || u.bank_code || '';
+      bankCard.innerHTML = `
+        <div style="color:var(--muted);font-size:11px;margin-bottom:8px;letter-spacing:.5px">📤 บัญชีรับเงินของคุณ</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🏦</div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:var(--muted)">${bankLabel ? bankLabel+' · ' : ''}${u.bank_name}</div>
+            <div style="font-size:18px;font-weight:800;color:var(--gold2);letter-spacing:2px">${u.bank_account}</div>
+          </div>
+        </div>
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">
+          🔒 ต้องการเปลี่ยนบัญชี กรุณาติดต่อ Admin
+        </div>`;
+    } else {
+      bankCard.innerHTML = `
+        <div style="text-align:center;padding:8px 0;color:#e74c3c;font-size:13px">
+          ⚠️ ยังไม่มีบัญชีธนาคารผูกไว้<br>
+          <span style="font-size:12px;color:var(--muted)">กรุณาติดต่อ Admin เพื่อเพิ่มบัญชี</span>
+        </div>`;
+    }
+  }
+  document.getElementById('wd-ov').classList.add('on');
+}
+
+async function doWithdraw(){
+  const amount = parseFloat(document.getElementById('wd-amount').value);
+  if(!amount||amount<100){ toast('ข้อผิดพลาด','จำนวนเงินขั้นต่ำ 100 บาท'); return; }
+  const u = window.currentUser;
+  if(!u.bank_account||!u.bank_name){ toast('ข้อผิดพลาด','ไม่พบบัญชีธนาคารที่ผูกไว้'); return; }
+  if(amount > parseFloat(u.balance||0)){ toast('ข้อผิดพลาด','ยอดเงินไม่เพียงพอ'); return; }
+  const btn = document.getElementById('btn-wd-submit');
+  UI.loading(btn, true);
+  try{
+    const wdRes = await API.TransactionsAPI.withdraw(amount, u.bank_account, u.bank_name);
+    closeM('wd-ov');
+    if(wdRes?.auto) {
+      toast('✅ ถอนเงินสำเร็จ!','กำลังโอนเงินเข้าบัญชีของคุณ ภายใน 5 นาที 💰');
+    } else {
+      toast('ส่งคำขอถอนเงินแล้ว','ระบบจะโอนเงินให้ภายใน 3-30 นาที 💰');
+    }
+    refreshBalance();
+  }catch(e){
+    toast('ถอนเงินไม่สำเร็จ', e.message);
+  }finally{ UI.loading(btn, false); }
+}
+
+/* ─── Buy Modal (Multi-bet) ─── */
+const BET_CFG = {
+  '3top':       { label:'3 บนตรง',      rate:750,  digits:3, type:'3top',    expand:'single'  },
+  '3tod':       { label:'3 โต๊ด',       rate:120,  digits:3, type:'3tod',    expand:'single'  },
+  '3rev':       { label:'3 ตรงกลับ',    rate:750,  digits:3, type:'3top',    expand:'rev3'    },
+  '2top':       { label:'2 บน',          rate:95,   digits:2, type:'2top',    expand:'single'  },
+  '2bot':       { label:'2 ล่าง',        rate:90,   digits:2, type:'2bot',    expand:'single'  },
+  '2rev':       { label:'2 บนล่างกลับ', rate:95,   digits:2, type:'2top',    expand:'rev2'    },
+  'run_top':    { label:'วิ่งบน',        rate:3.2,  digits:1, type:'run_top', expand:'single'  },
+  'run_bot':    { label:'วิ่งล่าง',      rate:4.2,  digits:1, type:'run_bot', expand:'single'  },
+  'slide_f_top':{ label:'รูดหน้าบน',    rate:95,   digits:1, type:'2top',    expand:'slideF'  },
+  'slide_f_bot':{ label:'รูดหน้าล่าง',  rate:90,   digits:1, type:'2bot',    expand:'slideF'  },
+  'slide_b_top':{ label:'รูดหลังบน',    rate:95,   digits:1, type:'2top',    expand:'slideB'  },
+  'slide_b_bot':{ label:'รูดหลังล่าง',  rate:90,   digits:1, type:'2bot',    expand:'slideB'  },
+  'double':     { label:'รูดเบิ้ล',     rate:92.5, digits:0, type:'2top',    expand:'double'  },
+};
+
+let buyCart = [];
+let buySelKeys = new Set();
+
+function openBuy(name, rate, roundId, lotteryId){
+  if(!window.currentUser){ openAuth('login'); return; }
+  document.getElementById('buy-name').textContent = name;
+  if(roundId)   curRoundId   = roundId;
+  if(lotteryId) curLotteryId = lotteryId;
+  buyCart = [];
+  buySelKeys.clear();
+  document.querySelectorAll('.bet-type').forEach(b => b.classList.remove('on'));
+  document.getElementById('buy-num').value = '';
+  document.getElementById('buy-num').style.display = '';
+  document.getElementById('buy-amt').value = '10';
+  document.getElementById('buy-cart-wrap').style.display = 'none';
+  document.getElementById('buy-cart-list').innerHTML = '';
+  updateBuyNumHint();
+  document.getElementById('buy-ov').classList.add('on');
+  // เปิด panel อั้นหวย
+  openAnPanel(name, lotteryId || curLotteryId, roundId || curRoundId);
+}
+
+/* ─────────────────────────────────────────────────────
+   อั้นหวย Slide Panel
+───────────────────────────────────────────────────── */
+let _anData = [];          // ข้อมูลดิบทั้งหมดจาก API
+let _anActiveBt = null;    // bet_type tab ที่เลือกอยู่
+const AN_BT_LBL = {'3top':'3บน','3tod':'3โต๊ด','2top':'2บน','2bot':'2ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+
+async function openAnPanel(lotteryName, lotteryId, roundId){
+  const panel = document.getElementById('an-panel');
+  const bd    = document.getElementById('an-panel-backdrop');
+  const tog   = document.getElementById('an-toggle-btn');
+  // แสดง toggle button เสมอตอน buy modal เปิด
+  tog.classList.add('visible');
+  // set name
+  document.getElementById('an-panel-name').textContent = lotteryName || '';
+  // reset content
+  document.getElementById('an-panel-list').innerHTML =
+    '<div style="text-align:center;color:#555;padding:30px;font-size:13px">⏳ กำลังโหลด...</div>';
+  document.getElementById('an-panel-tabs').innerHTML = '';
+  // slide in
+  panel.classList.add('open');
+  bd.classList.add('on');
+  // fetch data
+  if(!lotteryId) return;
+  try {
+    const qs = `lottery_id=${lotteryId}${roundId ? '&round_id='+roundId : ''}`;
+    const r  = await fetch(`${window.API_BASE||'/api'}/number-limits/active-limits?${qs}`);
+    const d  = await r.json();
+    _anData = d.success ? d.data : [];
+    _anActiveBt = null;
+    _renderAnTabs();
+    _renderAnList();
+  } catch(e){
+    document.getElementById('an-panel-list').innerHTML =
+      '<div style="text-align:center;color:#555;padding:20px;font-size:12px">ไม่สามารถโหลดได้</div>';
+  }
+}
+
+function closeAnPanel(){
+  document.getElementById('an-panel').classList.remove('open');
+  document.getElementById('an-panel-backdrop').classList.remove('on');
+}
+
+function toggleAnPanel(){
+  const panel = document.getElementById('an-panel');
+  const bd    = document.getElementById('an-panel-backdrop');
+  if(panel.classList.contains('open')){ closeAnPanel(); }
+  else {
+    panel.classList.add('open');
+    bd.classList.add('on');
+  }
+}
+
+// ซ่อน toggle button เมื่อ buy modal ปิด
+// Clear checker input — Chrome may restore form values async after all events
+function _clearChkInp(){
+  const el = document.getElementById('chk-inp');
+  if(!el) return;
+  el.value = '';                           // immediate
+  setTimeout(() => { el.value = ''; }, 50);   // after microtasks
+  setTimeout(() => { el.value = ''; }, 300);  // after bfcache async restore
+  setTimeout(() => { el.value = ''; }, 800);  // final safety net
+}
+window.addEventListener('pageshow', _clearChkInp);
+window.addEventListener('load',     _clearChkInp);
+
+document.addEventListener('DOMContentLoaded', ()=>{
+
+  const buyOv = document.getElementById('buy-ov');
+  if(buyOv){
+    buyOv.addEventListener('click', e => {
+      if(e.target === buyOv){
+        closeAnPanel();
+        document.getElementById('an-toggle-btn').classList.remove('visible');
+      }
+    });
+  }
+  const buyClose = document.querySelector('#buy-ov .modal-close');
+  if(buyClose){
+    const orig = buyClose.getAttribute('onclick') || '';
+    buyClose.setAttribute('onclick', orig + ';closeAnPanel();document.getElementById("an-toggle-btn").classList.remove("visible")');
+  }
+});
+
+function _renderAnTabs(){
+  const tabs = document.getElementById('an-panel-tabs');
+  // สร้าง set ของ bet_type ที่มีข้อมูล
+  const btSet = [...new Set(_anData.map(r => r.bet_type))];
+  if(!btSet.length){
+    tabs.innerHTML = '';
+    return;
+  }
+  // "ทั้งหมด" tab
+  const allBtn = `<button class="an-tab-btn${!_anActiveBt?' on':''}" onclick="_setAnTab(null)">ทั้งหมด</button>`;
+  const btBtns = btSet.map(bt =>
+    `<button class="an-tab-btn${_anActiveBt===bt?' on':''}" onclick="_setAnTab('${bt}')">${AN_BT_LBL[bt]||bt}</button>`
+  ).join('');
+  tabs.innerHTML = allBtn + btBtns;
+}
+
+function _setAnTab(bt){
+  _anActiveBt = bt;
+  _renderAnTabs();
+  _renderAnList();
+}
+
+function _renderAnList(){
+  const el  = document.getElementById('an-panel-list');
+  const rows = _anActiveBt ? _anData.filter(r => r.bet_type === _anActiveBt) : _anData;
+
+  if(!rows.length){
+    el.innerHTML = '<div style="text-align:center;color:#2ecc71;padding:30px;font-size:13px">✅ ไม่มีเลขอั้นหรือปิดแทง</div>';
+    return;
+  }
+
+  let html = '';
+  // แยก global (*) ออกก่อน
+  const globals = rows.filter(r => r.number === '*');
+  const perNum  = rows.filter(r => r.number !== '*');
+
+  if(globals.length){
+    html += `<div style="padding:6px 10px 4px;font-size:10px;color:#e67e22;font-weight:700;background:rgba(230,126,34,.08)">🌐 Global Cap — ใช้กับทุกเลข</div>`;
+    globals.forEach(r => { html += _anRowHtml(r); });
+    if(perNum.length) html += `<div style="padding:6px 10px 4px;font-size:10px;color:#888;font-weight:700">เลขเฉพาะ</div>`;
+  }
+
+  perNum.forEach(r => { html += _anRowHtml(r); });
+  el.innerHTML = html;
+}
+
+function _anRowHtml(r){
+  const numLbl = r.number === '*'
+    ? `<span style="color:#5dade2;font-weight:800;font-size:13px">ทุกเลข</span>`
+    : `<span style="font-size:17px;font-weight:800;letter-spacing:1px;color:#fff">${r.number}</span>`;
+
+  const typeLbl = `<span style="font-size:12px;color:#ccc;font-weight:600">${AN_BT_LBL[r.bet_type]||r.bet_type}</span>`;
+
+  let statusHtml, rateHtml;
+  if(r.closed || r.current_tier === '3'){
+    statusHtml = `<span style="background:#c0392b;color:#fff;font-size:11px;font-weight:700;border-radius:6px;padding:3px 8px;white-space:nowrap">❌ ปิดรับ</span>`;
+    rateHtml   = `<span style="color:#e74c3c;font-size:13px;font-weight:700">ปิด</span>`;
+  } else {
+    // แสดง % ที่จ่าย เช่น "จ่าย 50%"
+    const pct = r.rate_pct !== null && r.rate_pct !== undefined ? r.rate_pct : 100;
+    statusHtml = `<span style="background:#e67e22;color:#fff;font-size:12px;font-weight:800;border-radius:6px;padding:3px 10px;white-space:nowrap">จ่าย ${pct}%</span>`;
+    rateHtml   = `<span style="color:#f39c12;font-size:13px;font-weight:800">×${r.effective_rate}</span>`;
+  }
+
+  return `<div class="an-row">${numLbl}${typeLbl}${statusHtml}<div style="text-align:right">${rateHtml}</div></div>`;
+}
+
+function togBet(el){
+  const key = el.dataset.key;
+  if(buySelKeys.has(key)){
+    buySelKeys.delete(key);
+    el.classList.remove('on');
+  } else {
+    const newDigits = BET_CFG[key].digits;
+    // Deselect incompatible digit-count types
+    const toRemove = [];
+    buySelKeys.forEach(k => { if(BET_CFG[k].digits !== newDigits) toRemove.push(k); });
+    toRemove.forEach(k => {
+      buySelKeys.delete(k);
+      const prev = document.querySelector(`.bet-type[data-key="${k}"]`);
+      if(prev) prev.classList.remove('on');
+    });
+    buySelKeys.add(key);
+    el.classList.add('on');
+  }
+  updateBuyNumHint();
+}
+
+function updateBuyNumHint(){
+  const inp  = document.getElementById('buy-num');
+  const hint = document.getElementById('buy-num-hint');
+  if(buySelKeys.size === 0){
+    inp.style.display = '';
+    inp.maxLength = 3;
+    inp.placeholder = '—';
+    hint.textContent = 'เลือกประเภทก่อน';
+    return;
+  }
+  const firstKey = [...buySelKeys][0];
+  const cfg = BET_CFG[firstKey];
+  if(cfg.digits === 0){
+    inp.style.display = 'none';
+    hint.textContent = 'ไม่ต้องกรอกเลข — สร้างอัตโนมัติ';
+  } else {
+    inp.style.display = '';
+    inp.maxLength = cfg.digits;
+    inp.placeholder = 'X'.repeat(cfg.digits);
+    hint.textContent = `กรอก ${cfg.digits} หลัก`;
+  }
+}
+
+function expandToBets(num, key, amount){
+  const cfg = BET_CFG[key];
+  const bets = [];
+  switch(cfg.expand){
+    case 'single':
+      bets.push({ number: num, bet_type: cfg.type, amount });
+      break;
+    case 'rev3': {
+      // 6 ประตู = ทุก permutation ของ 3 หลัก (unique)
+      const d = num.split('');
+      const perms = new Set();
+      for(let i=0;i<3;i++) for(let j=0;j<3;j++) for(let k=0;k<3;k++)
+        if(i!==j && i!==k && j!==k) perms.add(d[i]+d[j]+d[k]);
+      for(const p of perms) bets.push({ number: p, bet_type:'3top', amount });
+      break;
+    }
+    case 'rev2': {
+      const rev = num.split('').reverse().join('');
+      bets.push({ number: num, bet_type:'2top', amount });
+      bets.push({ number: num, bet_type:'2bot', amount });
+      if(rev !== num){
+        bets.push({ number: rev, bet_type:'2top', amount });
+        bets.push({ number: rev, bet_type:'2bot', amount });
+      }
+      break;
+    }
+    case 'slideF': // X0–X9
+      for(let i=0;i<10;i++) bets.push({ number: num+i, bet_type: cfg.type, amount });
+      break;
+    case 'slideB': // 0X–9X
+      for(let i=0;i<10;i++) bets.push({ number: i+num, bet_type: cfg.type, amount });
+      break;
+    case 'double': // 00,11,..,99 on 2top & 2bot
+      for(let i=0;i<10;i++){
+        const d = i.toString().repeat(2);
+        bets.push({ number: d, bet_type:'2top', amount });
+        bets.push({ number: d, bet_type:'2bot', amount });
+      }
+      break;
+  }
+  return bets;
+}
+
+async function addToBuyCart(){
+  if(buySelKeys.size === 0){ toast('แจ้งเตือน','กรุณาเลือกประเภทการแทงก่อน'); return; }
+  const amt = parseFloat(document.getElementById('buy-amt').value)||0;
+  if(amt < 1){ toast('แจ้งเตือน','จำนวนเงินต้องมากกว่า 0'); return; }
+
+  const firstKey = [...buySelKeys][0];
+  const requiredDigits = BET_CFG[firstKey].digits;
+  const num = document.getElementById('buy-num').value.trim();
+
+  if(requiredDigits > 0){
+    if(!num){ toast('แจ้งเตือน','กรุณากรอกเลข'); return; }
+    if(num.length !== requiredDigits){ toast('แจ้งเตือน',`ต้องกรอกเลข ${requiredDigits} หลัก`); return; }
+  }
+
+  const newItems = [];
+  buySelKeys.forEach(key => {
+    const cfg = BET_CFG[key];
+    const inputNum = cfg.digits === 0 ? '' : num;
+    const expanded = expandToBets(inputNum, key, amt);
+    const desc = cfg.digits === 0
+      ? `${cfg.label} (${expanded.length} ใบ)`
+      : `${cfg.label} [${inputNum}] (${expanded.length} ใบ)`;
+    const item = { key, desc, bets: expanded, amount: amt * expanded.length };
+    buyCart.push(item);
+    newItems.push(item);
+  });
+
+  document.getElementById('buy-num').value = '';
+  renderBuyCart();
+  toast('เพิ่มแล้ว','เพิ่มรายการในตะกร้าแล้ว ✅');
+
+  // ─── Async rate check — ดึง rate จริงแล้ว update badges ───
+  await enrichCartRates(newItems);
+  renderBuyCart();
+}
+
+// ดึง rate_override สำหรับ bets ใน items[] แล้วเก็บไว้ที่ bet._rateInfo
+async function enrichCartRates(items){
+  // ถ้ายังไม่มี curLotteryId ให้ดึงจาก round
+  if(!curLotteryId && curRoundId){
+    try {
+      const rd = await fetch(`${window.API_BASE||'/api'}/lottery/rounds`);
+      const rdata = await rd.json();
+      if(rdata.success){
+        const round = rdata.data.find(r => r.id == curRoundId);
+        if(round) curLotteryId = round.lottery_id;
+      }
+    } catch(e){}
+  }
+  if(!curLotteryId) return;
+
+  const checks = [];
+  items.forEach(item => {
+    item.bets.forEach(bet => {
+      if(bet.number) checks.push({ number: bet.number, bet_type: bet.bet_type });
+    });
+  });
+  if(!checks.length) return;
+  try {
+    const r = await fetch(`${window.API_BASE||'/api'}/number-limits/rate-check-batch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lottery_id: curLotteryId, round_id: curRoundId, checks })
+    });
+    const data = await r.json();
+    if(!data.success) return;
+    const rateMap = {};
+    data.results.forEach(res => { rateMap[`${res.number}:${res.bet_type}`] = res; });
+    items.forEach(item => {
+      item.bets.forEach(bet => {
+        const info = rateMap[`${bet.number}:${bet.bet_type}`];
+        if(info) bet._rateInfo = info;
+      });
+    });
+  } catch(e) { /* silent fail */ }
+}
+
+function renderBuyCart(){
+  const list = document.getElementById('buy-cart-list');
+  const wrap = document.getElementById('buy-cart-wrap');
+  if(buyCart.length === 0){ wrap.style.display='none'; return; }
+  wrap.style.display = 'block';
+
+  const TYPE_BASE = {'3top':750,'3tod':120,'2top':95,'2bot':90,'run_top':3.2,'run_bot':4.2};
+  const TYPE_LBL  = {'3top':'3บน','3tod':'3โต๊ด','2top':'2บน','2bot':'2ล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+
+  // รวม bets ทุกตัวออกมาเป็น flat rows พร้อม itemIdx
+  const rows = [];
+  buyCart.forEach((item, i) => {
+    item.bets.forEach(bet => {
+      rows.push({ bet, itemIdx: i });
+    });
+  });
+
+  // helper: คืน { rate, isAon, isClosed }
+  function _rateInfo(bet){
+    const ri = bet._rateInfo;
+    const base = TYPE_BASE[bet.bet_type] || 0;
+    if(!ri) return { rate: base, isAon: false, isClosed: false, loaded: false };
+    if(ri.closed || ri.tier === '3') return { rate: 0, isAon: false, isClosed: true, loaded: true };
+    const isAon = ri.rate_override !== null && ri.rate_override !== undefined;
+    return { rate: isAon ? ri.effective_rate : ri.effective_rate, isAon, isClosed: false, loaded: true };
+  }
+
+  // header — 5 คอลัม: เลข | ประเภท | อัตราจ่าย | รางวัล | ราคา | ✕
+  let html = `
+  <div style="display:grid;grid-template-columns:52px 52px 72px 68px 48px 24px;gap:2px 4px;
+              padding:4px 8px;font-size:10px;color:#888;font-weight:600;border-bottom:1px solid #333;margin-bottom:4px">
+    <div>เลขที่ซื้อ</div>
+    <div>ประเภท</div>
+    <div style="text-align:center">อัตราจ่าย</div>
+    <div style="text-align:right">รางวัล</div>
+    <div style="text-align:right">ราคาแทง</div>
+    <div></div>
+  </div>`;
+
+  // track item groups for remove button (show X only on last row of each item)
+  const itemLastRow = {};
+  rows.forEach((r, ri) => { itemLastRow[r.itemIdx] = ri; });
+
+  rows.forEach(({ bet, itemIdx }, ri) => {
+    const { rate, isAon, isClosed, loaded } = _rateInfo(bet);
+    const prize = isClosed ? null : Math.round(bet.amount * rate * 100) / 100;
+
+    const rateHtml = isClosed
+      ? `<span style="background:#c0392b;color:#fff;font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px">❌ปิด</span>`
+      : isAon
+        ? `<span style="color:#e67e22;font-weight:700;font-size:11px">🔸×${rate}</span>`
+        : loaded
+          ? `<span style="color:#2ecc71;font-weight:600;font-size:11px">×${rate}</span>`
+          : `<span style="color:#777;font-size:11px">×${rate}</span>`;
+
+    const prizeHtml = isClosed
+      ? `<span style="color:#e74c3c;font-size:11px">-</span>`
+      : `<span style="color:${isAon?'#e67e22':'var(--gold)'};font-size:11px;font-weight:600">฿${prize?.toLocaleString()}</span>`;
+
+    const isLast = itemLastRow[itemIdx] === ri;
+    const rmBtn = isLast
+      ? `<button class="rm-btn" onclick="removeCartItem(${itemIdx})" title="ลบทั้งกลุ่ม">✕</button>`
+      : `<div></div>`;
+
+    const rowBg = ri % 2 === 0 ? 'background:rgba(255,255,255,.025)' : '';
+    html += `
+    <div style="display:grid;grid-template-columns:52px 52px 72px 68px 48px 24px;gap:2px 4px;
+                align-items:center;padding:5px 8px;border-radius:6px;${rowBg}">
+      <div style="font-size:14px;font-weight:800;letter-spacing:1px;color:#fff">${bet.number}</div>
+      <div style="font-size:11px;color:#bbb">${TYPE_LBL[bet.bet_type]||bet.bet_type}</div>
+      <div style="text-align:center">${rateHtml}</div>
+      <div style="text-align:right">${prizeHtml}</div>
+      <div style="text-align:right;font-size:11px;color:#aaa">฿${bet.amount.toLocaleString()}</div>
+      <div style="text-align:center">${rmBtn}</div>
+    </div>`;
+  });
+  list.innerHTML = html;
+
+  const totalBets = buyCart.reduce((s,c) => s+c.bets.length, 0);
+  const totalAmt  = buyCart.reduce((s,c) => s+c.amount, 0);
+  document.getElementById('pc-total').textContent = '฿'+totalAmt.toLocaleString();
+  document.getElementById('btn-buy-count').textContent = totalBets;
+}
+
+function removeCartItem(idx){
+  buyCart.splice(idx, 1);
+  renderBuyCart();
+}
+
+async function doBuy(){
+  if(!window.currentUser){ openAuth('login'); return; }
+  if(buyCart.length === 0){ toast('แจ้งเตือน','กรุณาเพิ่มรายการก่อน'); return; }
+  if(!curRoundId){ toast('ข้อผิดพลาด','ไม่พบรอบหวยที่เปิดรับ'); return; }
+  const allBets = buyCart.flatMap(c => c.bets);
+  const btn = document.getElementById('btn-confirm-buy');
+  UI.loading(btn, true);
+  try{
+    await API.BetsAPI.place(curRoundId, allBets);
+    closeM('buy-ov');
+    toast('แทงหวยสำเร็จ',`บันทึก ${allBets.length} ใบ เรียบร้อย โชคดีนะ! 🍀`);
+    refreshBalance();
+  }catch(e){
+    toast('แทงไม่สำเร็จ', e.message);
+  }finally{ UI.loading(btn, false); }
+}
+
+/* ─── Checker ─── */
+let chkDigits = 6;
+function setChk(el, digits){
+  document.querySelectorAll('.tabs .tab').forEach(t=>t.classList.remove('on'));
+  el.classList.add('on');
+  chkDigits = digits;
+  const inp = document.getElementById('chk-inp');
+  inp.maxLength = digits;
+  inp.placeholder = 'X'.repeat(digits);
+  inp.value = '';
+  document.getElementById('chk-res').style.display = 'none';
+}
+
+async function doCheck(){
+  const v   = document.getElementById('chk-inp').value.trim();
+  const el  = document.getElementById('chk-res');
+  if(!v){ toast('แจ้งเตือน','กรุณากรอกเลขก่อนตรวจสอบ'); return; }
+  // need a round with result
+  const roundId = window._latestRoundId;
+  if(!roundId){
+    el.style.display='block';
+    el.className='chk-result lose';
+    el.innerHTML=`<div style="font-size:36px;margin-bottom:8px">📋</div><div style="font-size:16px;color:var(--muted)">ยังไม่มีผลรางวัลสำหรับตรวจสอบ</div>`;
+    return;
+  }
+  el.style.display = 'block';
+  el.innerHTML = '<div style="color:var(--muted)">⏳ กำลังตรวจสอบ...</div>';
+  try{
+    const data   = await API.LotteryAPI.checkNumber(roundId, v);
+    const result = data.data || {};
+    if(result.won && result.prizes && result.prizes.length>0){
+      el.className = 'chk-result win';
+      el.innerHTML = `<div style="font-size:40px;margin-bottom:8px">🏆</div>
+        <div style="font-size:22px;font-weight:800;color:var(--gold2)">ถูกรางวัล!</div>
+        ${result.prizes.map(p=>`<div style="margin-top:8px;font-size:14px;color:var(--muted)">${p.name} — ฿${Number(p.amount||0).toLocaleString()}</div>`).join('')}`;
+    }else{
+      el.className = 'chk-result lose';
+      el.innerHTML = `<div style="font-size:40px;margin-bottom:8px">😔</div>
+        <div style="font-size:22px;font-weight:800;color:#ff8a92">ไม่ถูกรางวัล</div>
+        <div style="margin-top:8px;color:var(--muted);font-size:14px">เลข ${v} ไม่ตรงกับรางวัลใดในงวดนี้</div>`;
+    }
+  }catch(e){
+    el.className = 'chk-result lose';
+    el.innerHTML = `<div style="font-size:36px;margin-bottom:8px">⚠️</div>
+      <div style="font-size:16px;color:var(--muted)">${e.message}</div>`;
+  }
+}
+
+/* ─── Stats Bar ─── */
+async function loadStats(){
+  try{
+    const d = await API.LotteryAPI.getStats();
+    const mEl = document.getElementById('stat-members');
+    const pEl = document.getElementById('stat-payout');
+    const rEl = document.getElementById('stat-rounds');
+    if(mEl) mEl.textContent = Number(d.member_count||0).toLocaleString('th-TH');
+    if(pEl) pEl.textContent = '฿'+UI.formatMoney(d.total_payout||0);
+    if(rEl) rEl.textContent = d.active_rounds||0;
+  }catch(e){}
+}
+
+/* ─── Lottery Cards ─── build:20260426b */
+// Flag image helper — flagcdn.com renders properly on all platforms incl. Windows
+const _FI = (cc, h=14) =>
+  `<img src="https://flagcdn.com/40x30/${cc}.png" style="height:${h}px;border-radius:2px;vertical-align:middle;margin-right:3px;box-shadow:0 0 0 1px rgba(255,255,255,.15)" alt="${cc.toUpperCase()}" loading="lazy">`;
+// DB stores short codes like "LA","VN","TH" → convert to flag img
+const _DB_FLAG = { 'TH':_FI('th'), 'LA':_FI('la'), 'VN':_FI('vn'), 'CN':_FI('cn'), 'SG':_FI('sg'), 'MY':_FI('my'), 'HK':_FI('hk') };
+const _dbFlag = v => _DB_FLAG[v] || v || '';
+
+const LOT_TYPE_META = {
+  TH_GOV:     { label:'หวยรัฐบาล',    flag:_FI('th'), tagClass:'hot',  tagText:`${_FI('th',12)}HOT`           },
+  YEEKEE:     { label:'หวยยี่กี',     flag:'⚡',       tagClass:'vip',  tagText:'⚡ ยี่กี'                     },
+  LA_GOV:     { label:'หวยลาว',       flag:_FI('la'), tagClass:'lao',  tagText:`${_FI('la',12)}ลาว`           },
+  VN_HAN:     { label:'ฮานอยปกติ',    flag:_FI('vn'), tagClass:'',     tagText:`${_FI('vn',12)}ปกติ`          },
+  VN_HAN_SP:  { label:'ฮานอยพิเศษ',   flag:_FI('vn'), tagClass:'',     tagText:`${_FI('vn',12)}พิเศษ`         },
+  VN_HAN_VIP: { label:'ฮานอย VIP',    flag:_FI('vn'), tagClass:'vip',  tagText:`${_FI('vn',12)}VIP`           },
+  VN_HANOI:   { label:'ฮานอย',        flag:_FI('vn'), tagClass:'',     tagText:`${_FI('vn',12)}ฮานอย`         },
+  TH_STK:     { label:'หวยหุ้นไทย',   flag:_FI('th'), tagClass:'',     tagText:`${_FI('th',12)}หุ้นไทย`       },
+  CN_STK:     { label:'หวยหุ้นจีน',   flag:_FI('cn'), tagClass:'',     tagText:`${_FI('cn',12)}หุ้นจีน`       },
+  SG_STK:     { label:'หวยสิงคโปร์',  flag:_FI('sg'), tagClass:'',     tagText:`${_FI('sg',12)}สิงคโปร์`      },
+  MY_STK:     { label:'หวยมาเลย์',    flag:_FI('my'), tagClass:'',     tagText:`${_FI('my',12)}มาเลย์`        },
+};
+// codes ที่จัดกลุ่มเป็น "ฮานอย" เดียว
+const VN_CODES = new Set(['VN_HAN','VN_HAN_SP','VN_HAN_VIP']);
+// codes หวยหุ้น (HD) — จัดกลุ่มเป็น STK_ALL เดียว แสดงแถว 5
+const STK_CODES = new Set([
+  'thai_am','thai_noon','thai_pm','thai_eve',
+  'bank_stock','gsb',
+  'stock_nk_am','stock_nk_pm','stock_hk_am','stock_hk_pm',
+  'stock_cn_am','stock_cn_pm','stock_tw','stock_kr','stock_sg',
+  'stock_eg','stock_de','stock_ru','stock_in','stock_dj','stock_my','stock_uk',
+  'lao_set','hanoi_set','malay_set',
+]);
+// fallback flag image map สำหรับ STK codes (ใช้ flagcdn เหมือน LOT_TYPE_META)
+const STK_FLAG_MAP = {
+  'thai_am':_FI('th'),'thai_noon':_FI('th'),'thai_pm':_FI('th'),'thai_eve':_FI('th'),
+  'bank_stock':_FI('th'),'gsb':_FI('th'),
+  'stock_nk_am':_FI('jp'),'stock_nk_pm':_FI('jp'),
+  'stock_hk_am':_FI('hk'),'stock_hk_pm':_FI('hk'),
+  'stock_cn_am':_FI('cn'),'stock_cn_pm':_FI('cn'),
+  'stock_tw':_FI('tw'),'stock_kr':_FI('kr'),'stock_sg':_FI('sg'),
+  'stock_eg':_FI('eg'),'stock_de':_FI('de'),'stock_ru':_FI('ru'),
+  'stock_in':_FI('in'),'stock_dj':_FI('us'),'stock_my':_FI('my'),'stock_uk':_FI('gb'),
+  'lao_set':_FI('la'),'hanoi_set':_FI('vn'),'malay_set':_FI('my'),
+};
+function _tagFor(code, r){
+  const m = LOT_TYPE_META[code];
+  if(m) return `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>`;
+  // หวยหุ้น — ใช้ flagcdn img จาก STK_FLAG_MAP ก่อน (emoji ไม่ render บน Windows)
+  const fl = STK_FLAG_MAP[code] || '📈';
+  return `<span class="lot-tag">${fl} หุ้น</span>`;
+}
+function _statusFor(r){
+  // Use DB status first for accuracy
+  if(r.status === 'upcoming'){
+    // Show countdown to open_at
+    if(r.open_at){
+      const openMs = new Date(r.open_at).getTime();
+      const diffOpen = openMs - Date.now();
+      if(diffOpen > 0){
+        const hh = Math.floor(diffOpen/3600000);
+        const mm = Math.floor((diffOpen%3600000)/60000);
+        const label = hh > 0 ? `${hh}ช ${mm}น` : `${mm} นาที`;
+        return `<span class="lot-status soon">🕐 เปิดใน ${label}</span>`;
+      }
+    }
+    return '<span class="lot-status soon">🕐 เปิดรับเร็วๆ นี้</span>';
+  }
+  const now = Date.now();
+  const close = new Date(r.close_at).getTime();
+  const diff = close - now;
+  if(diff < 0) return '<span class="lot-status closed">🔴 ปิดรับแล้ว</span>';
+  if(diff < 30*60*1000) return '<span class="lot-status soon">🟡 ใกล้ปิด ' + Math.ceil(diff/60000) + ' น.</span>';
+  return '<span class="lot-status open">🟢 เปิดรับ</span>';
+}
+
+function filterLotCards(el, code){
+  document.querySelectorAll('.lot-ftab').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  _activeFilter = code;
+  _renderLotGroups(code);
+}
+
+function _renderLotGroups(filterCode){
+  const container = document.getElementById('lot-groups');
+  if(!container) return;
+  // VN_HANOI = filter แสดงทุก VN_HAN*
+  let rounds;
+  if(filterCode === 'ALL')          rounds = _allRounds;
+  else if(filterCode === 'VN_HANOI') rounds = _allRounds.filter(r => VN_CODES.has(r.code));
+  else if(filterCode === 'STK_ALL')  rounds = _allRounds.filter(r => STK_CODES.has(r.code));
+  else                               rounds = _allRounds.filter(r => r.code === filterCode);
+  if(rounds.length === 0){
+    container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ไม่มีหวยในประเภทนี้</div>';
+    return;
+  }
+  // Group by code — รวม VN_HAN* เป็น VN_HANOI เดียว
+  const groups = {};
+  rounds.forEach(r => {
+    const key = VN_CODES.has(r.code) ? 'VN_HANOI' : STK_CODES.has(r.code) ? 'STK_ALL' : (r.code || 'OTHER');
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  // ลำดับการแสดงกลุ่มหวย: รัฐบาล → ลาว → ฮานอย → หุ้นไทย → อื่นๆ
+  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','STK_ALL','TH_STK'];
+  const sortedEntries = Object.entries(groups).sort(([a],[b]) => {
+    const ia = GROUP_ORDER.indexOf(a); const ib = GROUP_ORDER.indexOf(b);
+    return (ia===-1?999:ia) - (ib===-1?999:ib);
+  });
+  // ── helper: สร้าง card html สำหรับ 1 round ──
+  const safeEsc = s => String(s||'').replace(/'/g,'&apos;');
+  const _makeCard = (code, r) => {
+    const meta = LOT_TYPE_META[code] || { flag:'🎰' };
+    const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+    const isUpcoming = r.status === 'upcoming';
+    const cardClick  = isUpcoming ? '' : `onclick="openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id},${r.lottery_id})"`;
+    const openStr    = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
+    const rFlag = STK_FLAG_MAP[code] || r.flag || meta.flag;
+    return `<div class="lot-card${isUpcoming?' upcoming':''}" ${cardClick} style="${isUpcoming?'opacity:.75;cursor:default':''}">
+      <div class="lot-card-top">${_tagFor(code, r)}${_statusFor(r)}</div>
+      <div class="lot-name">${_dbFlag(rFlag)||rFlag} ${r.lottery_name}</div>
+      <div class="lot-prize">฿${Number(r.rate_3top||750).toLocaleString()}x</div>
+      <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
+      ${isUpcoming ? `<div class="lot-meta">เปิดรับ: <span>${openStr}</span></div>`
+                   : `<div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>`}
+      <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
+      ${isUpcoming ? `<button class="lot-btn" disabled style="opacity:.45;cursor:not-allowed">🕐 ยังไม่เปิดรับ</button>`
+                   : `<button class="lot-btn" onclick="event.stopPropagation();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||750},${r.id},${r.lottery_id})">🎰 ซื้อเลย</button>`}
+    </div>`;
+  };
+
+  // ── helper: สร้าง card VN_HANOI ──
+  const _makeHanoiCard = (list) => {
+    const earliest = list.slice().sort((a,b)=>new Date(a.close_at)-new Date(b.close_at))[0];
+    const closeStr = new Date(earliest.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+    const maxRate = Math.max(...list.map(r=>r.rate_3top||720));
+    const typesCount = new Set(list.map(r=>r.code)).size;
+    return `<div class="lot-card" onclick="openHanoiSelector()" style="cursor:pointer">
+      <div class="lot-card-top"><span class="lot-tag">${_FI('vn',12)}ฮานอย</span><span class="lot-status open">● เปิดรับ</span></div>
+      <div class="lot-name">${_FI('vn')} หวยฮานอย</div>
+      <div class="lot-prize">฿${Number(maxRate).toLocaleString()}x</div>
+      <div class="lot-meta" style="color:var(--gold)">${typesCount} ประเภท: ปกติ · พิเศษ · VIP</div>
+      <div class="lot-meta">ปิดรับเร็วสุด: <span>${closeStr}</span></div>
+      <div class="lot-rate">กดเพื่อเลือกประเภทฮานอย</div>
+      <button class="lot-btn" onclick="event.stopPropagation();openHanoiSelector()">🇻🇳 เลือกฮานอย</button>
+    </div>`;
+  };
+
+  // ── แยก main-3 (แสดงเป็น 3 columns row) กับ other ──
+  const MAIN_3 = ['TH_GOV','LA_GOV','VN_HANOI'];
+  const mainEntries  = sortedEntries.filter(([c]) => MAIN_3.includes(c));
+  const otherEntries = sortedEntries.filter(([c]) => !MAIN_3.includes(c));
+
+  let html = '';
+
+  // ── Main 3-column row ──
+  if(mainEntries.length){
+    // สร้าง column สำหรับแต่ละประเภทหลัก ตามลำดับ MAIN_3
+    const mainMap = Object.fromEntries(mainEntries);
+    const cols = MAIN_3.filter(c => mainMap[c]).map(c => {
+      const meta = LOT_TYPE_META[c] || { label:c, flag:'🎰' };
+      const list = mainMap[c];
+      // header ของ column
+      const colHdr = `<div class="lot-group-hdr" style="margin-bottom:12px">
+        <span style="font-size:16px">${meta.flag}</span>
+        <h3 style="font-size:14px">${meta.label}</h3>
+        <span class="cnt-badge">${c==='VN_HANOI'? new Set(list.map(r=>r.code)).size+' ประเภท' : list.length+' งวด'}</span>
+      </div>`;
+      const cards = c === 'VN_HANOI'
+        ? _makeHanoiCard(list)
+        : list.map(r => _makeCard(c, r)).join('');
+      return `<div style="display:flex;flex-direction:column">${colHdr}<div style="display:flex;flex-direction:column;gap:14px">${cards}</div></div>`;
+    }).join('');
+    html += `<div class="lot-group">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">
+        ${cols}
+      </div>
+    </div>`;
+  }
+
+  // ── Other groups (แต่ละกลุ่มแยก) ──
+  html += otherEntries.map(([code, list]) => {
+    if(code === 'STK_ALL'){
+      const stkCards = list.map(r => _makeCard(r.code, r)).join('');
+      return `<div class="lot-group">
+        <div class="lot-group-hdr">
+          <span style="font-size:16px">📈</span>
+          <h3>หวยหุ้น</h3>
+          <span class="cnt-badge">${list.length} งวด</span>
+        </div>
+        <div class="lot-grid">${stkCards}</div>
+      </div>`;
+    }
+    const meta = LOT_TYPE_META[code] || { label: list[0]?.lottery_name || 'หวย', flag: '🎰' };
+    const cards = list.map(r => _makeCard(code, r)).join('');
+    return `<div class="lot-group">
+      <div class="lot-group-hdr">
+        <span style="font-size:18px">${meta.flag}</span>
+        <h3>${meta.label}</h3>
+        <span class="cnt-badge">${list.length} งวด</span>
+      </div>
+      <div class="lot-grid">${cards}</div>
+    </div>`;
+  }).join('');
+
+  container.innerHTML = html;
+}
+
+/* ─── Hanoi Selector Modal ─── */
+function openHanoiSelector(){
+  const vnRounds = _allRounds.filter(r => VN_CODES.has(r.code));
+  if(!vnRounds.length){ showToast('ไม่มีฮานอยเปิดรับในขณะนี้','warn'); return; }
+  const safeEsc = s => String(s||'').replace(/'/g,'&apos;');
+  const VN_LABEL = { VN_HAN:'ปกติ', VN_HAN_SP:'พิเศษ', VN_HAN_VIP:'VIP' };
+  const VN_COLOR = { VN_HAN:'var(--muted)', VN_HAN_SP:'var(--gold)', VN_HAN_VIP:'#7ec8e3' };
+
+  // group by code
+  const vnGrp = {};
+  vnRounds.forEach(r => {
+    if(!vnGrp[r.code]) vnGrp[r.code] = [];
+    vnGrp[r.code].push(r);
+  });
+  const cards = ['VN_HAN','VN_HAN_SP','VN_HAN_VIP'].filter(c=>vnGrp[c]).map(c => {
+    const list = vnGrp[c];
+    const meta = LOT_TYPE_META[c];
+    return list.map(r => {
+      const isUpcoming = r.status === 'upcoming';
+      const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+      return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:14px;padding:16px 18px;cursor:${isUpcoming?'not-allowed':'pointer'};opacity:${isUpcoming?.7:1};transition:.2s"
+        ${isUpcoming?'':` onclick="closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id},${r.lottery_id})"`}>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:700;color:${VN_COLOR[c]};background:rgba(255,255,255,.06);padding:3px 10px;border-radius:20px">🇻🇳 ${VN_LABEL[c]||c}</span>
+          <span style="font-size:10px;color:${isUpcoming?'#ffa500':'#2ed573'};font-weight:700">${isUpcoming?'🕐 เร็วๆนี้':'● เปิดรับ'}</span>
+        </div>
+        <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">${r.lottery_name}</div>
+        <div style="font-size:22px;font-weight:900;color:var(--gold2);margin-bottom:6px">฿${Number(r.rate_3top||720).toLocaleString()}x</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:10px">ปิดรับ: ${closeStr}</div>
+        <div style="font-size:11px;color:var(--dim)">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
+        ${isUpcoming?'':`<button class="lot-btn" style="margin-top:10px" onclick="event.stopPropagation();closeHanoiModal();openBuy('${safeEsc(r.lottery_name)}',${r.rate_3top||720},${r.id},${r.lottery_id})">🎰 ซื้อเลย</button>`}
+      </div>`;
+    }).join('');
+  }).join('');
+
+  const overlay = document.createElement('div');
+  overlay.id = 'hanoi-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px';
+  overlay.innerHTML = `
+    <div style="background:var(--card);border:1px solid rgba(212,160,23,.3);border-radius:22px;padding:28px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;position:relative">
+      <button onclick="closeHanoiModal()" style="position:absolute;top:14px;right:14px;background:var(--card2);border:none;color:var(--muted);font-size:18px;width:32px;height:32px;border-radius:8px;cursor:pointer">×</button>
+      <div style="font-size:18px;font-weight:800;color:var(--gold2);margin-bottom:6px">🇻🇳 เลือกฮานอย</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:20px">กรุณาเลือกประเภทที่ต้องการซื้อ</div>
+      <div style="display:flex;flex-direction:column;gap:12px">${cards}</div>
+    </div>`;
+  overlay.addEventListener('click', e => { if(e.target===overlay) closeHanoiModal(); });
+  document.body.appendChild(overlay);
+}
+function closeHanoiModal(){
+  const el = document.getElementById('hanoi-overlay');
+  if(el) el.remove();
+}
+
+async function loadLotteryCards(){
+  const container = document.getElementById('lot-groups');
+  if(!container) return;
+  try{
+    const d      = await API.LotteryAPI.getRounds();
+    _allRounds   = d.data || [];
+    if(_allRounds.length === 0){
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีหวยเปิดรับในขณะนี้</div>';
+      return;
+    }
+    // Countdown & hero sub from first round
+    const first = _allRounds[0];
+    setCountdownTarget(new Date(first.close_at));
+    const heroSub = document.getElementById('hero-sub');
+    if(heroSub){
+      const closeStr = new Date(first.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'medium',timeStyle:'short'});
+      heroSub.textContent = `🎯 งวดถัดไป: ${first.round_name} · ปิดรับ ${closeStr}`;
+    }
+    curRoundId = first.id;
+
+    // Build dynamic filter tabs
+    const filterEl = document.getElementById('lot-filter');
+    if(filterEl){
+      const _TAB_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','TH_STK'];
+      // รวม VN_HAN* เป็น VN_HANOI เดียวใน filter tab
+      const rawCodes = [...new Set(_allRounds.map(r => r.code).filter(Boolean))];
+      // รวม VN_HAN* → VN_HANOI และ STK_CODES → STK_ALL
+      const mergedCodes = [...new Set(rawCodes.map(c =>
+        VN_CODES.has(c) ? 'VN_HANOI' : STK_CODES.has(c) ? 'STK_ALL' : c
+      ))].sort((a,b)=>{ const ia=_TAB_ORDER.indexOf(a),ib=_TAB_ORDER.indexOf(b); return (ia===-1?999:ia)-(ib===-1?999:ib); });
+      const extraTabs = mergedCodes.map(code => {
+        // ใช้ LOT_TYPE_META ถ้ามี, ไม่งั้นหา lottery_name จาก _allRounds
+        let flag, label;
+        if(code === 'STK_ALL'){
+          flag = '<span style="font-size:13px">📈</span>'; label = 'หวยหุ้น';
+        } else if(LOT_TYPE_META[code]){
+          flag = LOT_TYPE_META[code].flag; label = LOT_TYPE_META[code].label;
+        } else {
+          // fallback: หา round ที่ตรงกับ code นี้แล้วใช้ชื่อ + STK_FLAG_MAP
+          const r0 = _allRounds.find(r => r.code === code);
+          flag = STK_FLAG_MAP[code] || r0?.flag || '🎰';
+          label = r0?.lottery_name || code;
+        }
+        if(code === 'VN_HANOI')
+          return `<button class="lot-ftab" data-code="VN_HANOI" onclick="filterLotCards(this,'VN_HANOI')">${flag} ${label}</button>`;
+        return `<button class="lot-ftab" data-code="${code}" onclick="filterLotCards(this,'${code}')">${flag} ${label}</button>`;
+      }).join('');
+      filterEl.innerHTML = `<button class="lot-ftab on" data-code="ALL" onclick="filterLotCards(this,'ALL')">🎰 ทั้งหมด</button>${extraTabs}`;
+    }
+
+    _renderLotGroups(_activeFilter);
+    _calcNextBoundary();  // คำนวณเวลา boundary ถัดไปสำหรับ live reload
+  }catch(e){
+    if(container) container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ ไม่สามารถโหลดข้อมูลได้</div>';
+  }
+}
+
+/* ─── Hero Result Card ─── */
+function _parseJsonArr(str){
+  if(!str) return [];
+  if(Array.isArray(str)) return str;           // mysql2 คืน JSON column เป็น array โดยตรง
+  if(typeof str !== 'string') return [str];
+  try{ const v=JSON.parse(str); return Array.isArray(v)?v:[v]; }catch{ return [str]; }
+}
+
+async function loadHeroResult(){
+  const card = document.getElementById('hero-result-card');
+  if(!card) return;
+  try{
+    // แสดงเฉพาะหวยรัฐบาลไทย (TH_GOV) ล่าสุด
+    const types  = await API.LotteryAPI.getTypes();
+    const thGov  = (types.data||[]).find(t => t.code === 'TH_GOV');
+    const params = thGov ? { limit:1, lottery_id: thGov.id } : { limit:1 };
+    const d      = await API.LotteryAPI.getResults(params);
+    const results = d.data || [];
+    if(results.length===0){
+      card.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">ยังไม่มีผลหวยไทยล่าสุด</div>';
+      return;
+    }
+    const r = results[0];
+    window._latestRoundId = r.id;
+
+    const front3 = _parseJsonArr(r.prize_front_3);
+    const last3  = _parseJsonArr(r.prize_last_3);
+
+    // Update checker hint
+    const hint = document.getElementById('chk-hint');
+    if(hint) hint.textContent = `ตรวจงวด ${r.round_name} · ${UI.formatDateOnly(r.draw_date)}`;
+
+    card.innerHTML = `
+      <div class="result-header">
+        <div>
+          <div class="result-label">ผลหวยล่าสุด</div>
+          <div class="result-date">${_dbFlag(r.flag)||_FI('th')} ${r.lottery_name} <span>งวด ${r.round_name}</span></div>
+        </div>
+        <div style="text-align:right;font-size:12px;color:var(--muted)">${UI.formatDate(r.announced_at)}</div>
+      </div>
+      <div class="result-grid">
+        <div class="ritem">
+          <div class="ritem-name">รางวัลที่ 1</div>
+          <div class="ritem-num">${r.prize_1st||'-'}</div>
+        </div>
+        <div class="ritem">
+          <div class="ritem-name">เลขท้าย 2 ตัว</div>
+          <div class="ritem-small">${r.prize_last_2||'-'}</div>
+        </div>
+        <div class="ritem">
+          <div class="ritem-name">เลขหน้า/ท้าย 3 ตัว</div>
+          <div class="rnum-row">
+            ${[...front3,...last3].length>0
+              ? [...front3,...last3].map(n=>`<span class="rnum-badge">${n}</span>`).join('')
+              : '<span style="color:var(--muted)">-</span>'}
+          </div>
+        </div>
+      </div>
+      <div class="result-more-link"><a href="#results">ดูผลรางวัลย้อนหลัง →</a></div>`;
+  }catch(e){
+    if(card) card.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)">⚠️ โหลดผลรางวัลไม่ได้ในขณะนี้</div>';
+  }
+}
+
+/* ─── Results History ─── */
+let _allResults = [];
+let _resActiveGroup = null; // null = ALL, string = group key, or 'code:XYZ'
+
+// กลุ่มประเภทหวย — เรียงตามที่ user ต้องการ
+const RESULT_GROUPS = [
+  { key:'thai',    label:'🇹🇭 หวยไทย',    codes:['TH_GOV'] },
+  { key:'thstk',  label:'📈 หุ้นไทย',    codes:['TH_STK'] },
+  { key:'hanoi',  label:'🇻🇳 ฮานอย',     codes:['VN_HAN','VN_HAN_SP','VN_HAN_VIP'] },
+  { key:'lao',    label:'🇱🇦 ลาว',        codes:['LA_GOV'] },
+  { key:'foreign',label:'🌏 ต่างประเทศ', codes:['SG_STK','CN_STK','MY_STK','JP_STK','KR_STK','TW_STK'] },
+  { key:'yeekee', label:'⚡ ยี่กี่',      codes:['YEEKEE'] },
+];
+
+// ปิด dropdown ทั้งหมด
+function _closeAllDD(){ document.querySelectorAll('.res-dd').forEach(d => d.classList.remove('open')); }
+document.addEventListener('click', function(e){
+  if(!e.target.closest('.res-cat')) _closeAllDD();
+});
+
+// กด "ทั้งหมด"
+function filterGroup(groupKey){
+  _closeAllDD();
+  _resActiveGroup = groupKey;
+  // highlight
+  document.querySelectorAll('.res-cat-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.res-dd-item').forEach(b => b.classList.remove('on'));
+  if(!groupKey){ document.getElementById('res-all-btn').classList.add('on'); }
+  else{
+    const catBtn = document.querySelector(`.res-cat-btn[data-group="${groupKey}"]`);
+    if(catBtn) catBtn.classList.add('on');
+  }
+  _renderResultsList();
+}
+
+// กด item ใน dropdown
+function filterCode(code, groupKey){
+  _closeAllDD();
+  _resActiveGroup = 'code:' + code;
+  document.querySelectorAll('.res-cat-btn').forEach(b => b.classList.remove('on'));
+  document.querySelectorAll('.res-dd-item').forEach(b => b.classList.remove('on'));
+  const catBtn = document.querySelector(`.res-cat-btn[data-group="${groupKey}"]`);
+  if(catBtn) catBtn.classList.add('on');
+  document.querySelectorAll(`.res-dd-item[data-code="${code}"]`).forEach(b => b.classList.add('on'));
+  _renderResultsList();
+}
+
+// toggle dropdown
+function toggleDD(groupKey, e){
+  e.stopPropagation();
+  const dd = document.getElementById('res-dd-' + groupKey);
+  if(!dd) return filterGroup(groupKey); // ไม่มี dropdown → filter ทันที
+  const isOpen = dd.classList.contains('open');
+  _closeAllDD();
+  if(!isOpen) dd.classList.add('open');
+}
+
+function _renderResultsList(){
+  const list = document.getElementById('results-list');
+  if(!list) return;
+  let results;
+  if(!_resActiveGroup){
+    results = _allResults;
+  } else if(_resActiveGroup.startsWith('code:')){
+    const code = _resActiveGroup.slice(5);
+    results = _allResults.filter(r => r.code === code);
+  } else {
+    const grp = RESULT_GROUPS.find(g => g.key === _resActiveGroup);
+    results = grp ? _allResults.filter(r => grp.codes.includes(r.code)) : _allResults;
+  }
+  if(results.length === 0){
+    list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีผลรางวัลในประเภทนี้</div>';
+    return;
+  }
+  list.innerHTML = results.map(r => {
+    const last3  = _parseJsonArr(r.prize_last_3);
+    const front3 = _parseJsonArr(r.prize_front_3);
+    const has2bot = !!r.prize_2bot; // แสดง 2 ตัวล่าง สำหรับทุกหวยที่มีข้อมูล
+    // กำหนด label บน/ล่าง ตามประเภทหวย
+    const isStock = r.code && r.code.endsWith('_STK');
+    const lbl1st  = '3 ตัวบน';
+    const lbl2top = '2 บน';
+    const lbl2bot = '2 ล่าง';
+    return `<div class="res-row">
+      <div>
+        <div class="res-type">${_dbFlag(r.flag)||'🎰'} ${r.lottery_name}</div>
+        <div class="res-date-small">งวด ${r.round_name} · ${UI.formatDateOnly(r.draw_date)}</div>
+      </div>
+      <div class="res-nums">
+        <div class="res-num-box">
+          <span class="res-n1">${r.prize_1st||'-'}</span>
+          <span class="res-lbl">${lbl1st}</span>
+        </div>
+        ${front3.length ? `<div class="res-num-box">${front3.map(n=>`<span class="res-n3">${n}</span>`).join('')}<span class="res-lbl">หน้า 3</span></div>` : ''}
+        ${last3.length  ? `<div class="res-num-box">${last3.map(n=>`<span class="res-n3">${n}</span>`).join('')}<span class="res-lbl">หลัง 3</span></div>` : ''}
+        <div class="res-num-box">
+          <span class="res-n2">${r.prize_last_2||'-'}</span>
+          <span class="res-lbl">${lbl2top}</span>
+        </div>
+        ${has2bot ? `<div class="res-num-box"><span class="res-n2 res-n2bot">${r.prize_2bot}</span><span class="res-lbl">${lbl2bot}</span></div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildResultFilter(availableCodes){
+  const filterEl = document.getElementById('res-filter');
+  if(!filterEl) return;
+  const cats = RESULT_GROUPS.filter(g => g.codes.some(c => availableCodes.has(c)));
+  const html = cats.map(g => {
+    const items = g.codes.filter(c => availableCodes.has(c));
+    const hasDD = items.length > 1;
+    const codeMap = window._resCodeMeta || {};
+    const ddItems = hasDD ? items.map(c => {
+      const meta = LOT_TYPE_META[c] || {};
+      const label = meta.label || codeMap[c] || c;
+      const flag  = meta.flag  || STK_FLAG_MAP[c] || '🎰';
+      return `<button class="res-dd-item" data-code="${c}" onclick="filterCode('${c}','${g.key}')">${flag} ${label}</button>`;
+    }).join('') : '';
+    return `<div class="res-cat">
+      <button class="res-cat-btn" data-group="${g.key}" onclick="${hasDD ? `toggleDD('${g.key}',event)` : `filterGroup('${g.key}')`}">${g.label}${hasDD?'<span class="arr">▾</span>':''}</button>
+      ${hasDD ? `<div class="res-dd" id="res-dd-${g.key}">${ddItems}</div>` : ''}
+    </div>`;
+  }).join('');
+  // inject after "ทั้งหมด"
+  const allBtn = filterEl.querySelector('#res-all-btn');
+  if(allBtn) allBtn.closest('.res-cat').insertAdjacentHTML('afterend', html);
+}
+
+async function loadResultsHistory(){
+  const list = document.getElementById('results-list');
+  if(!list) return;
+  try{
+    const [dList, dTypes] = await Promise.all([
+      API.LotteryAPI.getResults({ limit: 30 }),
+      API.LotteryAPI.getResults({ latest_per_type: 1 }),
+    ]);
+    _allResults = dList.data || [];
+    const typeResults = dTypes.data || [];
+
+    if(_allResults.length === 0 && typeResults.length === 0){
+      list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">ยังไม่มีผลรางวัล</div>';
+      return;
+    }
+
+    // รวม typeResults เข้าใน _allResults (dedup)
+    const ids = new Set(_allResults.map(r => r.id));
+    typeResults.forEach(r => { if(!ids.has(r.id)){ _allResults.push(r); ids.add(r.id); } });
+
+    // สร้าง set of available codes + code→name map
+    const availCodes = new Set();
+    const codeMeta = {};
+    typeResults.forEach(r => { if(r.code){ availCodes.add(r.code); codeMeta[r.code] = r.lottery_name; } });
+    window._resCodeMeta = codeMeta;
+
+    buildResultFilter(availCodes);
+    _renderResultsList();
+  }catch(e){
+    if(list) list.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">⚠️ โหลดข้อมูลไม่ได้ในขณะนี้</div>';
+  }
+}
+
+/* ─── Ticker ─── */
+async function loadTicker(){
+  const ticker = document.getElementById('ticker');
+  if(!ticker) return;
+  try{
+    const d = await API.LotteryAPI.getResults({ limit:5 });
+    const results = d.data || [];
+    // Use custom ticker items from settings (set by applySiteSettings) or fallback defaults
+    const customItems = window._customTickerItems || [
+      '🔥 สมัครวันนี้รับโบนัส 50 บาท ทันที!',
+      '⚡ ถอนเงินรวดเร็วภายใน 3 นาที ทุกธนาคาร',
+      '🎯 เล่นหวยออนไลน์ปลอดภัย 100% จ่ายจริงทุกงวด',
+      '💰 อัตราจ่ายสูงสุด 3 ตัวบน x750 — เปิดรับทุกวัน',
+    ];
+    const liveResults = results.map(r=>`🏆 ผลรางวัล ${r.lottery_name} งวด ${r.round_name}: รางวัลที่ 1 = ${r.prize_1st||'-'}`);
+    const items = [...liveResults, ...customItems];
+    if(items.length < 2) return;
+    const doubled = [...items,...items];
+    ticker.innerHTML = doubled.map(i=>`<span class="tick-item">${i}</span>`).join('');
+  }catch(e){}
+}
+
+/* ─── Member Panel ─── */
+const BET_TYPE_TH   = {'3top':'3 ตัวบน','3tod':'3 ตัวโต้ด','2top':'2 ตัวบน','2bot':'2 ตัวล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+const BET_STATUS_TH = {waiting:'⏳ รอผล',win:'✅ ถูก!',lose:'❌ ไม่ถูก',cancelled:'🚫 ยกเลิก'};
+const BET_STATUS_CLS= {waiting:'bb-wait',win:'bb-win',lose:'bb-lose',cancelled:'bb-cancel'};
+const TX_ICON_MAP   = {deposit:'⬇️',withdraw:'⬆️',bet:'🎫',win:'🏆',refund:'↩️',bonus:'🎁',commission:'💼'};
+const TX_TH_MAP     = {deposit:'ฝากเงิน',withdraw:'ถอนเงิน',bet:'แทงหวย',win:'ถูกรางวัล',refund:'คืนเงิน',bonus:'โบนัส',commission:'ค่าคอม'};
+let _mpActive = 'bets';
+let _mpLoaded = {bets:false, tx:false, notif:false};
+let _mpBetsPage = 1, _mpTxPage = 1;
+const MP_PAGE_SIZE = 30;
+
+function openMemberPanel(tab){
+  if(!window.currentUser){ openAuth('login'); return; }
+  const u = window.currentUser;
+  document.getElementById('mpanel-name').textContent    = u.name || u.full_name || u.phone || 'สมาชิก';
+  document.getElementById('mpanel-balance').textContent = UI.formatMoney(u.balance || 0);
+  document.getElementById('mpanel-ov').classList.add('on');
+  document.body.style.overflow = 'hidden';
+  // Reset load state so fresh data on each open
+  _mpLoaded = {bets:false, wallet:false, tx:false, refer:false, notif:false, profile:false};
+  _mpBetsPage = 1; _mpTxPage = 1;
+  mpTab(tab || _mpActive);
+}
+function openBetHistory(){
+  openMemberPanel('bets');
+}
+function closeMPanel(){
+  document.getElementById('mpanel-ov').classList.remove('on');
+  document.body.style.overflow = '';
+}
+
+function mpTab(tab){
+  _mpActive = tab;
+  ['profile','bets','wallet','tx','refer','notif'].forEach(t=>{
+    document.getElementById('mpt-'+t)?.classList.toggle('on', t===tab);
+    document.getElementById('mps-'+t)?.classList.toggle('on', t===tab);
+  });
+  if(tab==='profile' && !_mpLoaded.profile) loadProfilePanel();
+  if(tab==='bets'    && !_mpLoaded.bets)    loadBetHistory();
+  if(tab==='wallet'  && !_mpLoaded.wallet)  loadWalletTab();
+  if(tab==='tx'      && !_mpLoaded.tx)      loadTxHistory();
+  if(tab==='refer'   && !_mpLoaded.refer)   loadReferralPanel();
+  if(tab==='notif'   && !_mpLoaded.notif)   loadNotifications();
+}
+
+/* ── helper: ปุ่ม Go-to-portal สำหรับ admin/agent ── */
+function _portalBtn(href, label, color){
+  return `<div style="text-align:center;padding:32px 16px">
+    <div style="font-size:40px;margin-bottom:12px">🔗</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px">ข้อมูลนี้อยู่ใน ${label}</div>
+    <a href="${href}" style="display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:${color};border-radius:12px;color:#fff;font-size:14px;font-weight:700;text-decoration:none">
+      เปิด ${label}
+    </a>
+  </div>`;
+}
+
+/* ── Wallet Tab ── */
+async function loadWalletTab(){
+  _mpLoaded.wallet = true;
+  const el = document.getElementById('mps-wallet');
+  const u  = window.currentUser;
+
+  // Admin wallet
+  if(u?.is_admin){
+    el.innerHTML = `
+    <div style="padding:4px 0;display:flex;flex-direction:column;gap:12px">
+      <div style="background:linear-gradient(135deg,rgba(26,35,126,.25),rgba(40,53,147,.2));border:1px solid rgba(57,73,171,.4);border-radius:14px;padding:20px;text-align:center">
+        <div style="font-size:12px;color:#90caf9;font-weight:700;margin-bottom:6px">💰 ยอดคงเหลือ</div>
+        <div style="font-size:32px;font-weight:900;color:#fff">฿${UI.formatMoney(u.balance||0)}</div>
+      </div>
+      ${_portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)')}
+    </div>`;
+    return;
+  }
+
+  // Agent wallet
+  if(u?.is_agent){
+    el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const d  = await API.AgentAPI.wallet();
+      const w  = d.data;
+      const commBal = parseFloat(w.commission_balance || 0);
+      el.innerHTML = `
+      <div style="padding:4px 0;display:flex;flex-direction:column;gap:12px">
+        <div style="background:linear-gradient(135deg,rgba(27,94,32,.25),rgba(46,125,50,.2));border:1px solid rgba(67,160,71,.4);border-radius:14px;padding:16px">
+          <div style="font-size:12px;color:#a5d6a7;font-weight:700;margin-bottom:10px">💰 กระเป๋าเงิน</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e2a1e;font-size:13px">
+            <span style="color:#888">ยอดคงเหลือ</span>
+            <span style="color:#fff;font-weight:800;font-size:18px">฿${UI.formatMoney(w.balance)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e2a1e;font-size:13px">
+            <span style="color:#888">ค่าคอมสะสม</span>
+            <span style="color:#a5d6a7;font-weight:700">฿${UI.formatMoney(commBal)}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px">
+            <span style="color:#888">รอการอนุมัติ</span>
+            <span style="color:#fbbf24">${w.pending_deposit?.count||0} รายการ (฿${UI.formatMoney(w.pending_deposit?.total||0)})</span>
+          </div>
+        </div>
+        <a href="/agent/" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:14px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:14px;font-weight:700;text-decoration:none">
+          ⬇️ ฝาก / ถอน ใน Agent Portal
+        </a>
+      </div>`;
+    }catch(e){
+      el.innerHTML = `<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+    }
+    return;
+  }
+
+  // Member wallet — แสดง static buttons ปกติ
+  el.innerHTML = `
+  <div style="padding:8px 0 4px;display:flex;flex-direction:column;gap:14px">
+    <button onclick="closeMPanel();openDeposit();" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(99,179,118,.45);background:rgba(99,179,118,.10);cursor:pointer;font-size:17px;font-weight:800;color:#86efac;letter-spacing:.5px;transition:background .18s,border-color .18s">
+      <span style="font-size:26px">⬇️</span>
+      <div style="text-align:left"><div>เติมเงิน</div><div style="font-size:12px;font-weight:500;color:#4ade80;opacity:.8;margin-top:2px">ฝากเงินเข้ากระเป๋า</div></div>
+    </button>
+    <button onclick="closeMPanel();openWithdraw();" style="display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:20px 16px;border-radius:14px;border:1px solid rgba(212,160,23,.45);background:rgba(212,160,23,.10);cursor:pointer;font-size:17px;font-weight:800;color:var(--gold2);letter-spacing:.5px;transition:background .18s,border-color .18s">
+      <span style="font-size:26px">⬆️</span>
+      <div style="text-align:left"><div>ถอนเงิน</div><div style="font-size:12px;font-weight:500;color:var(--gold);opacity:.8;margin-top:2px">ถอนเงินออกจากกระเป๋า</div></div>
+    </button>
+  </div>`;
+}
+
+/* ── Profile & Level Tab ── */
+async function loadProfilePanel(){
+  _mpLoaded.profile = true;
+  const el = document.getElementById('mps-profile');
+
+  // ─── Admin profile view ───────────────────────────────────────────
+  if(window.currentUser?.is_admin){
+    const u = window.currentUser;
+    const balFmt = UI.formatMoney(u.balance || 0);
+    el.innerHTML = `
+    <!-- Hero card -->
+    <div style="background:linear-gradient(135deg,rgba(26,35,126,.3),rgba(40,53,147,.25));border:1px solid rgba(57,73,171,.5);border-radius:14px;padding:20px 20px 16px;margin-bottom:12px;text-align:center">
+      <div style="font-size:44px;margin-bottom:8px">🛡️</div>
+      <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:2px">${u.name}</div>
+      <div style="display:inline-block;margin-top:6px;padding:3px 12px;background:rgba(57,73,171,.35);border:1px solid rgba(57,73,171,.7);border-radius:20px;font-size:11px;color:#90caf9;letter-spacing:.8px;font-weight:700">ADMINISTRATOR</div>
+    </div>
+    <!-- กระเป๋าเงิน -->
+    <div style="background:linear-gradient(135deg,rgba(26,35,126,.2),rgba(40,53,147,.15));border:1px solid rgba(57,73,171,.4);border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:#90caf9;margin-bottom:8px;letter-spacing:.5px">💰 กระเป๋าเงิน</div>
+      <div style="font-size:28px;font-weight:900;color:#fff">฿${balFmt}</div>
+      <div style="font-size:11px;color:#888;margin-top:2px">ยอดคงเหลือ</div>
+    </div>
+    <!-- ข้อมูลส่วนตัว -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:var(--gold);margin-bottom:10px;letter-spacing:.5px">📋 ข้อมูลส่วนตัว</div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1e1e2a;font-size:13px"><span style="color:#888">👤 ชื่อ</span><span style="color:#fff;font-weight:600">${u.name}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1e1e2a;font-size:13px"><span style="color:#888">📱 เบอร์โทร</span><span style="color:#fff;font-weight:600">${u.phone||'-'}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px"><span style="color:#888">📧 อีเมล</span><span style="color:#888">${u.email||'-'}</span></div>
+    </div>
+    <!-- ทางลัด -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px">
+      <div style="font-size:12px;font-weight:800;color:#888;margin-bottom:10px;letter-spacing:.5px">⚡ ทางลัด</div>
+      <a href="/admin/" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 16px;background:linear-gradient(135deg,#1a237e,#283593);border:1px solid #3949ab;border-radius:12px;color:#fff;font-size:14px;font-weight:700;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+        🔧 เข้า Admin Panel
+      </a>
+    </div>`;
+    return;
+  }
+
+  // ─── Agent profile view ──────────────────────────────────────────
+  if(window.currentUser?.is_agent){
+    const u = window.currentUser;
+    const balFmt = UI.formatMoney(u.balance || 0);
+    el.innerHTML = `
+    <!-- Hero card -->
+    <div style="background:linear-gradient(135deg,rgba(27,94,32,.3),rgba(46,125,50,.25));border:1px solid rgba(67,160,71,.5);border-radius:14px;padding:20px 20px 16px;margin-bottom:12px;text-align:center">
+      <div style="font-size:44px;margin-bottom:8px">🎯</div>
+      <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:2px">${u.name}</div>
+      <div style="display:inline-block;margin-top:6px;padding:3px 12px;background:rgba(67,160,71,.3);border:1px solid rgba(67,160,71,.6);border-radius:20px;font-size:11px;color:#a5d6a7;letter-spacing:.8px;font-weight:700">AGENT</div>
+    </div>
+    <!-- กระเป๋าเงิน -->
+    <div style="background:linear-gradient(135deg,rgba(27,94,32,.2),rgba(46,125,50,.15));border:1px solid rgba(67,160,71,.4);border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:#a5d6a7;margin-bottom:8px;letter-spacing:.5px">💰 กระเป๋าเงิน</div>
+      <div style="font-size:28px;font-weight:900;color:#fff">฿${balFmt}</div>
+      <div style="font-size:11px;color:#888;margin-top:2px">ยอดคงเหลือ</div>
+    </div>
+    <!-- ข้อมูลส่วนตัว -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px">
+      <div style="font-size:12px;font-weight:800;color:var(--gold);margin-bottom:10px;letter-spacing:.5px">📋 ข้อมูลส่วนตัว</div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1e1e2a;font-size:13px"><span style="color:#888">👤 ชื่อ</span><span style="color:#fff;font-weight:600">${u.name}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #1e1e2a;font-size:13px"><span style="color:#888">📱 เบอร์โทร</span><span style="color:#fff;font-weight:600">${u.phone||'-'}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:7px 0;font-size:13px"><span style="color:#888">📧 อีเมล</span><span style="color:#888">${u.email||'-'}</span></div>
+    </div>
+    <!-- ทางลัด -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px">
+      <div style="font-size:12px;font-weight:800;color:#888;margin-bottom:10px;letter-spacing:.5px">⚡ ทางลัด</div>
+      <a href="/agent/" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:13px 16px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:14px;font-weight:700;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='.8'" onmouseout="this.style.opacity='1'">
+        🎯 เข้า Agent Portal
+      </a>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try {
+    const d = await API.MemberAPI.getProfile();
+    const m = d.data;
+    const lv = m.cur_level;
+    const nv = m.next_level;
+    const prog = m.level_progress ?? 0;
+    const BANK_MAP = {'SCB':'ไทยพาณิชย์','KBANK':'กสิกรไทย','KTB':'กรุงไทย','BBL':'กรุงเทพ','BAY':'กรุงศรี','TMB':'ทีเอ็มบี','TISCO':'ทิสโก้','GSB':'ออมสิน','BAAC':'ธกส.','UOB':'ยูโอบี','TTB':'ทีทีบี','TMW':'TrueMoney'};
+
+    // ─── Level Card ───
+    const lvColor  = lv?.color  || '#888';
+    const lvIcon   = lv?.icon   || '🎖️';
+    const lvName   = lv?.name   || '-';
+    const nextName = nv?.name   || 'สูงสุด';
+    const nextBet  = nv ? `฿${parseFloat(nv.min_total_bet).toLocaleString()}` : '-';
+    const need     = nv ? Math.max(0, parseFloat(nv.min_total_bet) - parseFloat(m.total_bet||0)) : 0;
+
+    // แสดง all_levels roadmap
+    const allLvHtml = (m.all_levels||[]).map(l => {
+      const reached = parseFloat(m.total_bet||0) >= parseFloat(l.min_total_bet);
+      const isCur   = lv && l.id === lv.id;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:8px;
+                          background:${isCur?'rgba(212,160,23,.12)':'transparent'};
+                          border:1px solid ${isCur?'rgba(212,160,23,.4)':'transparent'}">
+        <span style="font-size:18px">${l.icon}</span>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:700;color:${reached?l.color:'#555'}">${l.name}</div>
+          <div style="font-size:10px;color:#666">ยอดแทงสะสม ฿${parseFloat(l.min_total_bet).toLocaleString()}+</div>
+        </div>
+        <span style="font-size:14px">${reached?'✅':'🔒'}</span>
+      </div>`;
+    }).join('');
+
+    el.innerHTML = `
+    <!-- Level Hero -->
+    <div style="background:linear-gradient(135deg,${lvColor}22,${lvColor}11);border:1px solid ${lvColor}55;
+                border-radius:16px;padding:18px;margin-bottom:14px;text-align:center">
+      <div style="font-size:40px;margin-bottom:4px">${lvIcon}</div>
+      <div style="font-size:20px;font-weight:900;color:${lvColor}">${lvName}</div>
+      <div style="font-size:12px;color:#888;margin-top:2px">ระดับสมาชิกปัจจุบัน</div>
+      ${nv ? `
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#888;margin-bottom:4px">
+          <span>${lvName}</span><span>${nextName} (${nextBet})</span>
+        </div>
+        <div style="background:#222;border-radius:20px;height:10px;overflow:hidden">
+          <div style="height:100%;width:${prog}%;background:linear-gradient(90deg,${lvColor},${lvColor}cc);border-radius:20px;transition:width .5s"></div>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px">
+          แทงอีก <b style="color:${lvColor}">฿${need.toLocaleString()}</b> เพื่อเลื่อนขั้น
+        </div>
+      </div>` : `<div style="margin-top:8px;font-size:12px;color:var(--gold)">⭐ ระดับสูงสุด</div>`}
+    </div>
+
+    <!-- ข้อมูลส่วนตัว -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">📋 ข้อมูลส่วนตัว</div>
+      ${_infoRow('👤 ชื่อ', m.name || '-')}
+      ${_infoRow('📱 เบอร์โทร', m.phone || '-')}
+      ${_infoRow('📧 อีเมล', m.email || '-')}
+      ${_infoRow('🆔 รหัสสมาชิก', m.member_code || '-')}
+      ${_infoRow('📅 วันที่สมัคร', m.created_at ? new Date(m.created_at).toLocaleDateString('th-TH') : '-')}
+    </div>
+
+    ${(m.is_admin || m.is_agent) ? `
+    <!-- Shortcut: Admin / Agent panel (แสดงเฉพาะ admin/agent เท่านั้น) -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:800;color:#888;margin-bottom:10px;letter-spacing:.5px">⚡ ทางลัด</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${m.is_admin ? `
+        <a href="/admin.html" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1a237e,#283593);border:1px solid #3949ab;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-decoration:none;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          🔧 Admin Panel
+        </a>` : ''}
+        ${m.is_agent ? `
+        <button onclick="navTo('agent')" style="flex:1;min-width:130px;display:flex;align-items:center;justify-content:center;gap:8px;padding:12px 16px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          🎯 Agent Portal
+        </button>` : ''}
+      </div>
+    </div>` : ''}
+
+    <!-- ธนาคาร -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">🏦 บัญชีธนาคาร</div>
+      ${_infoRow('ธนาคาร', BANK_MAP[m.bank_code] || m.bank_code || '-')}
+      ${_infoRow('เลขบัญชี', m.bank_account || '-')}
+      ${_infoRow('ชื่อบัญชี', m.bank_name || '-')}
+    </div>
+
+    <!-- สถิติ -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:14px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">📊 สถิติการเล่น</div>
+      ${_infoRow('💰 ยอดแทงสะสม', '฿' + parseFloat(m.total_bet||0).toLocaleString())}
+      ${_infoRow('🏆 ยอดชนะรวม',  '฿' + parseFloat(m.total_win||0).toLocaleString())}
+      ${_infoRow('⬇️ ยอดฝากรวม',  '฿' + parseFloat(m.total_deposit||0).toLocaleString())}
+      ${_infoRow('⬆️ ยอดถอนรวม',  '฿' + parseFloat(m.total_withdraw||0).toLocaleString())}
+    </div>
+
+    <!-- Level Roadmap -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px">
+      <div style="font-size:13px;font-weight:800;color:var(--gold);margin-bottom:10px">🏅 เส้นทางระดับ</div>
+      <div style="display:flex;flex-direction:column;gap:4px">${allLvHtml}</div>
+    </div>`;
+  } catch(e) {
+    el.innerHTML = `<div class="mp-empty"><div class="mp-empty-icon">❌</div>${e.message}</div>`;
+  }
+}
+
+function _infoRow(label, value){
+  return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #1e1e2a;font-size:13px">
+    <span style="color:#888">${label}</span>
+    <span style="color:#fff;font-weight:600;text-align:right;max-width:60%">${value}</span>
+  </div>`;
+}
+
+/* ── Bet History (Bill View) ── */
+function _groupBetsIntoBills(rows){
+  // group บิลโดยใช้ bill_no (ถ้ามี) หรือ fallback lottery+round+minute
+  const billMap = new Map();
+  rows.forEach(b => {
+    const minute = (b.created_at||'').slice(0,16);
+    const key = b.bill_no || `${b.lottery_name||''}__${b.round_name||''}__${minute}`;
+    if(!billMap.has(key)) billMap.set(key, { key, bill_no:b.bill_no||null, bets:[], lottery_name:b.lottery_name, flag:b.flag||'', round_name:b.round_name, draw_date:b.draw_date, created_at:b.created_at });
+    billMap.get(key).bets.push(b);
+  });
+  return [...billMap.values()];
+}
+function _billStatus(bets){
+  if(bets.some(b=>b.status==='win'))       return 'win';
+  if(bets.every(b=>b.status==='lose'))     return 'lose';
+  if(bets.some(b=>b.status==='cancelled')) return 'cancelled';
+  return 'waiting';
+}
+let _expandedBills = new Set();
+function toggleBill(key){
+  if(_expandedBills.has(key)) _expandedBills.delete(key);
+  else _expandedBills.add(key);
+  const wrap = document.querySelector(`[data-bill="${CSS.escape(key)}"]`);
+  if(!wrap) return;
+  const detail = wrap.querySelector('.bill-detail');
+  const arrow  = wrap.querySelector('.bill-arrow');
+  if(detail){ detail.style.display = _expandedBills.has(key) ? 'block' : 'none'; }
+  if(arrow)  { arrow.textContent = _expandedBills.has(key) ? '▲' : '▼'; }
+}
+function _renderBills(bills){
+  return bills.map(bill => {
+    const status    = _billStatus(bill.bets);
+    const statusCls = BET_STATUS_CLS[status]||'bb-wait';
+    const statusTh  = BET_STATUS_TH[status]||status;
+    const totalAmt  = bill.bets.reduce((s,b)=>s+parseFloat(b.amount||0),0);
+    const totalPay  = bill.bets.reduce((s,b)=>s+parseFloat(b.payout||0),0);
+    const totalWin  = bill.bets.filter(b=>b.status==='win').reduce((s,b)=>s+parseFloat(b.win_amount||0),0);
+    const dateStr   = UI.formatDateOnly(bill.draw_date||bill.created_at);
+    const timeStr   = (bill.created_at||'').slice(11,16);
+    const expanded  = _expandedBills.has(bill.key);
+    // detail rows
+    const detailRows = bill.bets.map(b=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+        <div>
+          <span style="font-size:11px;color:var(--muted)">${BET_TYPE_TH[b.bet_type]||b.bet_type}</span>
+          <span style="font-size:15px;font-weight:800;color:var(--gold2);margin-left:6px">${b.number}</span>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-weight:600">฿${UI.formatMoney(b.amount)}</div>
+          ${b.status==='win'?`<div style="font-size:11px;color:#2ed573">+฿${UI.formatMoney(b.win_amount)}</div>`:
+            b.status==='waiting'?`<div style="font-size:11px;color:var(--gold)">อาจได้ ฿${UI.formatMoney(b.payout)}</div>`:''}
+        </div>
+      </div>`).join('');
+    return `<div class="bet-row" data-bill="${bill.key}" style="flex-direction:column;cursor:pointer" onclick="toggleBill('${bill.key.replace(/'/g,"\\'").replace(/\\/g,'\\\\').replace(/`/g,'\\`')}')">
+      <div style="display:flex;align-items:flex-start;width:100%">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span class="bet-badge ${statusCls}">${statusTh}</span>
+            <span style="font-size:12px;color:var(--dim)">${timeStr}</span>
+          </div>
+          <div style="font-size:14px;font-weight:700">${_dbFlag(bill.flag)}${bill.lottery_name}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${bill.round_name||''} · ${dateStr}</div>
+          ${bill.bill_no?`<div style="font-size:11px;font-family:monospace;color:var(--gold2);margin-top:3px;letter-spacing:.5px">${bill.bill_no}</div>`:''}
+          <div style="font-size:12px;color:var(--dim);margin-top:2px">${bill.bets.length} รายการ</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0;padding-left:10px">
+          <div style="font-size:12px;color:var(--muted)">รวมแทง</div>
+          <div style="font-size:16px;font-weight:800">฿${UI.formatMoney(totalAmt)}</div>
+          ${status==='win' ? `<div style="font-size:13px;color:#2ed573;font-weight:700">+฿${UI.formatMoney(totalWin)}</div>`
+            : status==='waiting' ? `<div style="font-size:12px;color:var(--gold)">อาจได้ ฿${UI.formatMoney(totalPay)}</div>` : ''}
+          <div class="bill-arrow" style="font-size:10px;color:var(--dim);margin-top:4px">${expanded?'▲':'▼'}</div>
+        </div>
+      </div>
+      <div class="bill-detail" style="display:${expanded?'block':'none'};width:100%;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+        ${detailRows}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function loadBetHistory(append=false){
+  const el = document.getElementById('mps-bets');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.bets=true; return; }
+  if(u?.is_agent){
+    if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const d    = await API.AgentAPI.bets({ limit:50, page:_mpBetsPage });
+      const rows = d.data || [];
+      _mpLoaded.bets = true;
+      if(!append && rows.length===0){ el.innerHTML='<div class="mp-empty"><div class="mp-empty-icon">🎫</div>ยังไม่มีประวัติการแทง</div>'; return; }
+      const html = rows.map(b=>`<div class="tx-row">
+        <div class="tx-icon">🎫</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:700">${b.lottery_name||b.round_id||'-'}</div>
+          <div style="font-size:12px;color:var(--muted)">${b.number||''} · ${b.bet_type||''}</div>
+          <div style="font-size:11px;color:var(--dim)">${UI.formatDate(b.created_at)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="tx-neg">-฿${UI.formatMoney(b.amount)}</div>
+          <div style="font-size:11px;color:${b.status==='won'?'var(--green)':b.status==='lost'?'var(--red)':'var(--dim)'}">${b.status==='won'?'✅ ถูก':b.status==='lost'?'❌ ไม่ถูก':b.status==='pending'?'⏳ รอผล':'➕ ยกเลิก'}</div>
+        </div>
+      </div>`).join('');
+      if(!append) el.innerHTML=html; else el.querySelector('.mp-load-more')?.remove(),el.insertAdjacentHTML('beforeend',html);
+      if(rows.length===50){
+        const btn=document.createElement('button'); btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+        btn.onclick=()=>{_mpBetsPage++;loadBetHistory(true);}; el.appendChild(btn);
+      }
+    }catch(e){ el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`; }
+    return;
+  }
+  if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.BetsAPI.history({ limit: 100, page: _mpBetsPage });
+    const rows = d.data || [];
+    _mpLoaded.bets = true;
+    if(!append && rows.length===0){
+      el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">🎫</div>ยังไม่มีประวัติการแทง</div>';
+      return;
+    }
+    const bills = _groupBetsIntoBills(rows);
+    const html  = _renderBills(bills);
+    if(!append) el.innerHTML = html;
+    else el.querySelector('.mp-load-more')?.remove(), el.insertAdjacentHTML('beforeend', html);
+    if(rows.length === 100){
+      const btn = document.createElement('button');
+      btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+      btn.onclick=()=>{ _mpBetsPage++; loadBetHistory(true); };
+      el.appendChild(btn);
+    }
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Transaction History ── */
+async function loadTxHistory(append=false){
+  const el = document.getElementById('mps-tx');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.tx=true; return; }
+  if(u?.is_agent){
+    if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const d    = await API.AgentAPI.walletTransactions({ limit:MP_PAGE_SIZE, page:_mpTxPage });
+      const rows = d.data || [];
+      _mpLoaded.tx = true;
+      const TX_AGENT_MAP = { deposit:'ฝากเงิน', withdraw:'ถอนเงิน', commission:'ค่าคอม', credit:'เครดิต', debit:'หักเงิน', transfer:'โอนค่าคอม' };
+      if(!append && rows.length===0){ el.innerHTML='<div class="mp-empty"><div class="mp-empty-icon">💳</div>ยังไม่มีประวัติธุรกรรม</div>'; return; }
+      const html = rows.map(t=>{
+        const pos = parseFloat(t.amount)>0;
+        return `<div class="tx-row">
+          <div class="tx-icon">${pos?'⬇️':'⬆️'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:14px;font-weight:600">${TX_AGENT_MAP[t.type]||t.type}</div>
+            <div style="font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||''}</div>
+            <div style="font-size:11px;color:var(--dim);margin-top:2px">${UI.formatDate(t.created_at)}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div class="${pos?'tx-pos':'tx-neg'}">${pos?'+':'-'}฿${UI.formatMoney(Math.abs(t.amount))}</div>
+            <div style="font-size:11px;color:var(--dim)">คงเหลือ ฿${UI.formatMoney(t.balance_after||0)}</div>
+          </div>
+        </div>`;
+      }).join('');
+      if(!append) el.innerHTML=html; else el.querySelector('.mp-load-more')?.remove(),el.insertAdjacentHTML('beforeend',html);
+      if(rows.length===MP_PAGE_SIZE){
+        const btn=document.createElement('button'); btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+        btn.onclick=()=>{_mpTxPage++;loadTxHistory(true);}; el.appendChild(btn);
+      }
+    }catch(e){ el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`; }
+    return;
+  }
+  if(!append) el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.TransactionsAPI.history({ limit: MP_PAGE_SIZE, page: _mpTxPage });
+    const rows = d.data || [];
+    _mpLoaded.tx = true;
+    if(!append && rows.length===0){
+      el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">💳</div>ยังไม่มีประวัติธุรกรรม</div>';
+      return;
+    }
+    const html = rows.map(t=>{
+      const pos = parseFloat(t.amount) > 0;
+      return `<div class="tx-row">
+        <div class="tx-icon">${TX_ICON_MAP[t.type]||'💰'}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600">${TX_TH_MAP[t.type]||t.type}</div>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${t.description||''}</div>
+          <div style="font-size:11px;color:var(--dim);margin-top:2px">${UI.formatDate(t.created_at)}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div class="${pos?'tx-pos':'tx-neg'}">${pos?'+':'-'}฿${UI.formatMoney(Math.abs(t.amount))}</div>
+          <div style="font-size:11px;color:var(--dim)">คงเหลือ ฿${UI.formatMoney(t.balance_after)}</div>
+        </div>
+      </div>`;
+    }).join('');
+    if(!append) el.innerHTML = html;
+    else el.querySelector('.mp-load-more')?.remove(), el.insertAdjacentHTML('beforeend', html);
+    if(rows.length === MP_PAGE_SIZE){
+      const btn = document.createElement('button');
+      btn.className='mp-load-more'; btn.textContent='โหลดเพิ่มเติม...';
+      btn.onclick=()=>{ _mpTxPage++; loadTxHistory(true); };
+      el.appendChild(btn);
+    }
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Notifications ── */
+async function loadNotifications(){
+  const el = document.getElementById('mps-notif');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.notif=true; return; }
+  if(u?.is_agent){ el.innerHTML = _portalBtn('/agent/', 'Agent Portal', 'linear-gradient(135deg,#1b5e20,#2e7d32)'); _mpLoaded.notif=true; return; }
+  el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.MemberAPI.getNotifications({ limit:50 });
+    const rows = d.data || [];
+    _mpLoaded.notif = true;
+    // mark as read in background
+    if(rows.some(n=>!n.is_read)) API.MemberAPI.getNotifications && fetch('/api/members/notifications/read',{method:'PATCH',headers:{'Authorization':'Bearer '+Token.getMember()}}).catch(()=>{});
+    // hide dot
+    const dot = document.getElementById('notif-dot');
+    if(dot) dot.style.display='none';
+    if(rows.length===0){
+      el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">🔔</div>ยังไม่มีการแจ้งเตือน</div>';
+      return;
+    }
+    el.innerHTML = rows.map(n=>`
+      <div class="notif-row${!n.is_read?' unread':''}">
+        <div style="font-size:14px;font-weight:700;margin-bottom:4px">${n.title||'แจ้งเตือน'}</div>
+        <div style="font-size:13px;color:var(--muted);line-height:1.5">${n.body||n.message||''}</div>
+        <div style="font-size:11px;color:var(--dim);margin-top:6px">${UI.formatDate(n.created_at)}</div>
+      </div>`).join('');
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Referral Panel ── */
+async function loadReferralPanel(){
+  const el = document.getElementById('mps-refer');
+  const u  = window.currentUser;
+  if(u?.is_admin){ el.innerHTML = _portalBtn('/admin/', 'Admin Panel', 'linear-gradient(135deg,#1a237e,#283593)'); _mpLoaded.refer=true; return; }
+  if(u?.is_agent){
+    el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+    try{
+      const [dash, aff] = await Promise.all([API.AgentAPI.dashboard(), API.AgentAPI.affiliate()]);
+      const d = dash.data; const affCode = aff.data?.aff_code || '';
+      const affLink = affCode ? `${location.origin}/?aff=${affCode}` : '-';
+      el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:22px;font-weight:900;color:#fff">${d.member_count||0}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">สมาชิกทั้งหมด</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:22px;font-weight:900;color:#4ade80">${d.new_members_today||0}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">สมาชิกใหม่วันนี้</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:18px;font-weight:800;color:var(--gold)">฿${UI.formatMoney(d.commission_this_month||0)}</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">ค่าคอมเดือนนี้</div>
+          </div>
+          <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;text-align:center">
+            <div style="font-size:18px;font-weight:800;color:#a5d6a7">${d.commission_rate||0}%</div>
+            <div style="font-size:11px;color:#888;margin-top:2px">อัตราค่าคอม</div>
+          </div>
+        </div>
+        <!-- Affiliate link -->
+        ${affCode ? `
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px">
+          <div style="font-size:12px;color:#888;margin-bottom:6px">🔗 ลิ้งค์แนะนำ</div>
+          <div style="font-size:11px;color:#a5d6a7;word-break:break-all;margin-bottom:8px">${affLink}</div>
+          <button onclick="navigator.clipboard.writeText('${affLink}').then(()=>toast('คัดลอกแล้ว',''))" style="padding:7px 16px;background:rgba(67,160,71,.2);border:1px solid rgba(67,160,71,.4);border-radius:8px;color:#a5d6a7;font-size:12px;font-weight:700;cursor:pointer">คัดลอกลิ้งค์</button>
+        </div>` : ''}
+        <!-- Go to portal -->
+        <a href="/agent/" style="display:flex;align-items:center;justify-content:center;gap:8px;padding:12px;background:linear-gradient(135deg,#1b5e20,#2e7d32);border:1px solid #43a047;border-radius:12px;color:#fff;font-size:13px;font-weight:700;text-decoration:none">
+          🎯 ดูรายชื่อสมาชิกใน Agent Portal
+        </a>
+      </div>`;
+      _mpLoaded.refer = true;
+    }catch(e){ el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`; }
+    return;
+  }
+  el.innerHTML = '<div class="mp-empty"><div class="mp-empty-icon">⏳</div>กำลังโหลด...</div>';
+  try{
+    const d    = await API.MemberAPI.getReferrals();
+    const data = d.data || {};
+    _mpLoaded.refer = true;
+    const code        = data.member_code || '';
+    const rate        = parseFloat(data.referral_rate || 0);
+    const refs        = data.referrals || [];
+    const totalComm   = parseFloat(data.total_commission || 0);
+    const monthComm   = parseFloat(data.commission_this_month || 0);
+    const commBal     = parseFloat(data.commission_balance || 0);
+    const recent      = data.recent_commissions || [];
+    const refLink     = `${location.origin}/?ref=${encodeURIComponent(code)}`;
+
+    const recentRows = recent.length === 0
+      ? `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px">ยังไม่มีค่าคอม</td></tr>`
+      : recent.map(c=>`<tr>
+          <td style="font-size:11px;color:var(--muted)">${(c.created_at||'').slice(5,16).replace('T',' ')}</td>
+          <td style="font-size:12px">${c.from_name||'#'+c.from_member_id}</td>
+          <td style="color:var(--text)">฿${UI.formatMoney(c.bet_amount)}</td>
+          <td style="color:var(--green);font-weight:700">+฿${UI.formatMoney(c.amount)}</td>
+        </tr>`).join('');
+
+    el.innerHTML = `
+      <!-- อัตราค่าคอม -->
+      ${rate > 0
+        ? `<div style="background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.25);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:13px;font-weight:700;color:var(--green)">🎉 รับค่าคอม ${rate}% ต่อยอดแทงของทุกคนที่คุณชวนมา</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px">ทุกครั้งที่สมาชิกที่คุณชวนมาแทงหวย คุณจะได้รับค่าคอมทันที</div>
+           </div>`
+        : `<div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+            <div style="font-size:13px;color:var(--muted)">ระบบแนะนำยังไม่เปิดใช้งาน</div>
+           </div>`
+      }
+      <!-- กระเป๋าค่าคอม (พร้อมปุ่มโอน) -->
+      <div style="background:rgba(212,160,23,.08);border:1px solid rgba(212,160,23,.3);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">💰 กระเป๋าค่าคอม (รอโอน)</div>
+            <div style="font-size:26px;font-weight:900;color:var(--gold)" id="comm-bal-display">฿${UI.formatMoney(commBal)}</div>
+          </div>
+          <button onclick="openCommTransferModal()"
+            style="padding:10px 18px;background:var(--gold);border:none;border-radius:9px;color:#000;font-weight:800;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif">
+            💸 โอนเข้ากระเป๋าหลัก
+          </button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px">ค่าคอมจะสะสมที่นี่ก่อน กดปุ่มเพื่อโอนเข้ายอดเงินหลัก</div>
+      </div>
+      <!-- สรุปยอด -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+        <div style="background:var(--card2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">ค่าคอมเดือนนี้</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold)">฿${UI.formatMoney(monthComm)}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">ค่าคอมสะสมรวม</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold)">฿${UI.formatMoney(totalComm)}</div>
+        </div>
+      </div>
+      <!-- ลิ้งแนะนำ -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:8px">🔗 ลิ้งแนะนำของคุณ</div>
+        <div style="background:var(--card);border-radius:8px;padding:10px 12px;font-size:12px;color:var(--gold2);word-break:break-all;margin-bottom:10px">${refLink}</div>
+        <button onclick="navigator.clipboard.writeText('${refLink}').then(()=>this.textContent='✅ คัดลอกแล้ว!').catch(()=>{});setTimeout(()=>this.textContent='📋 คัดลอกลิ้ง',2000)"
+          style="width:100%;padding:10px;background:rgba(212,160,23,.12);border:1px solid rgba(212,160,23,.4);border-radius:8px;color:var(--gold2);font-weight:700;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          📋 คัดลอกลิ้ง
+        </button>
+        <div style="font-size:11px;color:var(--muted);margin-top:8px;text-align:center">หรือแชร์รหัส <b style="color:var(--text)">${code}</b> ให้เพื่อนกรอกตอนสมัคร</div>
+      </div>
+      <!-- สมาชิกที่ชวนมา -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:10px">👥 สมาชิกที่ชวนมา (${refs.length} คน)</div>
+        ${refs.length === 0
+          ? `<div style="text-align:center;color:var(--muted);padding:16px 0;font-size:13px">ยังไม่มีสมาชิกที่แนะนำ</div>`
+          : `<div style="display:flex;flex-direction:column;gap:8px;max-height:200px;overflow-y:auto">
+              ${refs.map(r=>`
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--card);border-radius:8px">
+                  <span style="font-size:13px;font-weight:600">${r.name}</span>
+                  <span style="font-size:11px;color:var(--muted)">${(r.created_at||'').slice(0,10)}</span>
+                </div>`).join('')}
+             </div>`
+        }
+      </div>
+      <!-- ค่าคอมล่าสุด -->
+      <div style="background:var(--card2);border-radius:12px;padding:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold);margin-bottom:10px">💰 ค่าคอมล่าสุด</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead><tr style="color:var(--muted);font-size:11px">
+              <th style="padding:4px 8px;text-align:left;white-space:nowrap">วันที่</th>
+              <th style="padding:4px 8px;text-align:left">สมาชิก</th>
+              <th style="padding:4px 8px;text-align:right">ยอดแทง</th>
+              <th style="padding:4px 8px;text-align:right">ได้รับ</th>
+            </tr></thead>
+            <tbody>${recentRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }catch(e){
+    el.innerHTML=`<div class="mp-empty"><div class="mp-empty-icon">⚠️</div>${e.message}</div>`;
+  }
+}
+
+/* ── Commission Transfer Modal ── */
+function openCommTransferModal(){
+  let modal = document.getElementById('comm-transfer-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'comm-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:360px;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0;font-size:16px">💸 โอนค่าคอมเข้ากระเป๋าหลัก</h3>
+          <button onclick="document.getElementById('comm-transfer-modal').remove()"
+            style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center">
+          <div style="font-size:11px;color:var(--muted)">ยอดค่าคอมที่มี</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold)" id="ct-available">฿0.00</div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">จำนวนที่ต้องการโอน (บาท)</label>
+          <div style="display:flex;gap:8px">
+            <input id="ct-amount" type="number" min="1" step="0.01" placeholder="ระบุจำนวน"
+              style="flex:1;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:'Sarabun',sans-serif">
+            <button onclick="document.getElementById('ct-amount').value=document.getElementById('ct-available').dataset.raw||0"
+              style="padding:10px 14px;background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.4);border-radius:8px;color:var(--gold2);font-size:12px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;white-space:nowrap">ทั้งหมด</button>
+          </div>
+        </div>
+        <button onclick="doCommTransfer()"
+          style="width:100%;padding:12px;background:var(--gold);border:none;border-radius:10px;color:#000;font-weight:800;font-size:15px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          ✅ ยืนยันโอน
+        </button>
+        <div id="ct-msg" style="margin-top:10px;text-align:center;font-size:13px;min-height:20px"></div>
+      </div>`;
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+  // fill current balance
+  const avEl = document.getElementById('ct-available');
+  const commBalEl = document.getElementById('comm-bal-display');
+  const raw = commBalEl ? parseFloat(commBalEl.textContent.replace(/[^\d.]/g,'')) || 0 : 0;
+  if(avEl){ avEl.textContent = '฿' + raw.toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); avEl.dataset.raw = raw; }
+  document.getElementById('comm-transfer-modal').style.display = 'flex';
+}
+
+async function doCommTransfer(){
+  const amount = parseFloat(document.getElementById('ct-amount')?.value);
+  const msgEl = document.getElementById('ct-msg');
+  if(!amount || amount <= 0){ if(msgEl) msgEl.innerHTML = '<span style="color:var(--red)">ระบุจำนวนเงิน</span>'; return; }
+  if(msgEl) msgEl.innerHTML = '⏳ กำลังโอน...';
+  try{
+    const d = await API.MemberAPI.transferCommission(amount);
+    if(msgEl) msgEl.innerHTML = `<span style="color:var(--green)">✅ ${d.message}</span>`;
+    // รีเฟรชยอดค่าคอมและกระเป๋า
+    setTimeout(()=>{
+      document.getElementById('comm-transfer-modal')?.remove();
+      _mpLoaded.refer = false;
+      loadReferralPanel();
+      loadWallet?.();
+    }, 1200);
+  }catch(e){
+    if(msgEl) msgEl.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
+
+/* ── Close panel on backdrop click ── */
+document.getElementById('mpanel-ov')?.addEventListener('click', function(e){ if(e.target===this) closeMPanel(); });
+
+/* ─── LINE Widget collapse/expand ─── */
+function toggleLineWidget(){
+  const w = document.getElementById('line-widget');
+  if(!w) return;
+  const isCollapsed = w.classList.toggle('collapsed');
+  localStorage.setItem('line_widget_collapsed', isCollapsed ? '1' : '0');
+  // update collapse btn icon
+  const btn = w.querySelector('.line-widget-collapse-btn');
+  if(btn) btn.textContent = isCollapsed ? '›' : '‹';
+}
+function initLineWidgetState(){
+  const w = document.getElementById('line-widget');
+  if(!w) return;
+  const collapsed = localStorage.getItem('line_widget_collapsed') === '1';
+  if(collapsed){ w.classList.add('collapsed'); const btn = w.querySelector('.line-widget-collapse-btn'); if(btn) btn.textContent = '›'; }
+}
+
+/* ─── Site Settings (branding + LINE) ─── */
+async function loadLineContact(){
+  try{
+    const d = await API.PublicAPI.getSettings();
+    const s = d.data || {};
+    // LINE widget
+    const lineId  = s.line_id  || '@tigerlotto';
+    const lineUrl = s.line_url || `https://line.me/R/ti/p/${lineId}`;
+    const lineQr  = s.line_qr_url || '';
+    const idEl  = document.getElementById('line-id-display');
+    const btnEl = document.getElementById('line-link-btn');
+    if(idEl)  idEl.textContent = lineId;
+    if(btnEl) btnEl.href = lineUrl;
+    // QR code
+    const qrWrap = document.getElementById('line-qr-wrap');
+    const qrImg  = document.getElementById('line-qr-img');
+    if(qrWrap && qrImg){
+      if(lineQr){ qrImg.src = lineQr; qrWrap.style.display = 'block'; }
+      else { qrWrap.style.display = 'none'; }
+    }
+    // Branding
+    applySiteSettings(s);
+  }catch(e){}
+}
+function applySiteSettings(s){
+  const name    = s.site_name    || 'TigerLotto';
+  const tagline = s.site_tagline || 'OFFICIAL';
+  const logoUrl = s.site_logo_url || '';
+  // update all name instances
+  document.querySelectorAll('[id^="site-name"]').forEach(el => el.textContent = name);
+  // update tagline
+  const tagEl = document.getElementById('site-tagline-hdr');
+  if(tagEl) tagEl.textContent = tagline;
+  // update page title
+  document.title = `${name} — หวยออนไลน์อันดับ 1`;
+  // logo: show img or svg
+  const imgEl = document.getElementById('site-logo-img');
+  const svgEl = document.getElementById('site-logo-svg');
+  if(logoUrl && imgEl && svgEl){
+    imgEl.src = logoUrl; imgEl.style.display = 'block';
+    svgEl.style.display = 'none';
+  } else if(imgEl && svgEl){
+    imgEl.style.display = 'none'; svgEl.style.display = '';
+  }
+  // ── Hero text ──────────────────────────────────
+  const badgeEl  = document.getElementById('hero-badge-el');
+  const title1El = document.getElementById('hero-title1-el');
+  const title2El = document.getElementById('hero-title2-el');
+  const cta1Btn  = document.getElementById('hero-cta1-btn');
+  if(badgeEl  && s.hero_badge)  badgeEl.textContent  = s.hero_badge;
+  if(title1El && s.hero_title1) title1El.textContent = s.hero_title1;
+  if(title2El && s.hero_title2) title2El.textContent = s.hero_title2;
+  if(cta1Btn  && s.hero_cta1)  cta1Btn.textContent  = s.hero_cta1;
+  // ── Ticker custom items ─────────────────────────
+  if(s.ticker_items){
+    window._customTickerItems = s.ticker_items.split('\n').map(t=>t.trim()).filter(Boolean);
+  }
+}
+
+async function init(){
+  const user = await initMemberSession();
+  updateNavbar(user);
+  // Load all real-data sections in parallel
+  loadStats();
+  loadLotteryCards();
+  loadHeroResult();
+  loadResultsHistory();
+  loadTicker();
+  loadLineContact();
+  initLineWidgetState();
+  loadPayoutRatesTable();
+  // ── Affiliate link tracking ──
+  _initAffiliateTracking();
+}
+
+// ── ตารางอัตราการจ่ายรางวัล — โหลดจาก API ──────────────────────────────────
+async function loadPayoutRatesTable(){
+  try {
+    const d = await API.PublicAPI.payoutRates();
+    const rows = d.data || [];
+    if (!rows.length) return;
+    const tbody = document.getElementById('payout-rates-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = rows.map((r, i) => {
+      const cls = i === 0 ? ' class="p1"' : '';
+      return `<tr>
+        <td${cls}>${r.label||''}</td>
+        <td>${r.prize_count||'-'}</td>
+        <td${cls}>${r.prize_value||''}</td>
+        <td${cls}>${r.payout_display||''}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    // silent — hardcoded fallback already visible
+  }
+}
+
+function _initAffiliateTracking(){
+  // อ่าน ?aff= และ ?ref= จาก URL หรือ sessionStorage
+  const urlParams  = new URLSearchParams(window.location.search);
+  const affFromUrl = urlParams.get('aff');
+  const refFromUrl = urlParams.get('ref'); // member referral code
+
+  if(affFromUrl){
+    sessionStorage.setItem('aff_code', affFromUrl);
+    sessionStorage.removeItem('ref_code'); // aff takes priority
+  }
+  if(refFromUrl && !affFromUrl){
+    sessionStorage.setItem('ref_code', refFromUrl);
+    // pre-fill ช่องรหัสผู้แนะนำ
+    const refInp = document.getElementById('r-ref');
+    if(refInp) refInp.value = refFromUrl;
+  }
+  if(affFromUrl || refFromUrl){
+    const cleanUrl = window.location.pathname + (window.location.hash || '');
+    window.history.replaceState({}, '', cleanUrl);
+  }
+
+  const affCode = affFromUrl || sessionStorage.getItem('aff_code');
+  if(!affCode) return;
+  // ดึงชื่อ Agent แบบ async แล้ว inject ลงฟอร์ม
+  fetch(`/api/agent/aff/${encodeURIComponent(affCode)}`)
+    .then(r => r.json())
+    .then(d => {
+      if(!d.success) return;
+      // เซ็ตค่าใน hidden field
+      const hiddenEl = document.getElementById('r-aff-code');
+      if(hiddenEl) hiddenEl.value = affCode;
+      // เก็บชื่อ agent สำหรับ banner
+      sessionStorage.setItem('aff_agent_name', d.data.name);
+      // ซ่อนช่องรหัสผู้แนะนำ (ไม่จำเป็นแล้ว)
+      const refWrap = document.getElementById('r-ref-wrap');
+      if(refWrap) refWrap.style.display = 'none';
+    })
+    .catch(()=>{
+      // aff_code ไม่ถูกต้อง ลบออก
+      sessionStorage.removeItem('aff_code');
+      sessionStorage.removeItem('aff_agent_name');
+    });
+}
+
+function _showAffBanner(){
+  const affCode  = sessionStorage.getItem('aff_code');
+  const affName  = sessionStorage.getItem('aff_agent_name');
+  const banner   = document.getElementById('aff-banner');
+  const nameEl   = document.getElementById('aff-agent-name');
+  const refWrap  = document.getElementById('r-ref-wrap');
+  const hiddenEl = document.getElementById('r-aff-code');
+  if(affCode && affName && banner){
+    if(hiddenEl) hiddenEl.value = affCode;
+    nameEl.textContent = affName;
+    banner.style.display = 'block';
+    if(refWrap) refWrap.style.display = 'none';
+  }
+}
+
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click',function(e){if(e.target===this)this.classList.remove('on');});
+});
+
+// ══════════════════════════════════════════════
+//  PROMOTIONS — list / claim / my-progress
+// ══════════════════════════════════════════════
+
+const APPLY_TYPE_LABEL = { new_member:'สมาชิกใหม่', deposit:'โบนัสเติมเงิน', manual:'รับได้ทุกเมื่อ' };
+const PROMO_BADGE      = { new_member:'🎁', deposit:'💰', cashback:'💸', referral:'👥', manual:'⭐' };
+
+// cache ข้อมูล
+let _allPromos = [];
+let _myPromos  = [];
+
+// ── แสดงรายการโปรโมชั่นทั้งหมดจาก API ──────────────────────────
+async function loadAllPromos() {
+  const grid = document.getElementById('promo-grid-all');
+  if (!grid) return;
+  try {
+    const data = await API.MemberAPI.listPromotions();
+    const list = data.promotions || data || [];
+    _allPromos = list;
+    if (!list.length) {
+      grid.innerHTML = '<div style="color:var(--muted);padding:20px 0">ยังไม่มีโปรโมชั่นในขณะนี้</div>';
+      return;
+    }
+    grid.innerHTML = list.map(p => buildPromoCard(p)).join('');
+  } catch(e) {
+    grid.innerHTML = '<div style="color:var(--muted);padding:20px 0">ไม่สามารถโหลดโปรโมชั่นได้</div>';
+  }
+}
+
+function buildPromoCard(p) {
+  const badge     = PROMO_BADGE[p.type] || '🎁';
+  const typeLabel = APPLY_TYPE_LABEL[p.apply_type] || p.apply_type || '';
+  const hasTO     = p.turnover_multiplier && parseFloat(p.turnover_multiplier) > 0;
+  const toLine    = hasTO ? `<div style="font-size:12px;color:var(--muted)">เทิร์น x${p.turnover_multiplier}</div>` : '';
+  const maxLine   = p.max_withdraw_bonus ? `<div style="font-size:12px;color:var(--muted)">ถอนสูงสุด ฿${fmtBaht(p.max_withdraw_bonus)}</div>` : '';
+  const loginBtn  = `<button class="promo-btn-claim" onclick="promptLoginForPromo()">เข้าสู่ระบบเพื่อรับโปรฯ</button>`;
+  const claimBtn  = `<button class="promo-btn-claim" id="promo-claim-${p.id}" onclick="claimPromo(${p.id})">รับโปรโมชั่น</button>`;
+  const isLoggedIn = !!localStorage.getItem('token');
+  return `
+  <div class="promo-card" id="promo-card-${p.id}">
+    <div class="promo-badge">${badge}</div>
+    <div class="promo-title">${p.name}</div>
+    <p class="promo-desc">${p.description || ''}</p>
+    ${toLine}${maxLine}
+    <div style="margin-top:6px"><span class="promo-tag">${typeLabel}</span></div>
+    ${isLoggedIn ? claimBtn : loginBtn}
+  </div>`;
+}
+
+// ── รับโปรโมชั่น ─────────────────────────────────────────────────
+async function claimPromo(promoId) {
+  const btn = document.getElementById(`promo-claim-${promoId}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'กำลังดำเนินการ…'; }
+  try {
+    const res = await API.MemberAPI.claimPromotion(promoId);
+    showToast(`✅ รับโปรโมชั่นสำเร็จ! โบนัส ฿${fmtBaht(res.bonus_amount||0)} เข้ากระเป๋าแล้ว`);
+    // reload my-promos + refresh balance
+    await loadMyPromos();
+    // แสดง tab "โปรฯ ของฉัน"
+    document.getElementById('my-promo-tab-btn').style.display = '';
+    switchPromoTab('my', document.querySelector('.promo-tab:not(.active)'));
+    // refresh wallet
+    const walletData = await API.MemberAPI.getWallet().catch(()=>null);
+    if (walletData) updateNavBalance(walletData.balance);
+  } catch(e) {
+    showToast('❌ ' + (e.message || 'ไม่สามารถรับโปรโมชั่นได้'), 'error');
+    if (btn) { btn.disabled = false; btn.textContent = 'รับโปรโมชั่น'; }
+  }
+}
+
+function promptLoginForPromo() {
+  showToast('กรุณาเข้าสู่ระบบก่อนรับโปรโมชั่น');
+  document.querySelector('[onclick="openModal(\'login-modal\')"]')?.click();
+}
+
+// ── โปรโมชั่นของฉัน (progress เทิร์น) ───────────────────────────
+async function loadMyPromos() {
+  const wrap = document.getElementById('promo-grid-my');
+  if (!wrap) return;
+  try {
+    const data = await API.MemberAPI.myPromotions();
+    const list = data.promotions || data || [];
+    _myPromos = list;
+    if (!list.length) {
+      wrap.innerHTML = '<div style="color:var(--muted);padding:20px 0">คุณยังไม่มีโปรโมชั่นที่ active อยู่</div>';
+      return;
+    }
+    wrap.innerHTML = list.map(mp => buildMyPromoCard(mp)).join('');
+  } catch(e) {
+    wrap.innerHTML = '<div style="color:var(--muted);padding:20px 0">ไม่สามารถโหลดโปรโมชั่นของคุณได้</div>';
+  }
+}
+
+function buildMyPromoCard(mp) {
+  const pct       = mp.required_turnover > 0
+    ? Math.min(100, Math.round((mp.current_turnover / mp.required_turnover) * 100))
+    : 100;
+  const statusMap = { pending:'🟡 กำลังเทิร์น', completed:'✅ เสร็จสิ้น', cancelled:'❌ ยกเลิก', expired:'⏰ หมดอายุ' };
+  const statusCls = { pending:'pending', completed:'completed', cancelled:'cancelled', expired:'cancelled' };
+  const expLine   = mp.expires_at
+    ? `<div style="font-size:12px;color:var(--muted)">หมดอายุ: ${new Date(mp.expires_at).toLocaleDateString('th-TH')}</div>`
+    : '';
+  const maxLine   = mp.max_withdraw_bonus
+    ? `<div style="font-size:12px;color:var(--muted)">ถอนโบนัสได้สูงสุด ฿${fmtBaht(mp.max_withdraw_bonus)}</div>`
+    : '';
+  const cancelBtn = mp.status === 'pending'
+    ? `<button style="margin-top:8px;padding:6px 14px;background:rgba(255,80,80,.12);border:1px solid rgba(255,80,80,.3);border-radius:8px;color:#f97474;font-size:12px;cursor:pointer"
+        onclick="cancelMyPromo(${mp.id})">ยกเลิกโปรฯ</button>`
+    : '';
+  const needTO  = mp.required_turnover > 0;
+  const progressHtml = needTO ? `
+    <div class="promo-progress-wrap">
+      <div class="promo-progress-label">
+        <span>เทิร์น ฿${fmtBaht(mp.current_turnover)} / ฿${fmtBaht(mp.required_turnover)}</span>
+        <span>${pct}%</span>
+      </div>
+      <div class="promo-progress-bar">
+        <div class="promo-progress-fill" style="width:${pct}%"></div>
+      </div>
+    </div>` : '<div style="font-size:12px;color:var(--muted)">ไม่มีเงื่อนไขเทิร์น</div>';
+
+  return `
+  <div class="promo-card" id="my-promo-${mp.id}">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div class="promo-title" style="font-size:16px">${mp.name || mp.promotion_name || 'โปรโมชั่น'}</div>
+        <div style="font-size:13px;color:var(--muted)">โบนัส ฿${fmtBaht(mp.bonus_amount)}</div>
+      </div>
+      <span class="promo-status-badge ${statusCls[mp.status]||'pending'}">${statusMap[mp.status]||mp.status}</span>
+    </div>
+    ${progressHtml}
+    ${maxLine}${expLine}
+    ${cancelBtn}
+  </div>`;
+}
+
+// ── ยกเลิกโปรโมชั่น ──────────────────────────────────────────────
+async function cancelMyPromo(memberPromoId) {
+  if (!confirm('ยืนยันยกเลิกโปรโมชั่น? โบนัสจะถูกหักออกจากกระเป๋า')) return;
+  try {
+    await API.MemberAPI.cancelPromotion(memberPromoId);
+    showToast('ยกเลิกโปรโมชั่นเรียบร้อย');
+    await loadMyPromos();
+    const walletData = await API.MemberAPI.getWallet().catch(()=>null);
+    if (walletData) updateNavBalance(walletData.balance);
+  } catch(e) {
+    showToast('❌ ' + (e.message || 'ไม่สามารถยกเลิกได้'), 'error');
+  }
+}
+
+// ── switch tab ───────────────────────────────────────────────────
+function switchPromoTab(tab, btn) {
+  document.querySelectorAll('.promo-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  document.getElementById('promo-all-list').style.display = tab === 'all' ? '' : 'none';
+  document.getElementById('promo-my-list').style.display  = tab === 'my'  ? '' : 'none';
+  if (tab === 'my') loadMyPromos();
+}
+
+// ── helper: format บาท ───────────────────────────────────────────
+function fmtBaht(n) {
+  return parseFloat(n||0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// ── helper: show toast ───────────────────────────────────���───────
+function showToast(msg, type = 'info') {
+  let toast = document.getElementById('_toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = '_toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a1a1a;border:1px solid rgba(212,160,23,.4);color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;z-index:9999;transition:.3s;max-width:90vw;text-align:center';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  toast.style.borderColor = type === 'error' ? 'rgba(255,80,80,.5)' : 'rgba(212,160,23,.4)';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { toast.style.opacity = '0'; }, 3200);
+}
+
+// ── helper: update nav balance ───────────────────────────────────
+function updateNavBalance(balance) {
+  const el = document.getElementById('nav-balance');
+  if (el) el.textContent = fmtBaht(balance);
+}
+
+// ── init โปรโมชั่น ── เรียกหลัง login + on page load ────────────
+async function initPromoSection() {
+  await loadAllPromos();
+  // ถ้า login อยู่ → โหลด my-promos ด้วย และแสดง tab
+  if (localStorage.getItem('token')) {
+    document.getElementById('my-promo-tab-btn').style.display = '';
+    const myData = await API.MemberAPI.myPromotions().catch(() => ({ promotions: [] }));
+    const myList = myData.promotions || myData || [];
+    if (myList.length > 0) {
+      _myPromos = myList;
+      // pre-render silently (tab switch จะ reload อีกครั้ง)
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+// END PROMOTIONS
+// ══════════════════════════════════════════════
+
+init();
+// เรียก promo section หลัง init (ไม่บล็อก UI)
+initPromoSection().catch(() => {});
+</script>
+</body>
+</html>

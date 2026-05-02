@@ -1,0 +1,648 @@
+const router = require('express').Router();
+const { body, validationResult } = require('express-validator');
+const { query, transaction } = require('../config/db');
+const { authAdmin, optionalAuth } = require('../middleware/auth');
+const rbac = require('../middleware/rbac');
+const { v4: uuidv4 } = require('uuid');
+
+// Lazy-load services (avoid circular dep at startup)
+let _roundMgr = null;
+let _fetcher   = null;
+const getRoundMgr = () => _roundMgr || (_roundMgr = require('../services/roundManager'));
+const getFetcher  = () => _fetcher  || (_fetcher  = require('../services/lotteryFetcher'));
+
+// ════════════════════════════════════
+//  PUBLIC: Lottery types + rounds
+// ════════════════════════════════════
+
+// GET /api/lottery/types — all active lottery types
+router.get('/types', async (req, res) => {
+  const rows = await query(
+    'SELECT id,code,name,flag,status,min_bet,max_bet,rate_3top,rate_3tod,rate_2top,rate_2bot,rate_run_top,rate_run_bot FROM lottery_types ORDER BY sort_order');
+  res.json({ success: true, data: rows });
+});
+
+// GET /api/lottery/types/:id
+router.get('/types/:id', async (req, res) => {
+  const [lt] = await query('SELECT * FROM lottery_types WHERE id=?', [req.params.id]);
+  if (!lt) return res.status(404).json({ success: false, message: 'ไม่พบประเภทหวย' });
+  const rounds = await query(
+    'SELECT id,uuid,round_name,draw_date,close_at,status,total_bet,bet_count FROM lottery_rounds WHERE lottery_id=? ORDER BY id DESC LIMIT 10',
+    [lt.id]);
+  res.json({ success: true, data: { ...lt, rounds } });
+});
+
+// GET /api/lottery/rounds — open + upcoming rounds (for buying / display)
+router.get('/rounds', async (req, res) => {
+  // Auto-transition: upcoming → open เมื่อ open_at ถึงแล้ว
+  await query(
+    `UPDATE lottery_rounds SET status='open'
+     WHERE status='upcoming' AND open_at IS NOT NULL
+       AND open_at <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)`
+  ).catch(()=>{});
+  const rows = await query(
+    `SELECT lr.id,lr.uuid,lr.round_name,lr.draw_date,lr.open_at,lr.close_at,lr.status,lr.total_bet,lr.bet_count,
+            lt.id as lottery_id,lt.name as lottery_name,lt.flag,lt.code,
+            lt.rate_3top,lt.rate_3tod,lt.rate_2top,lt.rate_2bot,lt.rate_run_top,lt.rate_run_bot,
+            lt.min_bet,lt.max_bet
+     FROM lottery_rounds lr
+     JOIN lottery_types lt ON lr.lottery_id=lt.id
+     WHERE lr.status IN ('open','upcoming') AND lt.status='open'
+       AND lr.close_at > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 7 HOUR)
+     ORDER BY lr.status='open' DESC, lr.close_at ASC`);
+  res.json({ success: true, data: rows });
+});
+
+// GET /api/lottery/results — recent results
+router.get('/results', async (req, res) => {
+  const { lottery_id, limit = 10, latest_per_type } = req.query;
+
+  // ─── latest_per_type=1 : คืน latest result ของแต่ละ lottery type ───
+  // ใช้สำหรับสร้าง filter tabs บนหน้าผลรางวัล
+  // ใช้ GROUP BY + MAX(id) แทน correlated subquery เพื่อรองรับทุก MySQL version
+  if (latest_per_type === '1') {
+    // ใช้ MAX(draw_date) ก่อน แล้วค่อย MAX(id) เพื่อให้ได้ผลล่าสุดตามวันที่ออกรางวัล
+    // ป้องกัน seed-history ที่สร้าง round_id ใหม่สูงกว่าผลจริงแต่ draw_date เก่ากว่า
+    const rows = await query(
+      `SELECT lt.code, lt.name as lottery_name, lt.flag,
+              lr2.id, lr2.round_name, lr2.draw_date,
+              res.prize_1st, res.prize_last_2, res.prize_2bot,
+              res.prize_last_3, res.prize_front_3, res.announced_at
+       FROM lottery_types lt
+       JOIN (
+         SELECT lr.lottery_id, MAX(lr.id) AS max_id
+         FROM lottery_rounds lr
+         INNER JOIN (
+           SELECT lottery_id, MAX(draw_date) AS max_date
+           FROM lottery_rounds
+           WHERE status = 'announced'
+           GROUP BY lottery_id
+         ) ld ON lr.lottery_id = ld.lottery_id AND lr.draw_date = ld.max_date
+         WHERE lr.status = 'announced'
+         GROUP BY lr.lottery_id
+       ) latest ON latest.lottery_id = lt.id
+       JOIN lottery_rounds lr2 ON lr2.id = latest.max_id
+       JOIN lottery_results res ON res.round_id = lr2.id
+       ORDER BY lt.id`
+    );
+    return res.json({ success: true, data: rows });
+  }
+
+  const lim = Math.min(parseInt(limit) || 10, 200);
+  const where = []; const params = [];
+  where.push("lr.status='announced'");
+  if (lottery_id) { where.push('lr.lottery_id=?'); params.push(lottery_id); }
+  const rows = await query(
+    `SELECT lr.id,lr.round_name,lr.draw_date,lt.name as lottery_name,lt.flag,lt.code,
+            res.prize_1st,res.prize_last_2,res.prize_2bot,res.prize_last_3,res.prize_front_3,res.announced_at
+     FROM lottery_rounds lr
+     JOIN lottery_types lt ON lr.lottery_id=lt.id
+     LEFT JOIN lottery_results res ON lr.id=res.round_id
+     WHERE ${where.join(' AND ')}
+     ORDER BY lr.draw_date DESC, lr.id DESC LIMIT ${lim}`, params);
+  res.json({ success: true, data: rows });
+});
+
+// GET /api/lottery/results/:roundId — full result detail
+router.get('/results/:roundId', async (req, res) => {
+  const [res_] = await query(
+    `SELECT lr.*,lt.name as lottery_name,lt.flag,
+            r.prize_1st,r.prize_2nd,r.prize_3rd,r.prize_4th,r.prize_5th,
+            r.prize_near_1st,r.prize_front_3,r.prize_last_3,r.prize_last_2,r.prize_2bot,r.announced_at
+     FROM lottery_rounds lr
+     JOIN lottery_types lt ON lr.lottery_id=lt.id
+     LEFT JOIN lottery_results r ON lr.id=r.round_id
+     WHERE lr.id=?`, [req.params.roundId]);
+  if (!res_) return res.status(404).json({ success: false, message: 'ไม่พบงวดนี้' });
+  res.json({ success: true, data: res_ });
+});
+
+// GET /api/lottery/stats — public site stats
+router.get('/stats', async (req, res) => {
+  const [members]  = await query('SELECT COUNT(*) c FROM members WHERE status="active"');
+  const [payout]   = await query('SELECT COALESCE(SUM(win_amount),0) total FROM bets WHERE status="win"');
+  const [rounds]   = await query('SELECT COUNT(*) c FROM lottery_rounds WHERE status="open"');
+  res.json({
+    success      : true,
+    member_count : members.c,
+    total_payout : payout.total,
+    active_rounds: rounds.c,
+  });
+});
+
+// POST /api/lottery/check — ตรวจหวย
+router.post('/check', async (req, res) => {
+  const { round_id, number } = req.body;
+  if (!round_id || !number) return res.status(400).json({ success: false, message: 'กรุณาระบุ round_id และเลข' });
+
+  const [result] = await query('SELECT * FROM lottery_results WHERE round_id=?', [round_id]);
+  if (!result) return res.status(404).json({ success: false, message: 'ยังไม่มีผลรางวัลของงวดนี้' });
+
+  // Safe JSON array parser — handles mysql2 auto-parse (Array) and raw JSON string
+  const safeArr = (v) => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v.map(String).filter(Boolean);
+    if (typeof v !== 'string') return [String(v)];
+    const s = v.trim();
+    if (s === '' || s === 'null' || s === '[]') return [];
+    try {
+      const r = JSON.parse(s);
+      return Array.isArray(r) ? r.map(String).filter(Boolean) : [String(r)];
+    } catch {
+      // JSON parse ล้มเหลว — fallback split แต่กรองเฉพาะตัวเลข
+      return s.split(',').map(x => x.trim()).filter(x => /^\d+$/.test(x));
+    }
+  };
+
+  const n = number.trim();
+  const prizes = [];
+
+  // ── รางวัลที่ 1 ──────────────────────────────────────────────────
+  if (result.prize_1st === n) prizes.push({ name: 'รางวัลที่ 1', amount: 6000000 });
+
+  // ── รางวัล 6 ตัวชั้นอื่น (TH_GOV: ใกล้เคียง, ที่2-5) ────────────
+  if (n.length === 6) {
+    const near1arr = safeArr(result.prize_near_1st);
+    if (near1arr.includes(n)) prizes.push({ name: 'รางวัลใกล้เคียงรางวัลที่ 1', amount: 100000 });
+
+    const p2arr = safeArr(result.prize_2nd);
+    if (p2arr.includes(n)) prizes.push({ name: 'รางวัลที่ 2', amount: 200000 });
+
+    const p3arr = safeArr(result.prize_3rd);
+    if (p3arr.includes(n)) prizes.push({ name: 'รางวัลที่ 3', amount: 80000 });
+
+    const p4arr = safeArr(result.prize_4th);
+    if (p4arr.includes(n)) prizes.push({ name: 'รางวัลที่ 4', amount: 40000 });
+
+    const p5arr = safeArr(result.prize_5th);
+    if (p5arr.includes(n)) prizes.push({ name: 'รางวัลที่ 5', amount: 20000 });
+  }
+
+  // ── รางวัลเลขหน้า 3 ตัว ─────────────────────────────────────────
+  const front3arr = safeArr(result.prize_front_3);
+  if (n.length >= 3 && front3arr.includes(n.slice(0, 3))) prizes.push({ name: 'รางวัลเลขหน้า 3 ตัว', amount: 4000 });
+
+  // ── รางวัลเลขท้าย 3 ตัว ─────────────────────────────────────────
+  const last3 = n.slice(-3);
+  const last3arr = safeArr(result.prize_last_3);
+  if (n.length >= 3 && last3arr.includes(last3)) prizes.push({ name: 'รางวัลเลขท้าย 3 ตัว', amount: 4000 });
+
+  // ── รางวัลเลขท้าย 2 ตัว ─────────────────────────────────────────
+  const last2 = n.slice(-2);
+  if (result.prize_last_2 === last2) prizes.push({ name: 'รางวัลเลขท้าย 2 ตัว', amount: 2000 });
+
+  res.json({ success: true, data: { number: n, prizes, won: prizes.length > 0 } });
+});
+
+// ════════════════════════════════════
+//  ADMIN: Lottery management
+// ════════════════════════════════════
+
+// GET /api/lottery/admin/types
+router.get('/admin/types', authAdmin, rbac.requirePerm('lottery.view'), async (req, res) => {
+  const rows = await query('SELECT * FROM lottery_types ORDER BY sort_order');
+  res.json({ success: true, data: rows });
+});
+
+// PATCH /api/lottery/admin/types/:id — update rates, status
+router.patch('/admin/types/:id', authAdmin, rbac.requirePerm('lottery.manage'), async (req, res) => {
+  const { name, status, min_bet, max_bet, rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot } = req.body;
+  await query(
+    `UPDATE lottery_types SET
+       name=COALESCE(?,name), status=COALESCE(?,status),
+       min_bet=COALESCE(?,min_bet), max_bet=COALESCE(?,max_bet),
+       rate_3top=COALESCE(?,rate_3top), rate_3tod=COALESCE(?,rate_3tod),
+       rate_2top=COALESCE(?,rate_2top), rate_2bot=COALESCE(?,rate_2bot),
+       rate_run_top=COALESCE(?,rate_run_top), rate_run_bot=COALESCE(?,rate_run_bot),
+       updated_at=NOW()
+     WHERE id=?`,
+    [name, status, min_bet, max_bet, rate_3top, rate_3tod, rate_2top, rate_2bot, rate_run_top, rate_run_bot, req.params.id]);
+  await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+    [req.admin.id, 'lottery.update', 'lottery_type', req.params.id, JSON.stringify(req.body), req.ip]);
+  res.json({ success: true, message: 'อัพเดทประเภทหวยสำเร็จ' });
+});
+
+// GET /api/lottery/admin/rounds
+router.get('/admin/rounds', authAdmin, rbac.requirePerm('rounds.view'), async (req, res) => {
+  const { status, lottery_id, lottery_type } = req.query;
+  const where = [];
+  const params = [];
+  if (status)       { where.push('lr.status=?'); params.push(status); }
+  if (lottery_id)   { where.push('lr.lottery_id=?'); params.push(lottery_id); }
+  if (lottery_type) { where.push('lt.code=?'); params.push(lottery_type); }
+  const safeLimit = Math.min(parseInt(req.query.limit)||50, 500);
+  const rows = await query(
+    `SELECT lr.*,lt.name as lottery_name,lt.flag,lt.code
+     FROM lottery_rounds lr JOIN lottery_types lt ON lr.lottery_id=lt.id
+     ${where.length?'WHERE '+where.join(' AND '):''}
+     ORDER BY lr.id DESC LIMIT ${safeLimit}`, params);
+  res.json({ success: true, data: rows });
+});
+
+// POST /api/lottery/admin/rounds — create round
+router.post('/admin/rounds', authAdmin, rbac.requirePerm('rounds.manage'),
+  body('lottery_id').isInt(), body('draw_date').isDate(), body('close_at').notEmpty(),
+  async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
+    const { lottery_id, draw_date, close_at, round_name } = req.body;
+    const name = round_name || draw_date;
+    await query('INSERT INTO lottery_rounds (uuid,lottery_id,round_name,draw_date,close_at,status) VALUES (?,?,?,?,?,?)',
+      [uuidv4(), lottery_id, name, draw_date, close_at, 'open']);
+    res.status(201).json({ success: true, message: 'เปิดงวดใหม่สำเร็จ' });
+  }
+);
+
+// PATCH /api/lottery/admin/rounds/:id/close
+router.patch('/admin/rounds/:id/close', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  await query('UPDATE lottery_rounds SET status="closed" WHERE id=?', [req.params.id]);
+  res.json({ success: true, message: 'ปิดรับงวดแล้ว' });
+});
+
+// PATCH /api/lottery/admin/rounds/:id — แก้ไขรายละเอียดงวด (ชื่อ/วันออก/เวลาปิด)
+router.patch('/admin/rounds/:id', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  const { round_name, draw_date, close_at, open_at, status } = req.body;
+  const fields = [];
+  const vals   = [];
+  if (round_name !== undefined) { fields.push('round_name=?'); vals.push(round_name); }
+  if (draw_date  !== undefined) { fields.push('draw_date=?');  vals.push(draw_date);  }
+  if (close_at   !== undefined) { fields.push('close_at=?');   vals.push(close_at);   }
+  if (open_at    !== undefined) { fields.push('open_at=?');    vals.push(open_at);    }
+  if (status     !== undefined) { fields.push('status=?');     vals.push(status);     }
+  if (!fields.length) return res.status(400).json({ success: false, message: 'ไม่มีข้อมูลให้อัปเดต' });
+  vals.push(req.params.id);
+  await query(`UPDATE lottery_rounds SET ${fields.join(',')} WHERE id=?`, vals);
+  res.json({ success: true, message: 'อัปเดตงวดสำเร็จ' });
+});
+
+// DELETE /api/lottery/admin/rounds/:id — ลบงวดที่ยังไม่มีการแทง
+router.delete('/admin/rounds/:id', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  const [bets] = await query('SELECT COUNT(*) c FROM bets WHERE round_id=?', [req.params.id]);
+  if (bets.c > 0) return res.status(400).json({ success: false, message: `ไม่สามารถลบได้ มีการแทง ${bets.c} รายการ` });
+  await query('DELETE FROM lottery_rounds WHERE id=?', [req.params.id]);
+  res.json({ success: true, message: 'ลบงวดสำเร็จ' });
+});
+
+// POST /api/lottery/admin/results — announce result + auto payout
+router.post('/admin/results', authAdmin, rbac.requirePerm('results.announce'),
+  body('round_id').isInt(),
+  body('prize_1st').isLength({ min: 4, max: 6 }).withMessage('รางวัลที่ 1 ต้องมี 4-6 หลัก'),
+  body('prize_last_2').optional({ checkFalsy: true }).isLength({ min: 2, max: 2 }),
+  async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
+
+    const { round_id, prize_1st, prize_2nd, prize_3rd, prize_4th, prize_5th,
+            prize_near_1st, prize_front_3, prize_last_3, prize_last_2 } = req.body;
+
+    const roundRows = await query(
+      `SELECT lr.*, lt.code AS lottery_code
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lr.lottery_id = lt.id
+       WHERE lr.id=? AND lr.status!='announced'`, [round_id]);
+    if (!roundRows.length) return res.status(400).json({ success: false, message: 'ไม่พบงวด หรือประกาศผลแล้ว' });
+    const round = roundRows[0];
+    const lotteryCode = round.lottery_code;
+
+    // ลาวพัฒนา: 2bot = ตำแหน่ง 3-4, 2top = ตำแหน่ง 5-6, 3top = ตำแหน่ง 4-5-6
+    // VN_*: 2bot = G1 last 2 (ส่งมาใน prize_2bot หรือ fallback = prize_last_2)
+    const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
+    const isLaGov = lotteryCode === 'LA_GOV';
+    const effective_2bot = isLaGov ? prize_1st.slice(2, 4) : prize_last_2;
+    const effective_3top = isLaGov ? prize_1st.slice(3, 6) : prize_1st?.slice(-3);
+    // prize_2bot_store: เก็บเฉพาะ lottery ที่ใช้ 2bot แยก
+    const prize_2bot_store = USES_SEPARATE_2BOT.includes(lotteryCode) ? effective_2bot : null;
+
+    await transaction(async (conn) => {
+      // Insert result
+      await conn.execute(
+        `INSERT INTO lottery_results
+          (round_id,prize_1st,prize_2nd,prize_3rd,prize_4th,prize_5th,
+           prize_near_1st,prize_front_3,prize_last_3,prize_last_2,prize_2bot,announced_at,announced_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,NOW(),?)`,
+        [round_id, prize_1st,
+          JSON.stringify(prize_2nd || []), JSON.stringify(prize_3rd || []),
+          JSON.stringify(prize_4th || []), JSON.stringify(prize_5th || []),
+          JSON.stringify(prize_near_1st || []),
+          JSON.stringify(prize_front_3 || []), JSON.stringify(prize_last_3 || []),
+          prize_last_2, prize_2bot_store, req.admin.id]);
+
+      // Update round status
+      await conn.execute('UPDATE lottery_rounds SET status="announced" WHERE id=?', [round_id]);
+
+      // Auto-calculate winners and pay
+      const ltRows = await query('SELECT rate_3top,rate_3tod,rate_2top,rate_2bot,rate_run_top,rate_run_bot FROM lottery_types lt JOIN lottery_rounds lr ON lr.lottery_id=lt.id WHERE lr.id=?', [round_id]);
+      const lt = ltRows[0];
+      const bets = await query('SELECT * FROM bets WHERE round_id=? AND status="waiting"', [round_id]);
+
+      for (const bet of bets) {
+        let won = false;
+        let winAmt = 0;
+        const n = bet.number;
+
+        if (bet.bet_type === '3top' && effective_3top === n) { won = true; winAmt = bet.amount * lt.rate_3top; }
+        else if (bet.bet_type === '3tod') {
+          const sorted = n.split('').sort().join('');
+          const p1sorted = effective_3top?.split('').sort().join('');
+          if (sorted === p1sorted) { won = true; winAmt = bet.amount * lt.rate_3tod; }
+        }
+        else if (bet.bet_type === '2top' && prize_last_2 === n) { won = true; winAmt = bet.amount * lt.rate_2top; }
+        else if (bet.bet_type === '2bot' && effective_2bot === n) { won = true; winAmt = bet.amount * lt.rate_2bot; }
+        else if (bet.bet_type === 'run_top' && prize_1st?.includes(n)) { won = true; winAmt = bet.amount * lt.rate_run_top; }
+        else if (bet.bet_type === 'run_bot' && effective_2bot?.includes(n)) { won = true; winAmt = bet.amount * lt.rate_run_bot; }
+
+        const status = won ? 'win' : 'lose';
+        await conn.execute('UPDATE bets SET status=?, win_amount=? WHERE id=?', [status, winAmt, bet.id]);
+
+        if (won && winAmt > 0) {
+          const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
+          const newBal = parseFloat(m.balance) + winAmt;
+          await conn.execute('UPDATE members SET balance=?, total_win=total_win+? WHERE id=?', [newBal, winAmt, bet.member_id]);
+          await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+            [uuidv4(), bet.member_id, 'win', winAmt, m.balance, newBal, `ถูกรางวัล: ${bet.number} (${bet.bet_type})`]);
+          // Notify
+          await conn.execute('INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+            [bet.member_id, '🎉 ถูกรางวัล!', `เลข ${bet.number} ถูก! ได้รับเงิน ฿${winAmt.toLocaleString()}`, 'win']);
+        }
+      }
+
+      // Log
+      await conn.execute('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+        [req.admin.id, 'result.announce', 'round', round_id, `prize_1st: ${prize_1st}`, req.ip]);
+    });
+
+    res.json({ success: true, message: 'ประกาศผลและจ่ายรางวัลเรียบร้อย' });
+  }
+);
+
+// PATCH /api/lottery/admin/results/:round_id — แก้ไขผลที่ประกาศไปแล้ว (FIX)
+// 1. ยกเลิกการจ่ายเงินเดิม (reverse wins)
+// 2. รีเซ็ตทุก bet → waiting
+// 3. อัปเดตผล lottery_results
+// 4. คำนวณและจ่ายรางวัลใหม่ตามผลที่แก้ไข
+router.patch('/admin/results/:round_id', authAdmin, rbac.requirePerm('results.announce'),
+  body('prize_1st').isLength({ min: 4, max: 6 }).withMessage('รางวัลที่ 1 ต้องมี 4-6 หลัก'),
+  body('prize_last_2').optional({ checkFalsy: true }).isLength({ min: 2, max: 2 }),
+  async (req, res) => {
+    const err = validationResult(req);
+    if (!err.isEmpty()) return res.status(400).json({ success: false, errors: err.array() });
+
+    const round_id = parseInt(req.params.round_id);
+    const { prize_1st, prize_2nd, prize_3rd, prize_4th, prize_5th,
+            prize_near_1st, prize_front_3, prize_last_3, prize_last_2, prize_2bot: prize_2bot_input } = req.body;
+
+    // ดึงงวดที่ประกาศแล้ว
+    const roundRows = await query(
+      `SELECT lr.*, lt.code AS lottery_code,
+              lt.rate_3top,lt.rate_3tod,lt.rate_2top,lt.rate_2bot,lt.rate_run_top,lt.rate_run_bot
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lr.lottery_id = lt.id
+       WHERE lr.id=? AND lr.status='announced'`, [round_id]);
+    if (!roundRows.length) return res.status(400).json({ success: false, message: 'ไม่พบงวดที่ประกาศแล้ว หรืองวดยังไม่ได้ประกาศ' });
+
+    const round = roundRows[0];
+    const lotteryCode = round.lottery_code;
+    const USES_SEPARATE_2BOT = ['LA_GOV', 'VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'];
+    const isLaGov  = lotteryCode === 'LA_GOV';
+    const isVnType = ['VN_HAN', 'VN_HAN_SP', 'VN_HAN_VIP'].includes(lotteryCode);
+    // VN: 2bot แยกต่างหากจาก prize_last_2 (2top)
+    // LA_GOV: ดึง 2bot จาก prize_1st ตำแหน่ง 3-4
+    // อื่น: prize_last_2 ใช้ทั้ง 2top และ 2bot
+    const effective_2bot = isLaGov  ? prize_1st.slice(2, 4)
+                         : isVnType ? (prize_2bot_input || prize_last_2)
+                         : prize_last_2;
+    const effective_3top = isLaGov  ? prize_1st.slice(3, 6)
+                         : prize_1st?.slice(-3);
+    const prize_2bot_store = USES_SEPARATE_2BOT.includes(lotteryCode) ? effective_2bot : null;
+
+    let fixWinCount = 0;
+    let fixTotalPayout = 0;
+
+    try {
+      await transaction(async (conn) => {
+        // 1. ดึง bets ที่เคย win แล้ว → คืนเงิน (reverse)
+        const [winBets] = await conn.execute(
+          'SELECT * FROM bets WHERE round_id=? AND status="win" AND win_amount > 0', [round_id]);
+        for (const bet of winBets) {
+          const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
+          const newBal = parseFloat(m.balance) - parseFloat(bet.win_amount);
+          await conn.execute('UPDATE members SET balance=?, total_win=GREATEST(0,total_win-?) WHERE id=?',
+            [newBal, bet.win_amount, bet.member_id]);
+          await conn.execute(
+            'INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+            [uuidv4(), bet.member_id, 'fix_reverse', -parseFloat(bet.win_amount), m.balance, newBal,
+             `แก้ไขผล: ยกเลิกรางวัล ${bet.number} (${bet.bet_type})`]);
+        }
+
+        // 2. รีเซ็ตทุก bet → waiting
+        await conn.execute('UPDATE bets SET status="waiting", win_amount=0 WHERE round_id=?', [round_id]);
+
+        // 3. อัปเดต lottery_results
+        await conn.execute(
+          `UPDATE lottery_results SET
+             prize_1st=?, prize_2nd=?, prize_3rd=?, prize_4th=?, prize_5th=?,
+             prize_near_1st=?, prize_front_3=?, prize_last_3=?, prize_last_2=?, prize_2bot=?,
+             announced_at=NOW(), announced_by=?
+           WHERE round_id=?`,
+          [prize_1st,
+           JSON.stringify(prize_2nd || []), JSON.stringify(prize_3rd || []),
+           JSON.stringify(prize_4th || []), JSON.stringify(prize_5th || []),
+           JSON.stringify(prize_near_1st || []),
+           JSON.stringify(prize_front_3 || []), JSON.stringify(prize_last_3 || []),
+           prize_last_2, prize_2bot_store, req.admin.id, round_id]);
+
+        // 4. คำนวณ winners ใหม่
+        const [allBets] = await conn.execute('SELECT * FROM bets WHERE round_id=? AND status="waiting"', [round_id]);
+        let winCount = 0;
+        let totalPayout = 0;
+        for (const bet of allBets) {
+          let won = false; let winAmt = 0;
+          const n = bet.number;
+          if (bet.bet_type === '3top' && effective_3top === n) { won = true; winAmt = bet.amount * round.rate_3top; }
+          else if (bet.bet_type === '3tod') {
+            const sorted = n.split('').sort().join('');
+            const p1s = effective_3top?.split('').sort().join('');
+            if (sorted === p1s) { won = true; winAmt = bet.amount * round.rate_3tod; }
+          }
+          else if (bet.bet_type === '2top' && prize_last_2 === n) { won = true; winAmt = bet.amount * round.rate_2top; }
+          else if (bet.bet_type === '2bot' && effective_2bot === n) { won = true; winAmt = bet.amount * round.rate_2bot; }
+          else if (bet.bet_type === 'run_top' && prize_1st?.includes(n)) { won = true; winAmt = bet.amount * round.rate_run_top; }
+          else if (bet.bet_type === 'run_bot' && effective_2bot?.includes(n)) { won = true; winAmt = bet.amount * round.rate_run_bot; }
+
+          const status = won ? 'win' : 'lose';
+          await conn.execute('UPDATE bets SET status=?, win_amount=? WHERE id=?', [status, winAmt, bet.id]);
+
+          if (won && winAmt > 0) {
+            winCount++;
+            totalPayout += winAmt;
+            const [[m]] = await conn.execute('SELECT balance FROM members WHERE id=? FOR UPDATE', [bet.member_id]);
+            const newBal = parseFloat(m.balance) + winAmt;
+            await conn.execute('UPDATE members SET balance=?, total_win=total_win+? WHERE id=?', [newBal, winAmt, bet.member_id]);
+            await conn.execute('INSERT INTO transactions (uuid,member_id,type,amount,balance_before,balance_after,description) VALUES (?,?,?,?,?,?,?)',
+              [uuidv4(), bet.member_id, 'win', winAmt, m.balance, newBal, `[FIX] ถูกรางวัล: ${bet.number} (${bet.bet_type})`]);
+            await conn.execute('INSERT INTO notifications (member_id,title,body,type) VALUES (?,?,?,?)',
+              [bet.member_id, '🎉 ถูกรางวัล!', `เลข ${bet.number} ถูก! ได้รับเงิน ฿${winAmt.toLocaleString()}`, 'win']);
+          }
+        }
+
+        fixWinCount = winCount;
+        fixTotalPayout = totalPayout;
+
+        // 5. Log
+        await conn.execute('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+          [req.admin.id, 'result.fix', 'round', round_id,
+           `FIX prize_1st: ${prize_1st} (reversed ${winBets.length} wins, new wins: ${winCount}, total_payout: ${totalPayout})`, req.ip]);
+      });
+
+      res.json({ success: true, message: `แก้ไขผลสำเร็จ! ผลใหม่: ${prize_1st}`, winners: fixWinCount, total_payout: fixTotalPayout });
+    } catch (e) {
+      res.status(500).json({ success: false, message: e.message });
+    }
+  }
+);
+
+// ════════════════════════════════════
+//  ADMIN: Auto-round + fetcher control
+// ════════════════════════════════════
+
+// POST /api/lottery/admin/force-rounds — force-recreate today's rounds
+router.post('/admin/force-rounds', authAdmin, rbac.requirePerm('rounds.manage'), async (req, res) => {
+  try {
+    const rm = getRoundMgr();
+    await rm.createTodayRounds();
+    await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+      [req.admin.id, 'rounds.force', 'system', 0, 'manual force-create today rounds', req.ip]);
+    res.json({ success: true, message: 'สร้างงวดของวันนี้สำเร็จ (งวดที่มีแล้วจะ skip)' });
+  } catch (err) {
+    console.error('[ADMIN] force-rounds error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/lottery/admin/trigger-fetch/:code — manually trigger result fetch
+router.post('/admin/trigger-fetch/:code', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  const { code } = req.params;
+  const validCodes = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP','YEEKEE',
+                      'TH_STK','CN_STK','MY_STK','SG_STK'];
+  if (!validCodes.includes(code)) {
+    return res.status(400).json({ success: false, message: `ไม่รู้จัก lottery code: ${code}` });
+  }
+  try {
+    const fetcher = getFetcher();
+    // Run fetch in background — respond immediately
+    fetcher.triggerFetch(code).catch(e => console.error(`[ADMIN] trigger-fetch ${code}:`, e.message));
+    await query('INSERT INTO admin_logs (admin_id,action,target_type,target_id,detail,ip) VALUES (?,?,?,?,?,?)',
+      [req.admin.id, 'fetcher.trigger', 'lottery_type', 0, `manual trigger: ${code}`, req.ip]);
+    res.json({ success: true, message: `กำลังดึงผล ${code}...` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/lottery/admin/test-fetch/:code — dry-run fetch (ไม่บันทึก DB, return ผลทันที)
+router.get('/admin/test-fetch/:code', authAdmin, rbac.requirePerm('lottery.view'), async (req, res) => {
+  const { code } = req.params;
+  const validCodes = ['TH_GOV','LA_GOV','VN_HAN','VN_HAN_SP','VN_HAN_VIP',
+                      'TH_STK','CN_STK','MY_STK','SG_STK'];
+  if (!validCodes.includes(code)) {
+    return res.status(400).json({ success: false, message: `ไม่รู้จัก lottery code: ${code}` });
+  }
+  try {
+    const fetcher = getFetcher();
+    const result  = await fetcher.testFetch(code);
+    res.json({ success: true, code, result });
+  } catch (err) {
+    res.status(500).json({ success: false, code, error: err.message });
+  }
+});
+
+// GET /api/lottery/admin/fetcher-status — show fetcher + round status
+router.get('/admin/fetcher-status', authAdmin, rbac.requirePerm('lottery.view'), async (req, res) => {
+  try {
+    const fetcher = getFetcher();
+    const status  = fetcher.fetcherStatus || {};
+
+    // Latest round per lottery type
+    const rounds = await query(
+      `SELECT lt.code, lt.name, lr.id, lr.round_name, lr.status, lr.open_at, lr.close_at,
+              lr.bet_count, lr.total_bet,
+              res.announced_at, res.prize_1st
+       FROM lottery_types lt
+       LEFT JOIN lottery_rounds lr ON lr.id = (
+         SELECT id FROM lottery_rounds WHERE lottery_id=lt.id ORDER BY id DESC LIMIT 1
+       )
+       LEFT JOIN lottery_results res ON res.round_id = lr.id
+       WHERE lt.status='open'
+       ORDER BY lt.sort_order`
+    );
+
+    res.json({ success: true, fetcherStatus: status, rounds });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// GET /api/lottery/admin/rounds/today — today's round summary for all types
+router.get('/admin/rounds/today', authAdmin, rbac.requirePerm('rounds.view'), async (req, res) => {
+  try {
+    const rows = await query(
+      `SELECT lr.id, lr.round_code, lr.round_name, lr.status,
+              lr.open_at, lr.close_at, lr.bet_count, lr.total_bet,
+              lt.code AS lottery_code, lt.name AS lottery_name, lt.flag,
+              res.prize_1st, res.announced_at
+       FROM lottery_rounds lr
+       JOIN lottery_types lt ON lt.id = lr.lottery_id
+       LEFT JOIN lottery_results res ON res.round_id = lr.id
+       WHERE DATE(lr.draw_date) = CURDATE()
+       ORDER BY lt.sort_order, lr.open_at`
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/lottery/payout-rates — ดึงตารางอัตราจ่ายรางวัล (public) ─────────
+router.get('/payout-rates', async (req, res) => {
+  try {
+    const rows = await query(
+      'SELECT id, label, prize_count, prize_value, payout_display, sort_order, bet_key FROM payout_rates ORDER BY sort_order ASC'
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── GET /api/lottery/admin/payout-rates — admin ดูตารางอัตราจ่าย ─────────────
+router.get('/admin/payout-rates', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
+  try {
+    const rows = await query(
+      'SELECT id, label, prize_count, prize_value, payout_display, sort_order, bet_key, updated_at FROM payout_rates ORDER BY sort_order ASC'
+    );
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ─── PATCH /api/lottery/admin/payout-rates/:id — admin แก้ไขแถวในตาราง ────────
+router.patch('/admin/payout-rates/:id', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { label, prize_count, prize_value, payout_display } = req.body;
+    if (!label || label.trim() === '') {
+      return res.status(400).json({ success: false, message: 'กรุณากรอกชื่อประเภทรางวัล' });
+    }
+    await query(
+      'UPDATE payout_rates SET label=?, prize_count=?, prize_value=?, payout_display=? WHERE id=?',
+      [label.trim(), (prize_count || '-').trim(), (prize_value || '').trim(), (payout_display || '').trim(), id]
+    );
+    const [updated] = await query('SELECT * FROM payout_rates WHERE id=?', [id]);
+    res.json({ success: true, message: 'บันทึกอัตราจ่ายสำเร็จ', data: updated });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+module.exports = router;

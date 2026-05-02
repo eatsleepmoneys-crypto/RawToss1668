@@ -1,0 +1,1656 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TigerLotto — Agent Portal</title>
+<link rel="icon" id="favicon-link" type="image/svg+xml" href="/api/favicon">
+<link rel="shortcut icon" href="/api/favicon">
+<style>
+  :root{
+    --bg:#0a0a0a;--card:#111;--card2:#1a1a1a;--border:rgba(255,255,255,.08);
+    --gold:#d4a017;--gold2:#ffd700;--text:#f0f0f0;--muted:#888;
+    --green:#2ed573;--red:#ff4757;--blue:#1e90ff;
+    --grad:linear-gradient(135deg,#d4a017,#ffd700,#b8860b);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',sans-serif;min-height:100vh}
+
+  /* ── Login ── */
+  .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}
+  .login-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px 36px;width:100%;max-width:420px}
+  .login-logo{text-align:center;margin-bottom:28px}
+  .login-logo .tiger{font-size:48px}
+  .login-logo h1{font-size:22px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-top:8px}
+  .login-logo p{font-size:12px;color:var(--muted);margin-top:4px}
+  .fg{margin-bottom:16px}
+  .fg label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .fi{width:100%;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-size:15px;outline:none;transition:.2s}
+  .fi:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,160,23,.15)}
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;transition:.2s}
+  .btn-gold{background:var(--grad);color:#000}
+  .btn-gold:hover{opacity:.9;transform:translateY(-1px)}
+  .btn-gold:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  .err{color:var(--red);font-size:13px;text-align:center;margin-top:12px;min-height:20px}
+
+  /* ── Dashboard layout ── */
+  .app{display:none;flex-direction:column;min-height:100vh}
+  .topbar{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+  .topbar-left{display:flex;align-items:center;gap:12px}
+  .topbar-logo{font-size:20px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .topbar-badge{background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.3);color:var(--gold);font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .topbar-right{display:flex;align-items:center;gap:12px}
+  .agent-name{font-size:14px;font-weight:600}
+  .btn-sm{padding:6px 14px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s}
+  .btn-sm:hover{background:var(--card2);color:var(--text)}
+
+  /* ── Nav tabs ── */
+  .nav-tabs{display:flex;gap:4px;background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;overflow-x:auto}
+  .nav-tab{padding:14px 18px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:.2s}
+  .nav-tab.on{color:var(--gold);border-bottom-color:var(--gold)}
+  .nav-tab:hover:not(.on){color:var(--text)}
+
+  /* ── Content ── */
+  .content{padding:24px 20px;max-width:1100px;margin:0 auto;width:100%}
+
+  /* ── Cards ── */
+  .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+  .stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+  .stat-label{font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+  .stat-val{font-size:26px;font-weight:900}
+  .stat-val.gold{background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .stat-val.green{color:var(--green)}
+  .stat-sub{font-size:11px;color:var(--muted);margin-top:4px}
+
+  /* ── Table ── */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px}
+  .card h3{font-size:15px;font-weight:700;margin-bottom:16px;color:var(--gold)}
+  .tbl-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;padding:10px 12px;color:var(--muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+  td{padding:11px 12px;border-bottom:1px solid rgba(255,255,255,.04)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+  .badge-green{background:rgba(46,213,115,.12);color:var(--green);border:1px solid rgba(46,213,115,.3)}
+  .badge-red{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.3)}
+
+  /* ── Search / filter bar ── */
+  .filter-bar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .fi-sm{background:var(--card2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;outline:none}
+  .fi-sm:focus{border-color:var(--gold)}
+
+  /* ── Commission chart ── */
+  .chart-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .chart-date{width:90px;font-size:11px;color:var(--muted);flex-shrink:0}
+  .chart-bar-bg{flex:1;height:20px;background:rgba(255,255,255,.05);border-radius:4px;overflow:hidden}
+  .chart-bar-fill{height:100%;background:var(--grad);border-radius:4px;transition:.4s}
+  .chart-val{width:80px;font-size:12px;color:var(--gold2);text-align:right;flex-shrink:0}
+
+  /* ── Pagination ── */
+  .paging{display:flex;gap:6px;justify-content:center;margin-top:16px}
+  .page-btn{padding:6px 12px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:12px;cursor:pointer;transition:.2s}
+  .page-btn.on{background:var(--gold);color:#000;border-color:var(--gold);font-weight:700}
+  .page-btn:hover:not(.on){background:var(--card2)}
+
+  /* ── Profile ── */
+  .profile-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+  .profile-avatar{width:64px;height:64px;border-radius:50%;background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0}
+  .profile-info h2{font-size:20px;font-weight:800}
+  .profile-info p{font-size:13px;color:var(--muted);margin-top:2px}
+
+  /* ── Wallet ── */
+  .wallet-hero{background:linear-gradient(135deg,#1a1a00,#2d2200);border:1px solid rgba(212,160,23,.4);border-radius:18px;padding:28px 24px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .wallet-bal-label{font-size:12px;color:var(--muted);margin-bottom:6px;letter-spacing:.5px;text-transform:uppercase}
+  .wallet-bal-val{font-size:40px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1.1}
+  .wallet-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn-action{padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;transition:.2s;white-space:nowrap}
+  .btn-deposit{background:var(--green);color:#000}
+  .btn-deposit:hover{opacity:.85}
+  .btn-withdraw{background:transparent;border:1px solid var(--border)!important;color:var(--text)}
+  .btn-withdraw:hover{background:var(--card2)}
+
+  /* ── Modal ── */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px}
+  .modal-box{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:28px 24px;width:100%;max-width:460px;max-height:90vh;overflow-y:auto}
+  .modal-box h3{font-size:16px;font-weight:800;margin-bottom:20px;color:var(--gold)}
+  .modal-close{float:right;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;margin-top:-4px}
+
+  /* ── Lottery cards (index-style) ── */
+  .lot-filter{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+  .lot-ftab{padding:7px 16px;border-radius:30px;font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border);background:var(--card2);cursor:pointer;transition:.2s;font-family:'Sarabun',sans-serif}
+  .lot-ftab.on{background:var(--grad);color:#000;border-color:transparent}
+  .lot-group{margin-bottom:28px}
+  .lot-group-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .lot-group-hdr h3{font-size:14px;font-weight:700}
+  .lot-group-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+  .lot-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;position:relative;overflow:hidden;transition:.3s;cursor:pointer}
+  .lot-card:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:0 8px 28px rgba(212,160,23,.18)}
+  .lot-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--grad)}
+  .lot-card.upcoming{opacity:.75;cursor:default}
+  .lot-card-top{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px}
+  .lot-tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.5px;background:rgba(212,160,23,.1);color:var(--gold2);border:1px solid rgba(212,160,23,.3)}
+  .lot-tag.hot{background:rgba(255,71,87,.1);color:#ff8a92;border-color:rgba(255,71,87,.3)}
+  .lot-tag.vip{background:rgba(61,139,205,.1);color:#7ec8e3;border-color:rgba(61,139,205,.3)}
+  .lot-tag.lao{background:rgba(46,213,115,.1);color:#7dffb3;border-color:rgba(46,213,115,.3)}
+  .lot-status{font-size:10px;font-weight:700;padding:3px 8px;border-radius:12px}
+  .lot-status.open{color:#2ed573;background:rgba(46,213,115,.1)}
+  .lot-status.soon{color:#ffa502;background:rgba(255,165,2,.1)}
+  .lot-status.closed{color:#ff4757;background:rgba(255,71,87,.1)}
+  .lot-name{font-size:15px;font-weight:700;margin-bottom:3px}
+  .lot-prize{font-size:20px;font-weight:900;background:var(--grad);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:5px}
+  .lot-meta{font-size:11px;color:var(--muted);margin-bottom:3px}
+  .lot-meta span{color:var(--red);font-weight:700}
+  .lot-rate{font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.8}
+  .lot-rate b{color:var(--gold)}
+  .lot-btn{width:100%;padding:10px;background:var(--grad);color:#000;border-radius:10px;font-size:13px;font-weight:700;transition:.25s;border:none;font-family:'Sarabun',sans-serif;cursor:pointer}
+  .lot-btn:hover{opacity:.88;transform:translateY(-1px)}
+  .lot-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  /* ── legacy round-card (keep for compat) ── */
+  .rate-chip{background:rgba(255,255,255,.06);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--muted)}
+  .rate-chip span{color:var(--gold2);font-weight:700}
+
+  /* ── Bet form ── */
+  .bet-type-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+  .bet-type-btn{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;font-weight:600;color:var(--muted)}
+  .bet-type-btn.sel{border-color:var(--gold);background:rgba(212,160,23,.12);color:var(--gold2)}
+  .bet-type-btn:hover:not(.sel){border-color:var(--border);background:rgba(255,255,255,.04)}
+  .bet-rate{font-size:18px;font-weight:900;color:var(--gold);margin-top:4px}
+
+  /* ── Cart-based buy modal ── */
+  .buy-grp-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px}
+  .buy-types-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:4px}
+  .buy-type-btn{background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:9px 6px;text-align:center;cursor:pointer;transition:.2s;font-size:12px;font-weight:600;color:var(--muted);line-height:1.4}
+  .buy-type-btn.on{border-color:var(--gold);background:rgba(212,160,23,.15);color:var(--gold2)}
+  .buy-type-btn:hover:not(.on){background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.15)}
+
+  /* ── Tx badges ── */
+  .badge-deposit{background:rgba(46,213,115,.12);color:var(--green);border:1px solid rgba(46,213,115,.3)}
+  .badge-withdraw{background:rgba(255,71,87,.1);color:var(--red);border:1px solid rgba(255,71,87,.3)}
+  .badge-bet{background:rgba(30,144,255,.1);color:var(--blue);border:1px solid rgba(30,144,255,.3)}
+  .badge-win{background:rgba(212,160,23,.15);color:var(--gold2);border:1px solid rgba(212,160,23,.4)}
+  .badge-pending{background:rgba(255,165,0,.1);color:orange;border:1px solid rgba(255,165,0,.3)}
+  .badge-wait{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}
+  .badge-lose{background:rgba(255,71,87,.06);color:#ff8e9a;border:1px solid rgba(255,71,87,.2)}
+
+  /* ── Empty / loading ── */
+  .empty{text-align:center;padding:40px;color:var(--muted);font-size:14px}
+  .loading{text-align:center;padding:30px;color:var(--muted)}
+
+  @media(max-width:600px){
+    .stat-grid{grid-template-columns:1fr 1fr}
+    .content{padding:16px 12px}
+    .topbar{padding:0 12px}
+    .nav-tabs{padding:0 12px}
+    .bet-type-grid{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN ── -->
+<div class="login-wrap" id="login-page">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="tiger">🐯</div>
+      <h1>TigerLotto</h1>
+      <p>Agent Portal — เข้าสู่ระบบเอเยนต์</p>
+    </div>
+    <div class="fg">
+      <label>เบอร์โทรศัพท์</label>
+      <input class="fi" id="lg-phone" type="tel" placeholder="0812345678" autocomplete="username">
+    </div>
+    <div class="fg">
+      <label>รหัสผ่าน</label>
+      <input class="fi" id="lg-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn btn-gold" id="lg-btn" onclick="doLogin()">เข้าสู่ระบบ</button>
+    <div class="err" id="lg-err"></div>
+  </div>
+</div>
+
+<!-- ── APP ── -->
+<div class="app" id="app-page">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">🐯 TigerLotto</span>
+      <span class="topbar-badge">AGENT</span>
+    </div>
+    <div class="topbar-right">
+      <span class="agent-name" id="agent-name-hdr">—</span>
+      <button class="btn-sm" onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <div class="nav-tabs">
+    <div class="nav-tab on" data-tab="dashboard"   onclick="switchTab('dashboard',this)">📊 ภาพรวม</div>
+    <div class="nav-tab" data-tab="wallet"         onclick="switchTab('wallet',this)">💳 กระเป๋าเงิน</div>
+    <div class="nav-tab" data-tab="lottery"        onclick="switchTab('lottery',this)">🎰 ซื้อหวย</div>
+    <div class="nav-tab" data-tab="affiliate"      onclick="switchTab('affiliate',this)">🔗 ลิ้งแนะนำ</div>
+    <div class="nav-tab" data-tab="members"        onclick="switchTab('members',this)">👥 สมาชิก</div>
+    <div class="nav-tab" data-tab="commissions"    onclick="switchTab('commissions',this)">💰 ค่าคอมมิชชั่น</div>
+    <div class="nav-tab" data-tab="profile"        onclick="switchTab('profile',this)">👤 ข้อมูลเอเยนต์</div>
+  </div>
+
+  <!-- Content -->
+  <div class="content" id="tab-content">
+    <div class="loading">⏳ กำลังโหลด...</div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api';
+let _agentToken = localStorage.getItem('agent_token');
+let _agentData  = null;
+let _membersPage = 1;
+
+// ── API helper ──────────────────────────────────────────────────
+async function aFetch(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (_agentToken) headers['Authorization'] = `Bearer ${_agentToken}`;
+  const res  = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── FormData (file upload) helper ─────────────────────────────────
+async function aFetchForm(path, formData) {
+  const headers = {};
+  if (_agentToken) headers['Authorization'] = `Bearer ${_agentToken}`;
+  // ไม่ set Content-Type เพื่อให้ browser จัดการ multipart boundary
+  const res  = await fetch(`${API_BASE}${path}`, { method: 'POST', headers, body: formData });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+  return data;
+}
+
+// ── Login / Logout ──────────────────────────────────────────────
+async function doLogin() {
+  const phone = document.getElementById('lg-phone').value.trim();
+  const pass  = document.getElementById('lg-pass').value;
+  const btn   = document.getElementById('lg-btn');
+  const err   = document.getElementById('lg-err');
+  err.textContent = '';
+  if (!phone || !pass) { err.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังเข้าสู่ระบบ...';
+  try {
+    const d = await aFetch('/auth/agent/login', {
+      method: 'POST',
+      body: JSON.stringify({ phone, password: pass })
+    });
+    _agentToken = d.token;
+    _agentData  = d.agent;
+    localStorage.setItem('agent_token', _agentToken);
+    showApp();
+  } catch(e) {
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = 'เข้าสู่ระบบ';
+  }
+}
+
+function doLogout() {
+  localStorage.removeItem('agent_token');
+  _agentToken = null; _agentData = null;
+  document.getElementById('app-page').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('lg-pass').value = '';
+  document.getElementById('lg-err').textContent = '';
+  document.getElementById('lg-btn').disabled = false;
+  document.getElementById('lg-btn').textContent = 'เข้าสู่ระบบ';
+}
+
+// รองรับกด Enter
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-page').style.display !== 'none') doLogin();
+});
+
+// ── App init ──────────────────────────────────────────────────────
+async function showApp() {
+  try {
+    const me = await aFetch('/auth/agent/me');
+    _agentData = me.data;
+  } catch(_) { doLogout(); return; }
+
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('app-page').style.display   = 'flex';
+  document.getElementById('app-page').style.flexDirection = 'column';
+  document.getElementById('agent-name-hdr').textContent = _agentData.name;
+  switchTab('dashboard', document.querySelector('.nav-tab[data-tab="dashboard"]'));
+}
+
+// ── Generic error display ─────────────────────────────────────────
+function showTabError(msg, retryFn) {
+  const el = document.getElementById('tab-content');
+  if (!el) return;
+  el.innerHTML = `
+    <div style="color:#ff6b81;background:rgba(255,71,87,.1);border:1px solid rgba(255,71,87,.3);border-radius:10px;padding:24px;text-align:center;margin-top:20px">
+      <div style="font-size:28px;margin-bottom:8px">⚠️</div>
+      <div style="font-weight:600;margin-bottom:4px">โหลดข้อมูลไม่ได้</div>
+      <div style="color:#aaa;font-size:13px;margin-bottom:14px">${msg}</div>
+      ${retryFn ? `<button onclick="${retryFn}()" style="padding:8px 20px;background:#d4a017;color:#000;border:none;border-radius:8px;font-weight:700;cursor:pointer">🔄 ลองใหม่</button>` : ''}
+    </div>`;
+}
+
+// ── Tab switching ─────────────────────────────────────────────────
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('on'));
+  if (el) el.classList.add('on');
+  _membersPage = 1;
+  const content = document.getElementById('tab-content');
+  content.innerHTML = '<div class="loading">⏳ กำลังโหลด...</div>';
+  const fns = { dashboard:loadDashboard, wallet:loadWallet, lottery:loadLottery,
+                affiliate:loadAffiliate, members:loadMembers, commissions:loadCommissions, profile:loadProfile };
+  const fn = fns[tab];
+  if (fn) fn().catch(e => showTabError(e.message, tab+'Tab'));
+}
+
+// ── Affiliate ─────────────────────────────────────────────────────
+async function loadAffiliate() {
+  const d    = await aFetch('/agent/affiliate');
+  const code = d.data.aff_code;
+  const link = `${location.origin}/?aff=${code}`;
+  document.getElementById('tab-content').innerHTML = `
+    <div class="card">
+      <h3>🔗 ลิ้งแนะนำของคุณ</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.7">
+        ส่งลิ้งนี้ให้ลูกค้า เมื่อลูกค้ากดลิ้งแล้วสมัครสมาชิก ระบบจะเชื่อมเข้าทีมของคุณ<b style="color:var(--gold)">โดยอัตโนมัติ</b> ไม่ต้องกรอกรหัสใดๆ
+      </p>
+      <!-- Link box -->
+      <div style="background:var(--card2);border:1px solid rgba(212,160,23,.4);border-radius:12px;padding:16px 18px;margin-bottom:14px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">ลิ้งแนะนำ (คลิกเพื่อคัดลอก)</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <input id="aff-link-input" value="${link}" readonly
+            style="flex:1;background:transparent;border:none;color:var(--gold2);font-size:14px;font-weight:600;outline:none;cursor:text;min-width:0">
+          <button onclick="copyAffLink('${link}')" id="copy-btn"
+            style="background:var(--grad);color:#000;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">
+            📋 คัดลอก
+          </button>
+        </div>
+      </div>
+      <!-- Short code -->
+      <div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">รหัส Affiliate</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold2);letter-spacing:2px">${code}</div>
+        </div>
+        <button onclick="regenAffLink()" style="background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 14px;cursor:pointer;font-size:12px">
+          🔄 สร้างลิ้งใหม่
+        </button>
+      </div>
+      <div id="aff-msg" style="min-height:20px;font-size:13px;text-align:center"></div>
+    </div>
+
+    <div class="card">
+      <h3>📱 แชร์ผ่านช่องทางต่างๆ</h3>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a href="https://line.me/R/msg/text/?${encodeURIComponent('สมัครหวยออนไลน์ผ่านลิ้งของฉัน → '+link)}"
+          target="_blank" style="flex:1;min-width:120px;background:#06C755;color:#fff;text-decoration:none;border-radius:10px;padding:12px;text-align:center;font-weight:700;font-size:13px">
+          💬 แชร์ LINE
+        </a>
+        <a href="https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link)}"
+          target="_blank" style="flex:1;min-width:120px;background:#1877F2;color:#fff;text-decoration:none;border-radius:10px;padding:12px;text-align:center;font-weight:700;font-size:13px">
+          📘 แชร์ Facebook
+        </a>
+        <button onclick="copyAffLink('${link}')"
+          style="flex:1;min-width:120px;background:var(--card2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px;font-weight:700;font-size:13px;cursor:pointer">
+          🔗 คัดลอกลิ้ง
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>❓ วิธีใช้งาน</h3>
+      <div style="font-size:13px;color:var(--muted);line-height:2">
+        1. คัดลอกลิ้งแนะนำด้านบน<br>
+        2. ส่งให้ลูกค้าผ่าน LINE, Facebook หรือช่องทางอื่น<br>
+        3. เมื่อลูกค้ากดลิ้งและสมัครสมาชิก ระบบเชื่อมเข้าทีมคุณอัตโนมัติ<br>
+        4. ลูกค้า<b style="color:var(--gold)">ไม่ต้องกรอก</b>รหัสใดๆ ทั้งสิ้น<br>
+        5. คุณจะได้รับค่าคอม <b style="color:var(--green)">${_agentData.referral_rate||0}%</b> จากทุกการแทงของสมาชิก + ส่วนลด <b style="color:var(--gold)">${_agentData.commission_rate}%</b> เมื่อซื้อเอง
+      </div>
+    </div>`;
+}
+
+function copyAffLink(link) {
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('copy-btn');
+    if (btn) { btn.textContent = '✅ คัดลอกแล้ว!'; setTimeout(() => { btn.textContent = '📋 คัดลอก'; }, 2000); }
+    const msg = document.getElementById('aff-msg');
+    if (msg) { msg.style.color='var(--green)'; msg.textContent='✅ คัดลอกลิ้งไปยัง Clipboard แล้ว'; setTimeout(()=>{ msg.textContent=''; },3000); }
+  }).catch(() => {
+    // fallback
+    const inp = document.getElementById('aff-link-input');
+    if (inp) { inp.select(); document.execCommand('copy'); }
+  });
+}
+
+async function regenAffLink() {
+  if (!confirm('สร้างลิ้งใหม่? ลิ้งเดิมจะใช้งานไม่ได้อีกต่อไป')) return;
+  try {
+    await aFetch('/agent/affiliate/regen', { method: 'POST' });
+    loadAffiliate();
+  } catch(e) {
+    alert('เกิดข้อผิดพลาด: ' + e.message);
+  }
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────
+// retry aliases (used by showTabError buttons)
+const dashboardTab    = () => loadDashboard().catch(e=>showTabError(e.message,'dashboardTab'));
+const walletTab       = () => loadWallet().catch(e=>showTabError(e.message,'walletTab'));
+const lotteryTab      = () => loadLottery().catch(e=>showTabError(e.message,'lotteryTab'));
+const affiliateTab    = () => loadAffiliate().catch(e=>showTabError(e.message,'affiliateTab'));
+const membersTab      = () => loadMembers().catch(e=>showTabError(e.message,'membersTab'));
+const commissionsTab  = () => loadCommissions().catch(e=>showTabError(e.message,'commissionsTab'));
+
+async function loadDashboard() {
+  const [d, aff] = await Promise.all([aFetch('/agent/dashboard'), aFetch('/agent/affiliate')]);
+  const s    = d.data;
+  const link = `${location.origin}/?aff=${aff.data.aff_code}`;
+  document.getElementById('tab-content').innerHTML = `
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="stat-label">ยอดเงินคงเหลือ</div>
+        <div class="stat-val gold">฿${fmt(s.balance)}</div>
+        <div class="stat-sub">กระเป๋าหลัก</div>
+      </div>
+      <div class="stat-card" style="border:1px solid rgba(212,160,23,.4);position:relative">
+        <div class="stat-label">💰 กระเป๋าค่าคอม</div>
+        <div class="stat-val gold" id="ag-comm-bal">฿${fmt(s.commission_balance||0)}</div>
+        <div class="stat-sub">รอโอนเข้ากระเป๋าหลัก</div>
+        <button onclick="openAgCommTransfer()"
+          style="margin-top:8px;width:100%;padding:6px;background:var(--gold);border:none;border-radius:7px;color:#000;font-weight:800;font-size:11px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          💸 โอนเข้ากระเป๋าหลัก
+        </button>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมเดือนนี้</div>
+        <div class="stat-val green">฿${fmt(s.commission_this_month)}</div>
+        <div class="stat-sub">จากยอดแทงสมาชิกในเครือ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">สมาชิกทั้งหมด</div>
+        <div class="stat-val">${s.member_count.toLocaleString()}</div>
+        <div class="stat-sub">ใหม่วันนี้ +${s.new_members_today}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ยอดแทงวันนี้</div>
+        <div class="stat-val">฿${fmt(s.bet_total_today)}</div>
+        <div class="stat-sub">${s.bets_today.toLocaleString()} รายการ</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมวันนี้</div>
+        <div class="stat-val green">฿${fmt(s.bet_total_today * (s.referral_rate||0) / 100)}</div>
+        <div class="stat-sub">คอม ${s.referral_rate||0}% จากยอดแทงวันนี้</div>
+      </div>
+    </div>
+    <!-- Quick affiliate box -->
+    <div class="card" style="border-color:rgba(212,160,23,.3)">
+      <h3>🔗 ลิ้งแนะนำของคุณ</h3>
+      <div style="display:flex;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:12px 16px;margin-top:8px">
+        <span style="flex:1;color:var(--gold2);font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${link}</span>
+        <button onclick="navigator.clipboard.writeText('${link}').then(()=>this.textContent='✅').catch(()=>{});setTimeout(()=>this.textContent='📋 คัดลอก',2000)"
+          style="background:var(--grad);color:#000;border:none;border-radius:8px;padding:7px 14px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0;font-size:12px">
+          📋 คัดลอก
+        </button>
+      </div>
+    </div>`;
+}
+
+// ── Members ───────────────────────────────────────────────────────
+let _memberSearch = '';
+async function loadMembers(page = 1) {
+  _membersPage = page;
+  const data = await aFetch(`/agent/members?page=${page}&limit=20&search=${encodeURIComponent(_memberSearch)}`);
+  const rows  = data.data || [];
+  const total = data.total || 0;
+  const pages = Math.ceil(total / 20);
+
+  const tableRows = rows.length === 0
+    ? '<tr><td colspan="7" class="empty">ยังไม่มีสมาชิก</td></tr>'
+    : rows.map(m => `
+      <tr>
+        <td style="color:var(--muted);font-size:11px">${m.id}</td>
+        <td style="font-weight:600">${m.name}</td>
+        <td style="color:var(--muted)">${m.phone}</td>
+        <td style="color:var(--gold2)">฿${fmt(m.balance)}</td>
+        <td style="color:var(--muted)">${m.bet_count} รายการ</td>
+        <td style="color:var(--gold)">฿${fmt(m.total_bet)}</td>
+        <td><span class="badge ${m.status==='active'?'badge-green':'badge-red'}">${m.status==='active'?'Active':'Banned'}</span></td>
+      </tr>`).join('');
+
+  const pagingBtns = pages > 1 ? Array.from({length:pages},(_,i)=>
+    `<button class="page-btn ${i+1===page?'on':''}" onclick="loadMembers(${i+1})">${i+1}</button>`
+  ).join('') : '';
+
+  document.getElementById('tab-content').innerHTML = `
+    <div class="filter-bar">
+      <input class="fi-sm" id="mem-search" placeholder="🔍 ชื่อ หรือ เบอร์โทร" value="${_memberSearch}"
+        oninput="_memberSearch=this.value" onkeydown="if(event.key==='Enter')loadMembers(1)">
+      <button class="btn-sm btn-gold" style="background:var(--grad);color:#000;border:none;border-radius:8px;font-weight:700;padding:8px 16px" onclick="loadMembers(1)">ค้นหา</button>
+      <span style="margin-left:auto;color:var(--muted);font-size:12px;align-self:center">ทั้งหมด ${total} คน</span>
+    </div>
+    <div class="card" style="padding:0">
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>#</th><th>ชื่อ</th><th>เบอร์โทร</th><th>ยอดเงิน</th><th>จำนวนแทง</th><th>ยอดแทงรวม</th><th>สถานะ</th></tr></thead>
+          <tbody>${tableRows}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="paging">${pagingBtns}</div>`;
+}
+
+// ── Commissions ───────────────────────────────────────────────────
+async function loadCommissions() {
+  const data    = await aFetch('/agent/commissions');
+  const daily   = data.daily   || [];
+  const recent  = data.recent  || [];
+  const summary = data.summary || {};
+
+  const discountRate  = parseFloat(_agentData?.commission_rate || 0);
+  const referralRate  = parseFloat(summary.referral_rate || 0);
+
+  const maxCom = Math.max(...daily.map(r => parseFloat(r.commission||0)), 1);
+  const bars = daily.length === 0
+    ? '<div class="empty">ยังไม่มีข้อมูล</div>'
+    : daily.map(r => `
+      <div class="chart-bar-row">
+        <div class="chart-date">${new Date(r.date).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}</div>
+        <div class="chart-bar-bg"><div class="chart-bar-fill" style="width:${Math.round(parseFloat(r.commission||0)/maxCom*100)}%"></div></div>
+        <div class="chart-val">฿${fmt(r.commission)}</div>
+      </div>`).join('');
+
+  document.getElementById('tab-content').innerHTML = `
+    <!-- สรุปอัตรา -->
+    <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+      <div class="stat-card" style="border:1px solid rgba(46,213,115,.3)">
+        <div class="stat-label">🏷️ ส่วนลดซื้อหวย</div>
+        <div class="stat-val green">${discountRate}%</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">ลดต้นทุนซื้อหวยทุกครั้ง</div>
+      </div>
+      <div class="stat-card" style="border:1px solid rgba(212,160,23,.3)">
+        <div class="stat-label">🔗 ค่าคอมแนะนำสมาชิก</div>
+        <div class="stat-val gold">${referralRate}%</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">จากยอดแทงของสมาชิกในเครือ</div>
+      </div>
+    </div>
+    <!-- กระเป๋าค่าคอม + ปุ่มโอน -->
+    <div class="card" style="border-color:rgba(212,160,23,.4);margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">💰 กระเป๋าค่าคอม (รอโอน)</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold)" id="ag-comm-bal2">฿${fmt(_agentData?.commission_balance||0)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">ค่าคอมสะสมที่ยังไม่ได้โอนเข้ากระเป๋าหลัก</div>
+        </div>
+        <button onclick="openAgCommTransfer()"
+          style="padding:10px 20px;background:var(--gold);border:none;border-radius:10px;color:#000;font-weight:800;font-size:13px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          💸 โอนเข้ากระเป๋าหลัก
+        </button>
+      </div>
+    </div>
+    <!-- ยอดรวม -->
+    <div class="stat-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:16px">
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมเดือนนี้</div>
+        <div class="stat-val gold">฿${fmt(summary.total_month)}</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ค่าคอมสะสมทั้งหมด</div>
+        <div class="stat-val gold">฿${fmt(summary.total_all)}</div>
+      </div>
+    </div>
+    <!-- กราฟรายวัน -->
+    <div class="card">
+      <h3>💰 ค่าคอมรายวัน (30 วันล่าสุด)</h3>
+      ${bars}
+    </div>
+    <!-- รายการล่าสุด -->
+    <div class="card">
+      <h3>📋 รายการค่าคอมล่าสุด</h3>
+      <div class="tbl-wrap">
+        <table>
+          <thead><tr><th>วันที่</th><th>สมาชิกที่แทง</th><th>ยอดแทง</th><th>อัตรา</th><th>ได้รับ</th></tr></thead>
+          <tbody>
+            ${recent.length===0
+              ? '<tr><td colspan="5" class="empty">ยังไม่มีข้อมูล</td></tr>'
+              : recent.map(r=>`
+                <tr>
+                  <td style="font-size:11px;color:var(--muted)">${new Date(r.created_at).toLocaleDateString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+                  <td style="font-size:12px">${r.from_member_name||'#'+r.from_member_id}</td>
+                  <td style="color:var(--text)">฿${fmt(r.bet_amount)}</td>
+                  <td style="color:var(--muted)">${r.rate}%</td>
+                  <td style="color:var(--green);font-weight:700">+฿${fmt(r.amount)}</td>
+                </tr>`).join('')
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+// ── Profile ───────────────────────────────────────────────────────
+function loadProfile() {
+  const a = _agentData;
+  const PROF_BANK_OPTS = Object.entries(BANK_NAMES).map(([k,v])=>`<option value="${k}">${v} (${k})</option>`).join('');
+  const hasBankProf = !!(a.bank_account);
+  document.getElementById('tab-content').innerHTML = `
+    <div class="card">
+      <div class="profile-row">
+        <div class="profile-avatar">🤝</div>
+        <div class="profile-info">
+          <h2>${a.name}</h2>
+          <p>${a.phone}${a.email ? ' · ' + a.email : ''}</p>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">รหัสเอเยนต์</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold2)">#${a.id}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ส่วนลดซื้อหวย</div>
+          <div style="font-size:20px;font-weight:800;color:var(--green)">${a.commission_rate}%</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ค่าคอมแนะนำสมาชิก</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">${a.referral_rate||0}%</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ยอดเงินคงเหลือ</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">฿${fmt(a.balance)}</div>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:14px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ค่าคอมสะสมรวม</div>
+          <div style="font-size:20px;font-weight:800;color:var(--gold)">฿${fmt(a.total_commission)}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── บัญชีธนาคาร ── -->
+    <div class="card">
+      <h3>🏦 บัญชีธนาคาร (สำหรับฝาก/ถอน)</h3>
+      ${hasBankProf ? `
+      <div style="background:rgba(92,219,92,.08);border:1px solid rgba(92,219,92,.3);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:#5cdb5c;font-weight:700;margin-bottom:6px">✅ บัญชีที่ลงทะเบียน</div>
+        <div style="font-size:14px;font-weight:700;color:#fff">${BANK_NAMES[a.bank_code]||a.bank_code||''}</div>
+        <div style="font-size:20px;font-weight:900;color:var(--gold);letter-spacing:2px;margin:4px 0">${a.bank_account}</div>
+        <div style="font-size:13px;color:#ccc">${a.bank_name||''}</div>
+      </div>` : `
+      <div style="background:rgba(231,76,60,.08);border:1px solid rgba(231,76,60,.35);border-radius:10px;padding:14px;margin-bottom:16px">
+        <div style="font-size:13px;color:#e74c3c;font-weight:700">⚠️ ยังไม่มีบัญชีธนาคารลงทะเบียน</div>
+        <div style="font-size:12px;color:#888;margin-top:4px">กรุณาเพิ่มบัญชีด้านล่าง เพื่อใช้ฝาก/ถอนเงิน</div>
+      </div>`}
+      <div class="fg">
+        <label>ธนาคาร</label>
+        <select class="fi" id="prof-bank-code">
+          <option value="">— เลือกธนาคาร —</option>
+          ${PROF_BANK_OPTS}
+        </select>
+      </div>
+      <div class="fg"><label>เลขบัญชี</label><input class="fi" id="prof-bank-acc" type="text" placeholder="เช่น 1234567890" value="${a.bank_account||''}"></div>
+      <div class="fg"><label>ชื่อบัญชี</label><input class="fi" id="prof-bank-name" type="text" placeholder="ชื่อ-นามสกุลผู้ถือบัญชี" value="${a.bank_name||''}"></div>
+      <button class="btn btn-gold" style="max-width:220px" id="bank-btn" onclick="saveAgentBank()">💾 บันทึกบัญชีธนาคาร</button>
+      <div class="err" id="bank-err"></div>
+    </div>
+
+    <div class="card">
+      <h3>🔒 เปลี่ยนรหัสผ่าน</h3>
+      <div class="fg"><label>รหัสผ่านปัจจุบัน</label><input class="fi" id="pw-old" type="password" placeholder="••••••••"></div>
+      <div class="fg"><label>รหัสผ่านใหม่</label><input class="fi" id="pw-new" type="password" placeholder="อย่างน้อย 8 ตัว"></div>
+      <div class="fg"><label>ยืนยันรหัสผ่านใหม่</label><input class="fi" id="pw-con" type="password" placeholder="••••••••"></div>
+      <button class="btn btn-gold" style="max-width:200px" id="pw-btn" onclick="changePassword()">บันทึกรหัสผ่าน</button>
+      <div class="err" id="pw-err"></div>
+    </div>`;
+
+  // pre-select bank if already set
+  if (a.bank_code) {
+    const sel = document.getElementById('prof-bank-code');
+    if (sel) sel.value = a.bank_code;
+  }
+}
+
+async function saveAgentBank() {
+  const bank_code    = document.getElementById('prof-bank-code')?.value;
+  const bank_account = document.getElementById('prof-bank-acc')?.value?.trim();
+  const bank_name    = document.getElementById('prof-bank-name')?.value?.trim();
+  const err          = document.getElementById('bank-err');
+  const btn          = document.getElementById('bank-btn');
+  err.textContent = '';
+  if (!bank_code)    { err.textContent = 'กรุณาเลือกธนาคาร'; return; }
+  if (!bank_account) { err.textContent = 'กรุณากรอกเลขบัญชี'; return; }
+  if (!bank_name)    { err.textContent = 'กรุณากรอกชื่อบัญชี'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
+  try {
+    await aFetch('/agent/bank', { method: 'PATCH', body: JSON.stringify({ bank_code, bank_account, bank_name }) });
+    // อัพเดท _agentData ในหน่วยความจำ
+    _agentData.bank_code    = bank_code;
+    _agentData.bank_account = bank_account;
+    _agentData.bank_name    = bank_name;
+    err.style.color = '#5cdb5c';
+    err.textContent = '✅ บันทึกบัญชีธนาคารสำเร็จ';
+    // reload หน้า profile เพื่อแสดงข้อมูลใหม่
+    setTimeout(() => loadProfile(), 800);
+  } catch(e) {
+    err.style.color = '#e74c3c';
+    err.textContent = e.message || 'เกิดข้อผิดพลาด';
+  } finally {
+    btn.disabled = false; btn.textContent = '💾 บันทึกบัญชีธนาคาร';
+  }
+}
+
+async function changePassword() {
+  const oldPw = document.getElementById('pw-old')?.value;
+  const newPw = document.getElementById('pw-new')?.value;
+  const conPw = document.getElementById('pw-con')?.value;
+  const err   = document.getElementById('pw-err');
+  const btn   = document.getElementById('pw-btn');
+  err.textContent = '';
+  if (!oldPw || !newPw || !conPw) { err.textContent = 'กรุณากรอกข้อมูลให้ครบ'; return; }
+  if (newPw.length < 8)           { err.textContent = 'รหัสผ่านใหม่ต้องมีอย่างน้อย 8 ตัว'; return; }
+  if (newPw !== conPw)            { err.textContent = 'รหัสผ่านใหม่ไม่ตรงกัน'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังบันทึก...';
+  try {
+    await aFetch('/agent/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password: oldPw, new_password: newPw })
+    });
+    err.style.color = 'var(--green)';
+    err.textContent = '✅ เปลี่ยนรหัสผ่านสำเร็จ';
+    document.getElementById('pw-old').value = '';
+    document.getElementById('pw-new').value = '';
+    document.getElementById('pw-con').value = '';
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+  }
+  btn.disabled = false; btn.textContent = 'บันทึกรหัสผ่าน';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  WALLET — กระเป๋าเงิน
+// ═══════════════════════════════════════════════════════════════════
+
+const TX_LABEL = { deposit:'ฝากเงิน', withdraw:'ถอนเงิน', bet:'แทงหวย', win:'ถูกรางวัล', refund:'คืนเงิน', commission:'ค่าคอม' };
+const TX_BADGE = { deposit:'badge-deposit', withdraw:'badge-withdraw', bet:'badge-bet', win:'badge-win', refund:'badge-green', commission:'badge-win' };
+const DEP_LABEL = { pending:'รอดำเนินการ', approved:'อนุมัติแล้ว', rejected:'ปฏิเสธ' };
+
+async function loadWallet(subTab = 'overview') {
+  let walletData;
+  try {
+    walletData = await aFetch('/agent/wallet');
+    _agentData = { ..._agentData, balance: walletData.data.balance };
+    document.getElementById('agent-name-hdr').textContent = _agentData.name;
+  } catch(e) {
+    document.getElementById('tab-content').innerHTML = `<div class="empty">❌ โหลดข้อมูลไม่ได้: ${e.message}</div>`;
+    return;
+  }
+  const w = walletData.data;
+
+  document.getElementById('tab-content').innerHTML = `
+    <!-- Wallet hero -->
+    <div class="wallet-hero">
+      <div>
+        <div class="wallet-bal-label">ยอดเงินคงเหลือ</div>
+        <div class="wallet-bal-val">฿${fmt(w.balance)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px">
+          ${w.pending_deposit.count > 0 ? `<span style="color:orange">⏳ ฝากรอ ${w.pending_deposit.count} รายการ (฿${fmt(w.pending_deposit.total)})</span>` : ''}
+          ${w.pending_withdraw.count > 0 ? `<span style="color:var(--red);margin-left:8px">⏳ ถอนรอ ${w.pending_withdraw.count} รายการ (฿${fmt(w.pending_withdraw.total)})</span>` : ''}
+          ${w.pending_deposit.count === 0 && w.pending_withdraw.count === 0 ? '<span>ไม่มีรายการรอดำเนินการ</span>' : ''}
+        </div>
+      </div>
+      <div class="wallet-actions">
+        <button class="btn-action btn-deposit" onclick="openDepositModal()">💰 ฝากเงิน</button>
+        <button class="btn-action btn-withdraw" onclick="openWithdrawModal()">🏦 ถอนเงิน</button>
+      </div>
+    </div>
+
+    <!-- Sub tabs -->
+    <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <div id="w-tab-txn"   class="nav-tab ${subTab==='overview'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadWallet('overview')">📋 ประวัติทำรายการ</div>
+      <div id="w-tab-dep"   class="nav-tab ${subTab==='deposits'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadWallet('deposits')">⬇ ประวัติฝากเงิน</div>
+      <div id="w-tab-wd"    class="nav-tab ${subTab==='withdrawals'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadWallet('withdrawals')">⬆ ประวัติถอนเงิน</div>
+    </div>
+
+    <div id="wallet-sub-content">
+      <div class="loading">⏳ กำลังโหลด...</div>
+    </div>`;
+
+  if      (subTab === 'overview')    loadWalletTxns();
+  else if (subTab === 'deposits')    loadWalletDeposits();
+  else if (subTab === 'withdrawals') loadWalletWithdrawals();
+}
+
+async function loadWalletTxns(page = 1) {
+  const el = document.getElementById('wallet-sub-content');
+  if (!el) return;
+  try {
+    const data = await aFetch(`/agent/wallet/transactions?page=${page}&limit=20`);
+    const rows  = data.data || [];
+    const total = data.total || 0;
+    const pages = Math.ceil(total / 20);
+    el.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>ประเภท</th><th>รายการ</th><th>จำนวน</th><th>ยอดหลัง</th><th>เวลา</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีประวัติ</td></tr>' :
+              rows.map(t => `<tr>
+                <td style="color:var(--muted);font-size:11px">${t.id}</td>
+                <td><span class="badge ${TX_BADGE[t.type]||'badge-wait'}">${TX_LABEL[t.type]||t.type}</span></td>
+                <td style="font-size:12px;color:var(--muted);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description||'—'}</td>
+                <td style="color:${t.type==='win'||t.type==='deposit'||t.type==='commission'?'var(--green)':'var(--red)'};font-weight:700">
+                  ${t.type==='win'||t.type==='deposit'||t.type==='commission'?'+':'-'}฿${fmt(t.amount)}</td>
+                <td style="color:var(--gold2)">฿${fmt(t.balance_after)}</td>
+                <td style="color:var(--muted);font-size:11px">${new Date(t.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadWalletTxns(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+async function loadWalletDeposits(page = 1) {
+  const el = document.getElementById('wallet-sub-content');
+  if (!el) return;
+  try {
+    const data = await aFetch(`/agent/wallet/deposits?page=${page}&limit=20`);
+    const rows  = data.data || [];
+    const pages = Math.ceil((data.total||0) / 20);
+    el.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>จำนวน</th><th>สลิป</th><th>สถานะ</th><th>หมายเหตุ</th><th>เวลา</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีรายการ</td></tr>' :
+              rows.map(d => `<tr>
+                <td style="color:var(--muted);font-size:11px">${d.id}</td>
+                <td style="font-weight:700;color:var(--green)">฿${fmt(d.amount)}</td>
+                <td>${d.slip_image
+                  ? `<a href="/uploads/${d.slip_image}" target="_blank"><img src="/uploads/${d.slip_image}" style="height:36px;width:36px;object-fit:cover;border-radius:6px;border:1px solid var(--border)"></a>`
+                  : '<span style="color:var(--muted);font-size:11px">—</span>'}</td>
+                <td><span class="badge ${d.status==='approved'?'badge-green':d.status==='pending'?'badge-pending':'badge-red'}">${DEP_LABEL[d.status]||d.status}</span></td>
+                <td style="font-size:11px;color:var(--muted);max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.reject_note||d.note||'—'}</td>
+                <td style="font-size:11px;color:var(--muted)">${new Date(d.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadWalletDeposits(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+async function loadWalletWithdrawals(page = 1) {
+  const el = document.getElementById('wallet-sub-content');
+  if (!el) return;
+  try {
+    const data = await aFetch(`/agent/wallet/withdrawals?page=${page}&limit=20`);
+    const rows  = data.data || [];
+    const pages = Math.ceil((data.total||0) / 20);
+    el.innerHTML = `
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>จำนวน</th><th>บัญชี</th><th>สถานะ</th><th>หมายเหตุ</th><th>เวลา</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="6" class="empty">ยังไม่มีรายการ</td></tr>' :
+              rows.map(w => `<tr>
+                <td style="color:var(--muted);font-size:11px">${w.id}</td>
+                <td style="font-weight:700;color:var(--red)">฿${fmt(w.amount)}</td>
+                <td style="font-size:12px;color:var(--muted)">${w.bank_code} ${w.bank_account||''}</td>
+                <td><span class="badge ${w.status==='completed'?'badge-green':w.status==='pending'?'badge-pending':'badge-red'}">${{pending:'รอดำเนินการ',processing:'กำลังดำเนินการ',completed:'สำเร็จ',rejected:'ปฏิเสธ'}[w.status]||w.status}</span></td>
+                <td style="font-size:12px;color:var(--muted)">${w.reject_note||w.note||'—'}</td>
+                <td style="font-size:11px;color:var(--muted)">${new Date(w.created_at).toLocaleString('th-TH',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadWalletWithdrawals(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+// ── Deposit Modal ─────────────────────────────────────────────────
+const BANK_NAMES = {SCB:'ธ.ไทยพาณิชย์',KTB:'ธ.กรุงไทย',BBL:'ธ.กรุงเทพ',BAY:'ธ.กรุงศรี',KBANK:'ธ.กสิกรไทย',TMB:'ธ.ทีเอ็มบีธนชาต',GSB:'ธ.ออมสิน',BAAC:'ธ.ธกส',KKP:'ธ.เกียรตินาคิน',CIMB:'ธ.ซีไอเอ็มบี',UOB:'ธ.ยูโอบี',TISCO:'ธ.ทิสโก้',LH:'ธ.แลนด์แอนด์เฮ้าส์',TBANK:'ธ.ธนชาต'};
+
+async function openDepositModal() {
+  // โหลดข้อมูลบัญชีธนาคารที่ลงทะเบียนของ Agent
+  let agentProfile = null;
+  try { agentProfile = (await aFetch('/agent/profile')).data; } catch(_) {}
+
+  const hasBankAccount = !!(agentProfile?.bank_account);
+  const bankLabel = hasBankAccount
+    ? `${BANK_NAMES[agentProfile.bank_code]||agentProfile.bank_code||''} ${agentProfile.bank_name ? '· '+agentProfile.bank_name : ''}`.trim()
+    : '';
+
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'dep-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('dep-modal').remove()">✕</button>
+      <h3>💰 ฝากเงิน — แนบสลิป</h3>
+
+      ${hasBankAccount ? `
+      <!-- ✅ แสดงบัญชีที่ต้องโอนจาก -->
+      <div style="background:#0d1f0d;border:1px solid rgba(92,219,92,.4);border-radius:12px;padding:14px;margin-bottom:16px">
+        <div style="font-size:11px;color:#5cdb5c;font-weight:700;margin-bottom:8px;letter-spacing:.3px">⚠️ กรุณาโอนจากบัญชีที่ลงทะเบียนเท่านั้น</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:rgba(92,219,92,.15);border:1px solid rgba(92,219,92,.3);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🏦</div>
+          <div>
+            <div style="font-size:12px;color:#aaa">${bankLabel}</div>
+            <div style="font-size:18px;font-weight:900;color:#ffd700;letter-spacing:2px">${agentProfile.bank_account}</div>
+          </div>
+        </div>
+        <div style="font-size:11px;color:#666;margin-top:8px">หากโอนจากบัญชีอื่น Admin จะตรวจสอบก่อนอนุมัติ</div>
+      </div>` : `
+      <!-- ❌ ยังไม่มีบัญชีลงทะเบียน -->
+      <div style="background:#1f0d0d;border:1px solid rgba(219,92,92,.4);border-radius:12px;padding:14px;margin-bottom:16px;text-align:center">
+        <div style="font-size:14px;color:#e74c3c;font-weight:700">⚠️ ยังไม่มีบัญชีธนาคารผูกไว้</div>
+        <div style="font-size:12px;color:#888;margin-top:6px">กรุณาติดต่อ Admin เพื่อผูกบัญชีธนาคารก่อนฝากเงิน</div>
+      </div>`}
+
+      <div class="fg"><label>จำนวนเงิน (บาท)</label>
+        <input class="fi" id="dep-amount" type="number" min="100" placeholder="ขั้นต่ำ 100 บาท" ${!hasBankAccount?'disabled':''}>
+      </div>
+      <div class="fg">
+        <label>แนบสลิปโอนเงิน <span style="color:var(--red)">*</span></label>
+        <input class="fi" id="dep-slip" type="file" accept="image/*" style="padding:10px" ${!hasBankAccount?'disabled':''}>
+      </div>
+      <div class="fg"><label>หมายเหตุ (ไม่บังคับ)</label>
+        <input class="fi" id="dep-note" type="text" placeholder="เช่น ref xxxx" ${!hasBankAccount?'disabled':''}>
+      </div>
+      <button class="btn btn-gold" id="dep-submit-btn" onclick="submitDeposit()" ${!hasBankAccount?'disabled style="opacity:.5;cursor:not-allowed"':''}>
+        📤 ส่งสลิปฝากเงิน — รอ Admin อนุมัติ
+      </button>
+      <div class="err" id="dep-err"></div>
+    </div>`;
+  document.body.appendChild(bg);
+}
+
+async function submitDeposit() {
+  const amount  = document.getElementById('dep-amount')?.value;
+  const slipEl  = document.getElementById('dep-slip');
+  const note    = document.getElementById('dep-note')?.value;
+  const err     = document.getElementById('dep-err');
+  const btn     = document.getElementById('dep-submit-btn');
+  err.textContent = '';
+  if (!amount || Number(amount) < 100) { err.textContent = 'กรุณากรอกจำนวนเงินขั้นต่ำ 100 บาท'; return; }
+  if (!slipEl?.files[0]) { err.textContent = 'กรุณาแนบสลิปโอนเงิน'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  try {
+    const fd = new FormData();
+    fd.append('amount',   Number(amount));
+    fd.append('slip',     slipEl.files[0]);
+    if (note) fd.append('note', note);
+    await aFetchForm('/agent/wallet/deposit', fd);
+    document.getElementById('dep-modal')?.remove();
+    loadWallet('deposits');
+    // แสดง toast ถ้ามี
+    const toastFn = window.showToast || window.toast;
+    if (toastFn) toastFn('ส่งสลิปสำเร็จ ✅', 'Admin จะอนุมัติภายใน 10 นาที');
+    else alert('ส่งสลิปสำเร็จ — Admin จะอนุมัติภายใน 10 นาที');
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = '📤 ส่งสลิปฝากเงิน — รอ Admin อนุมัติ';
+  }
+}
+
+// ── Withdraw Modal ────────────────────────────────────────────────
+function openWithdrawModal() {
+  const banks = {SCB:'ไทยพาณิชย์',KTB:'กรุงไทย',BBL:'กรุงเทพ',BAY:'กรุงศรี',KBANK:'กสิกรไทย',TMB:'ทีทีบี',GSB:'ออมสิน',BAAC:'ธ.ก.ส.',KKP:'เกียรตินาคิน',CIMB:'ซีไอเอ็มบี',UOB:'ยูโอบี'};
+  const bankOpts = Object.entries(banks).map(([k,v]) => `<option value="${k}">${v} (${k})</option>`).join('');
+  const bal = _agentData?.balance || 0;
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'wd-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box">
+      <button class="modal-close" onclick="document.getElementById('wd-modal').remove()">✕</button>
+      <h3>🏦 ถอนเงิน</h3>
+      <div style="background:rgba(46,213,115,.08);border:1px solid rgba(46,213,115,.2);border-radius:10px;padding:12px;margin-bottom:16px;font-size:13px;text-align:center">
+        <span style="color:var(--muted)">ยอดเงินคงเหลือ</span>
+        <span style="color:var(--gold2);font-weight:800;font-size:18px;margin-left:8px">฿${fmt(bal)}</span>
+      </div>
+      <div class="fg"><label>จำนวนเงิน (บาท)</label>
+        <input class="fi" id="wd-amount" type="number" min="100" max="${bal}" placeholder="ขั้นต่ำ 100 บาท">
+      </div>
+      <div class="fg"><label>ธนาคาร</label>
+        <select class="fi" id="wd-bank"><option value="">— เลือกธนาคาร —</option>${bankOpts}</select>
+      </div>
+      <div class="fg"><label>เลขบัญชี</label>
+        <input class="fi" id="wd-acc" type="text" placeholder="เช่น 1234567890">
+      </div>
+      <div class="fg"><label>ชื่อบัญชี</label>
+        <input class="fi" id="wd-name" type="text" placeholder="ชื่อ-นามสกุลผู้ถือบัญชี">
+      </div>
+      <div class="fg"><label>หมายเหตุ</label>
+        <input class="fi" id="wd-note" type="text" placeholder="ไม่บังคับ">
+      </div>
+      <button class="btn btn-gold" id="wd-submit-btn" onclick="submitWithdraw()">✅ ยืนยันถอนเงิน</button>
+      <div class="err" id="wd-err"></div>
+    </div>`;
+  document.body.appendChild(bg);
+}
+
+async function submitWithdraw() {
+  const amount       = document.getElementById('wd-amount')?.value;
+  const bank_code    = document.getElementById('wd-bank')?.value;
+  const bank_account = document.getElementById('wd-acc')?.value;
+  const bank_name    = document.getElementById('wd-name')?.value;
+  const note         = document.getElementById('wd-note')?.value;
+  const err          = document.getElementById('wd-err');
+  const btn          = document.getElementById('wd-submit-btn');
+  err.textContent = '';
+  if (!amount || Number(amount) < 100)      { err.textContent = 'กรุณากรอกจำนวนเงินขั้นต่ำ 100 บาท'; return; }
+  if (!bank_code)                            { err.textContent = 'กรุณาเลือกธนาคาร'; return; }
+  if (!bank_account)                         { err.textContent = 'กรุณากรอกเลขบัญชี'; return; }
+  if (!bank_name)                            { err.textContent = 'กรุณากรอกชื่อบัญชี'; return; }
+  if (Number(amount) > (_agentData?.balance||0)) { err.textContent = 'ยอดเงินไม่เพียงพอ'; return; }
+  btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...';
+  try {
+    await aFetch('/agent/wallet/withdraw', { method:'POST', body: JSON.stringify({ amount:Number(amount), bank_code, bank_account, bank_name, note }) });
+    document.getElementById('wd-modal')?.remove();
+    loadWallet('withdrawals');
+  } catch(e) {
+    err.style.color = 'var(--red)';
+    err.textContent = e.message;
+    btn.disabled = false; btn.textContent = '✅ ยืนยันถอนเงิน';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  LOTTERY — ซื้อหวย
+// ═══════════════════════════════════════════════════════════════════
+
+let _lotterySubTab = 'buy';
+let _allAgentRounds = [];
+let _agentLotFilter = 'ALL';
+
+// ─── Lottery metadata (เหมือน index.html) ───────────────────────
+const LOT_TYPE_META = {
+  TH_GOV:     { label:'หวยรัฐบาล',    flag:'🇹🇭', tagClass:'hot',  tagText:'🔥 HOT'       },
+  YEEKEE:     { label:'หวยยี่กี',     flag:'⚡',   tagClass:'vip',  tagText:'⚡ ยี่กี'     },
+  LA_GOV:     { label:'หวยลาว',       flag:'🇱🇦', tagClass:'lao',  tagText:'🇱🇦 ลาว'      },
+  VN_HAN:     { label:'ฮานอยปกติ',    flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ปกติ'     },
+  VN_HAN_SP:  { label:'ฮานอยพิเศษ',   flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 พิเศษ'    },
+  VN_HAN_VIP: { label:'ฮานอย VIP',    flag:'🇻🇳', tagClass:'vip',  tagText:'🇻🇳 VIP'      },
+  VN_HANOI:   { label:'ฮานอย',        flag:'🇻🇳', tagClass:'',     tagText:'🇻🇳 ฮานอย'    },
+  TH_STK:     { label:'หวยหุ้นไทย',   flag:'🇹🇭', tagClass:'',     tagText:'🇹🇭 หุ้นไทย'  },
+};
+const VN_CODES = new Set(['VN_HAN','VN_HAN_SP','VN_HAN_VIP']);
+
+function _agentTagFor(code){
+  const m = LOT_TYPE_META[code];
+  return m ? `<span class="lot-tag ${m.tagClass}">${m.tagText}</span>` : `<span class="lot-tag">${code}</span>`;
+}
+function _agentStatusFor(r){
+  if(r.status === 'upcoming'){
+    if(r.open_at){
+      const diff = new Date(r.open_at).getTime() - Date.now();
+      if(diff > 0){
+        const hh = Math.floor(diff/3600000), mm = Math.floor((diff%3600000)/60000);
+        return `<span class="lot-status soon">🕐 เปิดใน ${hh>0?hh+'ช ':'' }${mm}น.</span>`;
+      }
+    }
+    return '<span class="lot-status soon">🕐 เปิดรับเร็วๆ นี้</span>';
+  }
+  const diff = new Date(r.close_at).getTime() - Date.now();
+  if(diff < 0)             return '<span class="lot-status closed">🔴 ปิดรับแล้ว</span>';
+  if(diff < 30*60*1000)    return `<span class="lot-status soon">🟡 ใกล้ปิด ${Math.ceil(diff/60000)}น.</span>`;
+  return '<span class="lot-status open">🟢 เปิดรับ</span>';
+}
+
+function _agentFilterLot(el, code){
+  document.querySelectorAll('.lot-ftab').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  _agentLotFilter = code;
+  _renderAgentLotGroups(code);
+}
+
+function _renderAgentLotGroups(filterCode){
+  const el = document.getElementById('agent-lot-groups');
+  if(!el) return;
+  let rounds = _allAgentRounds;
+  if(filterCode !== 'ALL'){
+    if(filterCode === 'VN_HANOI') rounds = rounds.filter(r => VN_CODES.has(r.code));
+    else rounds = rounds.filter(r => r.code === filterCode);
+  }
+  if(rounds.length === 0){
+    el.innerHTML = '<div class="empty">ไม่มีงวดในประเภทนี้</div>';
+    return;
+  }
+  // Group by code
+  const groups = {};
+  rounds.forEach(r => {
+    const key = VN_CODES.has(r.code) ? 'VN_HANOI' : (r.code || 'OTHER');
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+  const GROUP_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','YEEKEE','TH_STK'];
+  const sorted = Object.entries(groups).sort(([a],[b]) => {
+    const ia = GROUP_ORDER.indexOf(a), ib = GROUP_ORDER.indexOf(b);
+    return (ia===-1?999:ia)-(ib===-1?999:ib);
+  });
+  const safeEsc = s => String(s||'').replace(/"/g,'&quot;');
+  let html = '';
+  for(const [code, list] of sorted){
+    const meta = LOT_TYPE_META[code] || { label: code, flag:'🎰' };
+    const hdr = `<div class="lot-group-hdr"><span style="font-size:18px">${meta.flag}</span><h3>${meta.label}</h3><span style="font-size:11px;color:var(--muted);background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:2px 8px">${list.length} งวด</span></div>`;
+    const cards = list.map(r => {
+      const isUpcoming = r.status === 'upcoming';
+      const closeStr = new Date(r.close_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'});
+      const openStr  = r.open_at ? new Date(r.open_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',dateStyle:'short',timeStyle:'short'}) : '-';
+      const clickAttr = isUpcoming ? '' : `onclick="openBetModal(${JSON.stringify(r).replace(/"/g,'&quot;')})"`;
+      return `<div class="lot-card${isUpcoming?' upcoming':''}" ${clickAttr}>
+        <div class="lot-card-top">${_agentTagFor(r.code)}${_agentStatusFor(r)}</div>
+        <div class="lot-name">${r.flag||meta.flag} ${r.lottery_name}</div>
+        <div class="lot-prize">฿${Number(r.rate_3top||700).toLocaleString()}x</div>
+        <div class="lot-meta">งวด: <b style="color:var(--text)">${r.round_name}</b></div>
+        ${isUpcoming
+          ? `<div class="lot-meta">เปิดรับ: <span>${openStr}</span></div>`
+          : `<div class="lot-meta">ปิดรับ: <span>${closeStr}</span></div>`}
+        <div class="lot-rate">3บน <b>${r.rate_3top}</b> · 3โต้ด <b>${r.rate_3tod}</b> · 2บน <b>${r.rate_2top}</b> · 2ล่าง <b>${r.rate_2bot}</b></div>
+        ${isUpcoming
+          ? `<button class="lot-btn" disabled>🕐 ยังไม่เปิดรับ</button>`
+          : `<button class="lot-btn" onclick="event.stopPropagation();openBetModal(${JSON.stringify(r).replace(/"/g,'&quot;')})">🎰 แทงเลย</button>`}
+      </div>`;
+    }).join('');
+    html += `<div class="lot-group">${hdr}<div class="lot-group-grid">${cards}</div></div>`;
+  }
+  el.innerHTML = html;
+}
+const BET_LABEL  = {'3top':'3 ตัวบน','3tod':'3 ตัวโต','2top':'2 ตัวบน','2bot':'2 ตัวล่าง','run_top':'วิ่งบน','run_bot':'วิ่งล่าง'};
+const BET_STATUS = {'waiting':'รอผล','win':'ถูกรางวัล','lose':'ไม่ถูก','cancelled':'ยกเลิก','refunded':'คืนเงิน'};
+
+// ─── Cart-based buy system (เหมือน index.html) ──────────────────
+const BET_CFG = {
+  '3top':       { label:'3 บนตรง',     digits:3, type:'3top',    expand:'single' },
+  '3tod':       { label:'3 โต๊ด',      digits:3, type:'3tod',    expand:'single' },
+  '3rev':       { label:'3 ตรงกลับ',   digits:3, type:'3top',    expand:'rev3'   },
+  '2top':       { label:'2 บน',         digits:2, type:'2top',    expand:'single' },
+  '2bot':       { label:'2 ล่าง',       digits:2, type:'2bot',    expand:'single' },
+  '2rev':       { label:'2 บนล่างกลับ',digits:2, type:'2top',    expand:'rev2'   },
+  'run_top':    { label:'วิ่งบน',       digits:1, type:'run_top', expand:'single' },
+  'run_bot':    { label:'วิ่งล่าง',     digits:1, type:'run_bot', expand:'single' },
+  'slide_f_top':{ label:'รูดหน้าบน',   digits:1, type:'2top',    expand:'slideF' },
+  'slide_f_bot':{ label:'รูดหน้าล่าง', digits:1, type:'2bot',    expand:'slideF' },
+  'slide_b_top':{ label:'รูดหลังบน',   digits:1, type:'2top',    expand:'slideB' },
+  'slide_b_bot':{ label:'รูดหลังล่าง', digits:1, type:'2bot',    expand:'slideB' },
+  'double':     { label:'รูดเบิ้ล',    digits:0, type:'2top',    expand:'double' },
+};
+let _buyCart    = [];
+let _buySelKeys = new Set();
+let _buyRound   = null; // round object ที่กำลัง buy
+
+function openBetModal(round) {
+  _buyRound   = round;
+  _buyCart    = [];
+  _buySelKeys = new Set();
+
+  const rates = {
+    '3top': round.rate_3top, '3tod': round.rate_3tod,
+    '2top': round.rate_2top, '2bot': round.rate_2bot,
+    'run_top': round.rate_run_top, 'run_bot': round.rate_run_bot,
+  };
+
+  // Remove existing modal if any
+  document.getElementById('agent-buy-modal')?.remove();
+
+  const bg = document.createElement('div');
+  bg.className = 'modal-bg';
+  bg.id = 'agent-buy-modal';
+  bg.onclick = e => { if (e.target === bg) bg.remove(); };
+  bg.innerHTML = `
+    <div class="modal-box" style="max-width:500px">
+      <button class="modal-close" onclick="document.getElementById('agent-buy-modal').remove()">✕</button>
+      <h3>${round.flag||'🎲'} ${round.lottery_name}</h3>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${round.round_name}</div>
+
+      <!-- 3-digit group -->
+      <div class="buy-grp-label">🎯 3 ตัว</div>
+      <div class="buy-types-grid">
+        <div class="buy-type-btn" data-key="3top"   onclick="agTogBet(this,'3top'  )">3 บนตรง<br><small>×${rates['3top']}</small></div>
+        <div class="buy-type-btn" data-key="3tod"   onclick="agTogBet(this,'3tod'  )">3 โต๊ด<br><small>×${rates['3tod']}</small></div>
+        <div class="buy-type-btn" data-key="3rev"   onclick="agTogBet(this,'3rev'  )">3 ตรงกลับ<br><small>×${rates['3top']}×2</small></div>
+      </div>
+
+      <!-- 2-digit group -->
+      <div class="buy-grp-label">🎯 2 ตัว</div>
+      <div class="buy-types-grid">
+        <div class="buy-type-btn" data-key="2top"   onclick="agTogBet(this,'2top'  )">2 บน<br><small>×${rates['2top']}</small></div>
+        <div class="buy-type-btn" data-key="2bot"   onclick="agTogBet(this,'2bot'  )">2 ล่าง<br><small>×${rates['2bot']}</small></div>
+        <div class="buy-type-btn" data-key="2rev"   onclick="agTogBet(this,'2rev'  )">2 บนล่างกลับ<br><small>×${rates['2top']}+×${rates['2bot']}</small></div>
+      </div>
+
+      <!-- Run/slide group -->
+      <div class="buy-grp-label">🏃 รูด / วิ่ง</div>
+      <div class="buy-types-grid">
+        <div class="buy-type-btn" data-key="run_top"    onclick="agTogBet(this,'run_top'    )">วิ่งบน<br><small>×${rates['run_top']}</small></div>
+        <div class="buy-type-btn" data-key="run_bot"    onclick="agTogBet(this,'run_bot'    )">วิ่งล่าง<br><small>×${rates['run_bot']}</small></div>
+        <div class="buy-type-btn" data-key="slide_f_top" onclick="agTogBet(this,'slide_f_top')">รูดหน้าบน<br><small>10ใบ×${rates['2top']}</small></div>
+        <div class="buy-type-btn" data-key="slide_f_bot" onclick="agTogBet(this,'slide_f_bot')">รูดหน้าล่าง<br><small>10ใบ×${rates['2bot']}</small></div>
+        <div class="buy-type-btn" data-key="slide_b_top" onclick="agTogBet(this,'slide_b_top')">รูดหลังบน<br><small>10ใบ×${rates['2top']}</small></div>
+        <div class="buy-type-btn" data-key="slide_b_bot" onclick="agTogBet(this,'slide_b_bot')">รูดหลังล่าง<br><small>10ใบ×${rates['2bot']}</small></div>
+        <div class="buy-type-btn" data-key="double"     onclick="agTogBet(this,'double'     )">รูดเบิ้ล<br><small>20ใบ</small></div>
+      </div>
+
+      <!-- Number + amount row -->
+      <div style="display:flex;gap:10px;margin-bottom:10px">
+        <div class="fg" style="flex:1;margin:0">
+          <label>กรอกเลข</label>
+          <input type="text" class="fi" id="ag-buy-num" placeholder="—"
+            style="font-size:22px;letter-spacing:4px;text-align:center;font-weight:900"
+            maxlength="3" oninput="this.value=this.value.replace(/\\D/g,'')">
+          <small id="ag-buy-hint" style="color:var(--muted);font-size:11px;display:block;margin-top:3px">เลือกประเภทก่อน</small>
+        </div>
+        <div style="width:130px">
+          <label>จำนวนเงิน/ใบ (฿)</label>
+          <input type="number" class="fi" id="ag-buy-amt" value="${round.min_bet}" min="${round.min_bet}" max="${round.max_bet}">
+        </div>
+      </div>
+
+      <button class="btn" style="width:100%;padding:10px;font-size:14px;border-radius:10px;background:var(--card2);border:1px solid var(--gold);color:var(--gold);margin-bottom:14px" onclick="agAddToCart()">➕ เพิ่มรายการ</button>
+
+      <!-- Cart -->
+      <div id="ag-cart-wrap" style="display:none">
+        <div class="buy-grp-label" style="margin-top:0">🛒 รายการที่เลือก</div>
+        <div id="ag-cart-list" style="max-height:180px;overflow-y:auto;margin-bottom:12px"></div>
+        <div style="background:rgba(212,160,23,.07);border:1px solid rgba(212,160,23,.2);border-radius:10px;padding:10px 14px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--muted);font-size:12px">ยอดหน้าโพย</span>
+            <span id="ag-cart-total" style="font-size:13px;font-weight:700;color:var(--muted)">฿0</span>
+          </div>
+          ${parseFloat(_agentData?.commission_rate||0) > 0 ? `
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="color:var(--green);font-size:12px">ส่วนลด ${_agentData.commission_rate}%</span>
+            <span id="ag-cart-discount" style="font-size:12px;color:var(--green)">-฿0</span>
+          </div>` : ''}
+          <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(212,160,23,.2);padding-top:6px;margin-top:2px">
+            <span style="color:var(--gold);font-size:13px;font-weight:700">ชำระจริง</span>
+            <span id="ag-cart-charged" style="font-size:14px;font-weight:900;color:var(--gold2)">฿0</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:12px;padding:0 2px">
+          <span>ยอดเงินปัจจุบัน: <b style="color:var(--text)">฿${fmt(_agentData?.balance||0)}</b></span>
+        </div>
+        <button class="btn btn-gold" id="ag-confirm-btn" style="width:100%;padding:14px;font-size:16px;border-radius:12px" onclick="agDoBuy()">
+          ✅ ยืนยันการแทง <span id="ag-buy-count">0</span> ใบ
+        </button>
+      </div>
+      <div class="err" id="ag-buy-err" style="margin-top:10px"></div>
+    </div>`;
+  document.body.appendChild(bg);
+}
+
+function agTogBet(el, key) {
+  if (_buySelKeys.has(key)) {
+    _buySelKeys.delete(key);
+    el.classList.remove('on');
+  } else {
+    const newDigits = BET_CFG[key].digits;
+    const toRemove = [];
+    _buySelKeys.forEach(k => { if (BET_CFG[k].digits !== newDigits) toRemove.push(k); });
+    toRemove.forEach(k => {
+      _buySelKeys.delete(k);
+      document.querySelector(`#agent-buy-modal .buy-type-btn[data-key="${k}"]`)?.classList.remove('on');
+    });
+    _buySelKeys.add(key);
+    el.classList.add('on');
+  }
+  // Update number input hint
+  const inp  = document.getElementById('ag-buy-num');
+  const hint = document.getElementById('ag-buy-hint');
+  if (!inp) return;
+  if (_buySelKeys.size === 0) {
+    inp.maxLength = 3; inp.placeholder = '—'; inp.style.display = '';
+    if (hint) hint.textContent = 'เลือกประเภทก่อน';
+    return;
+  }
+  const firstKey = [..._buySelKeys][0];
+  const cfg = BET_CFG[firstKey];
+  if (cfg.digits === 0) {
+    inp.style.display = 'none';
+    if (hint) hint.textContent = 'ไม่ต้องกรอกเลข — สร้างอัตโนมัติ';
+  } else {
+    inp.style.display = '';
+    inp.maxLength = cfg.digits;
+    inp.placeholder = 'X'.repeat(cfg.digits);
+    if (hint) hint.textContent = `กรอก ${cfg.digits} หลัก`;
+  }
+}
+
+function agExpandBets(num, key, amount) {
+  const cfg = BET_CFG[key];
+  const bets = [];
+  switch (cfg.expand) {
+    case 'single':
+      bets.push({ number: num, bet_type: cfg.type, amount }); break;
+    case 'rev3': {
+      const d = num.split(''), perms = new Set();
+      for (let i=0;i<3;i++) for (let j=0;j<3;j++) for (let k=0;k<3;k++)
+        if (i!==j&&i!==k&&j!==k) perms.add(d[i]+d[j]+d[k]);
+      for (const p of perms) bets.push({ number: p, bet_type: '3top', amount });
+      break;
+    }
+    case 'rev2': {
+      const rev = num.split('').reverse().join('');
+      bets.push({ number: num, bet_type: '2top', amount });
+      bets.push({ number: num, bet_type: '2bot', amount });
+      if (rev !== num) {
+        bets.push({ number: rev, bet_type: '2top', amount });
+        bets.push({ number: rev, bet_type: '2bot', amount });
+      }
+      break;
+    }
+    case 'slideF':
+      for (let i=0;i<10;i++) bets.push({ number: num+i, bet_type: cfg.type, amount }); break;
+    case 'slideB':
+      for (let i=0;i<10;i++) bets.push({ number: i+num, bet_type: cfg.type, amount }); break;
+    case 'double':
+      for (let i=0;i<10;i++) {
+        const d = i.toString().repeat(2);
+        bets.push({ number: d, bet_type: '2top', amount });
+        bets.push({ number: d, bet_type: '2bot', amount });
+      }
+      break;
+  }
+  return bets;
+}
+
+function agAddToCart() {
+  if (_buySelKeys.size === 0) { agBuyErr('กรุณาเลือกประเภทการแทงก่อน'); return; }
+  const amt = parseFloat(document.getElementById('ag-buy-amt')?.value) || 0;
+  if (amt < 1) { agBuyErr('จำนวนเงินต้องมากกว่า 0'); return; }
+  const firstKey = [..._buySelKeys][0];
+  const requiredDigits = BET_CFG[firstKey].digits;
+  const num = document.getElementById('ag-buy-num')?.value.trim() || '';
+  if (requiredDigits > 0) {
+    if (!num) { agBuyErr('กรุณากรอกเลข'); return; }
+    if (num.length !== requiredDigits) { agBuyErr(`ต้องกรอกเลข ${requiredDigits} หลัก`); return; }
+  }
+  _buySelKeys.forEach(key => {
+    const cfg = BET_CFG[key];
+    const inputNum  = cfg.digits === 0 ? '' : num;
+    const expanded  = agExpandBets(inputNum, key, amt);
+    const desc = cfg.digits === 0
+      ? `${cfg.label} (${expanded.length} ใบ)`
+      : `${cfg.label} [${inputNum}] (${expanded.length} ใบ)`;
+    _buyCart.push({ key, desc, bets: expanded, amount: amt * expanded.length });
+  });
+  const numInp = document.getElementById('ag-buy-num');
+  if (numInp) numInp.value = '';
+  agBuyErr('');
+  agRenderCart();
+}
+
+function agRenderCart() {
+  const list = document.getElementById('ag-cart-list');
+  const wrap = document.getElementById('ag-cart-wrap');
+  if (!list || !wrap) return;
+  if (_buyCart.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  const BET_GRP = { '3top':'3 ตัว','3tod':'3 ตัว','2top':'บน','run_top':'บน','2bot':'ล่าง','run_bot':'ล่าง' };
+  const buckets = { '3 ตัว':[], 'บน':[], 'ล่าง':[] };
+  _buyCart.forEach((item, i) => {
+    const sub = {};
+    item.bets.forEach(bet => {
+      const g = BET_GRP[bet.bet_type] || 'บน';
+      if (!sub[g]) sub[g] = { nums:[], amt:0 };
+      sub[g].nums.push(bet.number);
+      sub[g].amt += bet.amount;
+    });
+    for (const [g, s] of Object.entries(sub)) {
+      if (buckets[g]) buckets[g].push({ idx: i, nums: s.nums, amount: s.amt });
+    }
+  });
+  let html = '';
+  for (const grp of ['3 ตัว','บน','ล่าง']) {
+    if (buckets[grp].length === 0) continue;
+    html += `<div style="margin:6px 0 3px;font-size:12px;font-weight:700;color:var(--gold)">${grp}</div>`;
+    html += `<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px">`;
+    buckets[grp].forEach(e => {
+      const numsHtml = e.nums.map(n =>
+        `<span style="font-weight:700;letter-spacing:1px;background:rgba(255,255,255,.07);border-radius:5px;padding:1px 5px">${n}</span>`
+      ).join(' ');
+      html += `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px;background:var(--card2);border:1px solid #444;border-radius:8px;padding:4px 8px;font-size:13px">
+        <span style="display:flex;flex-wrap:wrap;gap:3px;flex:1">${numsHtml}</span>
+        <span style="color:var(--gold);font-size:11px;white-space:nowrap;margin-left:4px">฿${e.amount.toLocaleString()}</span>
+        <button onclick="agRemoveCart(${e.idx})" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  list.innerHTML = html;
+  const totalBets      = _buyCart.reduce((s,c) => s+c.bets.length, 0);
+  const totalFaceAmt   = _buyCart.reduce((s,c) => s+c.amount, 0);
+  const discountRate   = parseFloat(_agentData?.commission_rate || 0);
+  const discountAmt    = parseFloat((totalFaceAmt * discountRate / 100).toFixed(2));
+  const chargedAmt     = parseFloat((totalFaceAmt - discountAmt).toFixed(2));
+
+  const tc  = document.getElementById('ag-cart-total');
+  const tdc = document.getElementById('ag-cart-discount');
+  const tch = document.getElementById('ag-cart-charged');
+  const bc  = document.getElementById('ag-buy-count');
+  if (tc)  tc.textContent  = '฿' + totalFaceAmt.toLocaleString();
+  if (tdc) tdc.textContent = '-฿' + discountAmt.toLocaleString();
+  if (tch) tch.textContent = '฿' + chargedAmt.toLocaleString();
+  if (bc)  bc.textContent  = totalBets;
+}
+
+function agRemoveCart(idx) {
+  _buyCart.splice(idx, 1);
+  agRenderCart();
+}
+
+function agBuyErr(msg) {
+  const el = document.getElementById('ag-buy-err');
+  if (el) { el.textContent = msg; el.style.color = msg ? 'var(--red)' : ''; }
+}
+
+async function agDoBuy() {
+  if (_buyCart.length === 0) { agBuyErr('กรุณาเพิ่มรายการก่อน'); return; }
+  if (!_buyRound) { agBuyErr('ไม่พบรอบหวย'); return; }
+  const allBets = _buyCart.flatMap(c => c.bets);
+  const btn = document.getElementById('ag-confirm-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ กำลังส่ง...'; }
+  agBuyErr('');
+  try {
+    const d = await aFetch('/agent/lottery/bets-batch', {
+      method: 'POST',
+      body: JSON.stringify({ round_id: _buyRound.id, bets: allBets })
+    });
+    if (d.data?.balance !== undefined) _agentData.balance = d.data.balance;
+    document.getElementById('agent-buy-modal')?.remove();
+    // Toast
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position:fixed;bottom:30px;right:20px;background:#1a2a1a;border:1px solid var(--green);border-radius:12px;padding:14px 20px;color:var(--green);font-weight:700;font-size:14px;z-index:9999';
+    toast.textContent = '✅ ' + d.message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+    loadLottery('buy');
+  } catch(e) {
+    agBuyErr(e.message);
+    if (btn) { btn.disabled = false; btn.textContent = `✅ ยืนยันการแทง ${_buyCart.flatMap(c=>c.bets).length} ใบ`; }
+  }
+}
+
+async function loadLottery(subTab = 'buy') {
+  _lotterySubTab = subTab;
+  const el = document.getElementById('tab-content');
+  el.innerHTML = `
+    <div style="display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0">
+      <div class="nav-tab ${subTab==='buy'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadLottery('buy')">🎯 แทงหวย</div>
+      <div class="nav-tab ${subTab==='history'?'on':''}" style="padding:10px 16px;font-size:12px" onclick="loadLottery('history')">📋 ประวัติการแทง</div>
+    </div>
+    <div id="lottery-sub"></div>`;
+
+  if (subTab === 'buy') loadLotteryBuy();
+  else                  loadLotteryHistory();
+}
+
+async function loadLotteryBuy() {
+  const el = document.getElementById('lottery-sub');
+  if (!el) return;
+  try {
+    const data   = await aFetch('/agent/lottery/rounds');
+    const rounds = data.data || [];
+    if (rounds.length === 0) {
+      el.innerHTML = '<div class="empty">⏳ ยังไม่มีงวดที่เปิดรับแทง</div>';
+      return;
+    }
+    _allAgentRounds = rounds;
+
+    // Build filter tabs
+    const rawCodes = [...new Set(rounds.map(r => r.code).filter(Boolean))];
+    const mergedCodes = [...new Set(rawCodes.map(c => VN_CODES.has(c) ? 'VN_HANOI' : c))];
+    const TAB_ORDER = ['TH_GOV','LA_GOV','VN_HANOI','YEEKEE','TH_STK'];
+    mergedCodes.sort((a,b)=>{
+      const ia=TAB_ORDER.indexOf(a), ib=TAB_ORDER.indexOf(b);
+      return (ia===-1?999:ia)-(ib===-1?999:ib);
+    });
+    const extraTabs = mergedCodes.map(code => {
+      const meta = LOT_TYPE_META[code] || { flag:'🎰', label:code };
+      return `<button class="lot-ftab" data-code="${code}" onclick="_agentFilterLot(this,'${code}')">${meta.flag} ${meta.label}</button>`;
+    }).join('');
+
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--muted)">เลือกงวดที่ต้องการแทง</div>
+        <div style="font-size:12px;color:var(--gold2);font-weight:700">💰 ฿${fmt(_agentData?.balance||0)}</div>
+      </div>
+      <div class="lot-filter">
+        <button class="lot-ftab on" data-code="ALL" onclick="_agentFilterLot(this,'ALL')">🎰 ทั้งหมด</button>
+        ${extraTabs}
+      </div>
+      <div id="agent-lot-groups"></div>`;
+
+    _agentLotFilter = 'ALL';
+    _renderAgentLotGroups('ALL');
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+async function loadLotteryHistory(page = 1) {
+  const el = document.getElementById('lottery-sub');
+  if (!el) return;
+  try {
+    const data  = await aFetch(`/agent/lottery/bets?page=${page}&limit=20`);
+    const rows  = data.data  || [];
+    const total = data.total || 0;
+    const stats = data.stats || {};
+    const pages = Math.ceil(total / 20);
+    el.innerHTML = `
+      <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        <div class="stat-card"><div class="stat-label">ยอดแทงรวม</div><div class="stat-val" style="font-size:18px">฿${fmt(stats.total_bet)}</div></div>
+        <div class="stat-card"><div class="stat-label">รางวัลรวม</div><div class="stat-val green" style="font-size:18px">฿${fmt(stats.total_win)}</div></div>
+        <div class="stat-card"><div class="stat-label">ถูกรางวัล</div><div class="stat-val gold" style="font-size:18px">${stats.wins||0} ครั้ง</div></div>
+        <div class="stat-card"><div class="stat-label">รอผล</div><div class="stat-val" style="font-size:18px">${stats.pending||0} รายการ</div></div>
+      </div>
+      <div class="card" style="padding:0">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>#</th><th>งวด</th><th>ประเภท</th><th>เลข</th><th>ยอด</th><th>รางวัล</th><th>สถานะ</th><th>วันที่</th></tr></thead>
+            <tbody>
+              ${rows.length === 0 ? '<tr><td colspan="8" class="empty">ยังไม่มีประวัติการแทง</td></tr>' :
+              rows.map(b => `<tr>
+                <td style="color:var(--muted);font-size:11px">${b.id}</td>
+                <td style="font-size:12px"><div>${b.flag||''} ${b.lottery_name}</div><div style="color:var(--muted);font-size:10px">${b.round_name}</div></td>
+                <td style="font-size:12px;font-weight:700">${BET_LABEL[b.bet_type]||b.bet_type}</td>
+                <td style="font-size:18px;font-weight:900;color:var(--gold2);letter-spacing:2px">${b.number}</td>
+                <td style="font-weight:700">฿${fmt(b.amount)}</td>
+                <td style="color:var(--green);font-weight:700">${b.win_amount > 0 ? '฿'+fmt(b.win_amount) : '—'}</td>
+                <td><span class="badge ${b.status==='win'?'badge-win':b.status==='waiting'?'badge-wait':'badge-lose'}">${BET_STATUS[b.status]||b.status}</span></td>
+                <td style="font-size:11px;color:var(--muted)">${new Date(b.created_at).toLocaleDateString('th-TH',{day:'2-digit',month:'short'})}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="paging">${Array.from({length:pages},(_,i)=>`<button class="page-btn ${i+1===page?'on':''}" onclick="loadLotteryHistory(${i+1})">${i+1}</button>`).join('')}</div>`;
+  } catch(e) { el.innerHTML = `<div class="empty">❌ ${e.message}</div>`; }
+}
+
+// ── Util ──────────────────────────────────────────────────────────
+function fmt(n) { return Number(n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+
+// ── Commission Transfer Modal (Agent) ─────────────────────────────
+function openAgCommTransfer(){
+  let modal = document.getElementById('ag-comm-transfer-modal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'ag-comm-transfer-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3000;display:flex;align-items:center;justify-content:center;padding:16px';
+    modal.innerHTML = `
+      <div style="background:var(--card);border-radius:16px;padding:24px;width:100%;max-width:360px;border:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="margin:0;font-size:16px;color:var(--text)">💸 โอนค่าคอมเข้ากระเป๋าหลัก</h3>
+          <button onclick="document.getElementById('ag-comm-transfer-modal').remove()"
+            style="background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;line-height:1">×</button>
+        </div>
+        <div style="background:var(--card2);border-radius:10px;padding:12px;margin-bottom:16px;text-align:center">
+          <div style="font-size:11px;color:var(--muted)">ยอดค่าคอมที่มี</div>
+          <div style="font-size:24px;font-weight:900;color:var(--gold)" id="ag-ct-available">฿0.00</div>
+        </div>
+        <div style="margin-bottom:16px">
+          <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">จำนวนที่ต้องการโอน (บาท)</label>
+          <div style="display:flex;gap:8px">
+            <input id="ag-ct-amount" type="number" min="1" step="0.01" placeholder="ระบุจำนวน"
+              style="flex:1;padding:10px 12px;background:var(--card2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-family:'Sarabun',sans-serif">
+            <button onclick="document.getElementById('ag-ct-amount').value=document.getElementById('ag-ct-available').dataset.raw||0"
+              style="padding:10px 14px;background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.4);border-radius:8px;color:var(--gold);font-size:12px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;white-space:nowrap">ทั้งหมด</button>
+          </div>
+        </div>
+        <button onclick="doAgCommTransfer()"
+          style="width:100%;padding:12px;background:var(--gold);border:none;border-radius:10px;color:#000;font-weight:800;font-size:15px;cursor:pointer;font-family:'Sarabun',sans-serif">
+          ✅ ยืนยันโอน
+        </button>
+        <div id="ag-ct-msg" style="margin-top:10px;text-align:center;font-size:13px;min-height:20px"></div>
+      </div>`;
+    modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+  }
+  const commBal = parseFloat(_agentData?.commission_balance || 0);
+  const avEl = document.getElementById('ag-ct-available');
+  if(avEl){ avEl.textContent = '฿' + fmt(commBal); avEl.dataset.raw = commBal; }
+  document.getElementById('ag-comm-transfer-modal').style.display = 'flex';
+}
+
+async function doAgCommTransfer(){
+  const amount = parseFloat(document.getElementById('ag-ct-amount')?.value);
+  const msgEl  = document.getElementById('ag-ct-msg');
+  if(!amount || amount <= 0){ if(msgEl) msgEl.innerHTML = '<span style="color:var(--red)">ระบุจำนวนเงิน</span>'; return; }
+  if(msgEl) msgEl.innerHTML = '⏳ กำลังโอน...';
+  try{
+    const d = await aFetch('/agent/commission/transfer', { method:'POST', body: JSON.stringify({ amount }) });
+    if(!d.success) throw new Error(d.message);
+    if(msgEl) msgEl.innerHTML = `<span style="color:var(--green)">✅ ${d.message}</span>`;
+    if(_agentData) _agentData.commission_balance = Math.max(0, parseFloat(_agentData.commission_balance||0) - amount);
+    setTimeout(()=>{
+      document.getElementById('ag-comm-transfer-modal')?.remove();
+      loadTab(document.querySelector('.tab-item.active')?.dataset?.tab || 'dashboard');
+    }, 1200);
+  }catch(e){
+    if(msgEl) msgEl.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+  }
+}
+
+// ── Auto-login if token exists ────────────────────────────────────
+(async () => {
+  if (_agentToken) {
+    try { await showApp(); }
+    catch(_) { localStorage.removeItem('agent_token'); }
+  }
+})();
+</script>
+</body>
+</html>
