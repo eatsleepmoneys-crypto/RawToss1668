@@ -582,7 +582,7 @@ app.get('/health', async (req,res) => {
   try {
     const { pool } = require('./config/db');
     await pool.execute('SELECT 1');
-    res.json({ status:'ok', db:'connected', uptime:process.uptime(), ts:new Date(), v:'41308a5' });
+    res.json({ status:'ok', db:'connected', uptime:process.uptime(), ts:new Date(), v:'auto-migrate' });
   } catch { res.status(503).json({ status:'error', db:'disconnected' }); }
 });
 
@@ -876,6 +876,9 @@ function scheduleDailyYeekeeCreate() {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
+  // ── Run full DB migration on every startup (idempotent) ───────────────────
+  const { runMigration } = require('./database/migrate');
+  runMigration().catch(e => console.error('[startup] Migration error:', e.message));
   // Migrate slip_image column to MEDIUMTEXT to support base64 image strings
   const { pool } = require('./config/db');
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
