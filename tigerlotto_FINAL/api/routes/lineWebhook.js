@@ -15,6 +15,7 @@ const { query } = require('../config/db');
 const crypto  = require('crypto');
 const bcrypt  = require('bcryptjs');
 const { replyMessage, getLineCredentials, fmt, thaiTime } = require('../services/lineService');
+const { v4: uuidv4 } = require('uuid');
 
 // ── Verify LINE Signature ─────────────────────────────────────────────────
 function verifySignature(body, signature, secret) {
@@ -715,8 +716,8 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
       // 2b) ไม่มีงวดที่รับแทงอยู่ → สร้างงวดใหม่ announced ทันที
       const roundCode = lotteryCode + '-' + drawDate.replace(/-/g,'');
       await query(
-        'INSERT INTO lottery_rounds (lottery_id, round_code, round_name, draw_date, status) VALUES (?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
-        [lt.id, roundCode, 'งวด ' + drawDate, drawDate]
+        'INSERT INTO lottery_rounds (uuid, lottery_id, round_code, round_name, draw_date, status) VALUES (?,?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
+        [uuidv4(), lt.id, roundCode, 'งวด ' + drawDate, drawDate]
       );
       const newRows = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
       if (!newRows.length) return;
