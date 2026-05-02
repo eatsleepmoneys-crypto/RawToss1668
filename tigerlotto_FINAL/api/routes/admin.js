@@ -1262,7 +1262,7 @@ router.get('/line-messages', authAdmin, async (req, res) => {
 
     // ดึงวันที่ที่มีข้อมูล (distinct dates) สำหรับ date picker
     const dates = await query(
-      `SELECT DISTINCT DATE(received_at) AS d
+      `SELECT DISTINCT DATE_FORMAT(received_at,'%Y-%m-%d') AS d
        FROM line_messages ORDER BY d DESC LIMIT 60`
     );
 
@@ -1271,9 +1271,7 @@ router.get('/line-messages', authAdmin, async (req, res) => {
        FROM line_messages ${where} ORDER BY received_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
-    // Format dates as YYYY-MM-DD UTC strings so frontend can use directly
-    const formatD = d => d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10);
-    res.json({ success: true, data: rows, total, page, limit, dates: dates.map(r => formatD(r.d)) });
+    res.json({ success: true, data: rows, total, page, limit, dates: dates.map(r => r.d) });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
