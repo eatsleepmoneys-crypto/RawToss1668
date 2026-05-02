@@ -586,6 +586,18 @@ app.get('/health', async (req,res) => {
   } catch { res.status(503).json({ status:'error', db:'disconnected' }); }
 });
 
+
+/* Temp debug: show lottery_types columns */
+app.get('/debug-schema', async (req,res) => {
+  try {
+    const { pool } = require('./config/db');
+    const [cols] = await pool.execute('DESCRIBE `lottery_types`');
+    const [cnt] = await pool.execute('SELECT COUNT(*) as n FROM `lottery_types`');
+    const [sample] = await pool.execute('SELECT code FROM `lottery_types` WHERE code=? LIMIT 1', ['JP_STK_AM']);
+    res.json({ columns: cols, count: cnt[0].n, jp_stk_am_exists: sample.length > 0 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 /* SPA Fallback */
 app.get('*', (req,res) => {
   const idx = path.join(__dirname,'../frontend/index.html');
@@ -972,7 +984,7 @@ server.listen(PORT, '0.0.0.0', () => {
       for (const [code, name, flag, sort_order] of newTypes) {
         try {
           const [r] = await pool.execute(
-            'INSERT IGNORE INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,720,115,90,85,3.0,4.0,5000)',
+            'INSERT IGNORE INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`category`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,\'other\',720,115,90,85,3.0,4.0,5000)',
             [code, name, flag, sort_order]
           );
           if (r.affectedRows > 0) seeded++; else skipped++;
