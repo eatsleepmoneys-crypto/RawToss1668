@@ -1,6 +1,0 @@
-*.txt
-slipok_credentials*
-.env
-.env.*
-!.env.example
-.claude/

@@ -301,6 +301,7 @@ router.get('/admin/line-notify', authAdmin, rbac.requirePerm('settings.view'), a
       bot_token       : maskToken(map['line_bot_token'] || ''),
       has_bot_token   : (map['line_bot_token'] || '').length > 0,
       group_id        : map['line_group_id']        || '',
+      fetch_group_id  : map['line_fetch_group_id']  || '',
       notify_deposit  : map['line_notify_deposit']  !== 'false',
       notify_withdraw : map['line_notify_withdraw'] !== 'false',
     }
@@ -309,11 +310,12 @@ router.get('/admin/line-notify', authAdmin, rbac.requirePerm('settings.view'), a
 
 // PUT /api/settings/admin/line-notify
 router.put('/admin/line-notify', authAdmin, rbac.requirePerm('settings.manage'), async (req, res) => {
-  const { notify_enabled, notify_token, bot_enabled, bot_token, group_id, notify_deposit, notify_withdraw } = req.body;
+  const { notify_enabled, notify_token, bot_enabled, bot_token, group_id, fetch_group_id, notify_deposit, notify_withdraw } = req.body;
   const updates = {};
   if (typeof notify_enabled  !== 'undefined') updates['line_notify_enabled']  = String(notify_enabled);
   if (typeof bot_enabled     !== 'undefined') updates['line_bot_enabled']     = String(bot_enabled);
   if (group_id               !== undefined)   updates['line_group_id']        = group_id;
+  if (fetch_group_id         !== undefined)   updates['line_fetch_group_id']  = fetch_group_id;
   if (typeof notify_deposit  !== 'undefined') updates['line_notify_deposit']  = String(notify_deposit);
   if (typeof notify_withdraw !== 'undefined') updates['line_notify_withdraw'] = String(notify_withdraw);
   // Only update tokens if real value (not masked)
@@ -336,16 +338,17 @@ router.put('/admin/line-notify', authAdmin, rbac.requirePerm('settings.manage'),
 // GET /api/settings/admin/line-notify/webhook-log — ดู Group ID ที่ตรวจเจอ
 router.get('/admin/line-notify/webhook-log', authAdmin, rbac.requirePerm('settings.view'), async (req, res) => {
   const rows = await query(
-    "SELECT `key`, value FROM settings WHERE `key` IN ('line_group_id','line_webhook_log')"
+    "SELECT `key`, value FROM settings WHERE `key` IN ('line_group_id','line_fetch_group_id','line_webhook_log')"
   );
   const map = {};
   rows.forEach(r => { map[r.key] = r.value; });
   let lastEvent = null;
   try { lastEvent = JSON.parse(map['line_webhook_log'] || 'null'); } catch {}
   res.json({
-    success   : true,
-    group_id  : map['line_group_id'] || '',
-    last_event: lastEvent,
+    success        : true,
+    group_id       : map['line_group_id']       || '',
+    fetch_group_id : map['line_fetch_group_id'] || '',
+    last_event     : lastEvent,
   });
 });
 
