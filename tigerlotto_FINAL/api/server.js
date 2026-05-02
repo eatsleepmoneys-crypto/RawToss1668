@@ -582,7 +582,7 @@ app.get('/health', async (req,res) => {
   try {
     const { pool } = require('./config/db');
     await pool.execute('SELECT 1');
-    res.json({ status:'ok', db:'connected', uptime:process.uptime(), ts:new Date(), v:'seed-109-types' });
+    res.json({ status:'ok', db:'connected', uptime:process.uptime(), ts:new Date(), v:'seed-independent-v2' });
   } catch { res.status(503).json({ status:'error', db:'disconnected' }); }
 });
 
@@ -595,6 +595,52 @@ app.get('/debug-schema', async (req,res) => {
     const [cnt] = await pool.execute('SELECT COUNT(*) as n FROM `lottery_types`');
     const [sample] = await pool.execute('SELECT code FROM `lottery_types` WHERE code=? LIMIT 1', ['JP_STK_AM']);
     res.json({ columns: cols, count: cnt[0].n, jp_stk_am_exists: sample.length > 0 });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Diagnostic: try ONE insert and return exact result
+app.get('/debug-seed-test', async (req,res) => {
+  try {
+    const { pool } = require('./config/db');
+    // First check if it already exists
+    const [existing] = await pool.execute('SELECT id FROM `lottery_types` WHERE code=?', ['JP_STK_AM']);
+    if (existing.length > 0) {
+      return res.json({ status: 'already_exists', id: existing[0].id });
+    }
+    // Try inserting
+    const [r] = await pool.execute(
+      'INSERT INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,720,115,90,85,3.0,4.0,5000)',
+      ['JP_STK_AM', '\u0e19\u0e34\u0e04\u0e40\u0e04\u0e2d\u0e34\u0e40\u0e0a\u0e49\u0e32', '\ud83c\uddef\ud83c\uddf5', 20]
+    );
+    res.json({ status: 'inserted', affectedRows: r.affectedRows, insertId: r.insertId });
+  } catch(e) {
+    res.status(500).json({ status: 'error', message: e.message, code: e.code, sqlState: e.sqlState });
+  }
+});
+
+// Run the full 109-type seed manually and return results
+app.get('/debug-run-seed', async (req,res) => {
+  try {
+    const { pool } = require('./config/db');
+    const newTypes = require('./database/migrate').newTypes || null;
+    // inline the types since we can't export from migrate easily
+    const types = [
+      ['JP_STK_AM','\u0e19\u0e34\u0e04\u0e40\u0e04\u0e2d\u0e34\u0e40\u0e0a\u0e49\u0e32','\ud83c\uddef\ud83c\uddf5',20],
+      ['CN_STK_AM','\u0e08\u0e35\u0e19\u0e40\u0e0a\u0e49\u0e32','\ud83c\udde8\ud83c\uddf3',22],
+    ];
+    const results = [];
+    for (const [code, name, flag, sort_order] of types) {
+      try {
+        const [r] = await pool.execute(
+          'INSERT IGNORE INTO `lottery_types` (`code`,`name`,`flag`,`sort_order`,`rate_3top`,`rate_3tod`,`rate_2top`,`rate_2bot`,`rate_run_top`,`rate_run_bot`,`max_bet`) VALUES (?,?,?,?,720,115,90,85,3.0,4.0,5000)',
+          [code, name, flag, sort_order]
+        );
+        results.push({ code, affected: r.affectedRows, warning: r.warningStatus });
+      } catch(e) {
+        results.push({ code, error: e.message, code: e.code });
+      }
+    }
+    res.json({ results });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -890,12 +936,12 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🐯 TigerLotto API  :${PORT}  [${process.env.NODE_ENV||'development'}]`);
   // ── Run full DB migration on every startup (idempotent) ───────────────────
   const { runMigration } = require('./database/migrate');
-  // Run migration first, then seed new lottery types — sequential to avoid DDL races
-  runMigration()
-    .catch(e => console.error('[startup] Migration error:', e.message))
-    .finally(() => {
-  // Migrate slip_image column to MEDIUMTEXT to support base64 image strings
+  // Fire-and-forget — seed runs independently so it's not blocked by migrate hanging
+  runMigration().catch(e => console.error('[startup] Migration error:', e.message));
+
+  // ── Startup pool operations (independent of migration) ────────────────────
   const { pool } = require('./config/db');
+  (() => {
   pool.execute("ALTER TABLE transactions MODIFY COLUMN slip_image MEDIUMTEXT").catch(() => {});
   // ── Ensure new tables exist (safe: CREATE TABLE IF NOT EXISTS) ─────────────
   pool.execute(`CREATE TABLE IF NOT EXISTS \`line_messages\` (
@@ -1056,7 +1102,7 @@ server.listen(PORT, '0.0.0.0', () => {
       console.log(`[startup] Lottery seed done: ${seeded} inserted, ${skipped} already existed, ${failed} failed`);
     } catch (e) { console.warn('[startup] Lottery seed critical error:', e.message); }
   })();
-  }); // end .finally() — seed runs after migration
+  })(); // end startup IIFE
   setTimeout(() => {
     autoCreateGovRound();
     autoCreateLaoRound();
