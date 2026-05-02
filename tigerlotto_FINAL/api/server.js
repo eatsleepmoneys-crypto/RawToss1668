@@ -1165,7 +1165,7 @@ server.listen(PORT, '0.0.0.0', () => {
             console.warn('[LINE_AUTO] msg', row.id, e.message);
           }
         }
-        if (saved > 0) console.log(\`[LINE_AUTO] auto-reprocess: saved=\${saved} errors=\${errors}\`);
+        if (saved > 0) console.log(`[LINE_AUTO] auto-reprocess: saved=${saved} errors=${errors}`);
       } catch(e) {
         console.warn('[LINE_AUTO] autoReprocessLineMessages error:', e.message);
       }
