@@ -1099,6 +1099,18 @@ server.listen(PORT, '0.0.0.0', () => {
       console.log(`[startup] Lottery seed done: ${seeded} inserted, ${skipped} already existed, ${failed} failed`);
     } catch (e) { console.warn('[startup] Lottery seed critical error:', e.message); }
   })();
+  // ── Disable old snake_case stock_* duplicates (replaced by UPPERCASE codes) ──
+  pool.execute(
+    `UPDATE \`lottery_types\` SET status='maintenance'
+     WHERE code IN ('stock_nk_am','stock_nk_pm','stock_hk_am','stock_hk_pm',
+                    'stock_cn_am','stock_cn_pm','stock_sg','stock_my',
+                    'stock_tw','stock_kr','stock_de','stock_ru',
+                    'stock_in','stock_dj','stock_uk','stock_eg')
+       AND status != 'maintenance'`
+  ).then(([r]) => {
+    if (r.affectedRows > 0)
+      console.log('[startup] Disabled', r.affectedRows, 'legacy stock_* duplicate types');
+  }).catch(() => {});
   })(); // end startup IIFE
   setTimeout(() => {
     autoCreateGovRound();
