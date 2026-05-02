@@ -1178,7 +1178,7 @@ router.get('/articles', authAdmin, async (req, res) => {
     const params = status ? [status] : [];
     const [{ total }] = await query(`SELECT COUNT(*) AS total FROM articles ${where}`, params);
     const rows = await query(
-      `SELECT id, slug, title, excerpt, status, author, tags, views, created_at, updated_at
+      `SELECT id, slug, title, summary, status, author, tags, views, created_at, updated_at
        FROM articles ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
@@ -1198,13 +1198,13 @@ router.get('/articles/:id', authAdmin, async (req, res) => {
 // POST /api/admin/articles
 router.post('/articles', authAdmin, async (req, res) => {
   try {
-    const { title, slug, excerpt = '', content = '', cover_image = null, og_image = null,
+    const { title, slug, summary = '', content = '', cover_image = null, og_image = null,
             status = 'draft', author = '', tags = '' } = req.body;
     if (!title || !slug) return res.status(422).json({ success: false, message: 'title และ slug ต้องไม่ว่าง' });
     const result = await query(
-      `INSERT INTO articles (title, slug, excerpt, content, cover_image, og_image, status, author, tags)
+      `INSERT INTO articles (title, slug, summary, content, cover_image, og_image, status, author, tags)
        VALUES (?,?,?,?,?,?,?,?,?)`,
-      [title, slug, excerpt, content, cover_image, og_image, status, author, tags]
+      [title, slug, summary, content, cover_image, og_image, status, author, tags]
     );
     res.status(201).json({ success: true, id: result.insertId });
   } catch (e) {
@@ -1216,7 +1216,7 @@ router.post('/articles', authAdmin, async (req, res) => {
 // PATCH /api/admin/articles/:id
 router.patch('/articles/:id', authAdmin, async (req, res) => {
   try {
-    const allowed = ['title','slug','excerpt','content','cover_image','og_image','status','author','tags'];
+    const allowed = ['title','slug','summary','content','cover_image','og_image','status','author','tags'];
     const updates = {};
     for (const k of allowed) { if (req.body[k] !== undefined) updates[k] = req.body[k]; }
     if (!Object.keys(updates).length) return res.status(422).json({ success: false, message: 'ไม่มีข้อมูลที่จะแก้ไข' });
@@ -1374,43 +1374,4 @@ router.post('/line-save-result', authAdmin, rbac.requirePerm('results.announce')
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-
-// POST /api/admin/line-reprocess — re-parse ข้อความที่ parsed=0 แล้ว auto-save
-// body: { date? (YYYY-MM-DD, ถ้าไม่ส่ง = ทั้งหมด), limit? (max 500) }
-router.post('/line-reprocess', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
-  try {
-    const { parseLotteryMessage, saveLotteryResult } = require('./lineWebhook');
-    const date  = req.body?.date  || null;
-    const limit = Math.min(500, parseInt(req.body?.limit) || 200);
-
-    const conds = ['parsed=0'], params = [];
-    if (date) {
-      conds.push("DATE(CONVERT_TZ(received_at,'+00:00','+07:00'))=?");
-      params.push(date);
-    }
-    const rows = await query(
-      `SELECT id, msg_id, message_text FROM line_messages WHERE ${conds.join(' AND ')} ORDER BY received_at ASC LIMIT ?`,
-      [...params, limit]
-    );
-
-    let saved = 0, skipped = 0, errors = 0;
-    for (const row of rows) {
-      try {
-        const results = parseLotteryMessage(row.message_text || '');
-        if (!results.length) { skipped++; continue; }
-        for (const r of results) {
-          await saveLotteryResult(r);
-        }
-        await query('UPDATE line_messages SET parsed=1 WHERE id=?', [row.id]);
-        saved++;
-      } catch(e) {
-        errors++;
-        console.warn('[REPROCESS] msg', row.id, e.message);
-      }
-    }
-
-    res.json({ success: true, total: rows.length, saved, skipped, errors });
-  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-module.exports = router;
+// POST /api/admin/line-r
