@@ -1271,7 +1271,9 @@ router.get('/line-messages', authAdmin, async (req, res) => {
        FROM line_messages ${where} ORDER BY received_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
-    res.json({ success: true, data: rows, total, page, limit, dates: dates.map(r => r.d) });
+    // Format dates as YYYY-MM-DD UTC strings so frontend can use directly
+    const formatD = d => d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10);
+    res.json({ success: true, data: rows, total, page, limit, dates: dates.map(r => formatD(r.d)) });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
