@@ -142,7 +142,7 @@ const CREATES = [
     \`rate_2bot\`    DECIMAL(8,2) NOT NULL DEFAULT 90.00,
     \`rate_run_top\` DECIMAL(8,2) NOT NULL DEFAULT 3.20,
     \`rate_run_bot\` DECIMAL(8,2) NOT NULL DEFAULT 4.20,
-    \`sort_order\`   TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    \`sort_order\`   SMALLINT UNSIGNED NOT NULL DEFAULT 0,
     \`created_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     \`updated_at\`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
@@ -502,8 +502,6 @@ const CREATES = [
 // ─── Seed data ───────────────────────────────────────────────────────────────
 
 const SEEDS = [
-  // Add category column to lottery_types if missing
-  `ALTER TABLE \`lottery_types\` ADD COLUMN \`category\` VARCHAR(50) NOT NULL DEFAULT 'other' AFTER \`flag\``,
   // Lottery types (INSERT IGNORE = skip if already exists)
   `INSERT IGNORE INTO \`lottery_types\` (\`code\`,\`name\`,\`flag\`,\`sort_order\`,\`rate_3top\`,\`rate_3tod\`,\`rate_2top\`,\`rate_2bot\`,\`rate_run_top\`,\`rate_run_bot\`,\`max_bet\`) VALUES
     ('TH_GOV','หวยรัฐบาลไทย','🇹🇭',1,750,120,95,90,3.2,4.2,5000),
@@ -1147,6 +1145,10 @@ async function migrate() {
     `ALTER TABLE \`articles\` ADD INDEX \`idx_articles_slug_status\` (\`slug\`, \`status\`)`,
     // settings: line_fetch_group_id — กลุ่ม LINE สำหรับ fetch ผลหวย (แยกจากกลุ่มแจ้งเตือน)
     `INSERT INTO \`settings\` (\`key\`,\`value\`,\`type\`,\`group\`) VALUES ('line_fetch_group_id','','string','line') ON DUPLICATE KEY UPDATE id=id`,
+    // lottery_types: add category column
+    `ALTER TABLE \`lottery_types\` ADD COLUMN \`category\` VARCHAR(50) NOT NULL DEFAULT 'other' AFTER \`flag\``,
+    // lottery_types: expand sort_order to SMALLINT (was TINYINT, max 255 — new types use values 800+)
+    `ALTER TABLE \`lottery_types\` MODIFY COLUMN \`sort_order\` SMALLINT UNSIGNED NOT NULL DEFAULT 0`,
   ];
   for (const sql of ALTERS) {
     const label = sql.replace(/\s+/g, ' ').substring(0, 60);
