@@ -567,7 +567,10 @@ async function handleLotteryMessage(event, groupId, fetchGroupId) {
   await saveRawMessage(event, groupId);
 
   const text = (event.message.text || '').trim();
-  const results = parseLotteryMessage(text);
+  // detect summary format "สรุปผล..." vs old ↑↓ block format
+  const results = (text.includes('สรุปผล') || text.includes('บอทรายงานผล'))
+    ? parseSummaryMessage(text)
+    : parseLotteryMessage(text);
   if (results.length > 0) {
     for (const result of results) {
       console.log(`[LINE Fetch] detected ${result.lotteryCode} ${result.drawDate}`);
