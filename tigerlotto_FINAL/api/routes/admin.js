@@ -1374,4 +1374,43 @@ router.post('/line-save-result', authAdmin, rbac.requirePerm('results.announce')
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
-// POST /api/admin/line-r
+
+// POST /api/admin/line-reprocess — re-parse ข้อความที่ parsed=0 แล้ว auto-save
+// body: { date? (YYYY-MM-DD, ถ้าไม่ส่ง = ทั้งหมด), limit? (max 500) }
+router.post('/line-reprocess', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  try {
+    const { parseLotteryMessage, saveLotteryResult } = require('./lineWebhook');
+    const date  = req.body?.date  || null;
+    const limit = Math.min(500, parseInt(req.body?.limit) || 200);
+
+    const conds = ['parsed=0'], params = [];
+    if (date) {
+      conds.push("DATE(CONVERT_TZ(received_at,'+00:00','+07:00'))=?");
+      params.push(date);
+    }
+    const rows = await query(
+      `SELECT id, msg_id, message_text FROM line_messages WHERE ${conds.join(' AND ')} ORDER BY received_at ASC LIMIT ?`,
+      [...params, limit]
+    );
+
+    let saved = 0, skipped = 0, errors = 0;
+    for (const row of rows) {
+      try {
+        const results = parseLotteryMessage(row.message_text || '');
+        if (!results.length) { skipped++; continue; }
+        for (const r of results) {
+          await saveLotteryResult(r);
+        }
+        await query('UPDATE line_messages SET parsed=1 WHERE id=?', [row.id]);
+        saved++;
+      } catch(e) {
+        errors++;
+        console.warn('[REPROCESS] msg', row.id, e.message);
+      }
+    }
+
+    res.json({ success: true, total: rows.length, saved, skipped, errors });
+  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+module.exports = router;
