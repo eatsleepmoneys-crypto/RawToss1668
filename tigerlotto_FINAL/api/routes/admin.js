@@ -1241,22 +1241,37 @@ router.delete('/articles/:id', authAdmin, async (req, res) => {
 // LINE MESSAGES — ดู messages ที่ดึงมาจากกลุ่ม LINE
 // ─────────────────────────────────────────────────────────────────────────────
 
-// GET /api/admin/line-messages?page=1&limit=50&parsed=0
+// GET /api/admin/line-messages?page=1&limit=50&parsed=&date=YYYY-MM-DD&source_id=
 router.get('/line-messages', authAdmin, async (req, res) => {
   try {
-    const page    = Math.max(1, parseInt(req.query.page)  || 1);
-    const limit   = Math.min(200, parseInt(req.query.limit) || 50);
-    const offset  = (page - 1) * limit;
-    const parsed  = req.query.parsed !== undefined ? parseInt(req.query.parsed) : null;
-    const where   = parsed !== null ? 'WHERE parsed=?' : '';
-    const params  = parsed !== null ? [parsed] : [];
+    const page      = Math.max(1, parseInt(req.query.page)  || 1);
+    const limit     = Math.min(200, parseInt(req.query.limit) || 50);
+    const offset    = (page - 1) * limit;
+    const parsed    = req.query.parsed !== undefined && req.query.parsed !== '' ? parseInt(req.query.parsed) : null;
+    const date      = req.query.date   || null;   // YYYY-MM-DD (Bangkok time stored)
+    const source_id = req.query.source_id || null;
+
+    const conds = [], params = [];
+    if (parsed !== null)  { conds.push('parsed=?');                                   params.push(parsed); }
+    if (date)             { conds.push("DATE(CONVERT_TZ(received_at,'+00:00','+07:00'))=?"); params.push(date); }
+    if (source_id)        { conds.push('source_id=?');                                params.push(source_id); }
+
+    const where = conds.length ? 'WHERE ' + conds.join(' AND ') : '';
+
     const [{ total }] = await query(`SELECT COUNT(*) AS total FROM line_messages ${where}`, params);
+
+    // ดึงวันที่ที่มีข้อมูล (distinct dates) สำหรับ date picker
+    const dates = await query(
+      `SELECT DISTINCT DATE(CONVERT_TZ(received_at,'+00:00','+07:00')) AS d
+       FROM line_messages ORDER BY d DESC LIMIT 60`
+    );
+
     const rows = await query(
-      `SELECT id, msg_id, source_id, sender_id, LEFT(message_text,500) AS message_text, parsed, received_at
+      `SELECT id, msg_id, source_id, sender_id, message_text, parsed, received_at
        FROM line_messages ${where} ORDER BY received_at DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset]
     );
-    res.json({ success: true, data: rows, total, page, limit });
+    res.json({ success: true, data: rows, total, page, limit, dates: dates.map(r => r.d) });
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 
@@ -1300,6 +1315,62 @@ router.post('/line-repair-table', authAdmin, async (req, res) => {
       INDEX \`idx_lm_source\` (\`source_id\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
     res.json({ success: true, message: 'line_messages table ready' });
+  } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+// POST /api/admin/line-save-result — บันทึกผลหวยจาก LINE Fetch log (manual/confirm)
+// body: { lottery_code, draw_date (YYYY-MM-DD), prizes: [{prize_type, prize_value}] }
+router.post('/line-save-result', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
+  try {
+    const { lottery_code, draw_date, prizes } = req.body;
+    if (!lottery_code || !draw_date || !Array.isArray(prizes) || !prizes.length)
+      return res.status(400).json({ success: false, message: 'lottery_code, draw_date, prizes จำเป็น' });
+
+    const [lt] = await query('SELECT id FROM lottery_types WHERE code=? LIMIT 1', [lottery_code]);
+    if (!lt) return res.status(400).json({ success: false, message: `lottery_type "${lottery_code}" ไม่พบ` });
+
+    // map prize_type → column
+    const colMap = { '3top':'prize_1st','2top':'prize_last_2','2bot':'prize_2bot','1st':'prize_1st','last2':'prize_last_2' };
+    const updates = {};
+    for (const p of prizes) { const col = colMap[p.prize_type]; if (col) updates[col] = String(p.prize_value).replace(/\D/g,''); }
+    if (updates.prize_1st && updates.prize_1st.length >= 3 && !updates.prize_last_2)
+      updates.prize_last_2 = updates.prize_1st.slice(-2);
+    if (!Object.keys(updates).length)
+      return res.status(400).json({ success: false, message: 'ไม่มีข้อมูล prize ที่ใช้ได้' });
+
+    const setClause = keys => keys.map(c => '`' + c + '`=?').join(', ');
+    const colList   = keys => keys.map(c => '`' + c + '`').join(',');
+    const ukeys = Object.keys(updates), uvals = Object.values(updates);
+
+    // หา round ที่มีอยู่ (open/closed) ตรงวันที่
+    const existRows = await query(
+      "SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN ('open','closed') ORDER BY id DESC LIMIT 1",
+      [lt.id, draw_date]
+    );
+
+    if (existRows.length) {
+      const roundId = existRows[0].id;
+      await query("UPDATE lottery_rounds SET status='announced', updated_at=NOW() WHERE id=?", [roundId]);
+      await query(
+        'INSERT INTO lottery_results (round_id,' + colList(ukeys) + ',announced_at) VALUES (?,' + ukeys.map(()=>'?').join(',') + ',NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ',announced_at=NOW()',
+        [roundId, ...uvals, ...uvals]
+      );
+      res.json({ success: true, round_id: roundId, action: 'updated' });
+    } else {
+      // สร้างงวดใหม่
+      const roundCode = lottery_code + '-' + draw_date.replace(/-/g,'');
+      await query(
+        "INSERT INTO lottery_rounds (lottery_id,round_code,round_name,draw_date,status) VALUES (?,?,?,?,'announced') ON DUPLICATE KEY UPDATE status='announced',updated_at=NOW()",
+        [lt.id, roundCode, 'งวด ' + draw_date, draw_date]
+      );
+      const [nr] = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
+      if (!nr) return res.status(500).json({ success: false, message: 'สร้าง round ไม่สำเร็จ' });
+      await query(
+        'INSERT INTO lottery_results (round_id,' + colList(ukeys) + ',announced_at) VALUES (?,' + ukeys.map(()=>'?').join(',') + ',NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ',announced_at=NOW()',
+        [nr.id, ...uvals, ...uvals]
+      );
+      res.json({ success: true, round_id: nr.id, action: 'created' });
+    }
   } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });
 

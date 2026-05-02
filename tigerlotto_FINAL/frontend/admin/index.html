@@ -7302,217 +7302,199 @@ PAGES['line-fetch'] = () => `
     </div>
   </div>
 </div>
+
 <div class="page-card" style="margin-top:16px">
-  <div class="card-header"><span>📨 ข้อความที่รับล่าสุด</span>
-    <button class="btn btn-secondary" onclick="loadLineFetch()" style="margin-left:auto;font-size:12px;padding:4px 10px">🔄 Refresh</button>
+  <div class="card-header">
+    <span>📨 ประวัติข้อความ LINE Webhook</span>
+    <button class="btn btn-secondary" onclick="lfReload()" style="margin-left:auto;font-size:12px;padding:4px 10px">🔄 Refresh</button>
   </div>
   <div class="card-body">
-    <div id="lf-debug-wrap" style="display:none;margin-bottom:12px;padding:10px;background:rgba(255,255,255,0.05);border-radius:6px;font-size:12px">
-      <div style="color:var(--muted);margin-bottom:4px">🔍 Last Webhook Event (debug):</div>
-      <pre id="lf-debug-log" style="color:var(--gold2);white-space:pre-wrap;word-break:break-all;margin:0"></pre>
+
+    <!-- Filter bar -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <!-- Date picker -->
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:12px;color:var(--muted)">📅 วันที่:</span>
+        <select id="lf-date-sel" class="fi" style="min-width:140px;font-size:13px" onchange="lfSetDate(this.value)">
+          <option value="">-- ทั้งหมด --</option>
+        </select>
+      </div>
+      <!-- Parsed filter -->
+      <div style="display:flex;gap:4px">
+        <button id="lf-f-all"    class="btn btn-primary"   style="font-size:12px;padding:4px 12px" onclick="lfSetFilter('')">ทั้งหมด</button>
+        <button id="lf-f-parsed" class="btn btn-secondary" style="font-size:12px;padding:4px 12px" onclick="lfSetFilter('1')">✅ parse แล้ว</button>
+        <button id="lf-f-unparsed" class="btn btn-secondary" style="font-size:12px;padding:4px 12px" onclick="lfSetFilter('0')">❌ ยังไม่ parse</button>
+      </div>
+      <!-- Summary badges -->
+      <div id="lf-summary" style="margin-left:auto;display:flex;gap:6px;font-size:12px"></div>
     </div>
+
+    <!-- Table error -->
     <div id="lf-table-error" style="display:none;margin-bottom:12px">
       <div class="alert" style="background:rgba(220,53,69,0.15);border-color:var(--danger);color:var(--danger);display:flex;align-items:center;gap:12px">
         <span>⚠️ ตาราง line_messages ไม่มีในฐานข้อมูล</span>
         <button class="btn btn-primary" onclick="repairLineTable()" style="font-size:12px">🔧 สร้างตาราง</button>
       </div>
     </div>
-    <table class="tbl" id="lf-msg-table">
-      <thead><tr><th>เวลา</th><th>Group</th><th>ข้อความ</th><th>parsed</th></tr></thead>
-      <tbody id="lf-msg-body"><tr><td colspan="4" style="text-align:center">กำลังโหลด...</td></tr></tbody>
-    </table>
+
+    <!-- Main table -->
+    <div style="overflow-x:auto">
+      <table class="tbl" style="min-width:800px">
+        <thead>
+          <tr>
+            <th style="width:110px">เวลาที่รับ</th>
+            <th style="width:140px">ประเภทหวย</th>
+            <th style="width:90px;text-align:center">วันที่หวย</th>
+            <th style="width:90px;text-align:center">3 ตัวบน</th>
+            <th style="width:80px;text-align:center">2 ตัวบน</th>
+            <th style="width:80px;text-align:center">2 ตัวล่าง</th>
+            <th style="width:90px;text-align:center">บันทึก</th>
+          </tr>
+        </thead>
+        <tbody id="lf-msg-body">
+          <tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">กำลังโหลด...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="lf-pagination" style="display:flex;gap:8px;align-items:center;justify-content:center;margin-top:12px;flex-wrap:wrap"></div>
   </div>
 </div>`;
 
-async function loadLineFetch() {
+// ── LINE Fetch state ────────────────────────────────────────────────
+let _lfState = { page: 1, date: '', filter: '', limit: 50 };
+
+// map ASCII code → ชื่อภาษาไทย
+const LF_CODE_NAME = {
+  TH:'หวยรัฐบาลไทย', LA:'ลาวพัฒนา', VN:'ฮานอยปกติ', VN2:'ฮานอยพิเศษ',
+  VN3:'ฮานอย VIP', KR:'เกาหลี', JP:'นิเคอิ', SG:'สิงคโปร์',
+  CN:'จีน', HK:'ฮั่งเส็ง', TW:'ไต้หวัน', MY:'มาเลย์',
+  IN:'อินเดีย', DE:'เยอรมัน', UK:'อังกฤษ', RU:'รัสเซีย',
+  EG:'อียิปต์', DJ:'ดาวโจนส์', YK:'ยี่กี',
+};
+
+/**
+ * ดึงข้อมูลสำคัญจาก message_text แบบสะอาด
+ * คืน { lotteryName, drawDate, top, bot }
+ */
+function lfParseMsg(text) {
+  if (!text) return { lotteryName: '-', drawDate: '-', top: '-', bot: '-' };
+  const t = text.replace(/[^\x00-\x7F฀-๿\n↑↓⬆⬇ ]/g, '').trim(); // strip emoji แต่เก็บไทย/อังกฤษ/ตัวเลข/ลูกศร
+
+  // 1. หา ASCII header code เช่น "LA ลาวพัฒนา LA"
+  const hm = text.match(/^([A-Z]{2,3})\s+[^\n]+\1/m);
+  const code = hm ? hm[1] : null;
+  const lotteryName = code ? (LF_CODE_NAME[code] || code) : '-';
+
+  // 2. หาวันที่ภาษาไทย เช่น "02 พฤษภาคม 2569"
+  const MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
+                  'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  let drawDate = '-', drawDateISO = '';
+  for (let mi = 0; mi < MONTHS.length; mi++) {
+    const dm = text.match(new RegExp('(\\d{1,2})\\s+' + MONTHS[mi] + '\\s+(\\d{4})'));
+    if (dm) {
+      let y = parseInt(dm[2]); if (y > 2400) y -= 543;
+      const dd = String(parseInt(dm[1])).padStart(2,'0');
+      const mm = String(mi+1).padStart(2,'0');
+      drawDate    = `${dd}/${mm}/${y}`;
+      drawDateISO = `${y}-${mm}-${dd}`;
+      break;
+    }
+  }
+
+  // 3. หาเลขบน (↑ หรือ ⬆) และล่าง (↓ หรือ ⬇)
+  const topM = text.match(/[↑⬆]\s*(\d+)/u);
+  const botM = text.match(/[↓⬇]\s*(\d+)/u);
+  let top = topM ? topM[1] : '-';
+  let bot = botM ? botM[1].slice(-2) : '-'; // เอาแค่ 2 หลักท้าย
+
+  // fallback: ถ้าไม่มีลูกศร หาตัวเลขบรรทัดบริสุทธิ์
+  if (top === '-' && bot === '-') {
+    const numLines = text.split('\n')
+      .map(l => l.replace(/[^0-9]/g, '').trim())
+      .filter(l => l.length >= 2 && l.length <= 6);
+    if (numLines[0]) top = numLines[0];
+    if (numLines[1]) bot = numLines[1].slice(-2);
+  }
+
+  return { lotteryName, lotteryCode: code || '', drawDate, drawDateISO: drawDateISO || '', top, bot };
+}
+
+function lfSetDate(d) {
+  _lfState.date = d;
+  _lfState.page = 1;
+  lfLoadMsgs();
+}
+function lfSetFilter(f) {
+  _lfState.filter = f;
+  _lfState.page = 1;
+  ['lf-f-all','lf-f-parsed','lf-f-unparsed'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.className = 'btn btn-secondary';
+  });
+  const active = f === '' ? 'lf-f-all' : f === '1' ? 'lf-f-parsed' : 'lf-f-unparsed';
+  const el = document.getElementById(active);
+  if (el) el.className = 'btn btn-primary';
+  lfLoadMsgs();
+}
+function lfGoPage(p) { _lfState.page = p; lfLoadMsgs(); }
+function lfReload()  { lfLoadMsgs(); }
+
+async function lfLoadMsgs() {
+  const tbody = document.getElementById('lf-msg-body');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:16px;color:var(--muted)">⏳ กำลังโหลด...</td></tr>';
+
   try {
-    // Load settings
-    const s = await apiFetch('/admin/line-fetch-settings', {}, 'admin');
-    const settings = s?.data || s || {};
-    const fetchGroupId   = settings.line_fetch_group_id || '';
-    const detectedGroupId = settings.line_group_id || '';
-    const webhookLog     = settings.line_webhook_log || '';
+    const { page, date, filter, limit } = _lfState;
+    const params = new URLSearchParams({ page, limit });
+    if (date)   params.set('date',   date);
+    if (filter !== '') params.set('parsed', filter);
 
-    if (fetchGroupId) document.getElementById('lf-group-id').value = fetchGroupId;
-
-    // Show detected group ID
-    if (detectedGroupId) {
-      const wrap = document.getElementById('lf-detected-wrap');
-      const inp  = document.getElementById('lf-detected-id');
-      if (wrap) wrap.style.display = '';
-      if (inp)  inp.value = detectedGroupId;
-    }
-
-    // Show last webhook event (debug)
-    if (webhookLog) {
-      const wrap = document.getElementById('lf-debug-wrap');
-      const pre  = document.getElementById('lf-debug-log');
-      if (wrap) wrap.style.display = '';
-      if (pre) {
-        try { pre.textContent = JSON.stringify(JSON.parse(webhookLog), null, 2); }
-        catch { pre.textContent = webhookLog; }
-      }
-    }
-
-    // Load recent messages
-    const m = await apiFetch('/admin/line-messages?limit=30', {}, 'admin');
-    const msgs = m?.data || m?.messages || [];
-    const tbody = document.getElementById('lf-msg-body');
+    const m = await apiFetch('/admin/line-messages?' + params, {}, 'admin');
+    const msgs   = m?.data   || [];
+    const total  = m?.total  || 0;
+    const dates  = m?.dates  || [];
     const errDiv = document.getElementById('lf-table-error');
     if (errDiv) errDiv.style.display = 'none';
+
+    // ── อัพเดท date picker ──
+    const sel = document.getElementById('lf-date-sel');
+    if (sel && dates.length) {
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">-- ทั้งหมด --</option>' +
+        dates.map(d => `<option value="${d}" ${d === cur || d === date ? 'selected' : ''}>${d}</option>`).join('');
+    }
+
+    // ── Summary ──
+    const parsedCount   = msgs.filter(r => r.parsed).length;
+    const unparsedCount = msgs.filter(r => !r.parsed).length;
+    const sumEl = document.getElementById('lf-summary');
+    if (sumEl) sumEl.innerHTML =
+      `<span style="color:var(--muted)">รวม ${total} รายการ</span>` +
+      `<span style="color:#06c755">✅ parse แล้ว ${parsedCount}</span>` +
+      `<span style="color:var(--danger)">❌ ยังไม่ parse ${unparsedCount}</span>`;
+
+    // ── Table rows (input fields) ──
     if (!msgs.length) {
-      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">ยังไม่มีข้อความ</td></tr>';
-      return;
-    }
-    tbody.innerHTML = msgs.map(r => `
-      <tr>
-        <td style="white-space:nowrap;font-size:12px">${r.received_at ? new Date(r.received_at).toLocaleString('th-TH') : '-'}</td>
-        <td style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis">${r.source_id || '-'}</td>
-        <td style="font-size:12px;max-width:300px;white-space:pre-wrap">${(r.message_text||'').substring(0,200)}</td>
-        <td>${r.parsed ? '<span class="badge badge-green">✅</span>' : '<span class="badge badge-gray">-</span>'}</td>
-      </tr>`).join('');
-  } catch(e) {
-    console.warn('loadLineFetch error:', e.message);
-    // Show table-error if it's a table-missing error
-    if (e.message && e.message.includes('line_messages')) {
-      const errDiv = document.getElementById('lf-table-error');
-      if (errDiv) errDiv.style.display = '';
-    }
-  }
-}
-
-// Auto-refresh: start when page shown, stop when navigating away
-let _lfRefreshTimer = null;
-function startLineFetchAutoRefresh() {
-  stopLineFetchAutoRefresh();
-  _lfRefreshTimer = setInterval(async () => {
-    if (document.getElementById('lf-msg-body')) {
-      await loadLineFetch();
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--muted)">ไม่มีข้อมูล</td></tr>';
     } else {
-      stopLineFetchAutoRefresh();
-    }
-  }, 10000); // refresh ทุก 10 วินาที
-}
-function stopLineFetchAutoRefresh() {
-  if (_lfRefreshTimer) { clearInterval(_lfRefreshTimer); _lfRefreshTimer = null; }
-}
-
-async function repairLineTable() {
-  try {
-    const r = await apiFetch('/admin/line-repair-table', { method: 'POST' }, 'admin');
-    if (r?.success) {
-      toast('สำเร็จ', 'สร้างตาราง line_messages แล้ว');
-      document.getElementById('lf-table-error').style.display = 'none';
-      await loadLineFetch();
-    } else {
-      toast('ผิดพลาด', r?.message || 'ไม่สามารถสร้างตารางได้', 'error');
-    }
-  } catch(e) {
-    toast('ผิดพลาด', e.message, 'error');
-  }
-}
-
-
-function copyDetectedGroupId() {
-  const detected = document.getElementById('lf-detected-id')?.value || '';
-  if (detected) {
-    document.getElementById('lf-group-id').value = detected;
-    saveFetchGroupId();
-  }
-}
-
-async function saveFetchGroupId() {
-  const groupId = (document.getElementById('lf-group-id')?.value || '').trim();
-  try {
-    await apiFetch('/admin/line-fetch-settings', { method:'PATCH', body: JSON.stringify({ line_fetch_group_id: groupId }) }, 'admin');
-    toast('สำเร็จ', 'บันทึก Line Fetch Group ID แล้ว');
-  } catch(e) {
-    toast('ผิดพลาด', e.message, 'error');
-  }
-}
-
-
-/* ── Articles ── */
-let _allArticles = [];
-async function loadArticles() {
-  try {
-    const res = await apiFetch('/articles?limit=100', {}, 'admin');
-    _allArticles = res.data || res.articles || res || [];
-    renderArticleTable(_allArticles);
-  } catch(e) {
-    const tb = document.getElementById('art-tbody');
-    if(tb) tb.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--danger);padding:20px">❌ ${e.message}</td></tr>`;
-  }
-}
-function filterArticles() {
-  const q = (document.getElementById('art-search')?.value || '').toLowerCase();
-  renderArticleTable(q ? _allArticles.filter(a => (a.title||'').toLowerCase().includes(q)) : _allArticles);
-}
-function renderArticleTable(list) {
-  const tb = document.getElementById('art-tbody');
-  if (!tb) return;
-  if (!list.length) { tb.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">ยังไม่มีบทความ</td></tr>'; return; }
-  tb.innerHTML = list.map(a => `
-    <tr>
-      <td><strong>${a.title||'-'}</strong><br><small style="color:var(--muted)">${a.slug||''}</small></td>
-      <td><span class="badge">${a.category||'-'}</span></td>
-      <td><span style="color:${a.status==='published'?'var(--green)':'var(--muted)'}">${a.status==='published'?'✅ เผยแพร่':'📝 Draft'}</span></td>
-      <td>${a.created_at ? new Date(a.created_at).toLocaleDateString('th-TH') : '-'}</td>
-      <td>
-        <button class="btn btn-sm btn-outline" onclick="editArticle(${a.id})">✏️ แก้ไข</button>
-        <button class="btn btn-sm btn-danger" onclick="deleteArticle(${a.id},'${(a.title||'').replace(/'/g,'')}')">🗑️</button>
-      </td>
-    </tr>`).join('');
-}
-function openArticleModal(data) {
-  document.getElementById('art-id').value = data?.id || '';
-  document.getElementById('art-title').value = data?.title || '';
-  document.getElementById('art-slug').value = data?.slug || '';
-  document.getElementById('art-category').value = data?.category || 'lottery';
-  document.getElementById('art-status').value = data?.status || 'draft';
-  document.getElementById('art-content').value = data?.content || '';
-  document.getElementById('art-meta').value = data?.meta_description || '';
-  document.getElementById('art-modal-title').textContent = data?.id ? '✏️ แก้ไขบทความ' : '✏️ เขียนบทความใหม่';
-  document.getElementById('art-modal').style.display = 'block';
-}
-function closeArticleModal() { document.getElementById('art-modal').style.display = 'none'; }
-async function editArticle(id) {
-  const res = await apiFetch(`/articles/${id}`, {}, 'admin');
-  openArticleModal(res.data || res);
-}
-async function saveArticle() {
-  const id = document.getElementById('art-id').value;
-  const title = document.getElementById('art-title').value.trim();
-  const content = document.getElementById('art-content').value.trim();
-  if (!title || !content) { toast('แจ้งเตือน','กรุณากรอกชื่อและเนื้อหา'); return; }
-  let slug = document.getElementById('art-slug').value.trim();
-  if (!slug) slug = title.toLowerCase().replace(/[^a-z0-9ก-๙\s]/g,'').replace(/\s+/g,'-').substring(0,80);
-  const body = {
-    title, slug, content,
-    category: document.getElementById('art-category').value,
-    status: document.getElementById('art-status').value,
-    meta_description: document.getElementById('art-meta').value.trim()
-  };
-  try {
-    if (id) {
-      await apiFetch(`/articles/${id}`, { method:'PATCH', body: JSON.stringify(body) }, 'admin');
-      toast('สำเร็จ','อัพเดทบทความแล้ว ✅');
-    } else {
-      await apiFetch('/articles', { method:'POST', body: JSON.stringify(body) }, 'admin');
-      toast('สำเร็จ','สร้างบทความใหม่แล้ว ✅');
-    }
-    closeArticleModal();
-    await loadArticles();
-  } catch(e) { toast('ผิดพลาด', e.message); }
-}
-async function deleteArticle(id, title) {
-  if (!confirm(`ลบบทความ "${title}" ?`)) return;
-  try {
-    await apiFetch(`/articles/${id}`, { method:'DELETE' }, 'admin');
-    toast('ลบแล้ว','ลบบทความสำเร็จ');
-    await loadArticles();
-  } catch(e) { toast('ผิดพลาด', e.message); }
-}
-</script>
-</body>
-</html>
+      tbody.innerHTML = msgs.map((r, idx) => {
+        const { lotteryName, drawDate, top, bot, lotteryCode, drawDateISO } = lfParseMsg(r.message_text || '');
+        const recAt = r.received_at
+          ? new Date(r.received_at).toLocaleString('th-TH',{timeZone:'Asia/Bangkok',hour12:false,
+              day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'})
+          : '-';
+        // 3ตัวบน, 2ตัวบน (2 หลักท้ายของ 3ตัวบน), 2ตัวล่าง
+        const top3 = (top !== '-' && top.length >= 3) ? top : (top !== '-' && top.length === 3 ? top : (top !== '-' ? '' : ''));
+        const top2 = top !== '-' ? top.slice(-2) : '';
+        const bot2 = bot !== '-' ? bot : '';
+        const rowId = `lf-row-${r.id || idx}`;
+        const saved = r.parsed;
+        const rowBg = saved ? 'background:rgba(6,199,85,0.06)' : '';
+        return `<tr id="${rowId}" style="${rowBg}">
+          <td style="font-size:10px;color:var(--muted);white-space:nowrap">${recAt}</td>
+          <td style="font-size:12px;color:var(--gold2);font-weight:500">${lotteryName}</td>
+          <td style="text-align:center;font-size:12px;color:var(--muted)">${drawDate}</td>
+          <td style="te
