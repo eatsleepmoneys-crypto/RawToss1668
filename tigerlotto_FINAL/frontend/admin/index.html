@@ -7376,24 +7376,129 @@ PAGES['line-fetch'] = () => `
 let _lfState = { page: 1, date: '', filter: '', limit: 50 };
 
 // map ASCII code → ชื่อภาษาไทย
-// Short bot code → Full system lottery_type.code (ต้องตรงกับ BOT_CODE_MAP ใน lineWebhook.js)
+// Short bot code → Full system lottery_type.code
 const LF_BOT_CODE_MAP = {
-  'TH' :'TH_GOV',     // หวยรัฐบาลไทย
-  'THS':'TH_STK',     // หวยหุ้นไทย
+  'TH' :'TH_GOV',   'THS':'TH_STK',
   'CN' :'CN_STK',
-  'HN' :'VN_HAN',     // ฮานอยปกติ
-  'VN' :'VN_HAN',     // alias
-  'HS' :'VN_HAN_SP',  // ฮานอยพิเศษ
-  'HV' :'VN_HAN_VIP', // ฮานอย VIP
-  'LA' :'LA_GOV',     // ลาวพัฒนา
-  'MY' :'MY_STK',
-  'SG' :'SG_STK',
-  'YK' :'YEEKEE',
-  'YG' :'YEEKEE',
-  'JP' :'JP_STK',
-  'KR' :'KR_STK',
-  'TW' :'TW_STK',
+  'HN' :'VN_HAN',   'VN' :'VN_HAN',
+  'HS' :'VN_HAN_SP','HV' :'VN_HAN_VIP',
+  'LA' :'LA_GOV',
+  'MY' :'MY_STK',   'SG' :'SG_STK',
+  'YK' :'YEEKEE',   'YG' :'YEEKEE',
+  'JP' :'JP_STK_AM','KR' :'KR_STK',  'TW':'TW_STK',
+  'HK' :'HK_STK',   'IN' :'IN_STK',
+  'DE' :'DE_STK',   'RU' :'RU_STK',
+  'GB' :'UK_STK',   'UK' :'UK_STK',
+  'EU' :'EU_SP',    'US' :'DJ_SP',
 };
+
+/**
+ * แปลง flag emoji + ชื่อหวย → lottery_type.code
+ * Mirror ของ nameToLotteryCode ใน lineWebhook.js
+ */
+function lfNameToCode(flagEmoji, name) {
+  if (!flagEmoji) return null;
+  const c1 = flagEmoji.codePointAt(0), c2 = flagEmoji.codePointAt(2);
+  if (!c1 || !c2) return null;
+  const cc = String.fromCharCode(c1 - 0x1F1E6 + 65) + String.fromCharCode(c2 - 0x1F1E6 + 65);
+  const n = (name || '').toLowerCase();
+  switch (cc) {
+    case 'TH': return n.includes('รัฐบาล') ? 'TH_GOV' : 'TH_STK';
+    case 'JP':
+      if (n.includes('vip'))     return n.includes('เช้า') ? 'JP_VIP_AM'  : 'JP_VIP_PM';
+      if (n.includes('พิเศษ'))   return n.includes('เช้า') ? 'JP_SP_AM'   : 'JP_SP_PM';
+      if (n.includes('วีซ่า'))   return n.includes('เช้า') ? 'JP_VISA_AM' : 'JP_VISA_PM';
+      return n.includes('บ่าย') ? 'JP_STK_PM' : 'JP_STK_AM';
+    case 'CN':
+      if (n.includes('vip'))     return n.includes('เช้า') ? 'CN_VIP_AM'  : 'CN_VIP_PM';
+      if (n.includes('พิเศษ'))   return n.includes('เช้า') ? 'CN_SP_AM'   : 'CN_SP_PM';
+      if (n.includes('วีซ่า'))   return n.includes('เช้า') ? 'CN_VISA_AM' : 'CN_VISA_PM';
+      return n.includes('บ่าย') ? 'CN_STK_PM' : (n.includes('เช้า') ? 'CN_STK_AM' : 'CN_STK');
+    case 'HK':
+      if (n.includes('vip'))     return n.includes('เช้า') ? 'HK_VIP_AM'  : 'HK_VIP_PM';
+      if (n.includes('พิเศษ'))   return n.includes('เช้า') ? 'HK_SP_AM'   : 'HK_SP_PM';
+      if (n.includes('วีซ่า'))   return n.includes('เช้า') ? 'HK_VISA_AM' : (n.includes('บ่าย') ? 'HK_VISA_PM' : 'HK_VISA');
+      if (n.includes('เช้า'))    return 'HK_STK_AM';
+      if (n.includes('บ่าย'))    return 'HK_STK_PM';
+      return 'HK_STK';
+    case 'VN':
+      if (n.includes('vip'))     { if (n.includes('ออนไลน์')) return 'VN_VIP_ONLINE'; if (n.includes('วีซ่า')) return 'VN_VISA'; return 'VN_HAN_VIP'; }
+      if (n.includes('พิเศษ'))   { if (n.includes('เช้า')) return 'VN_SP_AM'; if (n.includes('บ่าย')) return 'VN_SP_PM'; return 'VN_HAN_SP'; }
+      if (n.includes('ออนไลน์')) return 'VN_HAN_ONLINE';
+      if (n.includes('เช้า'))    return 'VN_HAN_AM';
+      if (n.includes('อาเซียน')) return 'VN_HAN_ASEAN';
+      if (n.includes('hd'))      return 'VN_HAN_HD';
+      if (n.includes('สตาร์'))   return 'VN_HAN_STAR';
+      if (n.includes('ทีวี'))    return 'VN_HAN_TV';
+      if (n.includes('กาชาด'))   return 'VN_HAN_RC';
+      if (n.includes('เฉพาะกิจ'))return 'VN_HAN_SPEC';
+      if (n.includes('สามัคคี')) return 'VN_HAN_SAM';
+      if (n.includes('พัฒนา'))   return 'VN_HAN_DEV';
+      if (n.includes('4d'))      return 'VN_HAN_4D';
+      if (n.includes('extra') || n.includes('เอ็กซ์ตร้า')) return 'VN_HAN_EXTRA';
+      if (n.includes('ดึก') || n.includes('night')) return 'VN_HAN_NIGHT';
+      return 'VN_HAN';
+    case 'LA':
+      if (n.includes('แม่โขง') || n.includes('mk')) {
+        if (n.includes('hd'))      return 'MK_HD';
+        if (n.includes('เมก้า'))   return 'MK_MEGA';
+        if (n.includes('สตาร์'))   return 'MK_STAR';
+        if (n.includes('พลัส'))    return 'MK_PLUS';
+        if (n.includes('พิเศษ'))   return 'MK_SP';
+        if (n.includes('vip'))     return 'MK_VIP';
+        if (n.includes('พัฒนา'))   return 'MK_DEV';
+        if (n.includes('โกลด์'))   return 'MK_GOLD';
+        if (n.includes('ไนท์') || n.includes('night')) return 'MK_NIGHT';
+        if (n.includes('ปกติ'))    return 'MK_NORMAL';
+        return 'MK_TODAY';
+      }
+      if (n.includes('วีซ่า'))    { if (n.includes('สาละวัน')) return 'LA_VISA_SAL'; if (n.includes('หลวงพระบาง')) return 'LA_VISA_LPB'; if (n.includes('เวียงจันทน์')) return 'LA_VISA_VTE'; return 'LA_VISA'; }
+      if (n.includes('ประตูชัย')) return 'LA_GATE';
+      if (n.includes('สันติภาพ')) return 'LA_PEACE';
+      if (n.includes('ประชาชน'))  return 'LA_PEOPLE';
+      if (n.includes('เช้า'))     return 'LA_AM';
+      if (n.includes('extra') || n.includes('เอ็กซ์ตร้า')) return 'LA_EXTRA';
+      if (n.includes('ทีวี'))     return 'LA_TV';
+      if (n.includes('พิเศษเที่ยง')) return 'LA_SP_NOON';
+      if (n.includes('พัฒนาเที่ยง')) return 'LA_GOV_NOON';
+      if (n.includes('พัฒนา') && n.includes('vip')) return 'LA_GOV_VIP';
+      if (n.includes('พิเศษ'))    return 'LA_SP';
+      if (n.includes('พัฒนา'))    return 'LA_GOV';
+      if (n.includes('พลัส'))     return 'LA_PLUS';
+      if (n.includes('สบายดี'))   return 'LA_SABAI';
+      if (n.includes('ก้าวหน้า')) return 'LA_PROGRESS';
+      if (n.includes('hd'))       return 'LA_HD';
+      if (n.includes('เจริญ'))    return 'LA_CHERN';
+      if (n.includes('นครหลวง'))  return 'LA_NKL';
+      if (n.includes('สตาร์') && n.includes('vip')) return 'LA_STAR_VIP';
+      if (n.includes('สตาร์'))    return 'LA_STAR';
+      if (n.includes('มั่นคง'))   return 'LA_STABLE';
+      if (n.includes('นิยม'))     return 'LA_NIYOM';
+      if (n.includes('ร่ำรวย'))   return 'LA_RICH2';
+      if (n.includes('มั่งคั่ง')) return 'LA_RICH';
+      if (n.includes('มงคล'))     return 'LA_MONGKOL';
+      if (n.includes('ซูเปอร์'))  return 'LA_SUPER';
+      if (n.includes('สามัคคี') && n.includes('vip')) return 'LA_UNITY_VIP';
+      if (n.includes('สามัคคี'))  return 'LA_UNITY';
+      if (n.includes('อาเซียน'))  return 'LA_ASEAN';
+      if (n.includes('รุ่งเรือง'))return 'LA_PROSPER';
+      if (n.includes('ไอยรา'))    return 'LA_AIYARA';
+      if (n.includes('กาชาด'))    return 'LA_RC';
+      if (n.includes('vip'))      return 'LA_VIP';
+      return 'LA_GOV';
+    case 'SG': if (n.includes('vip')) return 'SG_VIP'; if (n.includes('พิเศษ')) return 'SG_SP'; return 'SG_STK';
+    case 'MY': return 'MY_STK';
+    case 'KR': if (n.includes('vip')) return 'KR_VIP'; if (n.includes('พิเศษ')) return 'KR_SP'; return 'KR_STK';
+    case 'TW': if (n.includes('vip')) return 'TW_VIP'; if (n.includes('พิเศษ')) return 'TW_SP'; return 'TW_STK';
+    case 'IN': return 'IN_STK';
+    case 'DE': if (n.includes('vip')) return 'DE_VIP'; if (n.includes('พิเศษ')) return 'DE_SP'; if (n.includes('วีซ่า')) return 'DE_VISA'; return 'DE_STK';
+    case 'RU': if (n.includes('vip')) return 'RU_VIP'; if (n.includes('พิเศษ')) return 'RU_SP'; if (n.includes('วีซ่า')) return 'RU_VISA'; return 'RU_STK';
+    case 'GB': if (n.includes('vip')) return 'UK_VIP'; if (n.includes('วีซ่า')) return 'UK_VISA'; return 'UK_STK';
+    case 'US': return 'DJ_SP';
+    case 'EU': return 'EU_SP';
+    default: return null;
+  }
+}
 // Full system code → ชื่อแสดงผลภาษาไทย
 const LF_CODE_NAME = {
   'TH_GOV'    :'หวยรัฐบาลไทย',
@@ -7529,8 +7634,36 @@ const LF_CODE_NAME = {
  *   bot2 = 2ตัวล่าง (↓ value, 2 หลัก)
  */
 function lfParseMsg(text) {
-  if (!text) return { lotteryName: '-', drawDate: '-', top3: '', top2: '', bot2: '', lotteryCode: '', drawDateISO: '' };
+  if (!text) return { lotteryName: '-', drawDate: '-', top3: '', top2: '', bot2: '', lotteryCode: '', drawDateISO: '', count: 0 };
 
+  // ── ลองรูปแบบ Summary ก่อน: "NNN-NN 🏳️ ชื่อหวย" (หลายบรรทัด) ──────────────
+  const SUMMARY_RE = /(\d{2,6})-(\d{2})\s+([\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF])\s+([^\n]+)/gmu;
+  const summaryMatches = [...text.matchAll(SUMMARY_RE)];
+  if (summaryMatches.length > 0) {
+    // ดึงข้อมูลจาก match แรก
+    const m       = summaryMatches[0];
+    const rawTop  = m[1], rawBot = m[2], flagEmoji = m[3], ltName = m[4].trim();
+    const code    = lfNameToCode(flagEmoji, ltName);
+    const base    = code ? (LF_CODE_NAME[code] || ltName) : ltName;
+    const suffix  = summaryMatches.length > 1 ? ` (+${summaryMatches.length - 1})` : '';
+    const top3    = rawTop.length >= 3 ? rawTop.slice(0, 3) : '';
+    const top2    = rawTop.length >= 2 ? rawTop.slice(-2)   : '';
+    const bot2    = rawBot.slice(-2);
+    // หาวันที่
+    let drawDate = '-', drawDateISO = '';
+    const MONTHS2 = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    for (let mi = 0; mi < MONTHS2.length; mi++) {
+      const dm = text.match(new RegExp('(\\d{1,2})\\s+' + MONTHS2[mi] + '\\s+(\\d{4})'));
+      if (dm) {
+        let y = parseInt(dm[2]); if (y > 2400) y -= 543;
+        const dd = String(parseInt(dm[1])).padStart(2,'0'), mm2 = String(mi+1).padStart(2,'0');
+        drawDate = `${dd}/${mm2}/${y}`; drawDateISO = `${y}-${mm2}-${dd}`; break;
+      }
+    }
+    return { lotteryName: base + suffix, lotteryCode: code || '', drawDate, drawDateISO, top3, top2, bot2, isSummary: true, count: summaryMatches.length };
+  }
+
+  // ── รูปแบบปกติ: ASCII header หรือ flag emoji header ──────────────────────
   // 1. หา short code จาก ASCII header: "LA ลาวพัฒนา LA" / "HN ฮานอย HN"
   let shortCode = null;
   const hmAscii = text.match(/^([A-Z]{2,3})\s+[^\n]+\1/m);
@@ -7544,8 +7677,7 @@ function lfParseMsg(text) {
       const c1 = f.codePointAt(0), c2 = f.codePointAt(2);
       if (c1 && c2) {
         const cc = String.fromCharCode(c1 - 0x1F1E6 + 65) + String.fromCharCode(c2 - 0x1F1E6 + 65);
-        // แปลง country code → short bot code
-        const FLAG_CC = { TH:'TH', VN:'HN', LA:'LA', SG:'SG', MY:'MY', JP:'JP', KR:'KR', TW:'TW', CN:'CN' };
+        const FLAG_CC = { TH:'TH', VN:'HN', LA:'LA', SG:'SG', MY:'MY', JP:'JP', KR:'KR', TW:'TW', CN:'CN', HK:'HK', IN:'IN', DE:'DE', RU:'RU', GB:'GB', US:'US', EU:'EU' };
         shortCode = FLAG_CC[cc] || null;
       }
     }
