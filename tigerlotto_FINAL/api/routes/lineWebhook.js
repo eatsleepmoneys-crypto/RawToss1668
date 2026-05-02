@@ -458,132 +458,103 @@ function parseLotteryMessage(text) {
   return results;
 }
 
-/** แปลง flag emoji + ชื่อ → lottery_type.code */
+/** แปลง flag emoji + ชื่อ → lottery_type.code (old ↑↓ block format) */
 function flagHeaderToCode(flagEmoji, headerLine) {
-  // แปลง flag emoji → 2-letter country code (TH, SG, VN, ...)
   const cp1 = flagEmoji.codePointAt(0);
   const cp2 = flagEmoji.codePointAt(2);
   if (!cp1 || !cp2) return null;
   const cc = String.fromCharCode(cp1 - 0x1F1E6 + 65) +
              String.fromCharCode(cp2 - 0x1F1E6 + 65);
+  return nameToLotteryCode(cc, headerLine);
+}
 
-  const n = headerLine.toLowerCase();
+/**
+ * แปลง (country code, lottery name) → lottery_type.code ในระบบ
+ * ใช้ร่วมกันทั้ง parseSummaryMessage และ flagHeaderToCode
+ */
+function nameToLotteryCode(cc, name) {
+  const n = (name || '').toLowerCase();
   switch (cc) {
     case 'TH':
-      if (n.includes('หุ้น') || n.includes('เย็น') || n.includes('บ่าย') || n.includes('เช้า') || n.includes('stk'))
-        return 'TH_STK';
-      return 'TH_GOV';
+      if (n.includes('รัฐบาล') || n.includes('gov')) return 'TH_GOV';
+      return 'TH_STK';
+    case 'JP':
+      if (n.includes('vip') || n.includes('วีไอพี'))
+        return n.includes('เช้า') ? 'JP_VIP_AM' : 'JP_VIP_PM';
+      if (n.includes('พิเศษ') || n.includes('sp'))
+        return n.includes('เช้า') ? 'JP_SP_AM' : 'JP_SP_PM';
+      if (n.includes('วีซ่า') || n.includes('visa'))
+        return n.includes('เช้า') ? 'JP_VISA_AM' : 'JP_VISA_PM';
+      return n.includes('บ่าย') ? 'JP_STK_PM' : 'JP_STK_AM';
+    case 'CN':
+      if (n.includes('vip') || n.includes('วีไอพี'))
+        return n.includes('เช้า') ? 'CN_VIP_AM' : 'CN_VIP_PM';
+      if (n.includes('พิเศษ') || n.includes('sp'))
+        return n.includes('เช้า') ? 'CN_SP_AM' : 'CN_SP_PM';
+      if (n.includes('วีซ่า') || n.includes('visa'))
+        return n.includes('เช้า') ? 'CN_VISA_AM' : 'CN_VISA_PM';
+      return n.includes('บ่าย') ? 'CN_STK_PM' : (n.includes('เช้า') ? 'CN_STK_AM' : 'CN_STK');
+    case 'HK':
+      if (n.includes('vip') || n.includes('วีไอพี'))
+        return n.includes('เช้า') ? 'HK_VIP_AM' : 'HK_VIP_PM';
+      if (n.includes('พิเศษ') || n.includes('sp'))
+        return n.includes('เช้า') ? 'HK_SP_AM' : 'HK_SP_PM';
+      if (n.includes('วีซ่า') || n.includes('visa'))
+        return n.includes('เช้า') ? 'HK_VISA_AM' : (n.includes('บ่าย') ? 'HK_VISA_PM' : 'HK_VISA');
+      if (n.includes('เช้า')) return 'HK_STK_AM';
+      if (n.includes('บ่าย')) return 'HK_STK_PM';
+      return 'HK_STK';
     case 'VN':
-      if (n.includes('vip') || n.includes('วีไอพี')) return 'VN_HAN_VIP';
-      if (n.includes('พิเศษ'))                        return 'VN_HAN_SP';
+      if (n.includes('vip') || n.includes('วีไอพี')) {
+        if (n.includes('ออนไลน์')) return 'VN_VIP_ONLINE';
+        if (n.includes('วีซ่า') || n.includes('visa')) return 'VN_VISA';
+        return 'VN_HAN_VIP';
+      }
+      if (n.includes('พิเศษ') || n.includes('sp')) {
+        if (n.includes('เช้า')) return 'VN_SP_AM';
+        if (n.includes('บ่าย') || n.includes('เย็น')) return 'VN_SP_PM';
+        return 'VN_HAN_SP';
+      }
+      if (n.includes('ออนไลน์')) return 'VN_HAN_ONLINE';
+      if (n.includes('เช้า')) return 'VN_HAN_AM';
+      if (n.includes('อาเซียน')) return 'VN_HAN_ASEAN';
+      if (n.includes('hd')) return 'VN_HAN_HD';
+      if (n.includes('สตาร์') || n.includes('star')) return 'VN_HAN_STAR';
+      if (n.includes('ทีวี') || n.includes('tv')) return 'VN_HAN_TV';
+      if (n.includes('กาชาด') || n.includes('rc')) return 'VN_HAN_RC';
+      if (n.includes('เฉพาะกิจ')) return 'VN_HAN_SPEC';
+      if (n.includes('สามัคคี') || n.includes('sam')) return 'VN_HAN_SAM';
+      if (n.includes('พัฒนา') || n.includes('dev')) return 'VN_HAN_DEV';
+      if (n.includes('4d')) return 'VN_HAN_4D';
+      if (n.includes('extra') || n.includes('เอ็กซ์ตร้า')) return 'VN_HAN_EXTRA';
+      if (n.includes('ดึก') || n.includes('night')) return 'VN_HAN_NIGHT';
       return 'VN_HAN';
-    case 'LA': return 'LA_GOV';
-    case 'SG': return 'SG_STK';
-    case 'MY': return 'MY_STK';
-    case 'CN': return 'CN_STK';
-    case 'KR': return 'KR_STK';
-    default:   return null;
-  }
-}
-
-
-/**
- * บันทึกผลหวยที่ parse ได้ลง lottery_rounds + lottery_results
- */
-async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
-  try {
-    const [lt] = await query('SELECT id FROM `lottery_types` WHERE code=? LIMIT 1', [lotteryCode]);
-    if (!lt) return console.warn('[LINE Fetch] lottery_type not found: ' + lotteryCode);
-
-    // map prize_type → DB column
-    // ↑ (บน) 3 หลัก → prize_1st | 2 หลัก → prize_last_2
-    // ↓ (ล่าง) → prize_2bot เสมอ (ทุกประเภทหวย)
-    const colMap = {
-      '1st':'prize_1st', 'last2':'prize_last_2', 'last3':'prize_last_3', 'front3':'prize_front_3',
-      '3top': 'prize_1st',
-      '2top': 'prize_last_2',
-      '2bot': 'prize_2bot',
-    };
-    const updates = {};
-    for (const p of prizes) { const col = colMap[p.prize_type]; if (col) updates[col] = p.prize_value; }
-    // auto-derive: 2 ตัวบน = 2 หลักท้ายของ 3 ตัวบน (ถ้ายังไม่มี prize_last_2)
-    if (updates.prize_1st && updates.prize_1st.length >= 3 && !updates.prize_last_2) {
-      updates.prize_last_2 = updates.prize_1st.slice(-2);
-    }
-    if (!Object.keys(updates).length) return;
-
-    // 1) หางวดที่มีอยู่แล้ว (open/closed) ตรง lottery + วันที่
-    const existRows = await query(
-      'SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN (\'open\',\'closed\') ORDER BY id DESC LIMIT 1',
-      [lt.id, drawDate]
-    );
-    const existRound = existRows.length ? existRows[0] : null;
-
-    const setClause = function(keys) { return keys.map(function(c){ return '`' + c + '`=?'; }).join(', '); };
-    const colList   = function(keys) { return keys.map(function(c){ return '`' + c + '`'; }).join(','); };
-    const ukeys = Object.keys(updates);
-    const uvals = Object.values(updates);
-
-    if (existRound) {
-      // 2a) งวดมีอยู่ → update status ใน lottery_rounds (prizes อยู่ใน lottery_results เท่านั้น)
-      await query(
-        'UPDATE lottery_rounds SET status=\'announced\', updated_at=NOW() WHERE id=?',
-        [existRound.id]
-      );
-      await query(
-        'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
-        [existRound.id, ...uvals, ...uvals]
-      );
-      console.log('[LINE Fetch] updated round #' + existRound.id + ' ' + lotteryCode + ' ' + drawDate, updates);
-    } else {
-      // 2b) ไม่มีงวดที่รับแทงอยู่ → สร้างงวดใหม่ announced ทันที
-      const roundCode = lotteryCode + '-' + drawDate.replace(/-/g,'');
-      await query(
-        'INSERT INTO lottery_rounds (lottery_id, round_code, round_name, draw_date, status) VALUES (?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
-        [lt.id, roundCode, 'งวด ' + drawDate, drawDate]
-      );
-      const newRows = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
-      if (!newRows.length) return;
-      const nid = newRows[0].id;
-      await query(
-        'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
-        [nid, ...uvals, ...uvals]
-      ).catch(function(){});
-      console.log('[LINE Fetch] new round ' + lotteryCode + ' ' + drawDate, updates);
-    }
-  } catch (e) {
-    console.warn('[LINE Fetch] saveLotteryResult error:', e.message);
-  }
-}
-
-/**
- * ประมวลผลข้อความจากกลุ่ม fetch — บันทึกดิบ + parse ผล
- * เรียกจาก event loop สำหรับทุก message event
- */
-async function handleLotteryMessage(event, groupId, fetchGroupId) {
-  if (!fetchGroupId || groupId !== fetchGroupId) return; // ไม่ใช่กลุ่ม fetch → ข้าม
-  if (event.type !== 'message' || event.message?.type !== 'text') return;
-
-  await saveRawMessage(event, groupId);
-
-  const text = (event.message.text || '').trim();
-  // detect summary format "สรุปผล..." vs old ↑↓ block format
-  const results = (text.includes('สรุปผล') || text.includes('บอทรายงานผล'))
-    ? parseSummaryMessage(text)
-    : parseLotteryMessage(text);
-  if (results.length > 0) {
-    for (const result of results) {
-      console.log(`[LINE Fetch] detected ${result.lotteryCode} ${result.drawDate}`);
-      await saveLotteryResult(result);
-    }
-    // mark as parsed
-    const msgId = event.message?.id;
-    if (msgId) {
-      await query('UPDATE `line_messages` SET parsed=1 WHERE msg_id=?', [msgId]).catch(()=>{});
-    }
-  }
-}
-
-module.exports = router;
-module.exports.parseLotteryMessage = parseLotteryMessage;
-module.exports.saveLotteryResult   = saveLotteryResult;
+    case 'LA':
+      if (n.includes('แม่โขง') || n.includes('maekong') || n.includes('mk')) {
+        if (n.includes('hd')) return 'MK_HD';
+        if (n.includes('เมก้า') || n.includes('mega')) return 'MK_MEGA';
+        if (n.includes('สตาร์') || n.includes('star')) return 'MK_STAR';
+        if (n.includes('พลัส') || n.includes('plus')) return 'MK_PLUS';
+        if (n.includes('พิเศษ') || n.includes('sp')) return 'MK_SP';
+        if (n.includes('vip')) return 'MK_VIP';
+        if (n.includes('พัฒนา') || n.includes('dev')) return 'MK_DEV';
+        if (n.includes('โกลด์') || n.includes('gold')) return 'MK_GOLD';
+        if (n.includes('ไนท์') || n.includes('night')) return 'MK_NIGHT';
+        if (n.includes('ปกติ') || n.includes('normal')) return 'MK_NORMAL';
+        return 'MK_TODAY';
+      }
+      if (n.includes('วีซ่า') || n.includes('visa')) {
+        if (n.includes('สาละวัน') || n.includes('sal')) return 'LA_VISA_SAL';
+        if (n.includes('หลวงพระบาง') || n.includes('lpb')) return 'LA_VISA_LPB';
+        if (n.includes('เวียงจันทน์') || n.includes('vte')) return 'LA_VISA_VTE';
+        return 'LA_VISA';
+      }
+      if (n.includes('ประตูชัย') || n.includes('gate')) return 'LA_GATE';
+      if (n.includes('สันติภาพ') || n.includes('peace')) return 'LA_PEACE';
+      if (n.includes('ประชาชน') || n.includes('people')) return 'LA_PEOPLE';
+      if (n.includes('เช้า')) return 'LA_AM';
+      if (n.includes('extra') || n.includes('เอ็กซ์ตร้า')) return 'LA_EXTRA';
+      if (n.includes('ทีวี') || n.includes('tv')) return 'LA_TV';
+      if (n.includes('พิเศษเที่ยง')) return 'LA_SP_NOON';
+      if (n.includes('พัฒนาเที่ยง')) return 'LA_GOV_NOON';
+      if (n.includes('พัฒนา') && n.includes('vip')) return 'LA_GO
