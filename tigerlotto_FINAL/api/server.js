@@ -898,9 +898,22 @@ server.listen(PORT, '0.0.0.0', () => {
   // ── Seed 109 new lottery sub-types (INSERT IGNORE via pool — idempotent) ──
   (async () => {
     try {
-      // Add category + fix sort_order column
-      await pool.execute("ALTER TABLE `lottery_types` ADD COLUMN `category` VARCHAR(50) NOT NULL DEFAULT 'other' AFTER `flag`").catch(()=>{});
-      await pool.execute("ALTER TABLE `lottery_types` MODIFY COLUMN `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0").catch(()=>{});
+      // Fix category column: MODIFY first (repairs missing DEFAULT on existing col),
+      // then ADD as fallback if it does not exist. Both are idempotent.
+      try {
+        await pool.execute("ALTER TABLE `lottery_types` MODIFY COLUMN `category` VARCHAR(50) NOT NULL DEFAULT 'other'");
+        console.log('[startup] category DEFAULT ensured');
+      } catch(e) {
+        // errno 1054 = Unknown column (not yet added) — try ADD
+        try {
+          await pool.execute("ALTER TABLE `lottery_types` ADD COLUMN `category` VARCHAR(50) NOT NULL DEFAULT 'other' AFTER `flag`");
+          console.log('[startup] category column added');
+        } catch(e2) { console.warn('[startup] category:', e2.message); }
+      }
+      // Ensure sort_order can hold values up to 999 (SMALLINT UNSIGNED = 0-65535, safe)
+      try {
+        await pool.execute("ALTER TABLE `lottery_types` MODIFY COLUMN `sort_order` SMALLINT UNSIGNED NOT NULL DEFAULT 0");
+      } catch(e) { /* already correct or no-op */ }
       const newTypes = [
         ['JP_STK_AM','นิคเคอิเช้า','🇯🇵',211],['JP_STK_PM','นิคเคอิบ่าย','🇯🇵',212],
         ['CN_STK_AM','จีนเช้า','🇨🇳',221],['CN_STK_PM','จีนบ่าย','🇨🇳',222],
