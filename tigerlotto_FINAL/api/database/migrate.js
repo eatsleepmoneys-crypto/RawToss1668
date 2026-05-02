@@ -1074,9 +1074,6 @@ async function migrate() {
     console.log(`\n📋 Tables in DB: ${rows.map(r => r.TABLE_NAME).join(', ')}`);
   } catch (e) { /* non-fatal */ }
 
-  console.log(`\n✅ Migration complete! ok=${ok} fail=${fail}`);
-  await conn.end();
-}
-
-// Export
-module.exports = { runMigration: migrate };
+  // Clear all admin lockouts on startup (so deploy never leaves admin locked out)
+  try {
+    await conn.query('UPDATE admins SET login_attemp
