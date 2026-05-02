@@ -7664,28 +7664,51 @@ function lfParseMsg(text) {
   }
 
   // ── รูปแบบปกติ: ASCII header หรือ flag emoji header ──────────────────────
-  // 1. หา short code จาก ASCII header: "LA ลาวพัฒนา LA" / "HN ฮานอย HN"
-  let shortCode = null;
-  const hmAscii = text.match(/^([A-Z]{2,3})\s+[^\n]+\1/m);
-  if (hmAscii) shortCode = hmAscii[1];
+  // 1. หา short code + ชื่อหวย จาก ASCII header: "VN ฮานอยเฉพาะกิจ VN"
+  let shortCode = null, headerName = '';
+  const hmAscii = text.match(/^([A-Z]{2,3})\s+([^\n]+?)\s+\1\s*$/m);
+  if (hmAscii) { shortCode = hmAscii[1]; headerName = hmAscii[2]; }
 
-  // fallback: flag emoji header เช่น "🇹🇭 ไทย 🇹🇭"
+  // fallback: flag emoji header เช่น "🇻🇳 ฮานอยพิเศษ บ่าย 🇻🇳"
   if (!shortCode) {
-    const hmFlag = text.match(/^([\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF])/m);
+    const hmFlag = text.match(/^([\uD83C][\uDDE6-\uDDFF][\uD83C][\uDDE6-\uDDFF])\s*([^\n]*)/m);
     if (hmFlag) {
       const f = hmFlag[1];
+      headerName = (hmFlag[2] || '').trim();
       const c1 = f.codePointAt(0), c2 = f.codePointAt(2);
       if (c1 && c2) {
         const cc = String.fromCharCode(c1 - 0x1F1E6 + 65) + String.fromCharCode(c2 - 0x1F1E6 + 65);
+        // map ISO-2 → shortCode ที่ BOT_TO_ISO รู้จัก (HN ใช้แทน VN เพื่อให้ BOT_TO_ISO → VN)
         const FLAG_CC = { TH:'TH', VN:'HN', LA:'LA', SG:'SG', MY:'MY', JP:'JP', KR:'KR', TW:'TW', CN:'CN', HK:'HK', IN:'IN', DE:'DE', RU:'RU', GB:'GB', US:'US', EU:'EU' };
         shortCode = FLAG_CC[cc] || null;
       }
     }
   }
 
-  // 2. map short code → full system code → display name
-  const fullCode    = shortCode ? (LF_BOT_CODE_MAP[shortCode] || shortCode) : '';
-  const lotteryName = fullCode  ? (LF_CODE_NAME[fullCode] || fullCode) : '-';
+  // 2. map short code → full system code
+  //    ลอง lfNameToCode ก่อนเสมอ (จับ sub-type เช่น VN_HAN_SPEC, SG_VIP)
+  const BOT_TO_ISO = {
+    VN:'VN', HN:'VN', HS:'VN', HV:'VN',
+    TH:'TH', THS:'TH',
+    LA:'LA',
+    SG:'SG', MY:'MY',
+    JP:'JP', KR:'KR', TW:'TW',
+    CN:'CN', HK:'HK', IN:'IN',
+    DE:'DE', RU:'RU', GB:'GB', UK:'GB',
+    US:'US', EU:'EU'
+  };
+  let fullCode = '';
+  if (shortCode) {
+    const iso2 = BOT_TO_ISO[shortCode];
+    if (iso2 && headerName) {
+      const fe = String.fromCodePoint(0x1F1E6 + iso2.charCodeAt(0) - 65) +
+                 String.fromCodePoint(0x1F1E6 + iso2.charCodeAt(1) - 65);
+      fullCode = lfNameToCode(fe, headerName) || LF_BOT_CODE_MAP[shortCode] || shortCode;
+    } else {
+      fullCode = LF_BOT_CODE_MAP[shortCode] || shortCode;
+    }
+  }
+  const lotteryName = fullCode ? (LF_CODE_NAME[fullCode] || fullCode) : '-';
 
   // 3. หาวันที่ภาษาไทย
   const MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
