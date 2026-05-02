@@ -3790,6 +3790,12 @@ function useDetectedGroupId() {
   toast('สำเร็จ', `ใส่ Group ID: ${_detectedGroupId} แล้ว — กด "บันทึก" เพื่อบันทึก`);
 }
 
+function useDetectedFetchGroupId() {
+  if (!_detectedGroupId) return alert('ยังไม่มี Group ID — กด "🔄 รีเฟรช Group ID" ก่อน แล้วกด Auto-fill อีกครั้ง');
+  const el = document.getElementById('line-fetch-group-id');
+  if (el) el.value = _detectedGroupId;
+  toast('สำเร็จ', `ใส่ Fetch Group ID: ${_detectedGroupId} แล้ว — กด "บันทึก" เพื่อบันทึก`);
+}
 async function loadLineSettings(){
   try {
     const d = await API.AdminAPI.getLineNotify();
@@ -3804,6 +3810,7 @@ async function loadLineSettings(){
     setChk('line-notify-deposit',  s.notify_deposit !== false);
     setChk('line-notify-withdraw', s.notify_withdraw !== false);
     setVal('line-group-id', s.group_id);
+    setVal('line-fetch-group-id', s.fetch_group_id || '');
     // Show masked hint for tokens
     if(s.has_notify_token){ const el=document.getElementById('line-notify-token'); if(el) el.placeholder=s.notify_token+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
     if(s.has_bot_token)   { const el=document.getElementById('line-bot-token');    if(el) el.placeholder=s.bot_token+' (บันทึกแล้ว — ว่างไว้เพื่อคงเดิม)'; }
@@ -3817,6 +3824,7 @@ async function saveLineSettings(){
     bot_enabled     : document.getElementById('line-bot-enabled')?.checked     ?? false,
     bot_token       : document.getElementById('line-bot-token')?.value?.trim()    || '',
     group_id        : document.getElementById('line-group-id')?.value?.trim()     || '',
+    fetch_group_id  : document.getElementById('line-fetch-group-id')?.value?.trim() ?? undefined,
     notify_deposit  : document.getElementById('line-notify-deposit')?.checked  ?? true,
     notify_withdraw : document.getElementById('line-notify-withdraw')?.checked ?? true,
   };
@@ -5348,8 +5356,18 @@ api:()=>`
         <input id="line-bot-token" class="fi-full" type="password" placeholder="ใส่ Channel Access Token (ว่าง = คงเดิม)">
       </div>
       <div class="fg">
-        <label style="font-size:12px">Group ID (C... หรือ R...)</label>
+        <label style="font-size:12px">Group ID แจ้งเตือน (C... หรือ R...)</label>
         <input id="line-group-id" class="fi-full" placeholder="เช่น C1234567890abcdef...">
+      </div>
+    </div>
+    <div class="fi-row" style="margin-top:10px">
+      <div class="fg">
+        <label style="font-size:12px">🎯 Fetch Group ID — กลุ่มที่บอทส่งผลหวย</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="line-fetch-group-id" class="fi-full" placeholder="เช่น C1234567890abcdef... (กลุ่มดึงผลหวย)">
+          <button class="btn btn-outline" style="font-size:11px;padding:6px 10px;white-space:nowrap;color:#06c755;border-color:#06c75544" onclick="useDetectedFetchGroupId()">📡 Auto-fill</button>
+        </div>
+        <div style="font-size:11px;color:#888;margin-top:4px">Group ID ของกลุ่ม LINE ที่บอทส่งผลหวยเข้ามา — webhook จะประมวลผลเฉพาะข้อความจากกลุ่มนี้</div>
       </div>
     </div>
     <div style="font-size:11px;color:#888;line-height:1.8;margin-top:8px">
