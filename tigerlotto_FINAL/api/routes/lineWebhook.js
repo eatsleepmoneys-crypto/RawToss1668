@@ -687,9 +687,10 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
     }
     if (!Object.keys(updates).length) return;
 
-    // 1) หางวดที่มีอยู่แล้ว (open/closed) ตรง lottery + วันที่
+    // 1) หางวดที่มีอยู่แล้ว (open/closed/announced) ตรง lottery + วันที่
+    //    รวม 'announced' ด้วย เพื่อให้ LINE result fix ผลที่ auto-fetcher ออกไปแล้วได้
     const existRows = await query(
-      'SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN (\'open\',\'closed\') ORDER BY id DESC LIMIT 1',
+      'SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN (\'open\',\'closed\',\'announced\') ORDER BY id DESC LIMIT 1',
       [lt.id, drawDate]
     );
     const existRound = existRows.length ? existRows[0] : null;

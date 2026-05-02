@@ -1141,5 +1141,39 @@ server.listen(PORT, '0.0.0.0', () => {
     startRoundManager();
     console.log('[ROUND_MGR] Started — auto-create/open/close/announce rounds');
     // ─────────────────────────────────────────────────────────────
+
+    // ── LINE Auto-Reprocess: ทุก 3 นาที บันทึกผลจาก line_messages อัตโนมัติ ──
+    const { parseLotteryMessage, saveLotteryResult } = require('./routes/lineWebhook');
+    async function autoReprocessLineMessages() {
+      try {
+        const rows = await query(
+          `SELECT id, msg_id, message_text FROM line_messages
+           WHERE parsed=0 AND received_at >= NOW() - INTERVAL 4 HOUR
+           ORDER BY received_at ASC LIMIT 100`
+        );
+        if (!rows.length) return;
+        let saved = 0, errors = 0;
+        for (const row of rows) {
+          try {
+            const result = parseLotteryMessage(row.message_text || '');
+            if (!result) continue;
+            await saveLotteryResult(result);
+            await query('UPDATE line_messages SET parsed=1 WHERE id=?', [row.id]);
+            saved++;
+          } catch(e) {
+            errors++;
+            console.warn('[LINE_AUTO] msg', row.id, e.message);
+          }
+        }
+        if (saved > 0) console.log(\`[LINE_AUTO] auto-reprocess: saved=\${saved} errors=\${errors}\`);
+      } catch(e) {
+        console.warn('[LINE_AUTO] autoReprocessLineMessages error:', e.message);
+      }
+    }
+    // รันครั้งแรกทันที แล้วทุก 3 นาที
+    autoReprocessLineMessages();
+    setInterval(autoReprocessLineMessages, 3 * 60_000);
+    console.log('[LINE_AUTO] Started — auto-reprocess LINE messages every 3 minutes');
+    // ─────────────────────────────────────────────────────────────
   }, 5_000);
 });

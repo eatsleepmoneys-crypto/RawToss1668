@@ -1344,7 +1344,7 @@ router.post('/line-save-result', authAdmin, rbac.requirePerm('results.announce')
 
     // หา round ที่มีอยู่ (open/closed) ตรงวันที่
     const existRows = await query(
-      "SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN ('open','closed') ORDER BY id DESC LIMIT 1",
+      "SELECT id FROM lottery_rounds WHERE lottery_id=? AND DATE(draw_date)=? AND status IN ('open','closed','announced') ORDER BY id DESC LIMIT 1",
       [lt.id, draw_date]
     );
 
