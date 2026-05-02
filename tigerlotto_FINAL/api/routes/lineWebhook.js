@@ -525,15 +525,15 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
     const uvals = Object.values(updates);
 
     if (existRound) {
-      // 2a) งวดมีอยู่ → update prizes + announced
+      // 2a) งวดมีอยู่ → update status ใน lottery_rounds (prizes อยู่ใน lottery_results เท่านั้น)
       await query(
-        'UPDATE lottery_rounds SET ' + setClause(ukeys) + ', status=\'announced\', updated_at=NOW() WHERE id=?',
-        [...uvals, existRound.id]
+        'UPDATE lottery_rounds SET status=\'announced\', updated_at=NOW() WHERE id=?',
+        [existRound.id]
       );
       await query(
         'INSERT INTO lottery_results (round_id, ' + colList(ukeys) + ', announced_at) VALUES (?,' + ukeys.map(function(){return '?';}).join(',') + ', NOW()) ON DUPLICATE KEY UPDATE ' + setClause(ukeys) + ', announced_at=NOW()',
         [existRound.id, ...uvals, ...uvals]
-      ).catch(function(){});
+      );
       console.log('[LINE Fetch] updated round #' + existRound.id + ' ' + lotteryCode + ' ' + drawDate, updates);
     } else {
       // 2b) ไม่มีงวดที่รับแทงอยู่ → สร้างงวดใหม่ announced ทันที
