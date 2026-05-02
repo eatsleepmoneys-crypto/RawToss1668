@@ -7468,10 +7468,25 @@ function lfParseMsg(text) {
   let rawBot = botM ? botM[1] : '';  // เลขดิบจาก ↓
 
   // fallback: ถ้าไม่มีลูกศร หาตัวเลขบรรทัดบริสุทธิ์
+  // ⚠ ต้องกรอง "date-derived" ออก เช่น "02 พฤษภาคม 2569" → "022569" (DD+YYYY)
   if (!rawTop && !rawBot) {
     const numLines = text.split('\n')
       .map(l => l.replace(/[^0-9]/g, '').trim())
-      .filter(l => l.length >= 2 && l.length <= 6);
+      .filter(l => {
+        if (l.length < 2 || l.length > 6) return false;
+        // ตัด DD+YYYY เช่น "022569" ออก
+        if (l.length >= 5) {
+          const day = parseInt(l.slice(0, 2), 10);
+          const yr  = parseInt(l.slice(2), 10);
+          if (day >= 1 && day <= 31 && yr >= 2000 && yr <= 2700) return false;
+        }
+        // ตัด 4-หลักปี ออก (2500–2700 CE หรือ 2000–2100 AD)
+        if (l.length === 4) {
+          const n = parseInt(l, 10);
+          if ((n >= 2000 && n <= 2100) || (n >= 2500 && n <= 2700)) return false;
+        }
+        return true;
+      });
     if (numLines[0]) rawTop = numLines[0];
     if (numLines[1]) rawBot = numLines[1];
   }
