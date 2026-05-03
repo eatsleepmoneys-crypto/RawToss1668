@@ -1377,14 +1377,15 @@ router.post('/line-save-result', authAdmin, rbac.requirePerm('results.announce')
 
 
 // POST /api/admin/line-reprocess — re-parse ข้อความที่ parsed=0 แล้ว auto-save
-// body: { date? (YYYY-MM-DD, ถ้าไม่ส่ง = ทั้งหมด), limit? (max 500) }
+// body: { date? (YYYY-MM-DD, ถ้าไม่ส่ง = ทั้งหมด), limit? (max 500), force? (reprocess ทุก msg รวม parsed=1) }
 router.post('/line-reprocess', authAdmin, rbac.requirePerm('results.announce'), async (req, res) => {
   try {
     const { parseLotteryMessage, saveLotteryResult } = require('./lineWebhook');
     const date  = req.body?.date  || null;
+    const force = req.body?.force === true || req.body?.force === 'true';
     const limit = Math.min(500, parseInt(req.body?.limit) || 200);
 
-    const conds = ['parsed=0'], params = [];
+    const conds = [force ? '1=1' : 'parsed=0'], params = [];
     if (date) {
       conds.push('DATE(received_at)=?');
       params.push(date);
@@ -1410,8 +1411,4 @@ router.post('/line-reprocess', authAdmin, rbac.requirePerm('results.announce'), 
       }
     }
 
-    res.json({ success: true, total: rows.length, saved, skipped, errors });
-  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
-});
-
-module.exports = router;
+    res.json({ success: true, total: rows.l
