@@ -716,8 +716,8 @@ async function saveLotteryResult({ lotteryCode, drawDate, prizes }) {
       // 2b) ไม่มีงวดที่รับแทงอยู่ → สร้างงวดใหม่ announced ทันที
       const roundCode = lotteryCode + '-' + drawDate.replace(/-/g,'');
       await query(
-        'INSERT INTO lottery_rounds (uuid, lottery_id, round_code, round_name, draw_date, status) VALUES (?,?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
-        [uuidv4(), lt.id, roundCode, 'งวด ' + drawDate, drawDate]
+        'INSERT INTO lottery_rounds (uuid, lottery_id, round_code, round_name, draw_date, close_at, status) VALUES (?,?,?,?,?,?,\'announced\') ON DUPLICATE KEY UPDATE status=\'announced\', updated_at=NOW()',
+        [uuidv4(), lt.id, roundCode, 'งวด ' + drawDate, drawDate, drawDate]
       );
       const newRows = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
       if (!newRows.length) return;

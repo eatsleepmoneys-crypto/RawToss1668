@@ -1359,9 +1359,10 @@ router.post('/line-save-result', authAdmin, rbac.requirePerm('results.announce')
     } else {
       // สร้างงวดใหม่
       const roundCode = lottery_code + '-' + draw_date.replace(/-/g,'');
+      const { v4: uuidv4_admin } = require('uuid');
       await query(
-        "INSERT INTO lottery_rounds (lottery_id,round_code,round_name,draw_date,status) VALUES (?,?,?,?,'announced') ON DUPLICATE KEY UPDATE status='announced',updated_at=NOW()",
-        [lt.id, roundCode, 'งวด ' + draw_date, draw_date]
+        "INSERT INTO lottery_rounds (uuid,lottery_id,round_code,round_name,draw_date,close_at,status) VALUES (?,?,?,?,?,?,'announced') ON DUPLICATE KEY UPDATE status='announced',updated_at=NOW()",
+        [uuidv4_admin(), lt.id, roundCode, 'งวด ' + draw_date, draw_date, draw_date]
       );
       const [nr] = await query('SELECT id FROM lottery_rounds WHERE round_code=? LIMIT 1', [roundCode]);
       if (!nr) return res.status(500).json({ success: false, message: 'สร้าง round ไม่สำเร็จ' });
