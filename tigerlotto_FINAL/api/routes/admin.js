@@ -1411,4 +1411,8 @@ router.post('/line-reprocess', authAdmin, rbac.requirePerm('results.announce'), 
       }
     }
 
-    res.json({ success: true, total: rows.l
+    res.json({ success: true, total: rows.length, saved, skipped, errors });
+  } catch(e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
+module.exports = router;
